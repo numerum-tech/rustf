@@ -1,0 +1,813 @@
+# 📋 RustF Models Guide
+
+This directory contains your application's data models and business logic following the RustF base/wrapper pattern.
+
+## 🏗️ Directory Structure
+
+```
+src/models/
+├── base/           # 🚫 NEVER EDIT - Generated code only
+│   ├── user_base.rs    # ⚠️  Overwritten on each generation
+│   └── product_base.rs # ⚠️  Overwritten on each generation
+├── user.rs         # ✅ EDIT HERE - Business logic
+├── product.rs      # ✅ EDIT HERE - Business logic
+└── MODELS_README.md    # 📖 This file
+```
+
+## 🤖 Instructions for AI Agents
+
+### ❌ NEVER DO:
+- Edit files in `base/`
+- Modify files with "AUTOMATICALLY GENERATED" header
+- Import UserBase, ProductBase directly in the application
+- Add business logic to base models
+- Remove the `register()` function from wrappers
+
+### ✅ ALWAYS DO:
+- Edit wrapper models (user.rs, product.rs, etc.)
+- Add business methods to wrapper structs
+- Use composition: `struct User { base: UserBase }`
+- Preserve the `register()` function in each model
+- Guide users to wrapper models for customization
+- Use `self.base.field` to access DB fields
+- Use `self.base.create()`, `.update()`, `.delete()` for DB operations
+
+### 🔄 Recommended pattern:
+```rust
+// ✅ Correct: Business logic in the wrapper
+impl User {
+    pub fn validate_email(&self) -> bool {
+        // Business logic here
+    }
+    
+    pub async fn find_active(pool: &Pool<{{pool_type}}>) -> Result<Vec<Self>> {
+        // Uses self.base for DB operations
+    }
+}
+
+// ❌ Incorrect: Never edit base models
+impl UserBase {
+    // These methods will be removed during regeneration!
+}
+```
+
+## 🔄 Development workflow
+
+1. **Initial generation**: `rustf-cli schema generate models`
+2. **Development**: Edit `user.rs` to add business logic  
+3. **Schema evolution**: Modify `schemas/users.yaml`
+4. **Regeneration**: `rustf-cli schema generate models` (only `base/` is overwritten)
+5. **Auto-discovery**: `auto_models!()` automatically finds wrappers
+
+## 📊 File types
+
+| Type | Location | Editable | Description |
+|------|----------|----------|-------------|
+| Base | `base/*_base.rs` | ❌ No | Generated CRUD models |
+| Wrapper | `*.rs` | ✅ Yes | Business logic |
+| Schema | `schemas/*.yaml` | ✅ Yes | DB definition |
+
+## 🚨 Important rules
+
+- **Never import directly** base models in the application
+- **Always use** wrappers (User, Product, etc.)
+- **Preserve** the `register()` function for auto_models!()
+- **Composition** rather than inheritance: `User { base: UserBase }`
+
+## 🤖 Type Constants Pattern for AI Agents
+
+Each generated base model includes a `Types` module with type aliases for every database field. This enables AI agents to generate schema-aware, type-safe code without hardcoding types.
+
+### 📖 Type Constants Usage Pattern
+
+**Instead of hardcoding types:**
+```rust
+// ❌ AVOID: Hardcoded types (breaks on schema changes)
+pub struct UserSummary {
+    pub id: i64,           // Hardcoded - might be wrong type
+    pub name: String,      // Hardcoded
+    pub email: String,     // Hardcoded
+}
+
+pub fn get_user_email(id: i64) -> String {  // Hardcoded types
+    // ...
+}
+```
+
+**Use type constants instead:**
+```rust
+// ✅ PREFERRED: Schema-aware types
+pub struct UserSummary {
+    pub id: UserBase::Types::id,           // = i32 (from schema)
+    pub name: UserBase::Types::name,       // = String
+    pub email: UserBase::Types::email,     // = String
+}
+
+pub fn get_user_email(id: UserBase::Types::id) -> UserBase::Types::email {
+    // Types automatically match database schema
+}
+```
+
+### 🔍 AI Agent Type Discovery Pattern
+
+**Step 1: Read the base model file**
+```rust
+// AI agent reads: src/models/base/users_base.rs
+// Discovers: UserBase::Types::email = String
+// Discovers: UserBase::Types::created_at = DateTime<Utc>
+// Discovers: UserBase::Types::id = i32
+```
+
+**Step 2: Generate schema-aware code**
+```rust
+// AI agent generates type-safe function signatures:
+pub async fn find_user_by_email(
+    pool: &Pool<{{pool_type}}>,
+    email: UserBase::Types::email  // = String, but schema-derived
+) -> Result<Option<UserBase>> {
+    UserBase::find_by_email(pool, &email).await
+}
+
+pub async fn update_user_status(
+    pool: &Pool<{{pool_type}}>,
+    id: UserBase::Types::id,                    // = i32
+    is_active: UserBase::Types::is_active       // = bool
+) -> Result<()> {
+    // ...
+}
+```
+
+### 📋 AI Agent Best Practices
+
+1. **Always read Types module first** - Parse `pub mod Types { ... }` to understand available types
+2. **Use type constants in all generated code** - Never hardcode `i32`, `String`, etc.
+3. **Generate validation based on types** - Use type information for business rules
+4. **Create projections with type constants** - Build query result structs using schema types
+5. **Update code on schema changes** - Regenerate when Types module changes
+
+## 🚀 Quick Start Template
+
+### Option 1: Schema-Based Model (Recommended)
+
+1. **Create schema file** `schemas/users.yaml`:
+```yaml
+name: users
+table: users
+fields:
+  id:
+    type: integer
+    primary_key: true
+    auto_increment: true
+  name:
+    type: string
+    max_length: 100
+    required: true
+  email:
+    type: string
+    max_length: 255
+    unique: true
+    required: true
+  created_at:
+    type: timestamp
+    default: now
+```
+
+2. **Generate base model** with CLI:
+```bash
+rustf-cli schema generate --model users
+```
+
+3. **Create business logic** `src/models/users.rs`:
+```rust
+use rustf::prelude::*;
+use anyhow::Result;
+
+// Import the generated base model
+#[path = "base/users_base.rs"]
+mod users_base;
+use users_base::UserBase;
+
+/// User model with business logic extending UserBase
+pub struct User {
+    base: UserBase,
+}
+
+impl User {
+    /// Create User from base model
+    pub fn from_base(base: UserBase) -> Self {
+        Self { base }
+    }
+
+    /// Access to base model for database operations
+    pub fn base(&self) -> &UserBase {
+        &self.base  
+    }
+
+    /// Convert to base model for database operations
+    pub fn into_base(self) -> UserBase {
+        self.base
+    }
+
+    // Convenience accessors
+    pub fn id(&self) -> i32 { self.base.id }
+    pub fn name(&self) -> &str { &self.base.name }
+    pub fn email(&self) -> &str { &self.base.email }
+
+    /// Find user by ID with business logic
+    pub async fn find_by_id(pool: &sqlx::PgPool, id: i32) -> Result<Option<Self>> {
+        if let Some(base) = UserBase::find_by_id(pool, id).await? {
+            Ok(Some(Self::from_base(base)))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Find user by email
+    pub async fn find_by_email(pool: &sqlx::PgPool, email: &str) -> Result<Option<Self>> {
+        if let Some(base) = UserBase::find_by_field(pool, "email", email).await? {
+            Ok(Some(Self::from_base(base)))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Create new user with validation
+    pub async fn create(pool: &sqlx::PgPool, name: &str, email: &str) -> Result<Self> {
+        // Business logic validation
+        if name.trim().is_empty() {
+            return Err(anyhow::anyhow!("Name cannot be empty"));
+        }
+
+        if !email.contains('@') {
+            return Err(anyhow::anyhow!("Invalid email format"));
+        }
+
+        // Check if email already exists
+        if let Some(_) = Self::find_by_email(pool, email).await? {
+            return Err(anyhow::anyhow!("Email already exists"));
+        }
+
+        // Create using base model
+        let base = UserBase::create(pool, name, email).await?;
+        Ok(Self::from_base(base))
+    }
+
+    /// Update user with validation
+    pub async fn update(&mut self, pool: &sqlx::PgPool, name: &str, email: &str) -> Result<()> {
+        // Validation logic
+        if name.trim().is_empty() {
+            return Err(anyhow::anyhow!("Name cannot be empty"));
+        }
+
+        // Update base model
+        self.base.update(pool, name, email).await?;
+        Ok(())
+    }
+
+    /// Delete user
+    pub async fn delete(self, pool: &sqlx::PgPool) -> Result<()> {
+        self.base.delete(pool).await
+    }
+}
+
+/// Required: Registration function for auto-discovery
+pub fn register(registry: &mut rustf::models::ModelRegistry) {
+    registry.register("User", "users");
+    log::debug!("User model registered with business logic");
+}
+```
+
+### Option 2: Manual Model (No Schema)
+
+Create `src/models/categories.rs`:
+```rust
+use rustf::prelude::*;
+use serde::{Deserialize, Serialize};
+use sqlx::{PgPool, FromRow};
+use anyhow::Result;
+
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct Category {
+    pub id: i32,
+    pub name: String,
+    pub slug: String,
+    pub description: Option<String>,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+}
+
+impl Category {
+    /// Find all categories
+    pub async fn find_all(pool: &PgPool) -> Result<Vec<Self>> {
+        let categories = sqlx::query_as!(
+            Category,
+            "SELECT id, name, slug, description, created_at FROM categories ORDER BY name"
+        )
+        .fetch_all(pool)
+        .await?;
+        
+        Ok(categories)
+    }
+
+    /// Find category by ID
+    pub async fn find_by_id(pool: &PgPool, id: i32) -> Result<Option<Self>> {
+        let category = sqlx::query_as!(
+            Category,
+            "SELECT id, name, slug, description, created_at FROM categories WHERE id = $1",
+            id
+        )
+        .fetch_optional(pool)
+        .await?;
+        
+        Ok(category)
+    }
+
+    /// Find category by slug
+    pub async fn find_by_slug(pool: &PgPool, slug: &str) -> Result<Option<Self>> {
+        let category = sqlx::query_as!(
+            Category,
+            "SELECT id, name, slug, description, created_at FROM categories WHERE slug = $1",
+            slug
+        )
+        .fetch_optional(pool)
+        .await?;
+        
+        Ok(category)
+    }
+
+    /// Create new category
+    pub async fn create(pool: &PgPool, name: &str, description: Option<&str>) -> Result<Self> {
+        let slug = Self::generate_slug(name);
+        
+        let category = sqlx::query_as!(
+            Category,
+            r#"
+            INSERT INTO categories (name, slug, description, created_at)
+            VALUES ($1, $2, $3, NOW())
+            RETURNING id, name, slug, description, created_at
+            "#,
+            name,
+            slug,
+            description
+        )
+        .fetch_one(pool)
+        .await?;
+        
+        Ok(category)
+    }
+
+    /// Update category
+    pub async fn update(&mut self, pool: &PgPool, name: &str, description: Option<&str>) -> Result<()> {
+        let slug = Self::generate_slug(name);
+        
+        sqlx::query!(
+            "UPDATE categories SET name = $1, slug = $2, description = $3 WHERE id = $4",
+            name,
+            slug,
+            description,
+            self.id
+        )
+        .execute(pool)
+        .await?;
+        
+        // Update local fields
+        self.name = name.to_string();
+        self.slug = slug;
+        self.description = description.map(String::from);
+        
+        Ok(())
+    }
+
+    /// Delete category
+    pub async fn delete(self, pool: &PgPool) -> Result<()> {
+        sqlx::query!("DELETE FROM categories WHERE id = $1", self.id)
+            .execute(pool)
+            .await?;
+        
+        Ok(())
+    }
+
+    /// Generate URL-friendly slug from name
+    fn generate_slug(name: &str) -> String {
+        name.to_lowercase()
+            .chars()
+            .map(|c| if c.is_alphanumeric() { c } else { '-' })
+            .collect::<String>()
+            .split('-')
+            .filter(|s| !s.is_empty())
+            .collect::<Vec<_>>()
+            .join("-")
+    }
+}
+
+/// Required: Registration function for auto-discovery
+pub fn register(registry: &mut rustf::models::ModelRegistry) {
+    registry.register("Category", "categories");
+    log::debug!("Category model registered");
+}
+```
+
+## 📊 Database Operations
+
+### Basic CRUD Operations
+```rust
+impl User {
+    // Create
+    pub async fn create(pool: &PgPool, data: CreateUserData) -> Result<Self> {
+        let user = sqlx::query_as!(
+            User,
+            "INSERT INTO users (name, email) VALUES ($1, $2) RETURNING *",
+            data.name,
+            data.email
+        )
+        .fetch_one(pool)
+        .await?;
+        
+        Ok(user)
+    }
+
+    // Read
+    pub async fn find_by_id(pool: &PgPool, id: i32) -> Result<Option<Self>> {
+        let user = sqlx::query_as!(User, "SELECT * FROM users WHERE id = $1", id)
+            .fetch_optional(pool)
+            .await?;
+        
+        Ok(user)
+    }
+
+    // Update
+    pub async fn update(&mut self, pool: &PgPool, data: UpdateUserData) -> Result<()> {
+        sqlx::query!(
+            "UPDATE users SET name = $1, email = $2 WHERE id = $3",
+            data.name,
+            data.email,
+            self.id
+        )
+        .execute(pool)
+        .await?;
+        
+        // Update local fields
+        self.name = data.name;
+        self.email = data.email;
+        
+        Ok(())
+    }
+
+    // Delete
+    pub async fn delete(self, pool: &PgPool) -> Result<()> {
+        sqlx::query!("DELETE FROM users WHERE id = $1", self.id)
+            .execute(pool)
+            .await?;
+        
+        Ok(())
+    }
+}
+```
+
+### Advanced Queries
+```rust
+impl User {
+    /// Find users with pagination
+    pub async fn find_paginated(
+        pool: &PgPool, 
+        page: u32, 
+        per_page: u32
+    ) -> Result<(Vec<Self>, u64)> {
+        let offset = (page - 1) * per_page;
+        
+        // Get total count
+        let total: i64 = sqlx::query_scalar!("SELECT COUNT(*) FROM users")
+            .fetch_one(pool)
+            .await?;
+        
+        // Get users for current page
+        let users = sqlx::query_as!(
+            User,
+            "SELECT * FROM users ORDER BY created_at DESC LIMIT $1 OFFSET $2",
+            per_page as i64,
+            offset as i64
+        )
+        .fetch_all(pool)
+        .await?;
+        
+        Ok((users, total as u64))
+    }
+
+    /// Search users by name or email
+    pub async fn search(pool: &PgPool, query: &str) -> Result<Vec<Self>> {
+        let search_term = format!("%{}%", query);
+        
+        let users = sqlx::query_as!(
+            User,
+            "SELECT * FROM users WHERE name ILIKE $1 OR email ILIKE $1 ORDER BY name",
+            search_term
+        )
+        .fetch_all(pool)
+        .await?;
+        
+        Ok(users)
+    }
+
+    /// Find users created in the last N days
+    pub async fn find_recent(pool: &PgPool, days: i32) -> Result<Vec<Self>> {
+        let users = sqlx::query_as!(
+            User,
+            "SELECT * FROM users WHERE created_at > NOW() - INTERVAL '$1 days' ORDER BY created_at DESC",
+            days
+        )
+        .fetch_all(pool)
+        .await?;
+        
+        Ok(users)
+    }
+}
+```
+
+### Relationships
+```rust
+impl User {
+    /// Get user's posts
+    pub async fn posts(&self, pool: &PgPool) -> Result<Vec<Post>> {
+        let posts = sqlx::query_as!(
+            Post,
+            "SELECT * FROM posts WHERE user_id = $1 ORDER BY created_at DESC",
+            self.id
+        )
+        .fetch_all(pool)
+        .await?;
+        
+        Ok(posts)
+    }
+
+    /// Get user with posts (joined query)
+    pub async fn with_posts(pool: &PgPool, user_id: i32) -> Result<Option<UserWithPosts>> {
+        let mut user_with_posts = UserWithPosts {
+            user: None,
+            posts: Vec::new(),
+        };
+        
+        let rows = sqlx::query!(
+            r#"
+            SELECT 
+                u.id as user_id, u.name, u.email, u.created_at as user_created_at,
+                p.id as post_id, p.title, p.content, p.created_at as post_created_at
+            FROM users u
+            LEFT JOIN posts p ON u.id = p.user_id
+            WHERE u.id = $1
+            ORDER BY p.created_at DESC
+            "#,
+            user_id
+        )
+        .fetch_all(pool)
+        .await?;
+        
+        if rows.is_empty() {
+            return Ok(None);
+        }
+        
+        // Build user from first row
+        let first_row = &rows[0];
+        user_with_posts.user = Some(User {
+            id: first_row.user_id,
+            name: first_row.name.clone(),
+            email: first_row.email.clone(),
+            created_at: first_row.user_created_at,
+        });
+        
+        // Build posts from all rows
+        for row in rows {
+            if let Some(post_id) = row.post_id {
+                user_with_posts.posts.push(Post {
+                    id: post_id,
+                    user_id: row.user_id,
+                    title: row.title.unwrap_or_default(),
+                    content: row.content.unwrap_or_default(),
+                    created_at: row.post_created_at.unwrap(),
+                });
+            }
+        }
+        
+        Ok(Some(user_with_posts))
+    }
+}
+```
+
+## 🔐 Validation and Security
+
+### Input Validation
+```rust
+use validator::{Validate, ValidationError};
+
+#[derive(Debug, Validate, Deserialize)]
+pub struct CreateUserData {
+    #[validate(length(min = 2, max = 50, message = "Name must be 2-50 characters"))]
+    pub name: String,
+    
+    #[validate(email(message = "Invalid email format"))]
+    pub email: String,
+    
+    #[validate(length(min = 8, message = "Password must be at least 8 characters"))]
+    pub password: String,
+}
+
+impl User {
+    pub async fn create_validated(pool: &PgPool, data: CreateUserData) -> Result<Self> {
+        // Validate input
+        data.validate()?;
+        
+        // Check for existing email
+        if Self::find_by_email(pool, &data.email).await?.is_some() {
+            return Err(anyhow::anyhow!("Email already exists"));
+        }
+        
+        // Hash password
+        let password_hash = bcrypt::hash(&data.password, bcrypt::DEFAULT_COST)?;
+        
+        // Create user
+        let user = sqlx::query_as!(
+            User,
+            "INSERT INTO users (name, email, password_hash) VALUES ($1, $2, $3) RETURNING *",
+            data.name,
+            data.email,
+            password_hash
+        )
+        .fetch_one(pool)
+        .await?;
+        
+        Ok(user)
+    }
+}
+```
+
+### Authentication
+```rust
+impl User {
+    /// Verify password
+    pub fn verify_password(&self, password: &str) -> Result<bool> {
+        Ok(bcrypt::verify(password, &self.password_hash)?)
+    }
+
+    /// Authenticate user by email and password
+    pub async fn authenticate(pool: &PgPool, email: &str, password: &str) -> Result<Option<Self>> {
+        if let Some(user) = Self::find_by_email(pool, email).await? {
+            if user.verify_password(password)? {
+                Ok(Some(user))
+            } else {
+                Ok(None)
+            }
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Update password
+    pub async fn update_password(&mut self, pool: &PgPool, new_password: &str) -> Result<()> {
+        let password_hash = bcrypt::hash(new_password, bcrypt::DEFAULT_COST)?;
+        
+        sqlx::query!(
+            "UPDATE users SET password_hash = $1 WHERE id = $2",
+            password_hash,
+            self.id
+        )
+        .execute(pool)
+        .await?;
+        
+        self.password_hash = password_hash;
+        Ok(())
+    }
+}
+```
+
+## 🧪 Testing Models
+
+```rust
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sqlx::PgPool;
+    
+    async fn setup_test_db() -> PgPool {
+        // Setup test database connection
+        // This would typically use a test database
+        sqlx::PgPool::connect("postgresql://test:test@localhost/test_db").await.unwrap()
+    }
+    
+    #[tokio::test]
+    async fn test_create_user() {
+        let pool = setup_test_db().await;
+        
+        let data = CreateUserData {
+            name: "Test User".to_string(),
+            email: "test@example.com".to_string(),
+            password: "password123".to_string(),
+        };
+        
+        let user = User::create_validated(&pool, data).await.unwrap();
+        
+        assert_eq!(user.name, "Test User");
+        assert_eq!(user.email, "test@example.com");
+        assert!(user.id > 0);
+    }
+    
+    #[tokio::test]
+    async fn test_find_user_by_email() {
+        let pool = setup_test_db().await;
+        
+        // Create test user first
+        let data = CreateUserData {
+            name: "Test User".to_string(),
+            email: "find@example.com".to_string(),
+            password: "password123".to_string(),
+        };
+        let created_user = User::create_validated(&pool, data).await.unwrap();
+        
+        // Find by email
+        let found_user = User::find_by_email(&pool, "find@example.com").await.unwrap();
+        
+        assert!(found_user.is_some());
+        assert_eq!(found_user.unwrap().id, created_user.id);
+    }
+    
+    #[tokio::test]
+    async fn test_authenticate() {
+        let pool = setup_test_db().await;
+        
+        let data = CreateUserData {
+            name: "Auth User".to_string(),
+            email: "auth@example.com".to_string(),
+            password: "secret123".to_string(),
+        };
+        User::create_validated(&pool, data).await.unwrap();
+        
+        // Test correct password
+        let user = User::authenticate(&pool, "auth@example.com", "secret123").await.unwrap();
+        assert!(user.is_some());
+        
+        // Test wrong password
+        let user = User::authenticate(&pool, "auth@example.com", "wrong").await.unwrap();
+        assert!(user.is_none());
+    }
+}
+```
+
+## 🚀 Integration with Controllers
+
+```rust
+// In controllers/users.rs
+use crate::models::users::User;
+
+async fn create_user(ctx: Context) -> Result<Response> {
+    let data: CreateUserData = ctx.body_json().await?;
+    
+    match User::create_validated(&ctx.database, data).await {
+        Ok(user) => {
+            ctx.flash_success("User created successfully");
+            ctx.json(json!({
+                "success": true,
+                "user": {
+                    "id": user.id,
+                    "name": user.name,
+                    "email": user.email
+                }
+            }))
+        }
+        Err(e) => {
+            ctx.flash_error(&format!("Failed to create user: {}", e));
+            ctx.json(json!({"success": false, "error": e.to_string()}))
+        }
+    }
+}
+
+async fn get_user(ctx: Context) -> Result<Response> {
+    let id: i32 = ctx.param("id").unwrap_or("0").parse().unwrap_or(0);
+    
+    match User::find_by_id(&ctx.database, id).await? {
+        Some(user) => ctx.json(json!({
+            "id": user.id,
+            "name": user.name,
+            "email": user.email
+        })),
+        None => ctx.json(json!({"error": "User not found"})).with_status(404)
+    }
+}
+```
+
+## 🤖 AI Agent Instructions
+
+When creating models:
+1. Always include `pub fn register(registry: &mut ModelRegistry)` function
+2. Use schema-based generation when possible (create `schemas/*.yaml` first)
+3. Place business logic in main model files, database operations in base models
+4. Import `use rustf::prelude::*;` and required database crates
+5. Implement proper error handling with `Result<T>` return types
+6. Use `sqlx` for database operations with prepared statements
+7. Include input validation and security measures
+8. Add comprehensive tests for model functionality
+9. Document relationships and complex queries
+
+**Auto-Discovery**: No need to manually register models - they're automatically discovered and loaded!
+
+**Schema Integration**: Use the RustF CLI to generate base models from YAML schemas, then extend with business logic.
+
+---
+
+### 📚 Generated at {{generation_time}} by RustF CLI v{{cli_version}}

@@ -1,0 +1,389 @@
+// =============================================================================
+// ⚠️  WARNING: AUTOMATICALLY GENERATED FILE - DO NOT EDIT
+// =============================================================================
+// 
+// 🚫 THIS FILE WILL BE OVERWRITTEN during the next generation!
+// 
+// 📝 FOR DEVELOPERS:
+// ❌ NEVER edit this file - your changes will be lost
+// ✅ To add business logic, edit: src/models/{{table_name}}.rs
+// ✅ To modify the DB schema, edit: schemas/{{table_name}}.yaml
+// 🔄 Then run: rustf-cli schema generate models
+// 
+// 🤖 FOR AI AGENTS / CODE ASSISTANTS:
+// ❌ ABSOLUTELY FORBIDDEN to edit this file
+// ✅ Direct modifications to: src/models/{{table_name}}.rs
+// ✅ This file is included via include!() macro
+// ℹ️  This file contains all generated code for the model
+// 
+// 📊 Generation information:
+// - Generated from: schemas/{{table_name}}.yaml
+// - Schema checksum: {{checksum}}
+// - Generated on: {{generation_time}}
+// - RustF CLI version: {{cli_version}}
+// =============================================================================
+
+// Note: This file is included directly, not compiled as a separate module
+// All imports should be at the module level where this is included
+
+{{imports}}
+use rustf::models::{BaseModel, ChangeTracking};
+use rustf::models::query_builder::{DatabaseBackend, SqlValue};
+use async_trait::async_trait;
+use std::collections::HashSet;
+
+/// {{model_name}} model - auto-generated from schema
+/// 
+/// {{table_documentation}}
+/// 
+/// This struct contains all database fields and generated methods.
+/// Extend this in {{table_name}}.rs with custom business logic.
+/// 
+/// ⚠️  DO NOT EDIT - This file will be overwritten
+/// 🤖 AI AGENTS: Add custom methods in {{table_name}}.rs instead
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct {{model_name}} {
+{{struct_fields_with_docs}}
+    /// Tracks which fields have been modified since load/creation
+    /// Used for efficient partial updates
+    #[serde(skip)]
+    changed_fields: HashSet<String>,
+    /// Tracks which fields have been explicitly set to NULL
+    /// Used to distinguish between "not set" and "set to NULL"
+    #[serde(skip)]
+    null_fields: HashSet<String>,
+}
+
+/// AI Agent Documentation and Metadata
+/// 
+/// 🤖 FOR AI AGENTS: Use the CLI command for development-time metadata access:
+/// ```bash
+/// rustf-cli model-metadata {{model_name}} --format json
+/// ```
+/// 
+/// This provides field hints, validation rules, and schema information
+/// without runtime overhead. Never add FIELD_HINTS or VALIDATION_RULES
+/// runtime constants to this file.
+impl {{model_name}} {
+{{enum_fields_list}}
+    
+    // =========================================================================
+    // 🚀 ENUM VALUE CONSTANTS
+    // =========================================================================
+    // Use these constants when setting enum field values
+    // Example: model.set_status({{model_name}}::STATUS_ACTIVE);
+{{enum_constants_in_impl}}
+
+    // =========================================================================
+    // 🔧 ENUM CONVERTER METHODS
+    // =========================================================================
+    // Use these methods to convert enum values for query builders
+    // Example: Users::query().where_eq("status", Users::as_status_enum("ACTIVE"))
+{{enum_converters}}
+    
+    // =========================================================================
+    // 🔄 CHANGE TRACKING HELPER
+    // =========================================================================
+    
+    /// Helper for setting optional fields
+    fn set_optional_field<T>(&mut self, field_name: &str, value: Option<T>, storage: &mut Option<T>) {
+        *storage = value;
+        self.mark_changed(field_name, storage.is_none());
+    }
+    
+    // =========================================================================
+    // 🔍 FIELD GETTERS
+    // =========================================================================
+    
+{{field_getters}}
+    
+    // =========================================================================
+    // 🔧 FIELD SETTERS WITH CHANGE TRACKING
+    // =========================================================================
+    
+{{field_setters}}
+}
+
+// FromRow implementations for each database type
+{{postgres_fromrow_block}}
+{{mysql_fromrow_block}}
+{{sqlite_fromrow_block}}
+
+/// Type constants for AI agent reference
+/// 
+/// AI agents can use these type aliases to generate consistent,
+/// schema-aware code without hardcoding types.
+/// 
+/// Example: {{model_name}}::types::Email resolves to Option<String>
+pub mod types {
+{{type_imports}}
+    
+{{type_constants}}
+}
+
+/// Column name constants for type-safe query building
+/// 
+/// Use these constants instead of hardcoding column names to avoid typos
+/// and get compile-time validation of column names.
+/// 
+/// Example:
+/// ```rust
+/// let users = {{model_name}}::query()?
+///     .where_eq({{model_name}}::columns::IS_ACTIVE, true)
+///     .order_by({{model_name}}::columns::CREATED_AT, OrderDirection::Desc)
+///     .get_all()
+///     .await?;
+/// ```
+pub mod columns {
+{{column_constants}}
+}
+
+/// Implementation of change tracking for efficient updates
+impl ChangeTracking for {{model_name}} {
+    fn mark_changed(&mut self, field: &str, is_null: bool) {
+        self.changed_fields.insert(field.to_string());
+        if is_null {
+            self.null_fields.insert(field.to_string());
+        } else {
+            self.null_fields.remove(field);
+        }
+    }
+    
+    fn is_changed(&self, field: &str) -> bool {
+        self.changed_fields.contains(field)
+    }
+    
+    fn is_null(&self, field: &str) -> bool {
+        self.null_fields.contains(field)
+    }
+    
+    fn has_changes(&self) -> bool {
+        !self.changed_fields.is_empty()
+    }
+    
+    fn clear_changes(&mut self) {
+        self.changed_fields.clear();
+        self.null_fields.clear();
+    }
+    
+    fn changed_fields(&self) -> Vec<String> {
+        self.changed_fields.iter().cloned().collect()
+    }
+    
+    fn changed_fields_set(&self) -> &HashSet<String> {
+        &self.changed_fields
+    }
+    
+    fn null_fields_set(&self) -> &HashSet<String> {
+        &self.null_fields
+    }
+}
+
+/// Base model implementation for database operations
+#[async_trait]
+impl BaseModel for {{model_name}} {
+    type IdType = {{id_type}};
+    const TABLE_NAME: &'static str = "{{table_name}}";
+    
+    fn id(&self) -> Self::IdType {
+        {{id_method_impl}}
+    }
+    
+    /// Create a new instance from JSON data
+    async fn from_row_data(data: serde_json::Value) -> anyhow::Result<Self> {
+        let model: Self = serde_json::from_value(data)?;
+        Ok(model)
+    }
+    
+    /// Execute a SELECT query and convert results to model instances
+    async fn execute_select_query(sql: &str, params: Vec<rustf::models::query_builder::SqlValue>) -> anyhow::Result<Vec<Self>> {
+        // Use DB helper to execute with parameters
+        let results = rustf::db::DB::fetch_all_with_params(sql, params).await
+            .map_err(|e| anyhow::anyhow!("Failed to execute query: {}", e))?;
+        
+        // Convert JSON results to model instances
+        let mut models = Vec::new();
+        for json_row in results {
+            let model: Self = serde_json::from_value(json_row)?;
+            models.push(model);
+        }
+        Ok(models)
+    }
+    
+    /// Execute a single SELECT query and convert result to model instance
+    async fn execute_select_one_query(sql: &str, params: Vec<rustf::models::query_builder::SqlValue>) -> anyhow::Result<Option<Self>> {
+        // Use DB helper to execute with parameters
+        let result = rustf::db::DB::fetch_one_with_params(sql, params).await
+            .map_err(|e| anyhow::anyhow!("Failed to execute query: {}", e))?;
+        
+        // Convert JSON result to model instance if found
+        match result {
+            Some(json_row) => {
+                let model: Self = serde_json::from_value(json_row)?;
+                Ok(Some(model))
+            }
+            None => Ok(None),
+        }
+    }
+    
+    /// Get the value of a field by name for dynamic field access
+    fn get_field_value(&self, field_name: &str) -> rustf::error::Result<SqlValue> {
+        use rustf::models::query_builder::SqlValue;
+        match field_name {
+{{get_field_value_match}}
+            _ => Err(rustf::error::Error::Validation(format!("Unknown field: {}", field_name))),
+        }
+    }
+}
+
+impl {{model_name}} {
+    /// Create a builder for constructing new {{model_name}} instances
+    /// 
+    /// The builder pattern is the recommended way to create new models.
+    /// It provides a fluent interface with validation and direct database saving.
+    /// 
+    /// # Example
+    /// ```rust
+    /// let new_model = {{model_name}}::builder()
+    ///     .field1("value1")
+    ///     .field2(42)
+    ///     .save(&pool)
+    ///     .await?;
+    /// ```
+    pub fn builder() -> {{model_name}}Builder {
+        {{model_name}}Builder::new()
+    }
+}
+
+/// Builder for {{model_name}}
+/// 
+/// Provides a fluent interface for constructing {{model_name}} instances.
+/// Required fields must be set before calling `build()`, while optional fields
+/// have sensible defaults.
+pub struct {{model_name}}Builder {
+{{builder_fields}}
+}
+
+impl {{model_name}}Builder {
+    /// Create a new builder with default values
+    pub fn new() -> Self {
+        Self {
+{{builder_defaults}}
+        }
+    }
+    
+{{builder_methods}}
+    
+{{builder_validate_method}}
+    
+    /// Build the {{model_name}} instance
+    /// 
+    /// # Returns
+    /// * `Ok({{model_name}})` if all required fields are set
+    /// * `Err(String)` if any required fields are missing
+    pub fn build(self) -> std::result::Result<{{model_name}}, String> {
+{{builder_validation}}
+        
+        Ok({{model_name}} {
+{{builder_build}}
+        })
+    }
+    
+    /// Save the model to the database
+    /// 
+    /// This is the primary method for creating new records in the database.
+    /// It builds the model with validation and then inserts it.
+    /// 
+    /// # Example
+    /// ```rust
+    /// let new_model = {{model_name}}::builder()
+    ///     .field1("value1")
+    ///     .field2(42)
+    ///     .save()
+    ///     .await?;
+    /// ```
+    pub async fn save(self) -> rustf::Result<{{model_name}}> {
+        let mut model = self.build().map_err(|e| rustf::Error::Validation(e))?;
+        // Clear any change tracking for new records
+        model.clear_changes();
+        {{model_name}}::create_internal(model).await
+    }
+}
+
+impl {{model_name}} {
+    // =========================================================================
+    // 🚀 BASEMODEL METHODS - Automatically available through trait
+    // =========================================================================
+    // The following methods are provided by BaseModel trait implementation:
+    //
+    // Instance methods:
+    // - update(&mut self) -> Result<()>           // Smart update with change tracking (only changed fields)
+    // - delete(self) -> Result<()>                // Delete this record from database
+    // - query() -> Result<ModelQuery<Self>>       // Start building a database query
+    //
+    // Static methods:
+    // - get_by_id(id) -> Result<Option<Self>>     // Find record by primary key
+    // - get_all() -> Result<Vec<Self>>            // Get all records from table
+    // - count() -> Result<i64>                    // Count total records in table
+    // - get_first() -> Result<Option<Self>>       // Get first record from table
+    // - exists_any() -> Result<bool>              // Check if any records exist
+    // - paginate(page, per_page) -> Result<Vec<Self>>  // Get paginated results
+    // - where_eq(column, value) -> Result<Vec<Self>>   // Find records by column value
+    //
+    // Query builder (via query() method):
+    // - where_eq(column, value)                   // WHERE column = value
+    // - where_ne(column, value)                   // WHERE column != value
+    // - where_gt/gte/lt/lte(column, value)        // Comparison operators
+    // - where_like(column, pattern)               // WHERE column LIKE pattern
+    // - where_in(column, values)                  // WHERE column IN (values)
+    // - where_not_in(column, values)              // WHERE column NOT IN (values)
+    // - where_between(column, start, end)         // WHERE column BETWEEN start AND end
+    // - where_null/where_not_null(column)         // NULL checks
+    // - order_by(column, direction)               // ORDER BY column ASC/DESC
+    // - limit(n) / offset(n)                      // LIMIT and OFFSET
+    // - join/left_join/right_join/inner_join      // JOIN operations
+    //
+    // Change tracking (from ChangeTracking trait):
+    // - has_changes() -> bool                     // Check if any fields modified
+    // - changed_fields() -> Vec<String>           // Get list of modified fields
+    // - clear_changes()                           // Reset change tracking
+    // - is_changed(field) -> bool                 // Check if specific field changed
+    // =========================================================================
+    
+    /// Internal method to insert a model into the database
+    async fn create_internal(mut model: Self) -> rustf::Result<Self> {
+        use rustf::models::query_builder::{QueryBuilder, DatabaseBackend, SqlValue};
+        use std::collections::HashMap;
+        
+        // Clear change tracking for new inserts
+        model.clear_changes();
+        
+        let mut insert_data = HashMap::new();
+{{insert_field_values}}
+        
+        let query_builder = QueryBuilder::new({{database_backend}})
+            .from("{{table_name}}");
+        let (sql, params) = query_builder.build_insert(&insert_data)
+            .map_err(|e| rustf::Error::DatabaseQuery(format!("Failed to build insert query: {}", e)))?;
+        
+        // Execute insert and get the returned row
+        let result = rustf::db::DB::execute_insert_returning(
+            &sql,
+            params,
+            "{{table_name}}",
+            "{{primary_key}}"
+        ).await
+            .map_err(|e| rustf::Error::DatabaseQuery(format!("Failed to insert: {}", e)))?;
+        
+        if let Some(json_data) = result {
+            // Convert JSON back to model
+            // Note: This still uses JSON for now, but at least handles
+            // database-specific RETURNING/LAST_INSERT_ID correctly
+            let model: Self = serde_json::from_value(json_data)
+                .map_err(|e| rustf::Error::Internal(format!("Failed to deserialize model: {}", e)))?;
+            Ok(model)
+        } else {
+            Err(rustf::Error::DatabaseQuery("Insert did not return a row".to_string()))
+        }
+    }
+}

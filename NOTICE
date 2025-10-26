@@ -1,0 +1,34 @@
+RustF - AI-Friendly MVC Framework for Rust
+Copyright 2025 NUMERUM
+
+This framework was developed by NUMERUM in collaboration with AI coding agents; mainly Claude Code by Anthropic (paid service).
+
+ABOUT THIS PROJECT:
+RustF is a convention-based MVC web framework for Rust inspired by Total.js,
+designed to be equally intuitive for human developers and AI coding assistants.
+
+ATTRIBUTION:
+This software includes contributions from:
+- NUMERUM (primary development and architecture)
+- Claude Code by Anthropic (AI coding assistance)
+- The Rust community (feedback, reviews, and contributions)
+
+We actively seek feedback from the Rust community to improve code quality,
+safety, and performance. Rust experts are encouraged to review the codebase
+and share suggestions.
+
+DEVELOPMENT APPROACH:
+Built with collaboration between human developers at NUMERUM and AI assistance,
+this project demonstrates how AI tools can accelerate software development while
+maintaining high quality standards through human oversight and expertise.
+
+All individual contributors are credited in the git commit history and
+GitHub contributors list.
+
+SOURCE CODE:
+https://github.com/numerum-tech/rustf
+
+QUESTIONS & CONTRIBUTIONS:
+For questions, contributions, or feedback, please visit:
+https://github.com/numerum-tech/rustf/issues
+https://github.com/numerum-tech/rustf/discussions

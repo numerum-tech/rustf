@@ -1,0 +1,629 @@
+# Views Directory
+
+This directory contains your application's HTML templates and layouts. RustF uses the Tera template engine for server-side rendering with powerful features like template inheritance, macros, and filters.
+
+## 🤖 AI Agent Quick Reference
+
+**Purpose**: HTML templates, layouts, and view components for server-side rendering  
+**Template Engine**: Tera (Jinja2-inspired syntax)  
+**File Extension**: `.html` (configurable in config.toml)  
+**Layout System**: Supports template inheritance with `{% extends %}` and `{% block %}`  
+**Context Access**: Templates receive data from controllers via `ctx.view()`
+
+## 📁 File Organization
+
+```
+views/
+├── layouts/
+│   ├── application.html    # Main application layout
+│   ├── admin.html         # Admin panel layout
+│   └── auth.html          # Authentication layout
+├── home/
+│   ├── index.html         # Homepage template
+│   └── about.html         # About page template
+├── users/
+│   ├── index.html         # User list
+│   ├── show.html          # User detail
+│   ├── create.html        # User creation form
+│   └── edit.html          # User edit form
+├── partials/
+│   ├── _header.html       # Header component
+│   ├── _footer.html       # Footer component
+│   ├── _navigation.html   # Navigation menu
+│   └── _flash_messages.html # Flash message display
+└── errors/
+    ├── 404.html           # Not found page
+    ├── 500.html           # Server error page
+    └── maintenance.html   # Maintenance mode page
+```
+
+## 🚀 Quick Start Template
+
+### Basic Page Template
+Create `views/example/index.html`:
+
+```html
+{% extends "layouts/default.html" %}
+
+{% block title %}Example Page{% endblock %}
+
+{% block content %}
+<div class="example-page">
+    <h1>{{ title }}</h1>
+    
+    {% if items %}
+        <ul class="item-list">
+        {% for item in items %}
+            <li class="item">
+                <h3>{{ item.name }}</h3>
+                <p>{{ item.description }}</p>
+                <small>Created: {{ item.created_at | date(format="%Y-%m-%d") }}</small>
+            </li>
+        {% endfor %}
+        </ul>
+    {% else %}
+        <p class="no-items">No items found.</p>
+    {% endif %}
+    
+    <div class="actions">
+        <a href="/example/create" class="btn btn-primary">Add New Item</a>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Page-specific JavaScript
+    console.log('Example page loaded with {{ items | length }} items');
+</script>
+{% endblock %}
+```
+
+### Form Template
+Create `views/example/create.html`:
+
+```html
+{% extends "layouts/default.html" %}
+
+{% block title %}Create Item{% endblock %}
+
+{% block content %}
+<div class="create-form">
+    <h1>Create New Item</h1>
+    
+    <form method="POST" action="/example" class="form">
+        <!-- CSRF token (if using CSRF middleware) -->
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        
+        <div class="form-group">
+            <label for="name">Name:</label>
+            <input 
+                type="text" 
+                id="name" 
+                name="name" 
+                value="{{ form.name | default(value='') }}"
+                required
+                {% if errors.name %}class="error"{% endif %}
+            >
+            {% if errors.name %}
+                <span class="error-message">{{ errors.name }}</span>
+            {% endif %}
+        </div>
+        
+        <div class="form-group">
+            <label for="description">Description:</label>
+            <textarea 
+                id="description" 
+                name="description"
+                rows="4"
+                {% if errors.description %}class="error"{% endif %}
+            >{{ form.description | default(value='') }}</textarea>
+            {% if errors.description %}
+                <span class="error-message">{{ errors.description }}</span>
+            {% endif %}
+        </div>
+        
+        <div class="form-group">
+            <label for="category">Category:</label>
+            <select id="category" name="category" required>
+                <option value="">Select a category</option>
+                {% for category in categories %}
+                    <option 
+                        value="{{ category.id }}"
+                        {% if form.category == category.id %}selected{% endif %}
+                    >
+                        {{ category.name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Create Item</button>
+            <a href="/example" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
+```
+
+## 🎨 Layout System
+
+### Main Layout (`layouts/default.html`)
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{{project_title}}{% endblock %}</title>
+    
+    <!-- Security headers -->
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta http-equiv="X-Frame-Options" content="DENY">
+    
+    <!-- Styles -->
+    <link rel="stylesheet" href="/static/css/main.css">
+    {% block styles %}{% endblock %}
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        {% include "partials/_header.html" %}
+        
+        <!-- Navigation -->
+        {% include "partials/_navigation.html" %}
+        
+        <!-- Flash Messages -->
+        {% include "partials/_flash_messages.html" %}
+        
+        <!-- Main Content -->
+        <main class="main-content">
+            {% block content %}{% endblock %}
+        </main>
+        
+        <!-- Footer -->
+        {% include "partials/_footer.html" %}
+    </div>
+    
+    <!-- Scripts -->
+    <script src="/static/js/main.js"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>
+```
+
+### Partial Templates
+Create `partials/_flash_messages.html`:
+
+```html
+<!-- Flash Messages Partial -->
+{% if flash %}
+    <div class="flash-messages">
+        {% if flash.error_msg %}
+            <div class="flash flash-error" role="alert">
+                <strong>Error:</strong> {{ flash.error_msg }}
+                <button type="button" class="flash-close" onclick="this.parentElement.remove()">×</button>
+            </div>
+        {% endif %}
+        
+        {% if flash.success_msg %}
+            <div class="flash flash-success" role="alert">
+                <strong>Success:</strong> {{ flash.success_msg }}
+                <button type="button" class="flash-close" onclick="this.parentElement.remove()">×</button>
+            </div>
+        {% endif %}
+        
+        {% if flash.info_msg %}
+            <div class="flash flash-info" role="alert">
+                <strong>Info:</strong> {{ flash.info_msg }}
+                <button type="button" class="flash-close" onclick="this.parentElement.remove()">×</button>
+            </div>
+        {% endif %}
+        
+        {% if flash.warning_msg %}
+            <div class="flash flash-warning" role="alert">
+                <strong>Warning:</strong> {{ flash.warning_msg }}
+                <button type="button" class="flash-close" onclick="this.parentElement.remove()">×</button>
+            </div>
+        {% endif %}
+    </div>
+{% endif %}
+```
+
+## 📊 Template Syntax Reference
+
+### Variables and Data
+```html
+<!-- Simple variable -->
+<h1>{{ title }}</h1>
+
+<!-- Object properties -->
+<p>User: {{ user.name }} ({{ user.email }})</p>
+
+<!-- Array access -->
+<p>First item: {{ items[0].name }}</p>
+
+<!-- Default values -->
+<p>{{ description | default(value="No description") }}</p>
+
+<!-- Safe HTML (unescaped) -->
+<div>{{ content | safe }}</div>
+```
+
+### Control Structures
+```html
+<!-- Conditionals -->
+{% if user %}
+    <p>Welcome, {{ user.name }}!</p>
+{% elif guest_allowed %}
+    <p>Welcome, guest!</p>
+{% else %}
+    <p>Please log in.</p>
+{% endif %}
+
+<!-- Loops -->
+{% for item in items %}
+    <div class="item">
+        <h3>{{ item.title }}</h3>
+        <p>Item {{ loop.index }} of {{ loop.length }}</p>
+        
+        {% if loop.first %}
+            <span class="badge">First</span>
+        {% endif %}
+        
+        {% if loop.last %}
+            <span class="badge">Last</span>
+        {% endif %}
+    </div>
+{% else %}
+    <p>No items to display.</p>
+{% endfor %}
+
+<!-- Loop variables -->
+{% for item in items %}
+    <tr class="{% if loop.index0 % 2 == 0 %}even{% else %}odd{% endif %}">
+        <td>{{ loop.index }}</td>      <!-- 1-based index -->
+        <td>{{ loop.index0 }}</td>     <!-- 0-based index -->
+        <td>{{ loop.length }}</td>     <!-- Total items -->
+        <td>{{ item.name }}</td>
+    </tr>
+{% endfor %}
+```
+
+### Filters
+```html
+<!-- String filters -->
+<p>{{ name | upper }}</p>
+<p>{{ name | lower }}</p>
+<p>{{ name | title }}</p>
+<p>{{ description | truncate(length=100) }}</p>
+
+<!-- Number filters -->
+<p>Price: ${{ price | round(precision=2) }}</p>
+<p>{{ count | pluralize }}</p>
+
+<!-- Date filters -->
+<p>Created: {{ created_at | date(format="%Y-%m-%d %H:%M") }}</p>
+<p>{{ created_at | date(format="%B %d, %Y") }}</p>
+
+<!-- Array filters -->
+<p>Total items: {{ items | length }}</p>
+<p>First item: {{ items | first }}</p>
+<p>Last item: {{ items | last }}</p>
+<p>Random item: {{ items | random }}</p>
+
+<!-- Custom filters (if defined) -->
+<p>{{ markdown_content | markdown | safe }}</p>
+<p>{{ user_input | escape }}</p>
+```
+
+### Macros (Reusable Components)
+Create `partials/_macros.html`:
+
+```html
+<!-- Form input macro -->
+{% macro input(name, type="text", label="", value="", required=false, errors={}) %}
+<div class="form-group">
+    {% if label %}
+        <label for="{{ name }}">
+            {{ label }}
+            {% if required %}<span class="required">*</span>{% endif %}
+        </label>
+    {% endif %}
+    
+    <input 
+        type="{{ type }}" 
+        id="{{ name }}" 
+        name="{{ name }}" 
+        value="{{ value }}"
+        {% if required %}required{% endif %}
+        {% if errors[name] %}class="error"{% endif %}
+    >
+    
+    {% if errors[name] %}
+        <span class="error-message">{{ errors[name] }}</span>
+    {% endif %}
+</div>
+{% endmacro %}
+
+<!-- Button macro -->
+{% macro button(text, type="button", class="btn", href="") %}
+{% if href %}
+    <a href="{{ href }}" class="{{ class }}">{{ text }}</a>
+{% else %}
+    <button type="{{ type }}" class="{{ class }}">{{ text }}</button>
+{% endif %}
+{% endmacro %}
+
+<!-- Pagination macro -->
+{% macro pagination(current_page, total_pages, base_url) %}
+<nav class="pagination">
+    {% if current_page > 1 %}
+        <a href="{{ base_url }}?page={{ current_page - 1 }}" class="pagination-prev">← Previous</a>
+    {% endif %}
+    
+    {% for page in range(start=1, end=total_pages + 1) %}
+        {% if page == current_page %}
+            <span class="pagination-current">{{ page }}</span>
+        {% else %}
+            <a href="{{ base_url }}?page={{ page }}" class="pagination-page">{{ page }}</a>
+        {% endif %}
+    {% endfor %}
+    
+    {% if current_page < total_pages %}
+        <a href="{{ base_url }}?page={{ current_page + 1 }}" class="pagination-next">Next →</a>
+    {% endif %}
+</nav>
+{% endmacro %}
+```
+
+Use macros in templates:
+```html
+{% import "partials/_macros.html" as macros %}
+
+{{ macros::input(name="email", type="email", label="Email Address", required=true, errors=errors) }}
+{{ macros::button(text="Save Changes", type="submit", class="btn btn-primary") }}
+{{ macros::pagination(current_page=page, total_pages=total, base_url="/users") }}
+```
+
+## 🎯 Integration with Controllers
+
+### Passing Data to Views
+```rust
+// In controller
+async fn show_user(ctx: Context) -> Result<Response> {
+    let id: i32 = ctx.param("id").unwrap_or("0").parse().unwrap_or(0);
+    
+    let user = User::find_by_id(&ctx.database, id).await?;
+    
+    match user {
+        Some(user) => {
+            let data = json!({
+                "title": format!("User: {}", user.name),
+                "user": {
+                    "id": user.id,
+                    "name": user.name,
+                    "email": user.email,
+                    "created_at": user.created_at
+                },
+                "posts": user.posts(&ctx.database).await?.iter().map(|p| json!({
+                    "id": p.id,
+                    "title": p.title,
+                    "created_at": p.created_at
+                })).collect::<Vec<_>>()
+            });
+            
+            ctx.view("/users/show", data)
+        }
+        None => {
+            ctx.flash_error("User not found");
+            ctx.redirect("/users")
+        }
+    }
+}
+
+// With custom layout (requires mut ctx)
+async fn admin_dashboard(mut ctx: Context) -> Result<Response> {
+    let data = json!({
+        "title": "Admin Dashboard",
+        "stats": get_admin_stats().await?
+    });
+    
+    ctx.layout("layouts/admin")
+        .view("/admin/dashboard", data)
+}
+```
+
+### Form Handling
+```rust
+async fn create_user_form(ctx: Context) -> Result<Response> {
+    let categories = Category::find_all(&ctx.database).await?;
+    
+    let data = json!({
+        "title": "Create User",
+        "categories": categories,
+        "csrf_token": ctx.generate_csrf_token()?
+    });
+    
+    ctx.view("/users/create", data)
+}
+
+async fn create_user(ctx: Context) -> Result<Response> {
+    let form = ctx.body_form().await?;
+    
+    match User::create(&ctx.database, &form).await {
+        Ok(user) => {
+            ctx.flash_success("User created successfully");
+            ctx.redirect(&format!("/users/{}", user.id))
+        }
+        Err(e) => {
+            // Re-render form with errors
+            let data = json!({
+                "title": "Create User",
+                "form": form,
+                "errors": e.field_errors(),
+                "categories": Category::find_all(&ctx.database).await?
+            });
+            
+            ctx.view("/users/create", data)
+        }
+    }
+}
+```
+
+## 🔐 Security Best Practices
+
+### XSS Prevention
+```html
+<!-- Automatic escaping (safe by default) -->
+<p>User input: {{ user_input }}</p>
+
+<!-- Only use 'safe' filter for trusted content -->
+<div>{{ trusted_html | safe }}</div>
+
+<!-- CSRF protection in forms -->
+<form method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <!-- form fields -->
+</form>
+```
+
+### Content Security Policy
+```html
+<!-- In layout head -->
+<meta http-equiv="Content-Security-Policy" 
+      content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';">
+```
+
+## 🎨 Styling and Assets
+
+### CSS Classes and Structure
+```html
+<!-- Semantic HTML with CSS classes -->
+<article class="post">
+    <header class="post-header">
+        <h1 class="post-title">{{ post.title }}</h1>
+        <div class="post-meta">
+            <time datetime="{{ post.created_at | date(format='%Y-%m-%d') }}">
+                {{ post.created_at | date(format='%B %d, %Y') }}
+            </time>
+            <span class="post-author">by {{ post.author.name }}</span>
+        </div>
+    </header>
+    
+    <div class="post-content">
+        {{ post.content | markdown | safe }}
+    </div>
+    
+    <footer class="post-footer">
+        <div class="post-tags">
+            {% for tag in post.tags %}
+                <span class="tag">{{ tag.name }}</span>
+            {% endfor %}
+        </div>
+    </footer>
+</article>
+```
+
+### Static Asset References
+```html
+<!-- CSS -->
+<link rel="stylesheet" href="/static/css/main.css">
+<link rel="stylesheet" href="/static/css/components.css">
+
+<!-- JavaScript -->
+<script src="/static/js/main.js"></script>
+<script src="/static/js/components.js"></script>
+
+<!-- Images -->
+<img src="/static/images/logo.png" alt="Logo">
+
+<!-- Conditional assets -->
+{% if page_type == "dashboard" %}
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <script src="/static/js/charts.js"></script>
+{% endif %}
+```
+
+## 🧪 Testing Views
+
+### Template Testing
+```rust
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rustf::testing::*;
+    
+    #[tokio::test]
+    async fn test_user_show_template() {
+        let user = mock_user();
+        let data = json!({
+            "title": "Test User",
+            "user": user
+        });
+        
+        let rendered = render_template("users/show.html", data).await.unwrap();
+        
+        assert!(rendered.contains(&user.name));
+        assert!(rendered.contains(&user.email));
+        assert!(rendered.contains("Test User"));
+    }
+    
+    #[tokio::test]
+    async fn test_empty_list_template() {
+        let data = json!({
+            "title": "Users",
+            "users": []
+        });
+        
+        let rendered = render_template("users/index.html", data).await.unwrap();
+        
+        assert!(rendered.contains("No users found"));
+    }
+}
+```
+
+## 🚀 Advanced Features
+
+### Custom Filters
+```rust
+// Register custom filters in your application
+use tera::{Tera, Result as TeraResult, Value, from_value};
+
+fn markdown_filter(value: &Value, _: &HashMap<String, Value>) -> TeraResult<Value> {
+    let markdown = from_value::<String>(value.clone())?;
+    let html = markdown_to_html(&markdown);
+    Ok(Value::String(html))
+}
+
+// In your app setup
+let mut tera = Tera::new("views/**/*.html")?;
+tera.register_filter("markdown", markdown_filter);
+```
+
+### Template Caching
+```rust
+// Configure in config.toml
+[views]
+cache_enabled = true  # Enable in production
+cache_max_size = 100  # Maximum cached templates
+```
+
+## 🤖 AI Agent Instructions
+
+When working with views:
+1. **Use template inheritance** with `{% extends %}` and `{% block %}`
+2. **Create reusable partials** in `partials/` directory
+3. **Follow semantic HTML structure** with proper accessibility
+4. **Escape user input by default** (Tera does this automatically)
+5. **Use macros for repeated components** like forms and buttons
+6. **Pass structured data from controllers** using `ctx.view()`
+7. **Handle form validation errors gracefully** with error display
+8. **Use appropriate HTTP status codes** for error pages
+9. **Include CSRF tokens in forms** for security
+10. **Test templates with various data scenarios**
+
+**Data Flow**: Controllers → `ctx.view(template, data)` → Template → HTML Response
+
+**Security**: Always validate and escape user data, use CSRF protection, implement proper Content Security Policy.

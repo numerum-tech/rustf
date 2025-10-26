@@ -1,0 +1,106 @@
+//! Relationship helpers for {{table_name}}
+
+use super::*;
+use sqlx::PgPool;
+
+impl {{table_name}} {
+{{#if table.relations.belongs_to}}
+    // Belongs To relationships
+{{#each table.relations.belongs_to}}
+    /// Get the associated {{@key}}
+    pub async fn get_{{snake_case @key}}(&self, pool: &PgPool) -> Result<Option<{{pascal_case model}}>, sqlx::Error> {
+        {{pascal_case model}}::find(pool, self.{{local_field}}).await
+    }
+{{/each}}
+{{/if}}
+
+{{#if table.relations.has_many}}
+    // Has Many relationships
+{{#each table.relations.has_many}}
+    /// Get all associated {{pluralize (snake_case @key)}}
+    pub async fn get_{{pluralize (snake_case @key)}}(&self, pool: &PgPool) -> Result<Vec<{{pascal_case model}}>, sqlx::Error> {
+        {{pascal_case model}}::find_where(
+            pool, 
+            "{{foreign_field}} = $1", 
+            &[&self.{{local_field}}]
+        ).await
+    }
+
+    /// Count associated {{pluralize (snake_case @key)}}
+    pub async fn count_{{pluralize (snake_case @key)}}(&self, pool: &PgPool) -> Result<i64, sqlx::Error> {
+        let row = sqlx::query!(
+            "SELECT COUNT(*) as count FROM {{../table.table}} WHERE {{foreign_field}} = $1",
+            self.{{local_field}}
+        )
+        .fetch_one(pool)
+        .await?;
+
+        Ok(row.count.unwrap_or(0))
+    }
+{{/each}}
+{{/if}}
+
+{{#if table.relations.has_one}}
+    // Has One relationships
+{{#each table.relations.has_one}}
+    /// Get the associated {{snake_case @key}}
+    pub async fn get_{{snake_case @key}}(&self, pool: &PgPool) -> Result<Option<{{pascal_case model}}>, sqlx::Error> {
+        let result = {{pascal_case model}}::find_where(
+            pool,
+            "{{foreign_field}} = $1",
+            &[&self.{{local_field}}]
+        ).await?;
+        
+        Ok(result.into_iter().next())
+    }
+{{/each}}
+{{/if}}
+
+{{#if table.relations.many_to_many}}
+    // Many to Many relationships
+{{#each table.relations.many_to_many}}
+    /// Get all associated {{pluralize (snake_case @key)}} through {{through_table}}
+    pub async fn get_{{pluralize (snake_case @key)}}(&self, pool: &PgPool) -> Result<Vec<{{pascal_case model}}>, sqlx::Error> {
+        let rows = sqlx::query_as!(
+            {{pascal_case model}},
+            r#"
+            SELECT m.* FROM {{../table.table}} m
+            INNER JOIN {{through_table}} j ON j.{{through_foreign_field}} = m.{{foreign_field}}
+            WHERE j.{{through_local_field}} = $1
+            "#,
+            self.{{local_field}}
+        )
+        .fetch_all(pool)
+        .await?;
+
+        Ok(rows)
+    }
+
+    /// Add association with {{snake_case @key}}
+    pub async fn add_{{snake_case @key}}(&self, pool: &PgPool, {{snake_case @key}}: &{{pascal_case model}}) -> Result<(), sqlx::Error> {
+        sqlx::query!(
+            "INSERT INTO {{through_table}} ({{through_local_field}}, {{through_foreign_field}}) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+            self.{{local_field}},
+            {{snake_case @key}}.{{foreign_field}}
+        )
+        .execute(pool)
+        .await?;
+
+        Ok(())
+    }
+
+    /// Remove association with {{snake_case @key}}
+    pub async fn remove_{{snake_case @key}}(&self, pool: &PgPool, {{snake_case @key}}: &{{pascal_case model}}) -> Result<u64, sqlx::Error> {
+        let result = sqlx::query!(
+            "DELETE FROM {{through_table}} WHERE {{through_local_field}} = $1 AND {{through_foreign_field}} = $2",
+            self.{{local_field}},
+            {{snake_case @key}}.{{foreign_field}}
+        )
+        .execute(pool)
+        .await?;
+
+        Ok(result.rows_affected())
+    }
+{{/each}}
+{{/if}}
+}

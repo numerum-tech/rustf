@@ -1,0 +1,175 @@
+use rustf::events::{EventEmitter, EventContext};
+use rustf::prelude::*;
+
+/// {{event_title}} Event Handler
+/// 
+/// This event handler manages {{description}}
+pub fn install(emitter: &mut EventEmitter) {
+    // Register event handlers
+    emitter.on("ready", on_ready);
+{{#if lifecycle}}
+    // Lifecycle event handlers
+    emitter.on("config.loaded", on_config_loaded);
+    emitter.on("database.ready", on_database_ready);
+    emitter.on("modules.ready", on_modules_ready);
+    emitter.on("middleware.ready", on_middleware_ready);
+    emitter.on("routes.ready", on_routes_ready);
+    emitter.on_priority("startup", -100, on_startup_early);  // High priority (runs first)
+    emitter.on_priority("startup", 100, on_startup_late);    // Low priority (runs last)
+{{/if}}
+{{#if custom}}
+    // Custom event handlers
+    emitter.on("{{event_name}}.initialized", on_{{event_name}}_initialized);
+    emitter.on("{{event_name}}.data.received", on_data_received);
+    emitter.on("{{event_name}}.error", on_error);
+    
+    // One-time event handler
+    emitter.once("{{event_name}}.first.run", on_first_run);
+{{/if}}
+}
+
+/// Handler for application ready event
+async fn on_ready(ctx: EventContext) -> rustf::Result<()> {
+    println!("🎉 {{event_title}}: Application is ready!");
+    
+    if ctx.is_development() {
+        println!("  Running in development mode");
+    }
+    
+    if ctx.is_production() {
+        println!("  Running in production mode");
+    }
+    
+    // Access configuration
+    let config = ctx.config();
+    println!("  Server: {}:{}", config.server.host, config.server.port);
+    
+    Ok(())
+}
+{{#if lifecycle}}
+/// Handler for configuration loaded event
+async fn on_config_loaded(ctx: EventContext) -> rustf::Result<()> {
+    println!("⚙️  {{event_title}}: Configuration loaded");
+    
+    // Validate configuration
+    let config = ctx.config();
+    if config.server.port == 0 {
+        return Err(rustf::Error::config("Invalid port configuration"));
+    }
+    
+    Ok(())
+}
+
+/// Handler for database ready event
+async fn on_database_ready(ctx: EventContext) -> rustf::Result<()> {
+    println!("🗄️  {{event_title}}: Database connection established");
+    
+    if ctx.is_development() {
+        // Seed development data
+        println!("  Seeding development data...");
+        // TODO: Add your database seeding logic here
+    }
+    
+    Ok(())
+}
+
+/// Handler for modules ready event
+async fn on_modules_ready(_ctx: EventContext) -> rustf::Result<()> {
+    println!("📦 {{event_title}}: Shared modules initialized");
+    
+    // Access shared modules if needed
+    // let user_service = user_service();
+    
+    Ok(())
+}
+
+/// Handler for middleware ready event
+async fn on_middleware_ready(_ctx: EventContext) -> rustf::Result<()> {
+    println!("🔧 {{event_title}}: Middleware chain configured");
+    Ok(())
+}
+
+/// Handler for routes ready event
+async fn on_routes_ready(_ctx: EventContext) -> rustf::Result<()> {
+    println!("🛣️  {{event_title}}: Routes registered");
+    Ok(())
+}
+
+/// Early startup handler (runs before most initialization)
+async fn on_startup_early(ctx: EventContext) -> rustf::Result<()> {
+    println!("🌅 {{event_title}}: Early startup initialization");
+    
+    // Create required directories
+    let dirs = ["uploads", "temp", "logs"];
+    for dir in dirs {
+        if !std::path::Path::new(dir).exists() {
+            std::fs::create_dir_all(dir)?;
+            println!("  Created directory: {}", dir);
+        }
+    }
+    
+    Ok(())
+}
+
+/// Late startup handler (runs after most initialization)
+async fn on_startup_late(_ctx: EventContext) -> rustf::Result<()> {
+    println!("🌆 {{event_title}}: Late startup tasks completed");
+    
+    // Perform cleanup or final checks
+    // TODO: Add your late startup logic here
+    
+    Ok(())
+}
+{{/if}}
+{{#if custom}}
+/// Handler for {{event_name}} initialization
+async fn on_{{event_name}}_initialized(ctx: EventContext) -> rustf::Result<()> {
+    println!("✨ {{event_title}}: {{event_name}} initialized");
+    
+    // Access event data if provided
+    if let Some(data) = ctx.data() {
+        println!("  Initialization data: {:?}", data);
+    }
+    
+    Ok(())
+}
+
+/// Handler for data received events
+async fn on_data_received(ctx: EventContext) -> rustf::Result<()> {
+    println!("📨 {{event_title}}: Data received");
+    
+    if let Some(data) = ctx.data() {
+        // Process the received data
+        println!("  Processing data: {:?}", data);
+        
+        // Emit a follow-up event
+        ctx.emit("{{event_name}}.data.processed", data)?;
+    }
+    
+    Ok(())
+}
+
+/// Handler for error events
+async fn on_error(ctx: EventContext) -> rustf::Result<()> {
+    println!("❌ {{event_title}}: Error occurred");
+    
+    if let Some(error_data) = ctx.data() {
+        println!("  Error details: {:?}", error_data);
+        
+        // Log error or send notification
+        // TODO: Add your error handling logic
+    }
+    
+    Ok(())
+}
+
+/// One-time handler for first run
+async fn on_first_run(ctx: EventContext) -> rustf::Result<()> {
+    println!("🎬 {{event_title}}: First run detected");
+    
+    // Perform one-time setup tasks
+    // This handler will only run once
+    
+    Ok(())
+}
+{{/if}}

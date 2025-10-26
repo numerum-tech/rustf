@@ -1,0 +1,538 @@
+# Middleware Directory
+
+This directory contains custom middleware components that process requests before they reach your controllers. Middleware in RustF executes in registration order and can modify requests, responses, or halt processing.
+
+## 🤖 AI Agent Quick Reference
+
+**Purpose**: Process requests/responses, implement cross-cutting concerns (auth, logging, CORS, etc.)  
+**File Pattern**: `*.rs` files in this directory are auto-discovered  
+**Key Function**: Each middleware must implement the `Middleware` trait and have `pub fn install(registry: &mut MiddlewareRegistry)`
+
+## 📁 File Organization
+
+```
+src/middleware/
+├── auth.rs          # Authentication middleware
+├── logging.rs       # Custom request logging
+├── cors.rs          # CORS headers
+├── rate_limit.rs    # Rate limiting
+├── security.rs      # Security headers
+└── validation.rs    # Input validation
+```
+
+## 🚀 Quick Start Template
+
+Create a new middleware file `src/middleware/example.rs`:
+
+```rust
+use rustf::prelude::*;
+use rustf::middleware::{Middleware, MiddlewareRegistry, MiddlewareResult, Next};
+use std::pin::Pin;
+use std::future::Future;
+
+/// Example middleware that adds a custom header
+pub struct ExampleMiddleware {
+    pub name: &'static str,
+    pub header_value: String,
+}
+
+impl ExampleMiddleware {
+    pub fn new(value: &str) -> Self {
+        Self {
+            name: "example",
+            header_value: value.to_string(),
+        }
+    }
+}
+
+impl Middleware for ExampleMiddleware {
+    fn handle<'a>(&'a self, ctx: &'a mut Context, next: Next) 
+        -> Pin<Box<dyn Future<Output = rustf::Result<MiddlewareResult>> + Send + 'a>> {
+        Box::pin(async move {
+            // Before request processing
+            log::info!("ExampleMiddleware: Processing request to {}", ctx.request.uri);
+            
+            // Continue to next middleware/handler
+            let result = next.call(ctx).await?;
+            
+            // After request processing (modify response if needed)
+            match &result {
+                MiddlewareResult::Stop(response) => {
+                    // Modify response headers
+                    // response.headers.insert("X-Custom-Header", &self.header_value);
+                    log::info!("ExampleMiddleware: Added custom header");
+                }
+                MiddlewareResult::Continue => {
+                    log::info!("ExampleMiddleware: Request continued to next handler");
+                }
+            }
+            
+            Ok(result)
+        })
+    }
+    
+    fn name(&self) -> &'static str {
+        self.name
+    }
+    
+    fn priority(&self) -> i32 {
+        0  // Default priority (lower numbers = higher priority)
+    }
+}
+
+/// Required: Registration function for auto-discovery
+pub fn install(registry: &mut MiddlewareRegistry) {
+    registry.register("example", ExampleMiddleware::new("example-value"));
+}
+```
+
+## 🛠️ Middleware Trait Reference
+
+```rust
+pub trait Middleware {
+    /// Handle the request - must return a Future
+    fn handle<'a>(&'a self, ctx: &'a mut Context, next: Next) 
+        -> Pin<Box<dyn Future<Output = rustf::Result<MiddlewareResult>> + Send + 'a>>;
+    
+    /// Middleware name (for debugging and identification)
+    fn name(&self) -> &'static str;
+    
+    /// Execution priority (lower = earlier, default: 0)
+    fn priority(&self) -> i32 { 0 }
+}
+
+pub enum MiddlewareResult {
+    Continue,              // Continue to next middleware/handler
+    Stop(Response),        // Stop processing and return response
+}
+```
+
+## 📊 Common Middleware Patterns
+
+### Authentication Middleware
+```rust
+pub struct AuthMiddleware {
+    pub name: &'static str,
+    pub protected_paths: Vec<String>,
+}
+
+impl AuthMiddleware {
+    pub fn new(protected_paths: Vec<&str>) -> Self {
+        Self {
+            name: "auth",
+            protected_paths: protected_paths.into_iter().map(String::from).collect(),
+        }
+    }
+}
+
+impl Middleware for AuthMiddleware {
+    fn handle<'a>(&'a self, ctx: &'a mut Context, next: Next) 
+        -> Pin<Box<dyn Future<Output = rustf::Result<MiddlewareResult>> + Send + 'a>> {
+        Box::pin(async move {
+            let path = ctx.request.uri.path();
+            
+            // Check if path requires authentication
+            let requires_auth = self.protected_paths.iter()
+                .any(|protected| path.starts_with(protected));
+            
+            if requires_auth {
+                // Check session for user authentication
+                let user_id: Option<i32> = ctx.session_get("user_id")?;
+                
+                if user_id.is_none() {
+                    // Not authenticated - redirect to login
+                    let response = Response::redirect("/login");
+                    return Ok(MiddlewareResult::Stop(response));
+                }
+            }
+            
+            // User is authenticated or path doesn't require auth
+            next.call(ctx).await
+        })
+    }
+    
+    fn name(&self) -> &'static str {
+        self.name
+    }
+    
+    fn priority(&self) -> i32 {
+        -50  // Run early
+    }
+}
+
+pub fn install(registry: &mut MiddlewareRegistry) {
+    let protected = vec!["/admin", "/api/private", "/dashboard"];
+    registry.register("auth", AuthMiddleware::new(protected));
+}
+```
+
+### Request Logging Middleware
+```rust
+pub struct RequestLoggingMiddleware {
+    pub name: &'static str,
+    pub log_headers: bool,
+    pub log_body: bool,
+}
+
+impl RequestLoggingMiddleware {
+    pub fn new() -> Self {
+        Self {
+            name: "request_logging",
+            log_headers: false,
+            log_body: false,
+        }
+    }
+    
+    pub fn with_headers(mut self) -> Self {
+        self.log_headers = true;
+        self
+    }
+    
+    pub fn with_body(mut self) -> Self {
+        self.log_body = true;
+        self
+    }
+}
+
+impl Middleware for RequestLoggingMiddleware {
+    fn handle<'a>(&'a self, ctx: &'a mut Context, next: Next) 
+        -> Pin<Box<dyn Future<Output = rustf::Result<MiddlewareResult>> + Send + 'a>> {
+        Box::pin(async move {
+            let start = std::time::Instant::now();
+            let method = &ctx.request.method;
+            let uri = &ctx.request.uri;
+            
+            log::info!("→ {} {}", method, uri);
+            
+            if self.log_headers {
+                for (name, value) in &ctx.request.headers {
+                    log::debug!("  {}: {}", name, value);
+                }
+            }
+            
+            // Process request
+            let result = next.call(ctx).await?;
+            
+            let duration = start.elapsed();
+            let status = match &result {
+                MiddlewareResult::Stop(response) => response.status().as_u16(),
+                MiddlewareResult::Continue => 200, // Assume success if continuing
+            };
+            
+            log::info!("← {} {} {} {:?}", method, uri, status, duration);
+            
+            Ok(result)
+        })
+    }
+    
+    fn name(&self) -> &'static str {
+        self.name
+    }
+    
+    fn priority(&self) -> i32 {
+        -100  // Run very early
+    }
+}
+```
+
+### Rate Limiting Middleware
+```rust
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
+
+#[derive(Clone)]
+pub struct RateLimitMiddleware {
+    pub name: &'static str,
+    pub max_requests: u32,
+    pub window: Duration,
+    pub store: Arc<Mutex<HashMap<String, (u32, Instant)>>>,
+}
+
+impl RateLimitMiddleware {
+    pub fn new(max_requests: u32, window: Duration) -> Self {
+        Self {
+            name: "rate_limit",
+            max_requests,
+            window,
+            store: Arc::new(Mutex::new(HashMap::new())),
+        }
+    }
+    
+    pub fn per_minute(max_requests: u32) -> Self {
+        Self::new(max_requests, Duration::from_secs(60))
+    }
+    
+    fn get_client_id(&self, ctx: &Context) -> String {
+        // Use IP address as client identifier
+        ctx.request.headers.get("x-forwarded-for")
+            .or_else(|| ctx.request.headers.get("x-real-ip"))
+            .unwrap_or("unknown")
+            .to_string()
+    }
+}
+
+impl Middleware for RateLimitMiddleware {
+    fn handle<'a>(&'a self, ctx: &'a mut Context, next: Next) 
+        -> Pin<Box<dyn Future<Output = rustf::Result<MiddlewareResult>> + Send + 'a>> {
+        Box::pin(async move {
+            let client_id = self.get_client_id(ctx);
+            let now = Instant::now();
+            
+            let mut store = self.store.lock().unwrap();
+            
+            let (count, window_start) = store.get(&client_id)
+                .copied()
+                .unwrap_or((0, now));
+            
+            // Reset window if expired
+            let (count, window_start) = if now.duration_since(window_start) > self.window {
+                (0, now)
+            } else {
+                (count, window_start)
+            };
+            
+            if count >= self.max_requests {
+                // Rate limit exceeded
+                let response = Response::json(json!({
+                    "error": "Rate limit exceeded",
+                    "retry_after": self.window.as_secs()
+                })).with_status(429);
+                
+                return Ok(MiddlewareResult::Stop(response));
+            }
+            
+            // Update counter
+            store.insert(client_id, (count + 1, window_start));
+            drop(store);
+            
+            next.call(ctx).await
+        })
+    }
+    
+    fn name(&self) -> &'static str {
+        self.name
+    }
+    
+    fn priority(&self) -> i32 {
+        -75  // Run early, but after logging
+    }
+}
+```
+
+### CORS Middleware
+```rust
+pub struct CorsMiddleware {
+    pub name: &'static str,
+    pub allowed_origins: Vec<String>,
+    pub allowed_methods: Vec<String>,
+    pub allowed_headers: Vec<String>,
+}
+
+impl CorsMiddleware {
+    pub fn new() -> Self {
+        Self {
+            name: "cors",
+            allowed_origins: vec!["*".to_string()],
+            allowed_methods: vec!["GET".to_string(), "POST".to_string(), "PUT".to_string(), "DELETE".to_string()],
+            allowed_headers: vec!["Content-Type".to_string(), "Authorization".to_string()],
+        }
+    }
+    
+    pub fn permissive() -> Self {
+        Self::new()
+    }
+    
+    pub fn with_origins(mut self, origins: Vec<&str>) -> Self {
+        self.allowed_origins = origins.into_iter().map(String::from).collect();
+        self
+    }
+}
+
+impl Middleware for CorsMiddleware {
+    fn handle<'a>(&'a self, ctx: &'a mut Context, next: Next) 
+        -> Pin<Box<dyn Future<Output = rustf::Result<MiddlewareResult>> + Send + 'a>> {
+        Box::pin(async move {
+            // Handle preflight requests
+            if ctx.request.method == "OPTIONS" {
+                let mut response = Response::empty();
+                response.headers.insert("Access-Control-Allow-Origin", &self.allowed_origins.join(","));
+                response.headers.insert("Access-Control-Allow-Methods", &self.allowed_methods.join(","));
+                response.headers.insert("Access-Control-Allow-Headers", &self.allowed_headers.join(","));
+                response.headers.insert("Access-Control-Max-Age", "86400");
+                
+                return Ok(MiddlewareResult::Stop(response));
+            }
+            
+            // Continue to next middleware/handler
+            let result = next.call(ctx).await?;
+            
+            // Add CORS headers to response
+            match &result {
+                MiddlewareResult::Stop(response) => {
+                    // Add CORS headers to response
+                    // response.headers.insert("Access-Control-Allow-Origin", &self.allowed_origins[0]);
+                }
+                _ => {}
+            }
+            
+            Ok(result)
+        })
+    }
+    
+    fn name(&self) -> &'static str {
+        self.name
+    }
+    
+    fn priority(&self) -> i32 {
+        -90  // Run early
+    }
+}
+```
+
+## 🔐 Security Middleware Examples
+
+### Security Headers Middleware
+```rust
+pub struct SecurityHeadersMiddleware {
+    pub name: &'static str,
+    pub hsts_max_age: u32,
+}
+
+impl SecurityHeadersMiddleware {
+    pub fn new() -> Self {
+        Self {
+            name: "security_headers",
+            hsts_max_age: 31536000, // 1 year
+        }
+    }
+}
+
+impl Middleware for SecurityHeadersMiddleware {
+    fn handle<'a>(&'a self, ctx: &'a mut Context, next: Next) 
+        -> Pin<Box<dyn Future<Output = rustf::Result<MiddlewareResult>> + Send + 'a>> {
+        Box::pin(async move {
+            let result = next.call(ctx).await?;
+            
+            match &result {
+                MiddlewareResult::Stop(response) => {
+                    // Add security headers
+                    // response.headers.insert("X-Content-Type-Options", "nosniff");
+                    // response.headers.insert("X-Frame-Options", "DENY");
+                    // response.headers.insert("X-XSS-Protection", "1; mode=block");
+                    // response.headers.insert("Strict-Transport-Security", 
+                    //     &format!("max-age={}", self.hsts_max_age));
+                    // response.headers.insert("Content-Security-Policy", 
+                    //     "default-src 'self'; script-src 'self' 'unsafe-inline'");
+                }
+                _ => {}
+            }
+            
+            Ok(result)
+        })
+    }
+    
+    fn name(&self) -> &'static str {
+        self.name
+    }
+    
+    fn priority(&self) -> i32 {
+        100  // Run late (modify final response)
+    }
+}
+```
+
+## 🧪 Testing Middleware
+
+```rust
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rustf::testing::*;
+    
+    #[tokio::test]
+    async fn test_auth_middleware_allows_public() {
+        let middleware = AuthMiddleware::new(vec!["/admin"]);
+        let mut ctx = MockContext::new().with_path("/public");
+        
+        let next = MockNext::new(|_| {
+            Box::pin(async { Ok(MiddlewareResult::Continue) })
+        });
+        
+        let result = middleware.handle(&mut ctx, next).await.unwrap();
+        assert!(matches!(result, MiddlewareResult::Continue));
+    }
+    
+    #[tokio::test]
+    async fn test_auth_middleware_blocks_protected() {
+        let middleware = AuthMiddleware::new(vec!["/admin"]);
+        let mut ctx = MockContext::new().with_path("/admin/dashboard");
+        
+        let next = MockNext::new(|_| {
+            Box::pin(async { Ok(MiddlewareResult::Continue) })
+        });
+        
+        let result = middleware.handle(&mut ctx, next).await.unwrap();
+        assert!(matches!(result, MiddlewareResult::Stop(_)));
+    }
+}
+```
+
+## 🚀 Advanced Features
+
+### Conditional Middleware
+```rust
+pub struct ConditionalMiddleware<M: Middleware> {
+    pub inner: M,
+    pub condition: Box<dyn Fn(&Context) -> bool + Send + Sync>,
+}
+
+impl<M: Middleware> ConditionalMiddleware<M> {
+    pub fn new<F>(middleware: M, condition: F) -> Self 
+    where 
+        F: Fn(&Context) -> bool + Send + Sync + 'static 
+    {
+        Self {
+            inner: middleware,
+            condition: Box::new(condition),
+        }
+    }
+}
+
+impl<M: Middleware> Middleware for ConditionalMiddleware<M> {
+    fn handle<'a>(&'a self, ctx: &'a mut Context, next: Next) 
+        -> Pin<Box<dyn Future<Output = rustf::Result<MiddlewareResult>> + Send + 'a>> {
+        Box::pin(async move {
+            if (self.condition)(ctx) {
+                self.inner.handle(ctx, next).await
+            } else {
+                next.call(ctx).await
+            }
+        })
+    }
+    
+    fn name(&self) -> &'static str {
+        self.inner.name()
+    }
+    
+    fn priority(&self) -> i32 {
+        self.inner.priority()
+    }
+}
+```
+
+## 🤖 AI Agent Instructions
+
+When creating middleware:
+1. Always implement the `Middleware` trait
+2. Include `pub fn install(registry: &mut MiddlewareRegistry)` function
+3. Use `Box::pin(async move { ... })` for the handle method
+4. Return `MiddlewareResult::Continue` to continue processing
+5. Return `MiddlewareResult::Stop(response)` to halt and send response
+6. Set appropriate priority (-100 = very early, 100 = very late)
+7. Import `use rustf::prelude::*;` and middleware traits
+8. Handle errors gracefully and log important events
+
+**Auto-Discovery**: No need to manually register middleware - they're automatically discovered and loaded!
+
+**Execution Order**: Middleware executes in priority order (lower numbers first), then registration order for same priority.

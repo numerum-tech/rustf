@@ -1,0 +1,44 @@
+use rustf::prelude::*;
+
+// Auto-discovery using the #[rustf::auto_discover] attribute macro
+// The framework automatically generates module declarations at compile time
+
+#[rustf::auto_discover]
+#[tokio::main]
+async fn main() -> rustf::Result<()> {
+    // Initialize logging
+    env_logger::init();
+
+    println!("🚀 Starting {{project_title}}...");
+    println!("📝 Loading configuration (supports --config flag)...");
+
+    // Load configuration with CLI argument support
+    // Supports --config flag to specify custom config file location
+    // Falls back to config.toml or environment variables
+    let app = RustF::with_args()?;
+
+    // Auto-load ALL components and builtin middleware
+    // This single line replaces all manual configuration:
+    // - Controllers, models, workers, middleware, events, definitions (from src/ directories)
+    // - Builtin middleware: logging, cors, rate_limit, csrf (configured via config.toml)
+    let app = app.auto_load();
+
+    // Get server configuration
+    let config = &app.config;
+    let addr = format!("{}:{}", config.server.host, config.server.port);
+
+    println!("🚀 Server starting on http://{}", addr);
+    println!("📁 Views directory: {}", config.views.directory);
+    println!("📁 Static files: {} -> {}", config.static_files.url_prefix, config.static_files.directory);
+    println!("🛡️  Middleware: logging, cors, rate_limit, csrf + custom middleware + session");
+    println!("👷 Workers: Auto-loaded from src/workers/");
+    println!();
+    println!("💡 CLI Usage:");
+    println!("   {{project_name}} --config /path/to/config.toml");
+    println!("   {{project_name}} --help");
+    println!();
+    println!("Visit http://{} to see your application!", addr);
+
+    // Start the server
+    app.start().await
+}

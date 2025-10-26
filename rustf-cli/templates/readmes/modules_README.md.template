@@ -1,0 +1,127 @@
+# Modules Directory
+
+This directory contains reusable business logic modules for your {{project_title}} application.
+
+## What are Modules?
+
+Modules in RustF separate business logic from HTTP request handling. They contain:
+
+- **Services** - Stateful business logic (user management, payment processing)
+- **Utilities** - Stateless helper functions (validation, formatting)  
+- **Helpers** - Template and view helpers
+- **Traits** - Custom interfaces and trait definitions
+
+## Directory Structure
+
+```
+src/modules/
+├── user_service.rs      # User business logic
+├── email_service.rs     # Email operations  
+├── payment_service.rs   # Payment processing
+└── validation_utils.rs  # Utility functions
+```
+
+## Creating a Module
+
+### Basic Service Module
+
+```rust
+// src/modules/user_service.rs
+use rustf::prelude::*;
+
+#[derive(Debug)]
+pub struct UserService {
+    // Service state
+}
+
+impl UserService {
+    pub fn new() -> Self {
+        Self { }
+    }
+    
+    pub async fn register_user(&self, email: &str, password: &str) -> Result<Value> {
+        // Business logic here
+        Ok(json!({"user_id": 1, "email": email}))
+    }
+}
+
+// Required for auto-discovery
+pub fn install() -> UserService {
+    UserService::new()
+}
+```
+
+### Using Modules in Controllers
+
+```rust
+// src/controllers/auth.rs
+use rustf::prelude::*;
+use crate::modules::user_service;
+
+async fn register(ctx: Context) -> Result<Response> {
+    let user_svc = user_service::UserService::new();
+    // Use the service
+    let user = user_svc.register_user("user@example.com", "password").await?;
+    ctx.json(user)
+}
+```
+
+## Key Principles
+
+- **Single Responsibility** - Each module handles one domain
+- **Framework Independent** - Business logic doesn't depend on HTTP concerns
+- **Testable** - Easy to unit test without HTTP mocking
+- **Reusable** - Can be used across different controllers
+
+## Auto-Discovery
+
+Modules are automatically discovered and registered when you use:
+```rust
+.modules_from(auto_modules!())
+```
+
+Each module must have an `install()` function that returns an instance of the module.
+
+## Advanced: SharedModule Trait
+
+For modules requiring lifecycle management:
+
+```rust
+use async_trait::async_trait;
+
+#[async_trait]
+impl SharedModule for UserService {
+    fn name(&self) -> &'static str {
+        "UserService"
+    }
+    
+    fn module_type(&self) -> SharedModuleType {
+        SharedModuleType::Service
+    }
+    
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+    
+    async fn initialize(&self) -> Result<()> {
+        // Setup connections, load config, etc.
+        Ok(())
+    }
+}
+```
+
+This enables:
+- Automatic initialization during app startup
+- Graceful shutdown handling
+- Type-safe module access throughout the application
+
+## Best Practices
+
+1. Keep modules focused on single domains
+2. Use Result<T> for operations that can fail
+3. Include comprehensive error handling
+4. Add unit tests for your business logic
+5. Use environment variables for configuration
+6. Log important operations for debugging
+
+Happy coding! 🦀

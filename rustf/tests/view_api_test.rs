@@ -1,0 +1,234 @@
+use rustf::prelude::*;
+use serde_json::json;
+
+#[tokio::test]
+async fn test_view_api_with_running_app() {
+    // Create a minimal app to initialize global VIEW
+    let app = RustF::new();
+
+    // Start app in background to initialize globals
+    tokio::spawn(async move {
+        let _ = app.serve(Some("127.0.0.1:19999")).await;
+    });
+
+    // Give the app time to initialize
+    tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+
+    // Test VIEW::render_string after initialization
+    let template = "Hello @{M.name}, you are @{M.age} years old!";
+    let model = json!({
+        "name": "Alice",
+        "age": 25
+    });
+
+    let result = VIEW::render_string(template, model, None);
+    assert!(
+        result.is_ok(),
+        "VIEW::render_string should work after app initialization"
+    );
+
+    let html = result.unwrap();
+    assert!(html.contains("Hello Alice"));
+    assert!(html.contains("you are 25 years old"));
+}
+
+#[test]
+fn test_view_render_string_with_model_and_repository() {
+    let template = r#"
+        <h1>@{M.title}</h1>
+        <p>Welcome to @{R.site_name}</p>
+        <footer>&copy; @{R.year} @{R.company}</footer>
+    "#;
+
+    let model = json!({
+        "title": "My Page"
+    });
+
+    let repository = json!({
+        "site_name": "RustF Framework",
+        "year": 2025,
+        "company": "My Company"
+    });
+
+    let result = VIEW::render_string(template, model, Some(repository));
+    assert!(result.is_ok());
+
+    let html = result.unwrap();
+    assert!(html.contains("<h1>My Page</h1>"));
+    assert!(html.contains("Welcome to RustF Framework"));
+    assert!(html.contains("&copy; 2025 My Company"));
+}
+
+#[test]
+fn test_view_render_string_with_conditionals() {
+    let template = r#"
+        @{if M.is_admin}
+            <div class="admin">Admin Panel</div>
+        @{else}
+            <div class="user">User Panel</div>
+        @{fi}
+    "#;
+
+    // Test with admin
+    let model_admin = json!({"is_admin": true});
+    let result = VIEW::render_string(template, model_admin, None);
+    assert!(result.is_ok());
+    assert!(result.unwrap().contains("Admin Panel"));
+
+    // Test with regular user
+    let model_user = json!({"is_admin": false});
+    let result = VIEW::render_string(template, model_user, None);
+    assert!(result.is_ok());
+    assert!(result.unwrap().contains("User Panel"));
+}
+
+#[test]
+fn test_view_render_string_with_loops() {
+    let template = r#"
+        <ul>
+        @{foreach item in M.items}
+            <li>Item: @{item}</li>
+        @{end}
+        </ul>
+    "#;
+
+    let model = json!({
+        "items": ["Apple", "Banana", "Cherry"]
+    });
+
+    let result = VIEW::render_string(template, model, None);
+    assert!(result.is_ok());
+
+    let html = result.unwrap();
+    // Check that list structure and items exist
+    assert!(html.contains("<ul>"));
+    assert!(html.contains("</ul>"));
+    assert!(html.contains("Apple"));
+    assert!(html.contains("Banana"));
+    assert!(html.contains("Cherry"));
+}
+
+#[test]
+fn test_view_render_string_email_generation() {
+    let email_template = r#"
+        <html>
+        <body>
+            <h1>Welcome to @{R.app_name}</h1>
+            <p>Hello @{M.user_name},</p>
+            <p>Thank you for signing up! Your account has been created successfully.</p>
+            <p>Your username is: <strong>@{M.username}</strong></p>
+            <p>Best regards,<br>The @{R.app_name} Team</p>
+            <footer style="color: gray;">
+                &copy; @{R.year} @{R.company_name}. All rights reserved.
+            </footer>
+        </body>
+        </html>
+    "#;
+
+    let model = json!({
+        "user_name": "Alice Smith",
+        "username": "alice_smith"
+    });
+
+    let repository = json!({
+        "app_name": "RustF App",
+        "year": 2025,
+        "company_name": "My Startup Inc."
+    });
+
+    let result = VIEW::render_string(email_template, model, Some(repository));
+    assert!(result.is_ok());
+
+    let html = result.unwrap();
+    assert!(html.contains("<h1>Welcome to RustF App</h1>"));
+    assert!(html.contains("Hello Alice Smith"));
+    assert!(html.contains("<strong>alice_smith</strong>"));
+    assert!(html.contains("The RustF App Team"));
+    assert!(html.contains("&copy; 2025 My Startup Inc."));
+}
+
+#[test]
+fn test_view_render_string_report_generation() {
+    let report_template = r#"
+        <h2>Sales Report - @{M.month}</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Product</th>
+                    <th>Sales</th>
+                    <th>Revenue</th>
+                </tr>
+            </thead>
+            <tbody>
+            @{foreach item in M.items}
+                <tr>
+                    <td>@{item.product}</td>
+                    <td>@{item.sales}</td>
+                    <td>$@{item.revenue}</td>
+                </tr>
+            @{end}
+            </tbody>
+        </table>
+        <p>Generated by @{R.system_name} on @{R.generated_date}</p>
+    "#;
+
+    let model = json!({
+        "month": "January 2025",
+        "items": [
+            {"product": "Widget A", "sales": 150, "revenue": 15000},
+            {"product": "Widget B", "sales": 200, "revenue": 30000},
+            {"product": "Widget C", "sales": 75, "revenue": 7500}
+        ]
+    });
+
+    let repository = json!({
+        "system_name": "RustF Reports",
+        "generated_date": "2025-01-15"
+    });
+
+    let result = VIEW::render_string(report_template, model, Some(repository));
+    assert!(result.is_ok());
+
+    let html = result.unwrap();
+    assert!(html.contains("Sales Report - January 2025"));
+    assert!(html.contains("Widget A"));
+    assert!(html.contains("$15000"));
+    assert!(html.contains("Widget B"));
+    assert!(html.contains("$30000"));
+    assert!(html.contains("Generated by RustF Reports on 2025-01-15"));
+}
+
+#[test]
+fn test_view_render_string_nested_data() {
+    let template = r#"
+        <div class="profile">
+            <h2>@{M.user.name}</h2>
+            <p>Email: @{M.user.contact.email}</p>
+            <p>Phone: @{M.user.contact.phone}</p>
+            <p>City: @{M.user.address.city}, @{M.user.address.country}</p>
+        </div>
+    "#;
+
+    let model = json!({
+        "user": {
+            "name": "John Doe",
+            "contact": {
+                "email": "john@example.com",
+                "phone": "+1-555-0123"
+            },
+            "address": {
+                "city": "New York",
+                "country": "USA"
+            }
+        }
+    });
+
+    let result = VIEW::render_string(template, model, None);
+    assert!(result.is_ok());
+
+    let html = result.unwrap();
+    assert!(html.contains("<h2>John Doe</h2>"));
+    assert!(html.contains("Email: john@example.com"));
+    assert!(html.contains("Phone: +1-555-0123"));
+    assert!(html.contains("City: New York, USA"));
+}

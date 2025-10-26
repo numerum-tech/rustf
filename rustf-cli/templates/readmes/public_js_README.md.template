@@ -1,0 +1,1072 @@
+# JavaScript Directory
+
+This directory contains your application's JavaScript files, including client-side logic, interactive components, and frontend functionality. These files are served statically by the RustF framework and are accessible via the `/static/js/` URL path.
+
+## 🤖 AI Agent Quick Reference
+
+**Purpose**: Client-side JavaScript, interactive components, and frontend logic  
+**URL Path**: Files are served at `/static/js/filename.js`  
+**Processing**: Static files (no transpilation by default)  
+**Organization**: Module-based JavaScript architecture recommended  
+**Performance**: Minify and bundle files for production
+
+## 📁 File Organization
+
+```
+public/js/
+├── main.js              # Main application JavaScript
+├── components/          # Reusable JavaScript components
+│   ├── modal.js         # Modal component
+│   ├── dropdown.js      # Dropdown component
+│   ├── tabs.js          # Tab component
+│   └── form-validator.js # Form validation
+├── pages/               # Page-specific JavaScript
+│   ├── home.js          # Homepage functionality
+│   ├── dashboard.js     # Dashboard interactions
+│   └── admin.js         # Admin panel features
+├── utils/               # Utility functions
+│   ├── api.js           # API helper functions
+│   ├── dom.js           # DOM manipulation utilities
+│   ├── storage.js       # Local storage helpers
+│   └── validation.js    # Validation helpers
+├── vendor/              # Third-party JavaScript libraries
+│   ├── jquery.min.js
+│   ├── bootstrap.min.js
+│   └── chart.min.js
+└── workers/             # Web Workers (if needed)
+    └── data-processor.js
+```
+
+## 🚀 Quick Start Template
+
+### Main JavaScript File (`main.js`)
+```javascript
+/**
+ * Main Application JavaScript
+ * Handles global functionality and component initialization
+ */
+
+// Global app namespace
+window.App = {
+    // Configuration
+    config: {
+        apiBaseUrl: '/api',
+        csrfToken: document.querySelector('meta[name="csrf-token"]')?.getAttribute('content'),
+        debug: document.documentElement.hasAttribute('data-debug')
+    },
+
+    // Utility functions
+    utils: {},
+
+    // Components
+    components: {},
+
+    // Page-specific modules
+    pages: {},
+
+    // Initialize application
+    init: function() {
+        console.log('🚀 {{project_title}} Application Starting...');
+        
+        // Initialize global components
+        this.initFlashMessages();
+        this.initForms();
+        this.initModals();
+        this.initDropdowns();
+        
+        // Initialize page-specific functionality
+        this.initPageModules();
+        
+        console.log('✅ Application Initialized');
+    },
+
+    // Initialize flash message auto-dismiss
+    initFlashMessages: function() {
+        const flashMessages = document.querySelectorAll('.flash[data-auto-dismiss]');
+        flashMessages.forEach(flash => {
+            const delay = parseInt(flash.dataset.autoDissmis) || 5000;
+            setTimeout(() => {
+                flash.style.opacity = '0';
+                flash.style.transform = 'translateY(-10px)';
+                setTimeout(() => flash.remove(), 300);
+            }, delay);
+        });
+    },
+
+    // Initialize form enhancements
+    initForms: function() {
+        // Auto-submit forms with data-auto-submit attribute
+        const autoSubmitForms = document.querySelectorAll('form[data-auto-submit]');
+        autoSubmitForms.forEach(form => {
+            const inputs = form.querySelectorAll('input, select, textarea');
+            inputs.forEach(input => {
+                input.addEventListener('change', () => {
+                    if (this.config.debug) console.log('Auto-submitting form');
+                    form.submit();
+                });
+            });
+        });
+
+        // Confirm forms before submission
+        const confirmForms = document.querySelectorAll('form[data-confirm]');
+        confirmForms.forEach(form => {
+            form.addEventListener('submit', (e) => {
+                const message = form.dataset.confirm || 'Are you sure?';
+                if (!confirm(message)) {
+                    e.preventDefault();
+                }
+            });
+        });
+    },
+
+    // Initialize modal functionality
+    initModals: function() {
+        // Modal triggers
+        const modalTriggers = document.querySelectorAll('[data-modal-target]');
+        modalTriggers.forEach(trigger => {
+            trigger.addEventListener('click', (e) => {
+                e.preventDefault();
+                const targetId = trigger.dataset.modalTarget;
+                const modal = document.getElementById(targetId);
+                if (modal) {
+                    this.showModal(modal);
+                }
+            });
+        });
+
+        // Modal close buttons
+        const modalCloses = document.querySelectorAll('[data-modal-close]');
+        modalCloses.forEach(closeBtn => {
+            closeBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const modal = closeBtn.closest('.modal');
+                if (modal) {
+                    this.hideModal(modal);
+                }
+            });
+        });
+
+        // Close modal on backdrop click
+        const modals = document.querySelectorAll('.modal');
+        modals.forEach(modal => {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    this.hideModal(modal);
+                }
+            });
+        });
+
+        // Close modal on Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                const activeModal = document.querySelector('.modal.active');
+                if (activeModal) {
+                    this.hideModal(activeModal);
+                }
+            }
+        });
+    },
+
+    // Show modal
+    showModal: function(modal) {
+        modal.classList.add('active');
+        document.body.classList.add('modal-open');
+        modal.focus();
+    },
+
+    // Hide modal
+    hideModal: function(modal) {
+        modal.classList.remove('active');
+        document.body.classList.remove('modal-open');
+    },
+
+    // Initialize dropdown functionality
+    initDropdowns: function() {
+        const dropdownToggles = document.querySelectorAll('[data-dropdown-toggle]');
+        dropdownToggles.forEach(toggle => {
+            toggle.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const targetId = toggle.dataset.dropdownToggle;
+                const dropdown = document.getElementById(targetId);
+                
+                if (dropdown) {
+                    // Close other dropdowns
+                    document.querySelectorAll('.dropdown.active').forEach(d => {
+                        if (d !== dropdown) d.classList.remove('active');
+                    });
+                    
+                    // Toggle current dropdown
+                    dropdown.classList.toggle('active');
+                }
+            });
+        });
+
+        // Close dropdowns when clicking outside
+        document.addEventListener('click', () => {
+            document.querySelectorAll('.dropdown.active').forEach(dropdown => {
+                dropdown.classList.remove('active');
+            });
+        });
+    },
+
+    // Initialize page-specific modules
+    initPageModules: function() {
+        const pageModule = document.body.dataset.page;
+        if (pageModule && this.pages[pageModule]) {
+            if (this.config.debug) console.log(`Initializing page module: ${pageModule}`);
+            this.pages[pageModule].init();
+        }
+    }
+};
+
+// Utility Functions
+App.utils = {
+    // Make API requests
+    api: async function(endpoint, options = {}) {
+        const defaultOptions = {
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': App.config.csrfToken
+            }
+        };
+
+        const config = Object.assign(defaultOptions, options);
+        const url = endpoint.startsWith('http') ? endpoint : App.config.apiBaseUrl + endpoint;
+
+        try {
+            const response = await fetch(url, config);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+                return await response.json();
+            }
+            
+            return await response.text();
+        } catch (error) {
+            console.error('API request failed:', error);
+            throw error;
+        }
+    },
+
+    // Show notification
+    notify: function(message, type = 'info', duration = 5000) {
+        const notification = document.createElement('div');
+        notification.className = `notification notification-${type}`;
+        notification.textContent = message;
+        
+        // Add to page
+        document.body.appendChild(notification);
+        
+        // Animate in
+        setTimeout(() => notification.classList.add('show'), 10);
+        
+        // Auto remove
+        setTimeout(() => {
+            notification.classList.remove('show');
+            setTimeout(() => notification.remove(), 300);
+        }, duration);
+    },
+
+    // Debounce function
+    debounce: function(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    },
+
+    // Throttle function
+    throttle: function(func, limit) {
+        let inThrottle;
+        return function(...args) {
+            if (!inThrottle) {
+                func.apply(this, args);
+                inThrottle = true;
+                setTimeout(() => inThrottle = false, limit);
+            }
+        };
+    },
+
+    // Format date
+    formatDate: function(date, options = {}) {
+        const defaultOptions = {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        };
+        return new Date(date).toLocaleDateString(undefined, Object.assign(defaultOptions, options));
+    },
+
+    // Validate email
+    isValidEmail: function(email) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(email);
+    },
+
+    // Get form data as object
+    getFormData: function(form) {
+        const formData = new FormData(form);
+        const data = {};
+        for (let [key, value] of formData.entries()) {
+            // Handle multiple values (checkboxes, multi-select)
+            if (data[key]) {
+                if (Array.isArray(data[key])) {
+                    data[key].push(value);
+                } else {
+                    data[key] = [data[key], value];
+                }
+            } else {
+                data[key] = value;
+            }
+        }
+        return data;
+    }
+};
+
+// Initialize when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => App.init());
+} else {
+    App.init();
+}
+```
+
+### Form Validation Component (`components/form-validator.js`)
+```javascript
+/**
+ * Form Validation Component
+ * Provides client-side form validation with customizable rules
+ */
+
+App.components.FormValidator = class {
+    constructor(form, options = {}) {
+        this.form = form;
+        this.options = Object.assign({
+            showErrorsInline: true,
+            showErrorsSummary: false,
+            validateOnSubmit: true,
+            validateOnInput: true,
+            errorClass: 'error',
+            errorMessageClass: 'error-message'
+        }, options);
+
+        this.errors = {};
+        this.rules = {};
+        
+        this.init();
+    }
+
+    init() {
+        this.setupRules();
+        this.attachEventListeners();
+    }
+
+    setupRules() {
+        // Get validation rules from HTML5 attributes and data attributes
+        const inputs = this.form.querySelectorAll('input, textarea, select');
+        inputs.forEach(input => {
+            const rules = {};
+            
+            // Required
+            if (input.hasAttribute('required')) {
+                rules.required = true;
+            }
+            
+            // Type validation
+            if (input.type === 'email') {
+                rules.email = true;
+            }
+            
+            // Length validation
+            if (input.hasAttribute('minlength')) {
+                rules.minLength = parseInt(input.getAttribute('minlength'));
+            }
+            if (input.hasAttribute('maxlength')) {
+                rules.maxLength = parseInt(input.getAttribute('maxlength'));
+            }
+            
+            // Pattern validation
+            if (input.hasAttribute('pattern')) {
+                rules.pattern = new RegExp(input.getAttribute('pattern'));
+            }
+            
+            // Custom validation rules from data attributes
+            if (input.dataset.validate) {
+                const customRules = input.dataset.validate.split('|');
+                customRules.forEach(rule => {
+                    const [ruleName, ruleValue] = rule.split(':');
+                    rules[ruleName] = ruleValue || true;
+                });
+            }
+            
+            if (Object.keys(rules).length > 0) {
+                this.rules[input.name] = rules;
+            }
+        });
+    }
+
+    attachEventListeners() {
+        // Validate on form submission
+        if (this.options.validateOnSubmit) {
+            this.form.addEventListener('submit', (e) => {
+                if (!this.validateAll()) {
+                    e.preventDefault();
+                    this.showErrors();
+                }
+            });
+        }
+
+        // Validate on input change
+        if (this.options.validateOnInput) {
+            const inputs = this.form.querySelectorAll('input, textarea, select');
+            inputs.forEach(input => {
+                input.addEventListener('blur', () => {
+                    this.validateField(input.name);
+                    this.showFieldError(input.name);
+                });
+                
+                input.addEventListener('input', App.utils.debounce(() => {
+                    this.validateField(input.name);
+                    this.showFieldError(input.name);
+                }, 300));
+            });
+        }
+    }
+
+    validateAll() {
+        this.errors = {};
+        let isValid = true;
+        
+        for (const fieldName in this.rules) {
+            if (!this.validateField(fieldName)) {
+                isValid = false;
+            }
+        }
+        
+        return isValid;
+    }
+
+    validateField(fieldName) {
+        const input = this.form.querySelector(`[name="${fieldName}"]`);
+        if (!input || !this.rules[fieldName]) {
+            return true;
+        }
+
+        const value = input.value.trim();
+        const rules = this.rules[fieldName];
+        const errors = [];
+
+        // Required validation
+        if (rules.required && !value) {
+            errors.push('This field is required');
+        }
+
+        // Skip other validations if field is empty and not required
+        if (!value && !rules.required) {
+            delete this.errors[fieldName];
+            return true;
+        }
+
+        // Email validation
+        if (rules.email && !App.utils.isValidEmail(value)) {
+            errors.push('Please enter a valid email address');
+        }
+
+        // Length validation
+        if (rules.minLength && value.length < rules.minLength) {
+            errors.push(`Must be at least ${rules.minLength} characters long`);
+        }
+        if (rules.maxLength && value.length > rules.maxLength) {
+            errors.push(`Must be no more than ${rules.maxLength} characters long`);
+        }
+
+        // Pattern validation
+        if (rules.pattern && !rules.pattern.test(value)) {
+            errors.push('Please enter a valid value');
+        }
+
+        // Custom validation rules
+        if (rules.confirmed) {
+            const confirmField = this.form.querySelector(`[name="${rules.confirmed}"]`);
+            if (confirmField && value !== confirmField.value) {
+                errors.push('Passwords do not match');
+            }
+        }
+
+        if (rules.unique) {
+            // This would typically make an API call to check uniqueness
+            // For now, we'll just show it as a placeholder
+        }
+
+        // Store errors
+        if (errors.length > 0) {
+            this.errors[fieldName] = errors;
+            return false;
+        } else {
+            delete this.errors[fieldName];
+            return true;
+        }
+    }
+
+    showErrors() {
+        if (this.options.showErrorsInline) {
+            for (const fieldName in this.errors) {
+                this.showFieldError(fieldName);
+            }
+        }
+
+        if (this.options.showErrorsSummary) {
+            this.showErrorSummary();
+        }
+    }
+
+    showFieldError(fieldName) {
+        const input = this.form.querySelector(`[name="${fieldName}"]`);
+        if (!input) return;
+
+        // Remove existing error styling and messages
+        input.classList.remove(this.options.errorClass);
+        const existingError = input.parentNode.querySelector(`.${this.options.errorMessageClass}`);
+        if (existingError) {
+            existingError.remove();
+        }
+
+        // Show error if exists
+        if (this.errors[fieldName]) {
+            input.classList.add(this.options.errorClass);
+            
+            const errorElement = document.createElement('span');
+            errorElement.className = this.options.errorMessageClass;
+            errorElement.textContent = this.errors[fieldName][0]; // Show first error
+            
+            input.parentNode.appendChild(errorElement);
+        }
+    }
+
+    showErrorSummary() {
+        // Remove existing error summary
+        const existingSummary = this.form.querySelector('.form-errors');
+        if (existingSummary) {
+            existingSummary.remove();
+        }
+
+        if (Object.keys(this.errors).length === 0) return;
+
+        // Create error summary
+        const errorSummary = document.createElement('div');
+        errorSummary.className = 'form-errors alert alert-danger';
+        
+        const errorList = document.createElement('ul');
+        for (const fieldName in this.errors) {
+            this.errors[fieldName].forEach(error => {
+                const errorItem = document.createElement('li');
+                errorItem.textContent = error;
+                errorList.appendChild(errorItem);
+            });
+        }
+        
+        errorSummary.appendChild(errorList);
+        this.form.insertBefore(errorSummary, this.form.firstChild);
+    }
+
+    // Clear all errors
+    clearErrors() {
+        this.errors = {};
+        
+        // Remove error styling
+        const errorInputs = this.form.querySelectorAll(`.${this.options.errorClass}`);
+        errorInputs.forEach(input => {
+            input.classList.remove(this.options.errorClass);
+        });
+        
+        // Remove error messages
+        const errorMessages = this.form.querySelectorAll(`.${this.options.errorMessageClass}`);
+        errorMessages.forEach(message => message.remove());
+        
+        // Remove error summary
+        const errorSummary = this.form.querySelector('.form-errors');
+        if (errorSummary) {
+            errorSummary.remove();
+        }
+    }
+};
+
+// Auto-initialize form validators
+document.addEventListener('DOMContentLoaded', () => {
+    const forms = document.querySelectorAll('form[data-validate="true"]');
+    forms.forEach(form => {
+        new App.components.FormValidator(form);
+    });
+});
+```
+
+### API Helper (`utils/api.js`)
+```javascript
+/**
+ * API Helper Utilities
+ * Provides convenient methods for making API requests to RustF backend
+ */
+
+App.utils.api = {
+    // Base configuration
+    baseUrl: '/api',
+    defaultHeaders: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+    },
+
+    // Add CSRF token to headers if available
+    getHeaders(additionalHeaders = {}) {
+        const headers = { ...this.defaultHeaders, ...additionalHeaders };
+        
+        // Add CSRF token if available
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        if (csrfToken) {
+            headers['X-CSRF-Token'] = csrfToken;
+        }
+        
+        return headers;
+    },
+
+    // Generic request method
+    async request(endpoint, options = {}) {
+        const url = endpoint.startsWith('http') ? endpoint : this.baseUrl + endpoint;
+        
+        const config = {
+            headers: this.getHeaders(options.headers),
+            ...options
+        };
+
+        try {
+            const response = await fetch(url, config);
+            
+            // Handle different response types
+            const contentType = response.headers.get('content-type');
+            let data;
+            
+            if (contentType && contentType.includes('application/json')) {
+                data = await response.json();
+            } else {
+                data = await response.text();
+            }
+            
+            if (!response.ok) {
+                throw new Error(data.message || `HTTP error! status: ${response.status}`);
+            }
+            
+            return data;
+        } catch (error) {
+            console.error('API request failed:', error);
+            
+            // Show user-friendly error message
+            App.utils.notify(
+                error.message || 'An error occurred while processing your request',
+                'error'
+            );
+            
+            throw error;
+        }
+    },
+
+    // GET request
+    async get(endpoint, params = {}) {
+        const url = new URL(endpoint.startsWith('http') ? endpoint : this.baseUrl + endpoint, window.location.origin);
+        
+        // Add query parameters
+        Object.keys(params).forEach(key => {
+            if (params[key] !== null && params[key] !== undefined) {
+                url.searchParams.append(key, params[key]);
+            }
+        });
+        
+        return this.request(url.pathname + url.search, {
+            method: 'GET'
+        });
+    },
+
+    // POST request
+    async post(endpoint, data = {}) {
+        return this.request(endpoint, {
+            method: 'POST',
+            body: JSON.stringify(data)
+        });
+    },
+
+    // PUT request
+    async put(endpoint, data = {}) {
+        return this.request(endpoint, {
+            method: 'PUT',
+            body: JSON.stringify(data)
+        });
+    },
+
+    // DELETE request
+    async delete(endpoint) {
+        return this.request(endpoint, {
+            method: 'DELETE'
+        });
+    },
+
+    // Upload file
+    async upload(endpoint, formData) {
+        return this.request(endpoint, {
+            method: 'POST',
+            body: formData,
+            headers: {} // Don't set Content-Type for FormData
+        });
+    },
+
+    // Convenient methods for common operations
+    users: {
+        list: (params) => App.utils.api.get('/users', params),
+        get: (id) => App.utils.api.get(`/users/${id}`),
+        create: (data) => App.utils.api.post('/users', data),
+        update: (id, data) => App.utils.api.put(`/users/${id}`, data),
+        delete: (id) => App.utils.api.delete(`/users/${id}`)
+    },
+
+    posts: {
+        list: (params) => App.utils.api.get('/posts', params),
+        get: (slug) => App.utils.api.get(`/posts/${slug}`),
+        create: (data) => App.utils.api.post('/posts', data),
+        update: (id, data) => App.utils.api.put(`/posts/${id}`, data),
+        delete: (id) => App.utils.api.delete(`/posts/${id}`)
+    }
+};
+```
+
+## 🎯 Page-Specific JavaScript
+
+### Dashboard Page (`pages/dashboard.js`)
+```javascript
+/**
+ * Dashboard Page JavaScript
+ * Handles dashboard-specific functionality
+ */
+
+App.pages.dashboard = {
+    charts: {},
+    
+    init() {
+        this.initCharts();
+        this.initRealtimeUpdates();
+        this.initActions();
+    },
+
+    async initCharts() {
+        try {
+            const data = await App.utils.api.get('/dashboard/stats');
+            this.renderCharts(data);
+        } catch (error) {
+            console.error('Failed to load dashboard data:', error);
+        }
+    },
+
+    renderCharts(data) {
+        // User growth chart
+        if (document.getElementById('users-chart')) {
+            this.charts.users = new Chart(document.getElementById('users-chart'), {
+                type: 'line',
+                data: {
+                    labels: data.users.labels,
+                    datasets: [{
+                        label: 'Users',
+                        data: data.users.data,
+                        borderColor: '#007bff',
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+        }
+
+        // Revenue chart
+        if (document.getElementById('revenue-chart')) {
+            this.charts.revenue = new Chart(document.getElementById('revenue-chart'), {
+                type: 'bar',
+                data: {
+                    labels: data.revenue.labels,
+                    datasets: [{
+                        label: 'Revenue',
+                        data: data.revenue.data,
+                        backgroundColor: '#28a745'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+        }
+    },
+
+    initRealtimeUpdates() {
+        // Update stats every 30 seconds
+        setInterval(async () => {
+            try {
+                const data = await App.utils.api.get('/dashboard/stats');
+                this.updateStats(data);
+            } catch (error) {
+                console.error('Failed to update dashboard stats:', error);
+            }
+        }, 30000);
+    },
+
+    updateStats(data) {
+        // Update stat cards
+        const statCards = document.querySelectorAll('[data-stat]');
+        statCards.forEach(card => {
+            const statName = card.dataset.stat;
+            if (data.stats[statName] !== undefined) {
+                const valueElement = card.querySelector('.stat-value');
+                if (valueElement) {
+                    valueElement.textContent = data.stats[statName];
+                }
+            }
+        });
+    },
+
+    initActions() {
+        // Refresh button
+        const refreshBtn = document.getElementById('refresh-dashboard');
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', () => {
+                this.initCharts();
+                App.utils.notify('Dashboard refreshed', 'success');
+            });
+        }
+
+        // Export data button
+        const exportBtn = document.getElementById('export-data');
+        if (exportBtn) {
+            exportBtn.addEventListener('click', async () => {
+                try {
+                    const data = await App.utils.api.get('/dashboard/export');
+                    this.downloadFile(data, 'dashboard-data.csv');
+                } catch (error) {
+                    App.utils.notify('Failed to export data', 'error');
+                }
+            });
+        }
+    },
+
+    downloadFile(content, filename) {
+        const blob = new Blob([content], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+    }
+};
+```
+
+## 🛠️ Development Tools
+
+### Build Script (`build-js.sh`)
+```bash
+#!/bin/bash
+# Simple JavaScript concatenation and minification
+
+echo "Building JavaScript files..."
+
+# Concatenate main application files
+cat public/js/main.js \
+    public/js/components/*.js \
+    public/js/utils/*.js > public/js/app.js
+
+# Minify (requires terser or similar)
+if command -v terser &> /dev/null; then
+    terser public/js/app.js -o public/js/app.min.js --compress --mangle
+    echo "✅ JavaScript minified to app.min.js"
+    
+    # Show file sizes
+    echo "Original size: $(du -h public/js/app.js | cut -f1)"
+    echo "Minified size: $(du -h public/js/app.min.js | cut -f1)"
+else
+    echo "❌ Install terser for minification: npm install -g terser"
+fi
+```
+
+### Module Bundler Configuration (Optional)
+If using a bundler like Webpack, create `webpack.config.js`:
+```javascript
+const path = require('path');
+
+module.exports = {
+    entry: './public/js/main.js',
+    output: {
+        filename: 'app.min.js',
+        path: path.resolve(__dirname, 'public/js'),
+    },
+    mode: 'production',
+    optimization: {
+        minimize: true,
+    },
+};
+```
+
+## 🧪 Testing JavaScript
+
+### Unit Testing Setup
+Create `test/js/test-runner.html`:
+```html
+<!DOCTYPE html>
+<html>
+<head>
+    <title>JavaScript Tests</title>
+    <link rel="stylesheet" href="https://unpkg.com/mocha/mocha.css">
+</head>
+<body>
+    <div id="mocha"></div>
+    
+    <!-- Test framework -->
+    <script src="https://unpkg.com/mocha/mocha.js"></script>
+    <script src="https://unpkg.com/chai/chai.js"></script>
+    
+    <!-- Application code -->
+    <script src="../../public/js/main.js"></script>
+    <script src="../../public/js/utils/api.js"></script>
+    
+    <!-- Tests -->
+    <script>
+        mocha.setup('bdd');
+        const expect = chai.expect;
+    </script>
+    <script src="test-utils.js"></script>
+    <script src="test-api.js"></script>
+    <script>
+        mocha.run();
+    </script>
+</body>
+</html>
+```
+
+### Example Test (`test/js/test-utils.js`)
+```javascript
+describe('App Utilities', function() {
+    describe('isValidEmail', function() {
+        it('should return true for valid emails', function() {
+            expect(App.utils.isValidEmail('test@example.com')).to.be.true;
+            expect(App.utils.isValidEmail('user.name+tag@domain.co.uk')).to.be.true;
+        });
+
+        it('should return false for invalid emails', function() {
+            expect(App.utils.isValidEmail('invalid-email')).to.be.false;
+            expect(App.utils.isValidEmail('test@')).to.be.false;
+            expect(App.utils.isValidEmail('@example.com')).to.be.false;
+        });
+    });
+
+    describe('debounce', function() {
+        it('should delay function execution', function(done) {
+            let called = false;
+            const debouncedFn = App.utils.debounce(() => {
+                called = true;
+            }, 100);
+
+            debouncedFn();
+            expect(called).to.be.false;
+
+            setTimeout(() => {
+                expect(called).to.be.true;
+                done();
+            }, 150);
+        });
+    });
+});
+```
+
+## 🚀 Performance Optimization
+
+### Lazy Loading Components
+```javascript
+// Lazy load heavy components
+App.utils.loadComponent = async function(componentName) {
+    if (!this.loadedComponents) {
+        this.loadedComponents = new Set();
+    }
+
+    if (this.loadedComponents.has(componentName)) {
+        return;
+    }
+
+    try {
+        const script = document.createElement('script');
+        script.src = `/static/js/components/${componentName}.js`;
+        script.async = true;
+        
+        await new Promise((resolve, reject) => {
+            script.onload = resolve;
+            script.onerror = reject;
+            document.head.appendChild(script);
+        });
+
+        this.loadedComponents.add(componentName);
+    } catch (error) {
+        console.error(`Failed to load component: ${componentName}`, error);
+    }
+};
+```
+
+### Service Worker (Optional)
+Create `public/service-worker.js`:
+```javascript
+const CACHE_NAME = '{{project_name}}-v1';
+const urlsToCache = [
+    '/static/css/main.css',
+    '/static/js/main.js',
+    '/static/js/app.min.js'
+];
+
+self.addEventListener('install', event => {
+    event.waitUntil(
+        caches.open(CACHE_NAME)
+            .then(cache => cache.addAll(urlsToCache))
+    );
+});
+
+self.addEventListener('fetch', event => {
+    event.respondWith(
+        caches.match(event.request)
+            .then(response => {
+                return response || fetch(event.request);
+            })
+    );
+});
+```
+
+## 🤖 AI Agent Instructions
+
+When working with JavaScript:
+1. **Use modern ES6+ features** for clean, readable code
+2. **Organize code in modules** for maintainability
+3. **Handle errors gracefully** with try-catch blocks
+4. **Use async/await** for API calls and promises
+5. **Implement proper form validation** on the client side
+6. **Add loading states** for better user experience
+7. **Use debouncing/throttling** for performance optimization
+8. **Follow accessibility best practices** with keyboard navigation
+9. **Test JavaScript functionality** across different browsers
+10. **Minify and bundle** files for production
+
+**Framework Integration**: Use `/static/js/` URL path for JavaScript files, integrate with RustF's CSRF protection, handle flash messages and form submissions.
+
+**Performance**: Minimize DOM manipulation, use event delegation, implement lazy loading for heavy components, cache API responses when appropriate.

@@ -1,0 +1,34 @@
+-- Generated SQL migration for {{table_name}}
+-- Schema version: {{table.version}}
+{{#if table.description}}
+-- {{table.description}}
+{{/if}}
+
+-- Create table: {{table.table}}
+CREATE TABLE {{table.table}} (
+{{#each variables.sql_fields}}
+    {{name}} {{sql_type}}{{#if not_null}} NOT NULL{{/if}}{{#if primary_key}} PRIMARY KEY{{/if}}{{#if unique}} UNIQUE{{/if}}{{#if default}} DEFAULT {{default}}{{/if}}{{#unless @last}},{{/unless}}
+{{/each}}
+);
+
+{{#if table.indexes}}
+-- Indexes
+{{#each table.indexes}}
+CREATE {{#if unique}}UNIQUE {{/if}}INDEX {{name}} ON {{../table.table}} ({{#each fields}}{{this}}{{#unless @last}}, {{/unless}}{{/each}});
+{{/each}}
+{{/if}}
+
+{{#if table.constraints}}
+-- Constraints
+{{#each table.constraints}}
+ALTER TABLE {{../table.table}} ADD CONSTRAINT {{name}} {{constraint_type}};
+{{/each}}
+{{/if}}
+
+{{#if table.relations.belongs_to}}
+-- Foreign keys (belongs_to relationships)
+{{#each table.relations.belongs_to}}
+ALTER TABLE {{../table.table}} ADD CONSTRAINT fk_{{../table.table}}_{{local_field}} 
+    FOREIGN KEY ({{local_field}}) REFERENCES {{model}} ({{foreign_field}}){{#if on_delete}} ON DELETE {{on_delete}}{{/if}}{{#if on_update}} ON UPDATE {{on_update}}{{/if}};
+{{/each}}
+{{/if}}
