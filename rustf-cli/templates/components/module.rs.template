@@ -1,0 +1,123 @@
+use rustf::prelude::*;
+use std::sync::Arc;
+
+/// {{module_title}} Service
+/// 
+/// This module provides {{description}}
+#[derive(Debug, Clone)]
+pub struct {{module_struct}} {
+    name: String,
+    // Add your service dependencies here
+    // db: Arc<Database>,
+    // cache: Arc<Cache>,
+}
+
+impl {{module_struct}} {
+    /// Create a new instance of {{module_struct}}
+    pub fn new() -> Self {
+        Self {
+            name: "{{module_struct}}".to_string(),
+        }
+    }
+{{#if with_methods}}
+    /// Example method: Process data
+    /// 
+    /// # Example
+    /// ```rust,ignore
+    /// let service = {{module_name}}();
+    /// let result = service.process_data(data).await?;
+    /// ```
+    pub async fn process_data(&self, data: serde_json::Value) -> Result<serde_json::Value> {
+        // TODO: Implement your business logic here
+        
+        // Example validation
+        if data.get("required_field").is_none() {
+            return Err(Error::validation("Missing required field"));
+        }
+        
+        // Process the data
+        let processed = json!({
+            "processed": true,
+            "timestamp": chrono::Utc::now().to_rfc3339(),
+            "original": data,
+            "service": self.name
+        });
+        
+        Ok(processed)
+    }
+    
+    /// Example method: Validate input
+    pub fn validate_input(&self, input: &str) -> Result<bool> {
+        // TODO: Add your validation logic
+        if input.is_empty() {
+            return Err(Error::validation("Input cannot be empty"));
+        }
+        
+        if input.len() < 3 {
+            return Err(Error::validation("Input must be at least 3 characters"));
+        }
+        
+        Ok(true)
+    }
+    
+    /// Example method: Fetch data with caching
+    pub async fn fetch_data(&self, key: &str) -> Result<serde_json::Value> {
+        // TODO: Implement caching logic
+        // Example: 
+        // if let Some(cached) = self.cache.get(key).await? {
+        //     return Ok(cached);
+        // }
+        
+        // Fetch fresh data
+        let data = json!({
+            "key": key,
+            "data": "Sample data",
+            "fetched_at": chrono::Utc::now().to_rfc3339()
+        });
+        
+        // Store in cache
+        // self.cache.set(key, &data, Duration::from_secs(3600)).await?;
+        
+        Ok(data)
+    }
+    
+    /// Example method: Perform batch operation
+    pub async fn batch_operation(&self, items: Vec<serde_json::Value>) -> Result<Vec<serde_json::Value>> {
+        let mut results = Vec::new();
+        
+        for item in items {
+            // Process each item
+            let processed = self.process_data(item).await?;
+            results.push(processed);
+        }
+        
+        Ok(results)
+    }
+{{/if}}
+}
+
+{{#if shared}}
+/// Install function for shared module registration
+/// 
+/// This function is called during application startup to register
+/// the module as a shared service accessible throughout the application.
+pub fn install() -> Arc<{{module_struct}}> {
+    Arc::new({{module_struct}}::new())
+}
+
+/// Helper function to access the service from context
+/// 
+/// # Example
+/// ```rust,ignore
+/// async fn handler(ctx: Context) -> Result<Response> {
+///     let service = {{module_name}}();
+///     let result = service.process_data(data).await?;
+///     ctx.json(result)
+/// }
+/// ```
+pub fn {{module_name}}() -> Arc<{{module_struct}}> {
+    // In a real application, this would retrieve from the shared module registry
+    // For now, creating a new instance
+    Arc::new({{module_struct}}::new())
+}
+{{/if}}

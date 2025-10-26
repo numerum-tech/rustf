@@ -1,0 +1,191 @@
+//! =============================================================================
+//! ✅ EDITABLE FILE - BUSINESS LOGIC {{model_name}} - SAFE TO MODIFY
+//! =============================================================================
+//! 
+//! This file contains the business logic for the {{model_name}} model.
+//! 
+//! ✅ THIS FILE IS SAFE TO EDIT - It will never be overwritten!
+//! 
+//! 📝 FOR DEVELOPERS:
+//! ✅ Add your business logic methods here
+//! ✅ The base model handles database operations
+//! ✅ Use self.base to access DB fields
+//! ✅ Implement here: validation, authentication, business rules
+//! ⚠️  Keep the register() function for auto_models!() compatibility
+//! 
+//! 🤖 FOR AI AGENTS / CODE ASSISTANTS:
+//! ✅ This is the main file for {{model_name}} business logic
+//! ✅ Extend functionality by adding methods to impl {{model_name}}
+//! ✅ Use self.base.field_name to access DB fields
+//! ✅ Use self.base.create(), .update(), .delete() for DB operations
+//! ✅ ALWAYS preserve the register() function for auto_models!()
+//! ⚠️  NEVER edit files in base/ - direct modifications here
+//! 
+//! 📎 References:
+//! - Base model: src/models/base/{{table_name}}_base.rs (generated, do not edit)
+//! - Schema definition: schemas/{{table_name}}.yaml (edit to change DB structure)  
+//! - Documentation: src/models/MODELS_README.md
+//! =============================================================================
+
+// Import the base model directly from file path (no mod.rs needed!)
+#[path = "base/{{table_name}}_base.rs"]
+mod {{table_name}}_base;
+use {{table_name}}_base::{{model_name}}Base;
+use sqlx::{Pool, {{pool_type}}};
+use anyhow::Result;
+use rustf::models::BaseModel;
+use rustf::{implement_wrapper, implement_crud_methods};{{wrapper_imports}}
+
+/// {{model_name}} model with business logic extending {{model_name}}Base
+/// 
+/// This wrapper provides business logic while delegating
+/// database operations to the generated base model.
+/// 
+/// 🤖 AI AGENTS: Use {{model_name}}Base::columns for type-safe queries:
+/// ```rust
+/// let results = {{model_name}}::query()?
+///     .where_eq({{model_name}}Base::columns::EMAIL, "user@example.com")
+///     .get_all()
+///     .await?;
+/// ```
+pub struct {{model_name}} {
+    /// Base model containing fields and CRUD operations
+    base: {{model_name}}Base,
+}
+
+// Generate standard wrapper methods using macro
+implement_wrapper!({{model_name}}, {{model_name}}Base);
+
+// =========================================================================
+// 🚀 AUTOMATIC DELEGATION VIA DEREF
+// =========================================================================
+// This gives the wrapper automatic access to ALL base model methods!
+// No need to manually delegate getters, setters, or other methods.
+
+impl std::ops::Deref for {{model_name}} {
+    type Target = {{model_name}}Base;
+    
+    fn deref(&self) -> &Self::Target {
+        &self.base
+    }
+}
+
+impl std::ops::DerefMut for {{model_name}} {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.base
+    }
+}
+
+impl {{model_name}} {
+    // Note: Thanks to Deref/DerefMut above, this model automatically has:
+    // ✅ All getter methods from base model
+    // ✅ All setter methods with change tracking from base model
+    // ✅ update(), has_changes(), changed_fields() methods
+    // ✅ All other base model methods
+    //
+    // You only need to add:
+    // - Methods that need business validation
+    // - Custom business logic methods
+    // - Methods you want to override with different behavior
+    
+    // =========================================================================
+    // 🚀 STANDARD CRUD METHODS (convenience wrappers)
+    // =========================================================================
+    
+    // Generate all standard CRUD convenience methods
+    implement_crud_methods!({{model_name}}, {{model_name}}Base, {{id_type}});
+    
+    // =========================================================================
+    // ✅ CUSTOM BUSINESS LOGIC
+    // =========================================================================
+    
+    /// Create a new {{model_name}} with the builder pattern
+    /// 
+    /// # Example
+    /// ```rust
+    /// let model = {{model_name}}::builder()
+    ///     .field1("value")
+    ///     .field2(42)
+    ///     .save(&pool)
+    ///     .await?;
+    /// ```
+    pub fn builder() -> {{model_name}}Builder {
+        {{model_name}}Builder { base_builder: {{table_name}}_base::{{model_name}}Base::builder() }
+    }
+    
+    /// Find by ID with business validation
+    pub async fn find_by_id(pool: &Pool<{{pool_type}}>, id: {{id_type}}) -> Result<Option<Self>> {
+        use rustf::models::{AnyDatabase, BaseModel};
+        let any_db = {{any_database_variant}};
+        if let Some(base) = {{model_name}}Base::find_by_id(&any_db, id).await? {
+            // Add any business validation here
+            Ok(Some(Self::from_base(base)))
+        } else {
+            Ok(None)
+        }
+    }
+    
+    // =========================================================================
+    // 📝 ADD YOUR CUSTOM BUSINESS METHODS HERE
+    // =========================================================================
+    
+    // Example: Add custom validation, business rules, complex queries, etc.
+    // pub async fn find_active_by_email(email: &str) -> rustf::Result<Option<Self>> {
+    //     Self::query()?
+    //         .where_eq({{model_name}}Base::columns::EMAIL, email)
+    //         .where_eq({{model_name}}Base::columns::IS_ACTIVE, true)
+    //         .get_first()
+    //         .await
+    //         .map(|opt| opt.map(Self::from_base))
+    // }
+}
+
+/// Builder wrapper for {{model_name}}
+/// 
+/// Wraps the base builder to allow adding business logic validation
+pub struct {{model_name}}Builder {
+    base_builder: {{table_name}}_base::{{model_name}}Builder,
+}
+
+impl {{model_name}}Builder {
+    /// Save with business validation
+    pub async fn save(self, pool: &Pool<{{pool_type}}>) -> Result<{{model_name}}> {
+        // Add any business validation here before saving
+        let base = self.base_builder.save(pool).await?;
+        Ok({{model_name}}::from_base(base))
+    }
+    
+    // Note: All builder setter methods are automatically available through Deref/DerefMut!
+    // No need to manually delegate them - just use them directly:
+    // let user = {{model_name}}::builder()
+    //     .username("john")     // Automatically calls base_builder.username()
+    //     .email("john@example.com")  // Automatically calls base_builder.email()
+    //     .save(&pool)
+    //     .await?;
+}
+
+// Automatic delegation of all builder methods via Deref
+impl std::ops::Deref for {{model_name}}Builder {
+    type Target = {{table_name}}_base::{{model_name}}Builder;
+    
+    fn deref(&self) -> &Self::Target {
+        &self.base_builder
+    }
+}
+
+impl std::ops::DerefMut for {{model_name}}Builder {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.base_builder
+    }
+}
+
+/// ⚠️  REQUIRED by auto_models!() - registers this model for auto-discovery
+/// 
+/// This function is called automatically by the auto_models!() macro
+/// Never remove this function - it is necessary for
+/// RustF to discover and automatically register this model.
+pub fn register(registry: &mut rustf::models::ModelRegistry) {
+    // Registry is used by auto_models! macro
+    let _ = registry; // Suppress unused warning while keeping the parameter
+    log::debug!("{{model_name}} model registered with business logic");
+}

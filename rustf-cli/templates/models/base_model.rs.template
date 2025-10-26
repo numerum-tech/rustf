@@ -1,0 +1,458 @@
+//! =============================================================================
+//! ⚠️  WARNING: AUTOMATICALLY GENERATED FILE - DO NOT EDIT
+//! =============================================================================
+//! 
+//! 🚫 THIS FILE WILL BE OVERWRITTEN during the next generation!
+//! 
+//! 📝 FOR DEVELOPERS:
+//! ❌ NEVER edit this file - your changes will be lost
+//! ✅ To add business logic, edit: src/models/{{table_name}}.rs
+//! ✅ To modify the DB schema, edit: schemas/{{table_name}}.yaml
+//! 🔄 Then run: rustf-cli schema generate models
+//! 
+//! 🤖 FOR AI AGENTS / CODE ASSISTANTS:
+//! ❌ ABSOLUTELY FORBIDDEN to edit this file
+//! ✅ Direct modifications to: src/models/{{table_name}}.rs
+//! ✅ Use composition pattern: {{model_name}} { base: {{model_name}}Base }
+//! ✅ The wrapper extends this base model with business logic
+//! ℹ️  This file contains only basic CRUD operations
+//! 
+//! 📊 Generation information:
+//! - Generated from: schemas/{{table_name}}.yaml
+//! - Schema checksum: {{checksum}}
+//! - Generated on: {{generation_time}}
+//! - RustF CLI version: {{cli_version}}
+//! =============================================================================
+
+{{imports}}
+use rustf::models::{BaseModel, ChangeTracking, AnyDatabase, Filter, UpdateBuilder};
+use rustf::models::query_builder::{DatabaseBackend, SqlValue};
+use async_trait::async_trait;
+use std::collections::HashSet;
+
+/// Base {{model_name}} model - auto-generated from schema
+/// 
+/// {{table_documentation}}
+/// 
+/// This struct contains all database fields and basic CRUD operations.
+/// Extend this in ../{{table_name}}.rs for business logic.
+/// 
+/// ⚠️  DO NOT EDIT - This file will be overwritten
+/// 🤖 AI AGENTS: Work in ../{{table_name}}.rs instead
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct {{model_name}}Base {
+{{struct_fields_with_docs}}
+    /// Tracks which fields have been modified since load/creation
+    /// Used for efficient partial updates
+    #[serde(skip)]
+    changed_fields: HashSet<String>,
+}
+
+/// AI Agent Documentation and Metadata
+/// 
+/// 🤖 FOR AI AGENTS: Use the CLI command for development-time metadata access:
+/// ```bash
+/// rustf-cli model-metadata {{model_name}} --format json
+/// ```
+/// 
+/// This provides field hints, validation rules, and schema information
+/// without runtime overhead. Never add FIELD_HINTS or VALIDATION_RULES
+/// runtime constants to this file.
+impl {{model_name}}Base {
+    // =========================================================================
+    // 🔄 CHANGE TRACKING METHODS
+    // =========================================================================
+    
+    /// Mark a field as changed (for internal use by setters)
+    pub fn mark_changed(&mut self, field: &str) {
+        self.changed_fields.insert(field.to_string());
+    }
+    
+    /// Check if a specific field has been changed
+    pub fn is_changed(&self, field: &str) -> bool {
+        self.changed_fields.contains(field)
+    }
+    
+    /// Check if any fields have been changed
+    pub fn has_changes(&self) -> bool {
+        !self.changed_fields.is_empty()
+    }
+    
+    /// Clear all change tracking (typically after a successful save/update)
+    pub fn clear_changes(&mut self) {
+        self.changed_fields.clear();
+    }
+    
+    /// Get list of changed field names
+    pub fn changed_fields(&self) -> Vec<String> {
+        self.changed_fields.iter().cloned().collect()
+    }
+    
+    // =========================================================================
+    // 🔧 FIELD SETTERS WITH CHANGE TRACKING
+    // =========================================================================
+    
+{{field_setters}}
+}
+
+// FromRow implementations for each database type
+{{postgres_fromrow_block}}
+{{mysql_fromrow_block}}
+{{sqlite_fromrow_block}}
+
+/// Type constants for AI agent reference
+/// 
+/// AI agents can use these type aliases to generate consistent,
+/// schema-aware code without hardcoding types.
+/// 
+/// Example: {{model_name}}Base::types::Email resolves to Option<String>
+pub mod types {
+{{type_imports}}
+    
+{{type_constants}}
+}
+
+/// Column name constants for type-safe query building
+/// 
+/// Use these constants instead of hardcoding column names to avoid typos
+/// and get compile-time validation of column names.
+/// 
+/// Example:
+/// ```rust
+/// let users = {{model_name}}::query()?
+///     .where_eq({{model_name}}Base::columns::IS_ACTIVE, true)
+///     .order_by({{model_name}}Base::columns::CREATED_AT, OrderDirection::Desc)
+///     .get_all()
+///     .await?;
+/// ```
+pub mod columns {
+{{column_constants}}
+}
+
+/// Implementation of change tracking for efficient updates
+impl ChangeTracking for {{model_name}}Base {
+    fn mark_changed(&mut self, field: &str, is_null: bool) {
+        self.changed_fields.insert(field.to_string());
+        if is_null {
+            self.null_fields.insert(field.to_string());
+        } else {
+            self.null_fields.remove(field);
+        }
+    }
+    
+    fn is_changed(&self, field: &str) -> bool {
+        self.changed_fields.contains(field)
+    }
+    
+    fn is_null(&self, field: &str) -> bool {
+        self.null_fields.contains(field)
+    }
+    
+    fn has_changes(&self) -> bool {
+        !self.changed_fields.is_empty()
+    }
+    
+    fn clear_changes(&mut self) {
+        self.changed_fields.clear();
+        self.null_fields.clear();
+    }
+    
+    fn changed_fields(&self) -> Vec<String> {
+        self.changed_fields.iter().cloned().collect()
+    }
+    
+    fn changed_fields_set(&self) -> &HashSet<String> {
+        &self.changed_fields
+    }
+    
+    fn null_fields_set(&self) -> &HashSet<String> {
+        &self.null_fields
+    }
+}
+
+/// Base model implementation for database operations
+#[async_trait]
+impl BaseModel for {{model_name}}Base {
+    type IdType = {{id_type}};
+    const TABLE_NAME: &'static str = "{{table_name}}";
+    
+    fn id(&self) -> Self::IdType {
+{{id_method_impl}}
+    }
+    
+    /// Create a new instance from JSON data
+    async fn from_row_data(data: serde_json::Value) -> anyhow::Result<Self> {
+        let model: Self = serde_json::from_value(data)?;
+        Ok(model)
+    }
+    
+    /// Execute a SELECT query and convert results to model instances
+    async fn execute_select_query(db: &AnyDatabase, sql: &str, params: Vec<rustf::models::query_builder::SqlValue>) -> anyhow::Result<Vec<Self>> {
+        match db {
+{{database_select_support}}
+        }
+    }
+    
+    /// Execute a single SELECT query and convert result to model instance
+    async fn execute_select_one_query(db: &AnyDatabase, sql: &str, params: Vec<rustf::models::query_builder::SqlValue>) -> anyhow::Result<Option<Self>> {
+        match db {
+{{database_select_one_support}}
+        }
+    }
+}
+
+impl {{model_name}}Base {
+    /// Create a builder for constructing new {{model_name}} instances
+    /// 
+    /// The builder pattern is the recommended way to create new models.
+    /// It provides a fluent interface with validation and direct database saving.
+    /// 
+    /// # Example
+    /// ```rust
+    /// let new_model = {{model_name}}Base::builder()
+    ///     .field1("value1")
+    ///     .field2(42)
+    ///     .save(&pool)
+    ///     .await?;
+    /// ```
+    pub fn builder() -> {{model_name}}Builder {
+        {{model_name}}Builder::new()
+    }
+}
+
+/// Builder for {{model_name}}Base
+/// 
+/// Provides a fluent interface for constructing {{model_name}}Base instances.
+/// Required fields must be set before calling `build()`, while optional fields
+/// have sensible defaults.
+pub struct {{model_name}}Builder {
+{{builder_fields}}
+}
+
+impl {{model_name}}Builder {
+    /// Create a new builder with default values
+    pub fn new() -> Self {
+        Self {
+{{builder_defaults}}
+        }
+    }
+    
+{{builder_methods}}
+    
+{{builder_validate_method}}
+    
+    /// Build the {{model_name}}Base instance
+    /// 
+    /// # Returns
+    /// * `Ok({{model_name}}Base)` if all required fields are set
+    /// * `Err(String)` if any required fields are missing
+    pub fn build(self) -> Result<{{model_name}}Base, String> {
+{{builder_validation}}
+        
+        Ok({{model_name}}Base {
+{{builder_build}}
+        })
+    }
+    
+    /// Save the model to the database
+    /// 
+    /// This is the primary method for creating new records in the database.
+    /// It builds the model with validation and then inserts it.
+    /// 
+    /// # Example
+    /// ```rust
+    /// let new_model = {{model_name}}Base::builder()
+    ///     .field1("value1")
+    ///     .field2(42)
+    ///     .save(&pool)
+    ///     .await?;
+    /// ```
+    pub async fn save(self, pool: &Pool<{{pool_type}}>) -> Result<{{model_name}}Base> {
+        let mut model = self.build().map_err(anyhow::Error::msg)?;
+        // Clear any change tracking for new records
+        model.clear_changes();
+        {{model_name}}Base::create_internal(pool, model).await
+    }
+}
+
+impl {{model_name}}Base {
+    /// Smart update that only modifies changed fields
+    /// 
+    /// This method efficiently updates only the fields that have been modified
+    /// using the setter methods. It automatically tracks changes and generates
+    /// optimized UPDATE queries.
+    /// 
+    /// # Example
+    /// ```rust
+    /// let mut model = {{model_name}}Base::get_by_id(id).await?.unwrap();
+    /// model.set_email("new@example.com");
+    /// model.set_status("active");
+    /// model.update(&pool).await?; // Only updates email and status fields
+    /// ```
+    /// 
+    /// # Returns
+    /// * `Ok(())` if update successful or no changes to save
+    /// * `Err(Error)` if database operation fails
+    pub async fn update(&mut self, pool: &Pool<{{pool_type}}>) -> Result<()> {
+        use rustf::models::query_builder::QueryBuilder;
+        use std::collections::HashMap;
+        
+        // Skip if no changes
+        if !self.has_changes() {
+            return Ok(());
+        }
+        
+        // Build update data from changed fields only
+        let mut update_data = HashMap::new();
+        for field in self.changed_fields() {
+            let value = self.get_field_value(&field)?;
+            update_data.insert(field, value);
+        }
+        
+        // Build and execute UPDATE query
+        let query_builder = QueryBuilder::new({{database_backend}})
+            .from("{{table_name}}")
+            .where_eq("id", self.id());
+        let (sql, params) = query_builder.build_update(&update_data)?;
+        
+        let mut query = sqlx::query(&sql);
+        for param in params {
+            query = match param {
+                // Handle all SqlValue variants for parameter binding
+                SqlValue::Null => query.bind(Option::<String>::None),
+                SqlValue::Bool(b) => query.bind(b),
+                
+                // Integer types
+                SqlValue::TinyInt(i) => query.bind(i),
+                SqlValue::SmallInt(i) => query.bind(i),
+                SqlValue::Int(i) => query.bind(i),
+                SqlValue::BigInt(i) => query.bind(i),
+                
+                // Unsigned integers
+                SqlValue::UnsignedTinyInt(i) => query.bind(i),
+                SqlValue::UnsignedSmallInt(i) => query.bind(i),
+                SqlValue::UnsignedInt(i) => query.bind(i),
+                SqlValue::UnsignedBigInt(i) => query.bind(i),
+                
+                // Floating point
+                SqlValue::Float(f) => query.bind(f),
+                SqlValue::Double(f) => query.bind(f),
+                SqlValue::Decimal(s) => query.bind(s),
+                
+                // Text types
+                SqlValue::String(s) => query.bind(s),
+                SqlValue::Text(s) => query.bind(s),
+                
+                // Binary
+                SqlValue::Bytes(bytes) => query.bind(bytes),
+                
+                // Semantic types
+                SqlValue::Enum(value) => query.bind(value),
+                SqlValue::Uuid(uuid) => query.bind(uuid),
+                SqlValue::Json(j) => query.bind(j),
+                SqlValue::Date(date) => query.bind(date),
+                SqlValue::DateTime(dt) => query.bind(dt),
+                SqlValue::Timestamp(ts) => query.bind(ts),
+                
+                // Special types
+                SqlValue::Default => {
+                    panic!("SqlValue::Default should be handled in SQL generation, not parameter binding");
+                }
+                SqlValue::Array(values) => {
+                    // Array handling depends on database type
+                    // For now, serialize to JSON string as a fallback
+                    let json_array = serde_json::Value::Array(
+                        values.into_iter().map(|v| v.to_json()).collect()
+                    );
+                    query.bind(json_array.to_string())
+                }
+            };
+        }
+        
+        query.execute(pool).await?;
+        
+        // Clear change tracking after successful update
+        self.clear_changes();
+        Ok(())
+    }
+    
+    /// Get field value by name for dynamic updates
+    fn get_field_value(&self, field_name: &str) -> Result<SqlValue> {
+        use rustf::models::query_builder::SqlValue;
+{{get_field_value_impl}}
+    }
+    
+    /// Internal method to insert a model into the database
+    async fn create_internal(pool: &Pool<{{pool_type}}>, mut model: Self) -> Result<Self> {
+        use rustf::models::query_builder::{QueryBuilder, DatabaseBackend, SqlValue};
+        use std::collections::HashMap;
+        
+        // Clear change tracking for new inserts
+        model.clear_changes();
+        
+        let mut insert_data = HashMap::new();
+{{insert_field_mapping}}
+        
+        let query_builder = QueryBuilder::new({{database_backend}})
+            .from("{{table_name}}");
+        let (sql, params) = query_builder.build_insert(&insert_data)
+            .map_err(|e| rustf::Error::DatabaseQuery(format!("Failed to build insert query: {}", e)))?;
+        
+        let mut query = sqlx::query_as(&sql);
+        for param in params {
+            query = match param {
+                // Handle all SqlValue variants for parameter binding
+                SqlValue::Null => query.bind(Option::<String>::None),
+                SqlValue::Bool(b) => query.bind(b),
+                
+                // Integer types
+                SqlValue::TinyInt(i) => query.bind(i),
+                SqlValue::SmallInt(i) => query.bind(i),
+                SqlValue::Int(i) => query.bind(i),
+                SqlValue::BigInt(i) => query.bind(i),
+                
+                // Unsigned integers
+                SqlValue::UnsignedTinyInt(i) => query.bind(i),
+                SqlValue::UnsignedSmallInt(i) => query.bind(i),
+                SqlValue::UnsignedInt(i) => query.bind(i),
+                SqlValue::UnsignedBigInt(i) => query.bind(i),
+                
+                // Floating point
+                SqlValue::Float(f) => query.bind(f),
+                SqlValue::Double(f) => query.bind(f),
+                SqlValue::Decimal(s) => query.bind(s),
+                
+                // Text types
+                SqlValue::String(s) => query.bind(s),
+                SqlValue::Text(s) => query.bind(s),
+                
+                // Binary
+                SqlValue::Bytes(bytes) => query.bind(bytes),
+                
+                // Semantic types
+                SqlValue::Enum(value) => query.bind(value),
+                SqlValue::Uuid(uuid) => query.bind(uuid),
+                SqlValue::Json(j) => query.bind(j),
+                SqlValue::Date(date) => query.bind(date),
+                SqlValue::DateTime(dt) => query.bind(dt),
+                SqlValue::Timestamp(ts) => query.bind(ts),
+                
+                // Special types
+                SqlValue::Default => {
+                    panic!("SqlValue::Default should be handled in SQL generation, not parameter binding");
+                }
+                SqlValue::Array(values) => {
+                    // Array handling depends on database type
+                    // For now, serialize to JSON string as a fallback
+                    let json_array = serde_json::Value::Array(
+                        values.into_iter().map(|v| v.to_json()).collect()
+                    );
+                    query.bind(json_array.to_string())
+                }
+            };
+        }
+        
+        let result = query.fetch_one(pool).await?;
+        Ok(result)
+    }
+}

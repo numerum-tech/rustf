@@ -1,0 +1,126 @@
+use rustf::prelude::*;
+
+/// {{controller_name}} controller
+/// 
+/// This controller handles {{description}}
+pub fn install() -> Vec<Route> {
+    routes![
+        GET "/{{route_prefix}}" => index,{{#if crud}}
+        GET "/{{route_prefix}}/list" => list,
+        GET "/{{route_prefix}}/:id" => show,
+        POST "/{{route_prefix}}" => create,
+        PUT "/{{route_prefix}}/:id" => update,
+        DELETE "/{{route_prefix}}/:id" => delete,{{/if}}{{#if routes}}
+        GET "/{{route_prefix}}/about" => about,
+        POST "/{{route_prefix}}/action" => action,{{/if}}
+    ]
+}
+
+/// Index handler - displays the main {{controller_name}} page
+async fn index(ctx: &mut Context) -> Result<()> {
+    let data = json!({
+        "title": "{{controller_title}}",
+        "message": "Welcome to the {{controller_name}} controller"
+    });
+    
+    ctx.view("{{route_prefix}}/index", data)
+}
+{{#if crud}}
+/// List all items
+async fn list(ctx: &mut Context) -> Result<()> {
+    // TODO: Implement list logic
+    let items = vec![
+        json!({"id": 1, "name": "Item 1"}),
+        json!({"id": 2, "name": "Item 2"}),
+    ];
+    
+    ctx.json(json!({
+        "success": true,
+        "data": items
+    }))
+}
+
+/// Show a specific item
+async fn show(ctx: &mut Context) -> Result<()> {
+    let id = ctx.param("id")?;
+    
+    // TODO: Fetch item from database
+    let item = json!({
+        "id": id,
+        "name": format!("Item {}", id),
+        "description": "Sample item description"
+    });
+    
+    ctx.json(json!({
+        "success": true,
+        "data": item
+    }))
+}
+
+/// Create a new item
+async fn create(ctx: &mut Context) -> Result<()> {
+    let body = ctx.body_json().await?;
+    
+    // TODO: Validate and create item
+    // Example: let new_item = Model::create(body).await?;
+    
+    ctx.json(json!({
+        "success": true,
+        "message": "Item created successfully",
+        "data": body
+    }))
+}
+
+/// Update an existing item
+async fn update(ctx: &mut Context) -> Result<()> {
+    let id = ctx.param("id")?;
+    let body = ctx.body_json().await?;
+    
+    // TODO: Validate and update item
+    // Example: let updated_item = Model::get_by_id(id)?.update(body).await?;
+    
+    ctx.json(json!({
+        "success": true,
+        "message": format!("Item {} updated successfully", id),
+        "data": body
+    }))
+}
+
+/// Delete an item
+async fn delete(ctx: &mut Context) -> Result<()> {
+    let id = ctx.param("id")?;
+    
+    // TODO: Delete item
+    // Example: Model::get_by_id(id)?.delete().await?;
+    
+    ctx.json(json!({
+        "success": true,
+        "message": format!("Item {} deleted successfully", id)
+    }))
+}
+{{/if}}
+{{#if routes}}
+/// About page handler
+async fn about(ctx: &mut Context) -> Result<()> {
+    let data = json!({
+        "title": "About {{controller_title}}",
+        "description": "This controller manages {{description}}"
+    });
+    
+    ctx.view("{{route_prefix}}/about", data)
+}
+
+/// Action handler for POST requests
+async fn action(ctx: &mut Context) -> Result<()> {
+    let body = ctx.body_json().await?;
+    
+    // Process the action
+    // TODO: Implement your action logic here
+    
+    ctx.json(json!({
+        "success": true,
+        "message": "Action completed successfully",
+        "data": body
+    }))
+}
+{{/if}}

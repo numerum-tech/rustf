@@ -1,0 +1,53 @@
+# Rust
+/target
+**/*.rs.bk
+Cargo.lock
+
+# RustF specific
+/uploads/*
+!/uploads/.gitkeep
+
+# Logs
+*.log
+/logs
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+.env.production
+
+# Database
+/*.sqlite
+/*.db
+
+# Temporary files
+/tmp
+*.tmp
+
+# Build artifacts
+/dist
+/build
+
+# Node modules (if using any frontend tools)
+node_modules/
+
+# Coverage reports
+/coverage
+
+# Backup files
+*.bak
+*.backup
+
+# RustF backups (created automatically when using --force)
+/.rustf

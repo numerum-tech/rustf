@@ -1,0 +1,149 @@
+//! {{name}} definition module
+//! 
+//! This module customizes framework behavior through the definitions system.
+//! Definitions can include providers, helpers, validators, and interceptors.
+
+use rustf::definitions::*;
+use rustf::prelude::*;
+use serde_json::Value;
+
+/// Install function called by auto-discovery
+/// 
+/// This function is automatically called by the framework to register
+/// all definitions from this module.
+pub fn install(defs: &mut Definitions) {
+    // Register providers (custom implementations of framework components)
+    register_providers(defs);
+    
+    // Register template helpers (functions available in views)
+    register_helpers(defs);
+    
+    // Register validators (reusable validation logic)
+    register_validators(defs);
+    
+    // Register interceptors (modify framework behavior at specific points)
+    register_interceptors(defs);
+}
+
+/// Register custom providers
+/// 
+/// Providers allow you to replace framework implementations with custom ones.
+/// Examples: session storage, cache backends, file storage, email services
+fn register_providers(_defs: &mut Definitions) {
+    // Example: Custom session storage provider
+    // defs.register_provider(RedisSessionStorageProvider::new("redis://localhost"));
+    
+    // Example: Custom cache provider
+    // defs.register_provider(MemcachedCacheProvider::new("localhost:11211"));
+    
+    // Example: Custom file storage provider
+    // defs.register_provider(S3FileStorageProvider::new("my-bucket", "us-east-1"));
+}
+
+/// Register template helpers
+/// 
+/// Helpers are functions available in view templates for data transformation.
+fn register_helpers(defs: &mut Definitions) {
+    // Example: Custom formatting helper
+    defs.register_helper("{{name}}_format", CustomFormatHelper);
+    
+    // Example: Function-based helper
+    defs.register_helper_fn("{{name}}_helper", |args, _ctx| {
+        // args[0] is the first argument, args[1] is the second, etc.
+        Ok(args.first().cloned().unwrap_or(Value::Null))
+    });
+}
+
+/// Register validators
+/// 
+/// Validators provide reusable validation logic for models and forms.
+fn register_validators(defs: &mut Definitions) {
+    // Example: Custom validator
+    defs.register_validator("{{name}}_validator", CustomValidator);
+    
+    // Example: Function-based validator
+    defs.register_validator_fn("{{name}}_check", |value, _options| {
+        if value.is_null() {
+            return Err(Error::validation("Value cannot be null"));
+        }
+        Ok(())
+    });
+}
+
+/// Register interceptors
+/// 
+/// Interceptors modify data or behavior at specific framework execution points.
+fn register_interceptors(defs: &mut Definitions) {
+    // Example: Intercept before model save
+    defs.register_interceptor("before_model_save", ModelInterceptor);
+    
+    // Example: Intercept response transformation
+    defs.register_interceptor("before_response", ResponseInterceptor);
+}
+
+// Example helper implementation
+struct CustomFormatHelper;
+
+impl Helper for CustomFormatHelper {
+    fn call(&self, args: &[Value], _context: Option<&Value>) -> rustf::Result<Value> {
+        // Implement your helper logic here
+        Ok(args.first().cloned().unwrap_or(Value::Null))
+    }
+}
+
+// Example validator implementation
+struct CustomValidator;
+
+impl Validator for CustomValidator {
+    fn validate(&self, value: &Value, _options: Option<&Value>) -> rustf::Result<()> {
+        // Implement your validation logic here
+        if value.is_null() {
+            return Err(Error::validation("Value is required"));
+        }
+        Ok(())
+    }
+    
+    fn name(&self) -> &str {
+        "{{name}}_validator"
+    }
+}
+
+// Example interceptor implementation
+struct ModelInterceptor;
+
+#[async_trait]
+impl JsonInterceptor for ModelInterceptor {
+    async fn intercept_json(&self, mut data: Value) -> rustf::Result<Value> {
+        // Modify the data before model save
+        if let Value::Object(ref mut map) = data {
+            // Add timestamps or modify fields
+            use chrono::Utc;
+            map.insert("modified_by".to_string(), Value::String("{{name}}".to_string()));
+            map.insert("modified_at".to_string(), Value::String(Utc::now().to_rfc3339()));
+        }
+        Ok(data)
+    }
+    
+    fn name(&self) -> &str {
+        "{{name}}_model_interceptor"
+    }
+}
+
+// Example response interceptor
+struct ResponseInterceptor;
+
+#[async_trait]
+impl JsonInterceptor for ResponseInterceptor {
+    async fn intercept_json(&self, data: Value) -> rustf::Result<Value> {
+        // Wrap responses in a standard envelope
+        Ok(serde_json::json!({
+            "success": true,
+            "data": data,
+            "version": "{{name}}"
+        }))
+    }
+    
+    fn name(&self) -> &str {
+        "{{name}}_response_interceptor"
+    }
+}

@@ -1,0 +1,68 @@
+# RustF Framework Configuration
+# This file demonstrates the Total.js-inspired configuration system
+
+[server]
+host = "127.0.0.1"
+port = 8000
+timeout = 30
+ssl_enabled = false
+max_connections = 1000
+
+[views]
+directory = "views"
+default_layout = "layouts/default"
+cache_enabled = false
+extension = "html"
+engine = "totaljs"  # Total.js is the only supported template engine
+
+[session]
+secret = "ZapFvGLxChUqTAMSxk3e9GWPdFNR7UTZPibJO9exWZNUCVPGUSjQKxqR6TuxIMgr"  # CHANGE THIS IN PRODUCTION
+timeout = 3600  # 1 hour
+cookie_name = "sample-app_session"
+secure = false  # Set to true in production with HTTPS
+http_only = true
+
+# Session storage backend configuration
+# Default: In-memory storage (good for development)
+storage = { type = "memory", cleanup_interval = 300 }
+
+# Redis storage (recommended for production with multiple instances)
+# storage = { type = "redis", url = "redis://localhost:6379", prefix = "sample-app:session:", pool_size = 10, connection_timeout = 5000, command_timeout = 3000 }
+
+# Database storage (requires sessions table - see schemas/sessions.yaml)
+# storage = { type = "database", table = "sessions", cleanup_interval = 300 }
+
+[static_files]
+directory = "public"
+url_prefix = "/static"
+cache_enabled = true
+cache_max_age = 86400  # 24 hours
+
+[database]
+# Uncomment and configure for database connections
+# url = "mysql://root:masterpopa@127.0.0.1/sample-app_db"
+max_connections = 10
+timeout = 30
+
+[cors]
+enabled = false
+allowed_origins = ["*"]
+allowed_methods = ["GET", "POST", "PUT", "DELETE"]
+allowed_headers = ["Content-Type", "Authorization"]
+
+[logging]
+level = "info"
+# file = "logs/app.log"
+
+[uploads]
+directory = "uploads"
+max_file_size = 10485760  # 10MB in bytes
+max_files = 5
+allowed_extensions = []  # Empty means all extensions allowed
+blocked_extensions = ["exe", "bat", "sh", "cmd", "scr"]
+create_directories = true
+
+[custom]
+app_name = "Sample App"
+version = "1.0.0"
+environment = "development"

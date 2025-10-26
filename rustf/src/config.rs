@@ -1,0 +1,1048 @@
+use crate::error::{Error, Result};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::env;
+use std::fs;
+use std::path::Path;
+
+/// Environment type for configuration
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+#[derive(Default)]
+pub enum Environment {
+    #[default]
+    Development,
+    Staging,
+    Production,
+    Testing,
+}
+
+
+impl Environment {
+    /// Get environment from string
+    pub fn from_str(env: &str) -> Self {
+        match env.to_lowercase().as_str() {
+            "production" | "prod" => Environment::Production,
+            "staging" | "stage" => Environment::Staging,
+            "testing" | "test" => Environment::Testing,
+            _ => Environment::Development,
+        }
+    }
+
+    /// Get environment name as string
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Environment::Development => "development",
+            Environment::Staging => "staging",
+            Environment::Production => "production",
+            Environment::Testing => "testing",
+        }
+    }
+
+    /// Check if this is a production environment
+    pub fn is_production(&self) -> bool {
+        matches!(self, Environment::Production)
+    }
+
+    /// Check if this is a secure environment (staging/production)
+    pub fn is_secure(&self) -> bool {
+        matches!(self, Environment::Staging | Environment::Production)
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default)]
+pub struct AppConfig {
+    #[serde(default)]
+    pub environment: Environment,
+
+    #[serde(default)]
+    pub server: ServerConfig,
+
+    #[serde(default)]
+    pub views: ViewConfig,
+
+    #[serde(default)]
+    pub session: SessionConfig,
+
+    #[serde(default)]
+    pub static_files: StaticConfig,
+
+    #[serde(default)]
+    pub database: DatabaseConfig,
+
+    #[serde(default)]
+    pub cors: CorsConfig,
+
+    #[serde(default)]
+    pub logging: LoggingConfig,
+
+    #[serde(default)]
+    pub uploads: UploadConfig,
+
+    #[serde(default)]
+    pub custom: HashMap<String, String>,
+
+    // Capture all other sections not explicitly defined above
+    #[serde(flatten)]
+    pub extra: HashMap<String, serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ServerConfig {
+    #[serde(default = "default_host")]
+    pub host: String,
+
+    #[serde(default = "default_port")]
+    pub port: u16,
+
+    #[serde(default = "default_timeout")]
+    pub timeout: u64,
+
+    #[serde(default)]
+    pub ssl_enabled: bool,
+
+    #[serde(default)]
+    pub ssl_cert: Option<String>,
+
+    #[serde(default)]
+    pub ssl_key: Option<String>,
+
+    #[serde(default = "default_max_connections")]
+    pub max_connections: usize,
+
+    #[serde(default = "default_shutdown_timeout")]
+    pub shutdown_timeout: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ViewConfig {
+    #[serde(default = "default_views_dir")]
+    pub directory: String,
+
+    #[serde(default = "default_layout")]
+    pub default_layout: String,
+
+    #[serde(default)]
+    pub cache_enabled: bool,
+
+    #[serde(default = "default_extension")]
+    pub extension: String,
+
+    #[serde(default)]
+    pub engine: TemplateEngine,
+
+    #[serde(default)]
+    pub storage: TemplateStorage,
+
+    #[serde(default = "default_root")]
+    pub default_root: String,
+}
+
+/// Template engine - Total.js is the only supported engine
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+#[derive(Default)]
+pub enum TemplateEngine {
+    /// Total.js template engine (the only supported engine)
+    #[default]
+    TotalJs,
+}
+
+
+/// Template storage method - runtime configurable
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+#[derive(Default)]
+pub enum TemplateStorage {
+    /// Load templates from filesystem at runtime (supports --views CLI flag)
+    Filesystem,
+    /// Templates embedded at compile time (ignores --views CLI flag)
+    #[default]
+    Embedded,
+}
+
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SessionConfig {
+    #[serde(default = "default_session_enabled")]
+    pub enabled: bool,
+
+    #[serde(default = "default_cookie_name")]
+    pub cookie_name: String,
+
+    #[serde(default = "default_idle_timeout")]
+    pub idle_timeout: u64,
+
+    #[serde(default = "default_absolute_timeout")]
+    pub absolute_timeout: u64,
+
+    #[serde(default = "default_same_site")]
+    pub same_site: String,
+
+    #[serde(default = "default_fingerprint_mode")]
+    pub fingerprint_mode: String,
+
+    #[serde(default)]
+    pub storage: SessionStorageConfig,
+
+    #[serde(default)]
+    pub exempt_routes: Vec<String>,
+}
+
+/// Session storage backend configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "lowercase")]
+pub enum SessionStorageConfig {
+    /// In-memory session storage (default)
+    Memory {
+        #[serde(default = "default_cleanup_interval")]
+        cleanup_interval: u64,
+    },
+    /// Redis-based session storage
+    #[cfg(feature = "redis")]
+    Redis {
+        url: String,
+        #[serde(default = "default_redis_prefix")]
+        prefix: String,
+        #[serde(default = "default_redis_pool_size")]
+        pool_size: usize,
+        #[serde(default = "default_redis_connection_timeout")]
+        connection_timeout: u64,
+        #[serde(default = "default_redis_command_timeout")]
+        command_timeout: u64,
+    },
+    /// Database-based session storage
+    Database {
+        #[serde(default = "default_sessions_table")]
+        table: String,
+        connection_url: Option<String>,
+        #[serde(default = "default_cleanup_interval")]
+        cleanup_interval: u64,
+    },
+}
+
+impl Default for SessionStorageConfig {
+    fn default() -> Self {
+        Self::Memory {
+            cleanup_interval: default_cleanup_interval(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StaticConfig {
+    #[serde(default = "default_static_dir")]
+    pub directory: String,
+
+    #[serde(default = "default_static_prefix")]
+    pub url_prefix: String,
+
+    #[serde(default)]
+    pub cache_enabled: bool,
+
+    #[serde(default = "default_cache_max_age")]
+    pub cache_max_age: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default)]
+pub struct DatabaseConfig {
+    #[serde(default)]
+    pub url: Option<String>,
+
+    #[serde(default)]
+    pub max_connections: Option<u32>,
+
+    #[serde(default)]
+    pub timeout: Option<u64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CorsConfig {
+    #[serde(default)]
+    pub enabled: bool,
+
+    #[serde(default)]
+    pub allowed_origins: Vec<String>,
+
+    #[serde(default)]
+    pub allowed_methods: Vec<String>,
+
+    #[serde(default)]
+    pub allowed_headers: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LoggingConfig {
+    #[serde(default = "default_log_level")]
+    pub level: String,
+
+    #[serde(default)]
+    pub file: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UploadConfig {
+    #[serde(default = "default_upload_dir")]
+    pub directory: String,
+
+    #[serde(default = "default_max_file_size")]
+    pub max_file_size: u64,
+
+    #[serde(default = "default_max_files")]
+    pub max_files: usize,
+
+    #[serde(default)]
+    pub allowed_extensions: Vec<String>,
+
+    #[serde(default)]
+    pub blocked_extensions: Vec<String>,
+
+    #[serde(default)]
+    pub create_directories: bool,
+}
+
+// Default value functions
+fn default_host() -> String {
+    "127.0.0.1".to_string()
+}
+fn default_port() -> u16 {
+    8000
+}
+fn default_timeout() -> u64 {
+    30
+}
+fn default_shutdown_timeout() -> u64 {
+    30
+}
+fn default_max_connections() -> usize {
+    1000
+}
+fn default_views_dir() -> String {
+    "views".to_string()
+}
+fn default_layout() -> String {
+    "layouts/default".to_string()
+}
+fn default_extension() -> String {
+    "html".to_string()
+}
+fn default_root() -> String {
+    "".to_string()
+}
+fn default_session_enabled() -> bool {
+    true
+}
+fn default_idle_timeout() -> u64 {
+    900
+} // 15 minutes
+fn default_absolute_timeout() -> u64 {
+    28800
+} // 8 hours
+fn default_same_site() -> String {
+    "Lax".to_string()
+}
+fn default_fingerprint_mode() -> String {
+    "soft".to_string()
+}
+fn default_cookie_name() -> String {
+    "rustf_session".to_string()
+}
+fn default_static_dir() -> String {
+    "public".to_string()
+}
+fn default_static_prefix() -> String {
+    "/static".to_string()
+}
+fn default_cache_max_age() -> u64 {
+    86400
+}
+fn default_log_level() -> String {
+    "info".to_string()
+}
+fn default_upload_dir() -> String {
+    "uploads".to_string()
+}
+fn default_max_file_size() -> u64 {
+    10 * 1024 * 1024
+} // 10MB
+fn default_max_files() -> usize {
+    5
+}
+
+// Session storage defaults
+fn default_cleanup_interval() -> u64 {
+    300
+} // 5 minutes
+#[cfg(feature = "redis")]
+fn default_redis_prefix() -> String {
+    "rustf:session:".to_string()
+}
+#[cfg(feature = "redis")]
+fn default_redis_pool_size() -> usize {
+    10
+}
+#[cfg(feature = "redis")]
+fn default_redis_connection_timeout() -> u64 {
+    5000
+} // 5 seconds
+#[cfg(feature = "redis")]
+fn default_redis_command_timeout() -> u64 {
+    3000
+} // 3 seconds
+fn default_sessions_table() -> String {
+    "sessions".to_string()
+}
+
+
+impl Default for ServerConfig {
+    fn default() -> Self {
+        Self {
+            host: default_host(),
+            port: default_port(),
+            timeout: default_timeout(),
+            ssl_enabled: false,
+            ssl_cert: None,
+            ssl_key: None,
+            max_connections: default_max_connections(),
+            shutdown_timeout: default_shutdown_timeout(),
+        }
+    }
+}
+
+impl Default for ViewConfig {
+    fn default() -> Self {
+        Self {
+            directory: default_views_dir(),
+            default_layout: default_layout(),
+            cache_enabled: false,
+            extension: default_extension(),
+            engine: TemplateEngine::default(),
+            storage: TemplateStorage::default(),
+            default_root: default_root(),
+        }
+    }
+}
+
+impl Default for SessionConfig {
+    fn default() -> Self {
+        Self {
+            enabled: default_session_enabled(),
+            cookie_name: default_cookie_name(),
+            idle_timeout: default_idle_timeout(),
+            absolute_timeout: default_absolute_timeout(),
+            same_site: default_same_site(),
+            fingerprint_mode: default_fingerprint_mode(),
+            storage: SessionStorageConfig::default(),
+            exempt_routes: Vec::new(),
+        }
+    }
+}
+
+impl Default for StaticConfig {
+    fn default() -> Self {
+        Self {
+            directory: default_static_dir(),
+            url_prefix: default_static_prefix(),
+            cache_enabled: true,
+            cache_max_age: default_cache_max_age(),
+        }
+    }
+}
+
+
+impl Default for CorsConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            allowed_origins: vec!["*".to_string()],
+            allowed_methods: vec!["GET".to_string(), "POST".to_string()],
+            allowed_headers: vec!["Content-Type".to_string()],
+        }
+    }
+}
+
+impl Default for LoggingConfig {
+    fn default() -> Self {
+        Self {
+            level: default_log_level(),
+            file: None,
+        }
+    }
+}
+
+impl Default for UploadConfig {
+    fn default() -> Self {
+        Self {
+            directory: default_upload_dir(),
+            max_file_size: default_max_file_size(),
+            max_files: default_max_files(),
+            allowed_extensions: vec![],
+            blocked_extensions: vec![
+                "exe".to_string(),
+                "bat".to_string(),
+                "sh".to_string(),
+                "cmd".to_string(),
+            ],
+            create_directories: true,
+        }
+    }
+}
+
+impl AppConfig {
+    /// Load configuration with environment-specific overrides
+    pub fn load() -> Result<Self> {
+        Self::load_with_base_dir(".")
+    }
+
+    /// Load configuration with development-time auto-detection
+    pub fn load_with_dev_detection() -> Result<Self> {
+        // Check if we're in a development environment and look for config in target/debug
+        let base_dir = if cfg!(debug_assertions) && Path::new("target/debug").exists() {
+            // Look for config relative to target/debug (where the binary runs)
+            if Path::new("../../config.toml").exists() {
+                log::debug!("Development mode: Using config.toml from project root");
+                "../.."
+            } else {
+                "."
+            }
+        } else {
+            "."
+        };
+
+        Self::load_with_base_dir(base_dir)
+    }
+
+    /// Load configuration from a specific base directory
+    pub fn load_with_base_dir<P: AsRef<Path>>(base_dir: P) -> Result<Self> {
+        let base_dir = base_dir.as_ref();
+
+        // Determine environment
+        let env = Self::detect_environment();
+
+        // Load base configuration
+        let base_config_path = base_dir.join("config.toml");
+        let mut config = if base_config_path.exists() {
+            Self::from_file(&base_config_path)?
+        } else {
+            AppConfig::default()
+        };
+
+        // Set detected environment
+        config.environment = env.clone();
+
+        // Load environment-specific configuration if it exists
+        let env_config_path = base_dir.join(format!("config.{}.toml", env.as_str()));
+        if env_config_path.exists() {
+            let env_config = Self::from_file(&env_config_path)?;
+            config.merge_with(env_config);
+        }
+
+        // Apply environment variable overrides
+        config.apply_env_overrides()?;
+
+        // Resolve views directory path (supports both relative and absolute paths)
+        config.resolve_views_directory(base_dir)?;
+
+        // Apply security defaults for production
+        if config.environment.is_secure() {
+            config.apply_security_defaults();
+        }
+
+        // Apply performance defaults for production
+        if config.environment.is_production() {
+            config.apply_performance_defaults();
+        }
+
+        // Validate configuration
+        config.validate()?;
+
+        Ok(config)
+    }
+
+    /// Load configuration from TOML file
+    pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self> {
+        let path_ref = path.as_ref();
+
+        // Enhanced error message with path information
+        let content = fs::read_to_string(path_ref).map_err(|e| {
+            Error::internal(format!(
+                "Failed to read config file '{}': {}. Make sure the file exists and is readable.",
+                path_ref.display(),
+                e
+            ))
+        })?;
+
+        let mut config: AppConfig = toml::from_str(&content).map_err(|e| {
+            Error::internal(format!(
+                "Failed to parse config file '{}': {}. Check TOML syntax.",
+                path_ref.display(),
+                e
+            ))
+        })?;
+
+        // Resolve paths relative to the config file's directory
+        if let Some(parent_dir) = path_ref.parent() {
+            config.resolve_views_directory(parent_dir)?;
+        } else {
+            config.resolve_views_directory(".")?;
+        }
+
+        log::debug!(
+            "Successfully loaded configuration from: {}",
+            path_ref.display()
+        );
+        Ok(config)
+    }
+
+    /// Create configuration with environment variable overrides
+    pub fn from_env() -> Result<Self> {
+        let mut config = AppConfig::default();
+        config.apply_env_overrides()?;
+        Ok(config)
+    }
+
+    /// Detect current environment from environment variables
+    pub fn detect_environment() -> Environment {
+        // Check RUSTF_ENV first, then RAILS_ENV, then NODE_ENV for compatibility
+        if let Ok(env) = env::var("RUSTF_ENV") {
+            return Environment::from_str(&env);
+        }
+        if let Ok(env) = env::var("RAILS_ENV") {
+            return Environment::from_str(&env);
+        }
+        if let Ok(env) = env::var("NODE_ENV") {
+            return Environment::from_str(&env);
+        }
+
+        // Default to development
+        Environment::Development
+    }
+
+    /// Merge this configuration with another (other takes precedence)
+    pub fn merge_with(&mut self, other: AppConfig) {
+        // Merge server config
+        if other.server.host != default_host() {
+            self.server.host = other.server.host;
+        }
+        if other.server.port != default_port() {
+            self.server.port = other.server.port;
+        }
+        if other.server.timeout != default_timeout() {
+            self.server.timeout = other.server.timeout;
+        }
+        if other.server.ssl_enabled {
+            self.server.ssl_enabled = other.server.ssl_enabled;
+            self.server.ssl_cert = other.server.ssl_cert;
+            self.server.ssl_key = other.server.ssl_key;
+        }
+        if other.server.max_connections != default_max_connections() {
+            self.server.max_connections = other.server.max_connections;
+        }
+
+        // Merge view config
+        if other.views.directory != default_views_dir() {
+            self.views.directory = other.views.directory;
+        }
+        if other.views.default_layout != default_layout() {
+            self.views.default_layout = other.views.default_layout;
+        }
+        self.views.cache_enabled = other.views.cache_enabled;
+        if other.views.extension != default_extension() {
+            self.views.extension = other.views.extension;
+        }
+
+        // Merge session config
+        self.session.enabled = other.session.enabled;
+        if other.session.cookie_name != default_cookie_name() {
+            self.session.cookie_name = other.session.cookie_name;
+        }
+        if other.session.idle_timeout != default_idle_timeout() {
+            self.session.idle_timeout = other.session.idle_timeout;
+        }
+        if other.session.absolute_timeout != default_absolute_timeout() {
+            self.session.absolute_timeout = other.session.absolute_timeout;
+        }
+        if other.session.same_site != default_same_site() {
+            self.session.same_site = other.session.same_site;
+        }
+
+        // Merge other configs if they have non-default values
+        if other.database.url.is_some() {
+            self.database = other.database;
+        }
+        if other.cors.enabled {
+            self.cors = other.cors;
+        }
+        if other.logging.file.is_some() || other.logging.level != default_log_level() {
+            self.logging = other.logging;
+        }
+
+        // Merge custom settings
+        for (key, value) in other.custom {
+            self.custom.insert(key, value);
+        }
+
+        // Merge extra sections
+        for (key, value) in other.extra {
+            self.extra.insert(key, value);
+        }
+    }
+
+    /// Apply security defaults for production environments
+    pub fn apply_security_defaults(&mut self) {
+        // Sessions are configured via new secure middleware
+        // No longer need to override session settings here
+
+        // Disable CORS by default in production (must be explicitly enabled)
+        if !self.cors.enabled {
+            self.cors.allowed_origins = vec![];
+        }
+
+        // Force SSL in production if not explicitly disabled
+        if self.environment.is_production() && !self.server.ssl_enabled {
+            eprintln!("WARNING: SSL is not enabled in production environment");
+        }
+    }
+
+    /// Apply performance defaults for production environments
+    pub fn apply_performance_defaults(&mut self) {
+        // Enable view caching in production
+        self.views.cache_enabled = true;
+
+        // Enable static file caching
+        self.static_files.cache_enabled = true;
+
+        // Increase connection limits for production
+        if self.server.max_connections == default_max_connections() {
+            self.server.max_connections = 2000; // Higher default for production
+        }
+
+        // Set reasonable timeout for production
+        if self.server.timeout == default_timeout() {
+            self.server.timeout = 60; // 60 seconds for production
+        }
+    }
+
+    /// Validate configuration for the current environment
+    pub fn validate(&self) -> Result<()> {
+        // Validate template engine configuration against enabled features
+        self.validate_template_engine()?;
+
+        // Validate server configuration
+        if self.server.port == 0 {
+            return Err(Error::internal("Server port cannot be 0"));
+        }
+
+        if self.server.ssl_enabled {
+            if self.server.ssl_cert.is_none() {
+                return Err(Error::internal(
+                    "SSL certificate path required when SSL is enabled",
+                ));
+            }
+            if self.server.ssl_key.is_none() {
+                return Err(Error::internal(
+                    "SSL private key path required when SSL is enabled",
+                ));
+            }
+        }
+
+        // Validate production-specific requirements
+        if self.environment.is_production()
+            && self.database.url.is_none() {
+                eprintln!("WARNING: No database configured in production environment");
+            }
+
+        // Validate paths exist
+        // Note: For views directory, we only validate for filesystem storage
+        // and only warn if it doesn't exist (might be overridden by CLI)
+        if matches!(self.views.storage, TemplateStorage::Filesystem)
+            && !Path::new(&self.views.directory).exists() {
+                // Only warn, don't error - might be overridden by CLI --views flag
+                log::warn!(
+                    "Views directory does not exist: {} (can be overridden with --views flag)",
+                    self.views.directory
+                );
+            }
+
+        if !Path::new(&self.static_files.directory).exists() {
+            // Static files directory is more critical, so we still error
+            return Err(Error::internal(format!(
+                "Static files directory does not exist: {}",
+                self.static_files.directory
+            )));
+        }
+
+        Ok(())
+    }
+
+    /// Apply environment variable overrides
+    fn apply_env_overrides(&mut self) -> Result<()> {
+        // Environment override (highest priority)
+        if let Ok(env) = env::var("RUSTF_ENV") {
+            self.environment = Environment::from_str(&env);
+        }
+
+        // Server overrides
+        if let Ok(host) = env::var("RUSTF_HOST") {
+            self.server.host = host;
+        }
+        if let Ok(port) = env::var("RUSTF_PORT") {
+            self.server.port = port
+                .parse()
+                .map_err(|_| Error::internal("Invalid RUSTF_PORT value"))?;
+        }
+        if let Ok(timeout) = env::var("RUSTF_TIMEOUT") {
+            self.server.timeout = timeout
+                .parse()
+                .map_err(|_| Error::internal("Invalid RUSTF_TIMEOUT value"))?;
+        }
+        if let Ok(ssl) = env::var("RUSTF_SSL_ENABLED") {
+            self.server.ssl_enabled = ssl
+                .parse()
+                .map_err(|_| Error::internal("Invalid RUSTF_SSL_ENABLED value"))?;
+        }
+        if let Ok(ssl_cert) = env::var("RUSTF_SSL_CERT") {
+            self.server.ssl_cert = Some(ssl_cert);
+        }
+        if let Ok(ssl_key) = env::var("RUSTF_SSL_KEY") {
+            self.server.ssl_key = Some(ssl_key);
+        }
+        if let Ok(max_conn) = env::var("RUSTF_MAX_CONNECTIONS") {
+            self.server.max_connections = max_conn
+                .parse()
+                .map_err(|_| Error::internal("Invalid RUSTF_MAX_CONNECTIONS value"))?;
+        }
+
+        // View overrides
+        if let Ok(views_dir) = env::var("RUSTF_VIEWS_DIR") {
+            self.views.directory = views_dir;
+        }
+        if let Ok(layout) = env::var("RUSTF_DEFAULT_LAYOUT") {
+            self.views.default_layout = layout;
+        }
+        if let Ok(cache) = env::var("RUSTF_VIEW_CACHE") {
+            self.views.cache_enabled = cache
+                .parse()
+                .map_err(|_| Error::internal("Invalid RUSTF_VIEW_CACHE value"))?;
+        }
+
+        // New storage configuration
+        if let Ok(storage) = env::var("RUSTF_TEMPLATE_STORAGE") {
+            self.views.storage = match storage.to_lowercase().as_str() {
+                "filesystem" => TemplateStorage::Filesystem,
+                "embedded" => TemplateStorage::Embedded,
+                _ => {
+                    return Err(Error::internal(
+                        "Invalid RUSTF_TEMPLATE_STORAGE value. Use 'filesystem' or 'embedded'.",
+                    ))
+                }
+            };
+        }
+
+        // Legacy engine override for backward compatibility - DEPRECATED
+        if let Ok(engine) = env::var("RUSTF_VIEW_ENGINE") {
+            // Map legacy engine values to storage method
+            self.views.storage =
+                match engine.to_lowercase().as_str() {
+                    "filesystem" | "totaljs" | "tera" | "auto" => TemplateStorage::Filesystem,
+                    "embedded" => TemplateStorage::Embedded,
+                    _ => return Err(Error::internal(
+                        "Invalid RUSTF_VIEW_ENGINE value (DEPRECATED - use RUSTF_TEMPLATE_STORAGE)",
+                    )),
+                };
+
+            log::warn!("RUSTF_VIEW_ENGINE is deprecated. Use RUSTF_TEMPLATE_STORAGE instead.");
+        }
+
+        // Session configuration is now handled via config file only
+        // No environment variable overrides for sessions
+
+        // Database overrides
+        if let Ok(db_url) = env::var("DATABASE_URL") {
+            self.database.url = Some(db_url);
+        }
+        if let Ok(db_url) = env::var("RUSTF_DATABASE_URL") {
+            self.database.url = Some(db_url);
+        }
+        if let Ok(max_conn) = env::var("RUSTF_DB_MAX_CONNECTIONS") {
+            self.database.max_connections = Some(
+                max_conn
+                    .parse()
+                    .map_err(|_| Error::internal("Invalid RUSTF_DB_MAX_CONNECTIONS value"))?,
+            );
+        }
+        if let Ok(timeout) = env::var("RUSTF_DB_TIMEOUT") {
+            self.database.timeout = Some(
+                timeout
+                    .parse()
+                    .map_err(|_| Error::internal("Invalid RUSTF_DB_TIMEOUT value"))?,
+            );
+        }
+
+        // Static files overrides
+        if let Ok(static_dir) = env::var("RUSTF_STATIC_DIR") {
+            self.static_files.directory = static_dir;
+        }
+        if let Ok(url_prefix) = env::var("RUSTF_STATIC_PREFIX") {
+            self.static_files.url_prefix = url_prefix;
+        }
+        if let Ok(cache) = env::var("RUSTF_STATIC_CACHE") {
+            self.static_files.cache_enabled = cache
+                .parse()
+                .map_err(|_| Error::internal("Invalid RUSTF_STATIC_CACHE value"))?;
+        }
+        if let Ok(max_age) = env::var("RUSTF_STATIC_MAX_AGE") {
+            self.static_files.cache_max_age = max_age
+                .parse()
+                .map_err(|_| Error::internal("Invalid RUSTF_STATIC_MAX_AGE value"))?;
+        }
+
+        // CORS overrides
+        if let Ok(cors) = env::var("RUSTF_CORS_ENABLED") {
+            self.cors.enabled = cors
+                .parse()
+                .map_err(|_| Error::internal("Invalid RUSTF_CORS_ENABLED value"))?;
+        }
+        if let Ok(origins) = env::var("RUSTF_CORS_ORIGINS") {
+            self.cors.allowed_origins = origins.split(',').map(|s| s.trim().to_string()).collect();
+        }
+        if let Ok(methods) = env::var("RUSTF_CORS_METHODS") {
+            self.cors.allowed_methods = methods
+                .split(',')
+                .map(|s| s.trim().to_uppercase())
+                .collect();
+        }
+        if let Ok(headers) = env::var("RUSTF_CORS_HEADERS") {
+            self.cors.allowed_headers = headers.split(',').map(|s| s.trim().to_string()).collect();
+        }
+
+        // Logging overrides
+        if let Ok(level) = env::var("RUSTF_LOG_LEVEL") {
+            self.logging.level = level;
+        }
+        if let Ok(log_file) = env::var("RUSTF_LOG_FILE") {
+            self.logging.file = Some(log_file);
+        }
+
+        // Upload overrides
+        if let Ok(upload_dir) = env::var("RUSTF_UPLOAD_DIR") {
+            self.uploads.directory = upload_dir;
+        }
+        if let Ok(max_size) = env::var("RUSTF_MAX_FILE_SIZE") {
+            self.uploads.max_file_size = max_size
+                .parse()
+                .map_err(|_| Error::internal("Invalid RUSTF_MAX_FILE_SIZE value"))?;
+        }
+        if let Ok(max_files) = env::var("RUSTF_MAX_FILES") {
+            self.uploads.max_files = max_files
+                .parse()
+                .map_err(|_| Error::internal("Invalid RUSTF_MAX_FILES value"))?;
+        }
+
+        Ok(())
+    }
+
+    /// Validate template configuration matches enabled features
+    fn validate_template_engine(&self) -> Result<()> {
+        // Total.js is always available, no validation needed for it
+
+        // Validate embedded storage requires embedded-views feature when used
+        match self.views.storage {
+            TemplateStorage::Embedded => {
+                #[cfg(not(feature = "embedded-views"))]
+                {
+                    return Err(Error::internal(
+                        "Embedded template storage selected but 'embedded-views' feature not enabled. Enable the feature or change storage to 'filesystem'."
+                    ));
+                }
+            }
+            TemplateStorage::Filesystem => {
+                // Filesystem storage works with any engine feature
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Resolve views directory path to handle relative and absolute paths properly
+    ///
+    /// This method converts relative paths to be relative to the config base directory
+    /// and normalizes absolute paths. This allows the config to specify paths like:
+    /// - "views" (relative to config location)
+    /// - "./templates" (relative to config location)
+    /// - "../shared/views" (relative to config location)
+    /// - "/absolute/path/to/views" (absolute path)
+    fn resolve_views_directory<P: AsRef<Path>>(&mut self, base_dir: P) -> Result<()> {
+        // Only resolve for filesystem storage
+        if !matches!(self.views.storage, TemplateStorage::Filesystem) {
+            return Ok(());
+        }
+
+        let views_path = Path::new(&self.views.directory);
+
+        if views_path.is_absolute() {
+            // Absolute path - use as-is but normalize
+            self.views.directory = views_path.to_string_lossy().to_string();
+            log::debug!("Using absolute views directory: {}", self.views.directory);
+        } else {
+            // Relative path - make it relative to the config base directory
+            let resolved_path = base_dir.as_ref().join(views_path);
+
+            // Canonicalize if the directory exists, otherwise store the logical path
+            if resolved_path.exists() {
+                match resolved_path.canonicalize() {
+                    Ok(canonical) => {
+                        self.views.directory = canonical.to_string_lossy().to_string();
+                        log::debug!(
+                            "Resolved views directory (canonical): {}",
+                            self.views.directory
+                        );
+                    }
+                    Err(_) => {
+                        self.views.directory = resolved_path.to_string_lossy().to_string();
+                        log::debug!(
+                            "Resolved views directory (logical): {}",
+                            self.views.directory
+                        );
+                    }
+                }
+            } else {
+                self.views.directory = resolved_path.to_string_lossy().to_string();
+                log::debug!(
+                    "Resolved views directory (non-existent): {}",
+                    self.views.directory
+                );
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Get server address string
+    pub fn server_address(&self) -> String {
+        format!("{}:{}", self.server.host, self.server.port)
+    }
+
+    /// Check if running in debug mode
+    pub fn is_debug(&self) -> bool {
+        cfg!(debug_assertions) || env::var("RUSTF_DEBUG").is_ok()
+    }
+}
+
+// TOML support
+#[cfg(feature = "config")]
+use toml;
+
+#[cfg(not(feature = "config"))]
+mod toml {
+    use crate::error::Error;
+    use serde::de::DeserializeOwned;
+
+    pub fn from_str<T: DeserializeOwned>(_: &str) -> Result<T, Error> {
+        Err(Error::internal(
+            "TOML support not enabled. Add 'config' feature.",
+        ))
+    }
+}

@@ -1,0 +1,963 @@
+# Uploads Directory
+
+This directory stores user-uploaded files and dynamically generated content. Files in this directory are typically created at runtime through file upload forms, API endpoints, or background processes. **This directory should be writable by the web server and is typically excluded from version control.**
+
+## 🤖 AI Agent Quick Reference
+
+**Purpose**: User-uploaded files, temporary files, and runtime-generated content  
+**URL Path**: Files are served at `/uploads/filename.ext` (configurable)  
+**Security**: Validate file types, sizes, and scan for malware  
+**Organization**: Organize by date, user, or content type  
+**Backup**: Include in backup strategy but exclude from version control
+
+## 📁 File Organization
+
+```
+uploads/
+├── .gitkeep             # Keep directory in version control
+├── avatars/             # User profile pictures
+│   ├── 2024/
+│   │   ├── 01/          # Organized by year/month
+│   │   │   ├── user-123-avatar.jpg
+│   │   │   └── user-456-avatar.png
+│   │   └── 02/
+│   └── thumbnails/      # Generated thumbnails
+├── documents/           # User document uploads
+│   ├── 2024/
+│   │   ├── 01/
+│   │   │   ├── contract-abc123.pdf
+│   │   │   └── report-def456.docx
+│   │   └── 02/
+│   └── temp/            # Temporary processing files
+├── images/              # General image uploads
+│   ├── 2024/
+│   │   ├── 01/
+│   │   │   ├── gallery-001.jpg
+│   │   │   └── product-002.png
+│   │   └── 02/
+│   └── processed/       # Processed versions
+├── media/               # Video and audio files
+│   ├── videos/
+│   ├── audio/
+│   └── thumbnails/      # Video thumbnails
+├── imports/             # Data import files
+│   ├── csv/
+│   ├── json/
+│   └── processed/
+├── exports/             # Generated export files
+│   ├── reports/
+│   ├── backups/
+│   └── temp/            # Temporary exports
+└── cache/               # Cached generated files
+    ├── thumbnails/
+    ├── compressed/
+    └── temp/
+```
+
+## 🚀 File Upload Implementation
+
+### Controller Upload Handler
+```rust
+// In src/controllers/uploads.rs
+use rustf::prelude::*;
+use std::fs;
+use std::path::Path;
+use uuid::Uuid;
+use chrono::{Utc, Datelike};
+
+pub fn install() -> Vec<Route> {
+    routes![
+        GET "/upload" => upload_form,
+        POST "/upload" => handle_upload,
+        GET "/uploads/:filename" => serve_file,
+        DELETE "/uploads/:filename" => delete_file,
+    ]
+}
+
+async fn upload_form(ctx: Context) -> Result<Response> {
+    let data = json!({
+        "title": "Upload File",
+        "max_file_size": ctx.config.uploads.max_file_size,
+        "allowed_extensions": ctx.config.uploads.allowed_extensions,
+        "csrf_token": ctx.generate_csrf_token()?
+    });
+    
+    ctx.view("/uploads/form", data)
+}
+
+async fn handle_upload(ctx: Context) -> Result<Response> {
+    // Validate CSRF token
+    let form = ctx.body_form().await?;
+    if !ctx.verify_csrf_token(form.get("csrf_token").unwrap_or(""))? {
+        ctx.flash_error("Invalid security token");
+        return ctx.redirect("/upload");
+    }
+    
+    // Get uploaded files
+    let files = ctx.files().await?;
+    
+    if files.is_empty() {
+        ctx.flash_error("No files uploaded");
+        return ctx.redirect("/upload");
+    }
+    
+    let mut uploaded_files = Vec::new();
+    
+    for file in files {
+        match process_upload(file, &ctx.config.uploads).await {
+            Ok(file_info) => {
+                uploaded_files.push(file_info);
+            }
+            Err(e) => {
+                ctx.flash_error(&format!("Failed to upload {}: {}", file.name(), e));
+            }
+        }
+    }
+    
+    if !uploaded_files.is_empty() {
+        ctx.flash_success(&format!("Successfully uploaded {} file(s)", uploaded_files.len()));
+    }
+    
+    let data = json!({
+        "title": "Upload Complete",
+        "uploaded_files": uploaded_files
+    });
+    
+    ctx.view("/uploads/success", data)
+}
+
+#[derive(serde::Serialize)]
+struct FileInfo {
+    original_name: String,
+    stored_name: String,
+    size: u64,
+    mime_type: String,
+    url: String,
+    uploaded_at: chrono::DateTime<Utc>,
+}
+
+async fn process_upload(
+    file: rustf::http::UploadedFile, 
+    config: &rustf::config::UploadsConfig
+) -> Result<FileInfo> {
+    // Validate file size
+    if file.size() > config.max_file_size as u64 {
+        return Err(anyhow::anyhow!(
+            "File too large: {} bytes (max: {} bytes)",
+            file.size(),
+            config.max_file_size
+        ));
+    }
+    
+    // Validate file extension
+    let extension = Path::new(file.name())
+        .extension()
+        .and_then(|ext| ext.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+    
+    if !config.allowed_extensions.is_empty() && 
+       !config.allowed_extensions.contains(&extension) {
+        return Err(anyhow::anyhow!("File type not allowed: {}", extension));
+    }
+    
+    if config.blocked_extensions.contains(&extension) {
+        return Err(anyhow::anyhow!("File type blocked: {}", extension));
+    }
+    
+    // Generate unique filename
+    let uuid = Uuid::new_v4();
+    let now = Utc::now();
+    let year = now.year();
+    let month = now.month();
+    
+    let stored_name = if extension.is_empty() {
+        uuid.to_string()
+    } else {
+        format!("{}.{}", uuid, extension)
+    };
+    
+    // Create directory structure
+    let upload_dir = Path::new(&config.directory)
+        .join(determine_category(file.mime_type()))
+        .join(year.to_string())
+        .join(format!("{:02}", month));
+    
+    if config.create_directories {
+        fs::create_dir_all(&upload_dir)?;
+    }
+    
+    // Save file
+    let file_path = upload_dir.join(&stored_name);
+    fs::write(&file_path, file.content())?;
+    
+    // Create file info
+    let url = format!("/uploads/{}/{}/{:02}/{}", 
+        determine_category(file.mime_type()), 
+        year, 
+        month, 
+        stored_name
+    );
+    
+    Ok(FileInfo {
+        original_name: file.name().to_string(),
+        stored_name,
+        size: file.size(),
+        mime_type: file.mime_type().to_string(),
+        url,
+        uploaded_at: now,
+    })
+}
+
+fn determine_category(mime_type: &str) -> &str {
+    match mime_type {
+        mt if mt.starts_with("image/") => "images",
+        mt if mt.starts_with("video/") => "media/videos",
+        mt if mt.starts_with("audio/") => "media/audio",
+        "application/pdf" => "documents",
+        mt if mt.starts_with("application/") => "documents",
+        _ => "files"
+    }
+}
+
+async fn serve_file(ctx: Context) -> Result<Response> {
+    let filename = ctx.param("filename").unwrap_or("");
+    let file_path = Path::new("uploads").join(filename);
+    
+    if !file_path.exists() {
+        return ctx.not_found();
+    }
+    
+    // Security: Prevent directory traversal
+    if !file_path.starts_with("uploads/") {
+        return ctx.forbidden();
+    }
+    
+    ctx.file(&file_path)
+}
+
+async fn delete_file(ctx: Context) -> Result<Response> {
+    let filename = ctx.param("filename").unwrap_or("");
+    let file_path = Path::new("uploads").join(filename);
+    
+    // Security checks
+    if !file_path.exists() {
+        return ctx.not_found();
+    }
+    
+    if !file_path.starts_with("uploads/") {
+        return ctx.forbidden();
+    }
+    
+    // Additional authorization check (implement based on your needs)
+    // if !can_delete_file(&ctx, &file_path).await? {
+    //     return ctx.unauthorized();
+    // }
+    
+    match fs::remove_file(&file_path) {
+        Ok(_) => {
+            ctx.flash_success("File deleted successfully");
+            ctx.json(json!({"success": true}))
+        }
+        Err(e) => {
+            ctx.flash_error(&format!("Failed to delete file: {}", e));
+            ctx.json(json!({"success": false, "error": e.to_string()}))
+        }
+    }
+}
+```
+
+### Upload Form Template
+```html
+<!-- views/uploads/form.html -->
+{% extends "layouts/default.html" %}
+
+{% block title %}Upload Files{% endblock %}
+
+{% block content %}
+<div class="upload-form">
+    <h1>Upload Files</h1>
+    
+    <form method="POST" 
+          action="/upload" 
+          enctype="multipart/form-data" 
+          class="dropzone"
+          id="upload-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        
+        <div class="upload-area" id="upload-area">
+            <div class="upload-message">
+                <h3>Drop files here or click to browse</h3>
+                <p>Maximum file size: {{ (max_file_size / 1024 / 1024) | round }}MB</p>
+                {% if allowed_extensions %}
+                    <p>Allowed types: {{ allowed_extensions | join(", ") }}</p>
+                {% endif %}
+            </div>
+            
+            <input type="file" 
+                   name="files[]" 
+                   id="file-input" 
+                   multiple 
+                   accept="{{ allowed_extensions | map(attribute='ext') | map('regex_replace', '^', '.') | join(',') }}"
+                   style="display: none;">
+        </div>
+        
+        <div class="upload-progress" id="upload-progress" style="display: none;">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progress-fill"></div>
+            </div>
+            <div class="progress-text" id="progress-text">Uploading...</div>
+        </div>
+        
+        <div class="file-list" id="file-list"></div>
+        
+        <div class="upload-actions">
+            <button type="submit" class="btn btn-primary" id="upload-btn" disabled>
+                Upload Files
+            </button>
+            <button type="button" class="btn btn-secondary" id="clear-btn">
+                Clear All
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+// File upload handling
+class FileUploader {
+    constructor(formId) {
+        this.form = document.getElementById(formId);
+        this.uploadArea = document.getElementById('upload-area');
+        this.fileInput = document.getElementById('file-input');
+        this.fileList = document.getElementById('file-list');
+        this.uploadBtn = document.getElementById('upload-btn');
+        this.clearBtn = document.getElementById('clear-btn');
+        this.progressContainer = document.getElementById('upload-progress');
+        this.progressFill = document.getElementById('progress-fill');
+        this.progressText = document.getElementById('progress-text');
+        
+        this.files = [];
+        this.maxFileSize = {{ max_file_size }};
+        this.allowedExtensions = [{{ allowed_extensions | map('tojson') | join(',') }}];
+        
+        this.init();
+    }
+    
+    init() {
+        // Click to browse
+        this.uploadArea.addEventListener('click', () => {
+            this.fileInput.click();
+        });
+        
+        // File input change
+        this.fileInput.addEventListener('change', (e) => {
+            this.handleFiles(Array.from(e.target.files));
+        });
+        
+        // Drag and drop
+        this.uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            this.uploadArea.classList.add('drag-over');
+        });
+        
+        this.uploadArea.addEventListener('dragleave', () => {
+            this.uploadArea.classList.remove('drag-over');
+        });
+        
+        this.uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            this.uploadArea.classList.remove('drag-over');
+            this.handleFiles(Array.from(e.dataTransfer.files));
+        });
+        
+        // Clear button
+        this.clearBtn.addEventListener('click', () => {
+            this.clearFiles();
+        });
+        
+        // Form submission
+        this.form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.uploadFiles();
+        });
+    }
+    
+    handleFiles(newFiles) {
+        for (const file of newFiles) {
+            if (this.validateFile(file)) {
+                this.files.push(file);
+                this.addFileToList(file);
+            }
+        }
+        
+        this.updateUploadButton();
+    }
+    
+    validateFile(file) {
+        // Check file size
+        if (file.size > this.maxFileSize) {
+            App.utils.notify(`File "${file.name}" is too large (max: ${this.maxFileSize / 1024 / 1024}MB)`, 'error');
+            return false;
+        }
+        
+        // Check file extension
+        if (this.allowedExtensions.length > 0) {
+            const ext = file.name.split('.').pop().toLowerCase();
+            if (!this.allowedExtensions.includes(ext)) {
+                App.utils.notify(`File type "${ext}" is not allowed`, 'error');
+                return false;
+            }
+        }
+        
+        return true;
+    }
+    
+    addFileToList(file) {
+        const fileItem = document.createElement('div');
+        fileItem.className = 'file-item';
+        fileItem.innerHTML = `
+            <div class="file-info">
+                <span class="file-name">${file.name}</span>
+                <span class="file-size">${this.formatFileSize(file.size)}</span>
+            </div>
+            <button type="button" class="btn-remove" onclick="uploader.removeFile('${file.name}')">×</button>
+        `;
+        
+        this.fileList.appendChild(fileItem);
+    }
+    
+    removeFile(fileName) {
+        this.files = this.files.filter(f => f.name !== fileName);
+        this.renderFileList();
+        this.updateUploadButton();
+    }
+    
+    renderFileList() {
+        this.fileList.innerHTML = '';
+        this.files.forEach(file => this.addFileToList(file));
+    }
+    
+    clearFiles() {
+        this.files = [];
+        this.fileList.innerHTML = '';
+        this.fileInput.value = '';
+        this.updateUploadButton();
+    }
+    
+    updateUploadButton() {
+        this.uploadBtn.disabled = this.files.length === 0;
+    }
+    
+    async uploadFiles() {
+        if (this.files.length === 0) return;
+        
+        const formData = new FormData();
+        formData.append('csrf_token', '{{ csrf_token }}');
+        
+        this.files.forEach(file => {
+            formData.append('files[]', file);
+        });
+        
+        this.showProgress();
+        
+        try {
+            const xhr = new XMLHttpRequest();
+            
+            xhr.upload.addEventListener('progress', (e) => {
+                if (e.lengthComputable) {
+                    const percentComplete = (e.loaded / e.total) * 100;
+                    this.updateProgress(percentComplete);
+                }
+            });
+            
+            xhr.addEventListener('load', () => {
+                if (xhr.status === 200) {
+                    App.utils.notify('Files uploaded successfully!', 'success');
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1000);
+                } else {
+                    App.utils.notify('Upload failed', 'error');
+                    this.hideProgress();
+                }
+            });
+            
+            xhr.addEventListener('error', () => {
+                App.utils.notify('Upload failed', 'error');
+                this.hideProgress();
+            });
+            
+            xhr.open('POST', '/upload');
+            xhr.send(formData);
+            
+        } catch (error) {
+            App.utils.notify('Upload failed: ' + error.message, 'error');
+            this.hideProgress();
+        }
+    }
+    
+    showProgress() {
+        this.progressContainer.style.display = 'block';
+        this.uploadBtn.disabled = true;
+    }
+    
+    hideProgress() {
+        this.progressContainer.style.display = 'none';
+        this.uploadBtn.disabled = false;
+    }
+    
+    updateProgress(percent) {
+        this.progressFill.style.width = percent + '%';
+        this.progressText.textContent = `Uploading... ${Math.round(percent)}%`;
+    }
+    
+    formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+}
+
+// Initialize uploader
+const uploader = new FileUploader('upload-form');
+</script>
+{% endblock %}
+```
+
+## 🔒 Security Best Practices
+
+### File Validation
+```rust
+// Enhanced file validation
+pub struct FileValidator {
+    max_size: u64,
+    allowed_extensions: Vec<String>,
+    blocked_extensions: Vec<String>,
+    allowed_mime_types: Vec<String>,
+    scan_for_malware: bool,
+}
+
+impl FileValidator {
+    pub fn validate(&self, file: &UploadedFile) -> Result<()> {
+        // Size validation
+        if file.size() > self.max_size {
+            return Err(anyhow::anyhow!("File too large"));
+        }
+        
+        // Extension validation
+        let extension = self.get_extension(file.name()).to_lowercase();
+        
+        if !self.allowed_extensions.is_empty() && 
+           !self.allowed_extensions.contains(&extension) {
+            return Err(anyhow::anyhow!("File type not allowed"));
+        }
+        
+        if self.blocked_extensions.contains(&extension) {
+            return Err(anyhow::anyhow!("File type blocked"));
+        }
+        
+        // MIME type validation
+        if !self.allowed_mime_types.is_empty() && 
+           !self.allowed_mime_types.contains(&file.mime_type().to_string()) {
+            return Err(anyhow::anyhow!("MIME type not allowed"));
+        }
+        
+        // Content validation (check magic bytes)
+        if !self.validate_file_content(file)? {
+            return Err(anyhow::anyhow!("File content doesn't match extension"));
+        }
+        
+        // Malware scanning (if enabled)
+        if self.scan_for_malware {
+            self.scan_file(file)?;
+        }
+        
+        Ok(())
+    }
+    
+    fn validate_file_content(&self, file: &UploadedFile) -> Result<bool> {
+        let content = file.content();
+        let extension = self.get_extension(file.name()).to_lowercase();
+        
+        match extension.as_str() {
+            "jpg" | "jpeg" => Ok(content.starts_with(&[0xFF, 0xD8, 0xFF])),
+            "png" => Ok(content.starts_with(&[0x89, 0x50, 0x4E, 0x47])),
+            "gif" => Ok(content.starts_with(b"GIF87a") || content.starts_with(b"GIF89a")),
+            "pdf" => Ok(content.starts_with(b"%PDF")),
+            _ => Ok(true) // Skip validation for unknown types
+        }
+    }
+    
+    fn scan_file(&self, file: &UploadedFile) -> Result<()> {
+        // Implement malware scanning logic here
+        // This could integrate with ClamAV or similar
+        Ok(())
+    }
+    
+    fn get_extension(&self, filename: &str) -> String {
+        Path::new(filename)
+            .extension()
+            .and_then(|ext| ext.to_str())
+            .unwrap_or("")
+            .to_string()
+    }
+}
+```
+
+### Access Control
+```rust
+// File access control
+pub async fn check_file_access(
+    ctx: &Context,
+    file_path: &Path
+) -> Result<bool> {
+    // Check if user is authenticated
+    let user_id: Option<i32> = ctx.session_get("user_id")?;
+    
+    match user_id {
+        Some(id) => {
+            // Check if user owns the file or has permission
+            let file_owner = get_file_owner(file_path).await?;
+            Ok(file_owner == id || is_admin(id).await?)
+        }
+        None => {
+            // Check if file is public
+            Ok(is_public_file(file_path).await?)
+        }
+    }
+}
+
+async fn get_file_owner(file_path: &Path) -> Result<i32> {
+    // Implementation to get file owner from database
+    // This would typically query a files table
+    todo!("Implement file owner lookup")
+}
+
+async fn is_admin(user_id: i32) -> Result<bool> {
+    // Check if user has admin privileges
+    todo!("Implement admin check")
+}
+
+async fn is_public_file(file_path: &Path) -> Result<bool> {
+    // Check if file is in public directory or marked as public
+    Ok(file_path.starts_with("uploads/public"))
+}
+```
+
+## 🗂️ File Management Utilities
+
+### Cleanup Script
+```rust
+// File cleanup utility
+use std::time::{SystemTime, UNIX_EPOCH};
+use walkdir::WalkDir;
+
+pub struct FileCleanup {
+    temp_dir: PathBuf,
+    max_age_days: u64,
+    dry_run: bool,
+}
+
+impl FileCleanup {
+    pub fn new(temp_dir: impl AsRef<Path>, max_age_days: u64, dry_run: bool) -> Self {
+        Self {
+            temp_dir: temp_dir.as_ref().to_path_buf(),
+            max_age_days,
+            dry_run,
+        }
+    }
+    
+    pub fn run(&self) -> Result<CleanupStats> {
+        let mut stats = CleanupStats::default();
+        let cutoff_time = SystemTime::now() - Duration::from_secs(self.max_age_days * 24 * 3600);
+        
+        for entry in WalkDir::new(&self.temp_dir).into_iter().filter_map(|e| e.ok()) {
+            if entry.file_type().is_file() {
+                let metadata = entry.metadata()?;
+                let modified = metadata.modified()?;
+                
+                if modified < cutoff_time {
+                    stats.files_found += 1;
+                    stats.size_found += metadata.len();
+                    
+                    if !self.dry_run {
+                        match std::fs::remove_file(entry.path()) {
+                            Ok(_) => {
+                                stats.files_deleted += 1;
+                                stats.size_deleted += metadata.len();
+                            }
+                            Err(e) => {
+                                log::warn!("Failed to delete {:?}: {}", entry.path(), e);
+                                stats.errors += 1;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        Ok(stats)
+    }
+}
+
+#[derive(Default)]
+pub struct CleanupStats {
+    pub files_found: u64,
+    pub files_deleted: u64,
+    pub size_found: u64,
+    pub size_deleted: u64,
+    pub errors: u64,
+}
+```
+
+### Image Processing
+```rust
+// Image processing utilities
+use image::{ImageFormat, ImageResult, DynamicImage};
+
+pub struct ImageProcessor {
+    max_width: u32,
+    max_height: u32,
+    quality: u8,
+}
+
+impl ImageProcessor {
+    pub fn process_upload(
+        &self,
+        input_path: &Path,
+        output_path: &Path
+    ) -> ImageResult<ProcessedImage> {
+        let img = image::open(input_path)?;
+        
+        // Resize if needed
+        let processed = if img.width() > self.max_width || img.height() > self.max_height {
+            img.resize(self.max_width, self.max_height, image::imageops::FilterType::Lanczos3)
+        } else {
+            img
+        };
+        
+        // Save with compression
+        match self.get_format(output_path) {
+            ImageFormat::Jpeg => {
+                let mut output = File::create(output_path)?;
+                processed.write_to(&mut output, ImageFormat::Jpeg)?;
+            }
+            ImageFormat::Png => {
+                processed.save_with_format(output_path, ImageFormat::Png)?;
+            }
+            format => {
+                processed.save_with_format(output_path, format)?;
+            }
+        }
+        
+        Ok(ProcessedImage {
+            width: processed.width(),
+            height: processed.height(),
+            format: self.get_format(output_path),
+            file_size: std::fs::metadata(output_path)?.len(),
+        })
+    }
+    
+    pub fn generate_thumbnail(
+        &self,
+        input_path: &Path,
+        output_path: &Path,
+        size: u32
+    ) -> ImageResult<()> {
+        let img = image::open(input_path)?;
+        let thumbnail = img.thumbnail(size, size);
+        thumbnail.save(output_path)?;
+        Ok(())
+    }
+    
+    fn get_format(&self, path: &Path) -> ImageFormat {
+        match path.extension().and_then(|ext| ext.to_str()) {
+            Some("jpg") | Some("jpeg") => ImageFormat::Jpeg,
+            Some("png") => ImageFormat::Png,
+            Some("gif") => ImageFormat::Gif,
+            Some("webp") => ImageFormat::WebP,
+            _ => ImageFormat::Jpeg
+        }
+    }
+}
+
+pub struct ProcessedImage {
+    pub width: u32,
+    pub height: u32,
+    pub format: ImageFormat,
+    pub file_size: u64,
+}
+```
+
+## 🔄 Backup and Maintenance
+
+### Backup Strategy
+```bash
+#!/bin/bash
+# Upload directory backup script
+
+UPLOAD_DIR="uploads"
+BACKUP_DIR="backups/uploads"
+DATE=$(date +%Y%m%d_%H%M%S)
+BACKUP_FILE="${BACKUP_DIR}/uploads_${DATE}.tar.gz"
+
+# Create backup directory
+mkdir -p "$BACKUP_DIR"
+
+# Create compressed backup
+echo "Creating backup: $BACKUP_FILE"
+tar -czf "$BACKUP_FILE" \
+    --exclude="$UPLOAD_DIR/temp/*" \
+    --exclude="$UPLOAD_DIR/cache/*" \
+    "$UPLOAD_DIR"
+
+# Verify backup
+if [ $? -eq 0 ]; then
+    echo "✅ Backup created successfully"
+    echo "Size: $(du -h "$BACKUP_FILE" | cut -f1)"
+    
+    # Remove old backups (keep last 7 days)
+    find "$BACKUP_DIR" -name "uploads_*.tar.gz" -mtime +7 -delete
+    echo "🧹 Old backups cleaned up"
+else
+    echo "❌ Backup failed"
+    exit 1
+fi
+```
+
+### Maintenance Tasks
+```bash
+#!/bin/bash
+# Upload directory maintenance
+
+UPLOAD_DIR="uploads"
+
+echo "🧹 Starting upload directory maintenance..."
+
+# Clean temporary files older than 24 hours
+find "$UPLOAD_DIR/temp" -type f -mtime +1 -delete
+find "$UPLOAD_DIR/cache/temp" -type f -mtime +1 -delete
+
+# Clean empty directories
+find "$UPLOAD_DIR" -type d -empty -delete
+
+# Generate missing thumbnails
+for img in "$UPLOAD_DIR"/images/*/*.{jpg,jpeg,png,gif}; do
+    if [ -f "$img" ]; then
+        thumb_dir="$UPLOAD_DIR/images/thumbnails/$(dirname "${img#$UPLOAD_DIR/images/}")"
+        thumb_file="$thumb_dir/$(basename "$img")"
+        
+        if [ ! -f "$thumb_file" ]; then
+            mkdir -p "$thumb_dir"
+            convert "$img" -thumbnail 200x200^ -gravity center -extent 200x200 "$thumb_file"
+            echo "Generated thumbnail: $thumb_file"
+        fi
+    fi
+done
+
+# Optimize images older than 7 days
+find "$UPLOAD_DIR/images" -name "*.jpg" -mtime +7 -exec jpegoptim --max=85 {} \;
+find "$UPLOAD_DIR/images" -name "*.png" -mtime +7 -exec optipng -quiet {} \;
+
+echo "✅ Maintenance complete"
+```
+
+## 📊 Monitoring and Analytics
+
+### Storage Usage Tracking
+```rust
+// Storage usage monitoring
+pub struct StorageMonitor {
+    upload_dir: PathBuf,
+}
+
+impl StorageMonitor {
+    pub fn get_usage_stats(&self) -> Result<StorageStats> {
+        let mut stats = StorageStats::default();
+        
+        for entry in WalkDir::new(&self.upload_dir) {
+            let entry = entry?;
+            if entry.file_type().is_file() {
+                let metadata = entry.metadata()?;
+                stats.total_files += 1;
+                stats.total_size += metadata.len();
+                
+                // Categorize by file type
+                match self.get_category(entry.path()) {
+                    FileCategory::Image => {
+                        stats.image_files += 1;
+                        stats.image_size += metadata.len();
+                    }
+                    FileCategory::Document => {
+                        stats.document_files += 1;
+                        stats.document_size += metadata.len();
+                    }
+                    FileCategory::Media => {
+                        stats.media_files += 1;
+                        stats.media_size += metadata.len();
+                    }
+                    FileCategory::Other => {
+                        stats.other_files += 1;
+                        stats.other_size += metadata.len();
+                    }
+                }
+            }
+        }
+        
+        Ok(stats)
+    }
+    
+    fn get_category(&self, path: &Path) -> FileCategory {
+        match path.extension().and_then(|ext| ext.to_str()) {
+            Some(ext) => match ext.to_lowercase().as_str() {
+                "jpg" | "jpeg" | "png" | "gif" | "webp" | "svg" => FileCategory::Image,
+                "pdf" | "doc" | "docx" | "txt" | "rtf" => FileCategory::Document,
+                "mp4" | "avi" | "mov" | "mp3" | "wav" | "flac" => FileCategory::Media,
+                _ => FileCategory::Other,
+            },
+            None => FileCategory::Other,
+        }
+    }
+}
+
+#[derive(Default)]
+pub struct StorageStats {
+    pub total_files: u64,
+    pub total_size: u64,
+    pub image_files: u64,
+    pub image_size: u64,
+    pub document_files: u64,
+    pub document_size: u64,
+    pub media_files: u64,
+    pub media_size: u64,
+    pub other_files: u64,
+    pub other_size: u64,
+}
+
+enum FileCategory {
+    Image,
+    Document,
+    Media,
+    Other,
+}
+```
+
+## 🤖 AI Agent Instructions
+
+When working with uploads:
+1. **Validate all uploaded files** for size, type, and content
+2. **Organize files by date and category** for easy management
+3. **Implement proper security measures** to prevent malicious uploads
+4. **Generate thumbnails and optimized versions** for images
+5. **Set up proper access controls** based on user permissions
+6. **Include files in backup strategy** but exclude from version control
+7. **Monitor storage usage** and implement cleanup procedures
+8. **Handle file errors gracefully** with proper error messages
+9. **Process files asynchronously** for better performance
+10. **Implement virus scanning** for enhanced security
+
+**Framework Integration**: Use RustFs upload configuration, implement proper CSRF protection, integrate with session management for user-specific uploads.
+
+**Performance**: Process large files asynchronously, generate thumbnails on demand, implement proper caching, use efficient file serving with proper headers.

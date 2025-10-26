@@ -1,0 +1,102 @@
+[package]
+name = "rustf"
+version = "0.1.0"
+edition = "2021"
+description = "A simple MVC web framework inspired by Total.js"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/numerum-tech/rustf"
+keywords = ["web", "framework", "mvc", "total.js"]
+categories = ["web-programming::http-server"]
+
+[dependencies]
+tokio = { version = "1.0", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+hyper = { version = "0.14", features = ["full"] }
+url = "2.0"
+regex = "1.0"
+log = "0.4"
+once_cell = "1.0"
+thiserror = "1.0"
+dashmap = "6.0"
+num_cpus = "1.16"
+indexmap = "2.0"
+lazy_static = "1.4"
+rand = "0.8"
+uuid = { version = "1.0", features = ["v4"] }
+base64 = "0.22"
+percent-encoding = "2.3"
+urlencoding = "2.1"
+async-trait = "0.1"
+anyhow = "1.0"
+futures = "0.3"
+chrono = { version = "0.4", features = ["serde"] }
+rust_decimal = { version = "1.32", features = ["serde"], optional = true }
+sqlx = { version = "0.8", features = [
+    "runtime-tokio-rustls",
+    "mysql",
+    "postgres",
+    "sqlite",
+    "chrono",
+    "uuid",
+    "ipnetwork",
+    "rust_decimal",
+] }
+ipnetwork = "0.20"
+toml = { version = "0.8", optional = true }
+rust-embed = { version = "8.0", optional = true }
+rustf-macros = { version = "0.1.0", path = "../rustf-macros" }
+rustf-schema = { version = "0.1.0", path = "../rustf-schema", optional = true }
+redis = { version = "0.27", features = ["tokio-comp"], optional = true }
+deadpool-redis = { version = "0.18", optional = true }
+clap = { version = "4.4", features = ["derive"], optional = true }
+sha2 = "0.10"
+sha1 = "0.10"
+md-5 = "0.10"
+
+[features]
+default = [
+    "config",
+    "embedded-views",
+    "auto-discovery",
+    "schema",
+    "decimal",
+    "uuid",
+]
+config = ["toml"]
+embedded-views = ["rust-embed"]
+auto-discovery = []
+schema = ["rustf-schema"]
+decimal = ["rust_decimal"]
+uuid = []
+cli = ["clap"]
+redis = ["dep:redis", "deadpool-redis"]
+
+[dev-dependencies]
+tokio-test = "0.4"
+tempfile = "3.8"
+criterion = "0.5"
+
+[[bench]]
+name = "configuration"
+harness = false
+
+[[bench]]
+name = "context"
+harness = false
+
+[[bench]]
+name = "middleware"
+harness = false
+
+[[bench]]
+name = "pool"
+harness = false
+
+[[bench]]
+name = "routing"
+harness = false
+
+[[bench]]
+name = "session"
+harness = false
