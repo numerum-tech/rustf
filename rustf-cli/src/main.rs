@@ -200,26 +200,7 @@ async fn main() -> anyhow::Result<()> {
                     force,
                     path,
                 } => commands::new::run(project_name, path, force).await,
-                NewCommand::Worker {
-                    name,
-                    email,
-                    file_processing,
-                    cleanup,
-                    batch,
-                    progress,
-                    validation,
-                } => {
-                    new_component::generate_worker(
-                        name,
-                        email,
-                        file_processing,
-                        cleanup,
-                        batch,
-                        progress,
-                        validation,
-                    )
-                    .await
-                }
+                NewCommand::Worker { name } => new_component::generate_worker(name).await,
             }
         }
         Commands::Perf { command } => {
