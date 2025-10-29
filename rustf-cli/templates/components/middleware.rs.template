@@ -1,10 +1,14 @@
 use rustf::prelude::*;
-use rustf::middleware::{InboundMiddleware, InboundAction, MiddlewareRegistry};
+use rustf::middleware::{InboundMiddleware, OutboundMiddleware, InboundAction, MiddlewareRegistry};
 use async_trait::async_trait;
+use std::time::Instant;
 
 /// {{middleware_title}} middleware
 ///
 /// {{description}}
+///
+/// This is a dual-phase middleware that processes both requests (inbound) and responses (outbound).
+#[derive(Clone)]
 pub struct {{middleware_struct}} {
     pub name: &'static str,{{#if auth}}
     pub protected_paths: Vec<String>,{{/if}}{{#if logging}}
@@ -42,11 +46,12 @@ impl {{middleware_struct}} {
     }{{/if}}
 }
 
+// ============================================================================
+// INBOUND PHASE - Processes requests BEFORE controller execution
+// ============================================================================
 #[async_trait]
 impl InboundMiddleware for {{middleware_struct}} {
     async fn process_request(&self, ctx: &mut Context) -> Result<InboundAction> {
-        // Inbound phase: Process request BEFORE controller execution
-        log::debug!("{{middleware_title}}: Processing request to {}", ctx.req.uri);
         {{#if auth}}
         // Check if path requires authentication
         let path = ctx.req.uri.path();
@@ -68,9 +73,6 @@ impl InboundMiddleware for {{middleware_struct}} {
         }
         {{/if}}{{#if logging}}
         // Log request details
-        let start = std::time::Instant::now();
-        ctx.data.insert("request_start".to_string(), Box::new(start));
-
         let method = &ctx.req.method;
         let uri = &ctx.req.uri;
 
@@ -87,9 +89,14 @@ impl InboundMiddleware for {{middleware_struct}} {
             log::debug!("  Body logging enabled (implementation depends on content type)");
         }
         {{/if}}
+        // Store request start time for response timing
+        let start_time = Instant::now();
+        ctx.set("{{middleware_name}}_start", start_time)?;
 
-        // Continue to controller execution
-        Ok(InboundAction::Continue)
+        log::debug!("{{middleware_title}}: Processing request to {}", ctx.req.uri);
+
+        // Return Capture to ensure outbound phase runs
+        Ok(InboundAction::Capture)
     }
 
     fn name(&self) -> &'static str {
@@ -101,28 +108,129 @@ impl InboundMiddleware for {{middleware_struct}} {
     }
 }
 
+// ============================================================================
+// OUTBOUND PHASE - Processes responses AFTER controller execution
+// ============================================================================
+#[async_trait]
+impl OutboundMiddleware for {{middleware_struct}} {
+    async fn process_response(&self, ctx: &mut Context) -> Result<()> {
+        // Calculate request processing duration
+        if let Some(start_time) = ctx.get::<Instant>("{{middleware_name}}_start") {
+            let duration = start_time.elapsed();
+
+            // Access and modify the response through ctx.res
+            if let Some(response) = ctx.res.as_mut() {
+                // Add timing header
+                response.headers.push((
+                    "X-Response-Time".to_string(),
+                    format!("{}ms", duration.as_millis())
+                ));
+
+                // Add custom middleware header
+                response.headers.push((
+                    "X-Processed-By".to_string(),
+                    "{{middleware_title}}".to_string()
+                ));
+                {{#if logging}}
+
+                // Log response details
+                let status = response.status.as_u16();
+                log::info!("← {} {} {} {:?}", ctx.req.method, ctx.req.uri, status, duration);
+                {{/if}}
+
+                log::debug!("{{middleware_title}}: Completed in {:?}", duration);
+            }
+        }
+
+        Ok(())
+    }
+}
+
 /// Required: Registration function for auto-discovery
 pub fn install(registry: &mut MiddlewareRegistry) {
-    registry.register_inbound("{{middleware_name}}", {{middleware_struct}}::new(){{#if logging}}.with_headers(){{/if}});
+    // Register as dual-phase middleware (both inbound and outbound)
+    registry.register_dual("{{middleware_name}}", {{middleware_struct}}::new(){{#if logging}}.with_headers(){{/if}});
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rustf::http::Request;
+    use rustf::views::ViewEngine;
+    use std::sync::Arc;
 
     #[test]
     fn test_middleware_creation() {
         let middleware = {{middleware_struct}}::new();
         assert_eq!(middleware.name(), "{{middleware_name}}");
         assert_eq!(middleware.priority(), {{priority}});
+    }
+
+    #[tokio::test]
+    async fn test_inbound_phase() {
+        let middleware = {{middleware_struct}}::new();
+
+        // Create test context
+        let request = Request::default();
+        let views = Arc::new(ViewEngine::from_directory("views").unwrap());
+        let mut ctx = Context::new(request, views, None);
+
+        // Test inbound processing
+        let action = middleware.process_request(&mut ctx).await.unwrap();
+
+        // Should capture for outbound phase
+        assert!(matches!(action, InboundAction::Capture));
+
+        // Verify start time was stored
+        assert!(ctx.get::<Instant>("{{middleware_name}}_start").is_some());
+    }
+
+    #[tokio::test]
+    async fn test_outbound_phase() {
+        let middleware = {{middleware_struct}}::new();
+
+        // Create test context
+        let request = Request::default();
+        let views = Arc::new(ViewEngine::from_directory("views").unwrap());
+        let mut ctx = Context::new(request, views, None);
+
+        // Simulate inbound phase
+        let start_time = Instant::now();
+        ctx.set("{{middleware_name}}_start", start_time).unwrap();
+
+        // Set a response
+        ctx.json(serde_json::json!({"status": "ok"})).unwrap();
+
+        // Test outbound processing
+        middleware.process_response(&mut ctx).await.unwrap();
+
+        // Verify headers were added
+        if let Some(response) = &ctx.res {
+            let has_timing = response.headers.iter()
+                .any(|(k, _)| k == "X-Response-Time");
+            let has_processed = response.headers.iter()
+                .any(|(k, _)| k == "X-Processed-By");
+
+            assert!(has_timing, "Should add X-Response-Time header");
+            assert!(has_processed, "Should add X-Processed-By header");
+        }
     }{{#if auth}}
 
     #[tokio::test]
     async fn test_auth_middleware() {
-        // TODO: Add comprehensive auth middleware tests
         let middleware = {{middleware_struct}}::new()
-            .with_protected_paths(vec!["/test"]);
-        assert!(!middleware.protected_paths.is_empty());
+            .with_protected_paths(vec!["/admin"]);
+
+        // Create test context
+        let mut request = Request::default();
+        request.uri = "/admin/dashboard".parse().unwrap();
+        let views = Arc::new(ViewEngine::from_directory("views").unwrap());
+        let mut ctx = Context::new(request, views, None);
+
+        // Test without auth - should stop
+        let action = middleware.process_request(&mut ctx).await.unwrap();
+        assert!(matches!(action, InboundAction::Stop));
+        assert!(ctx.res.is_some(), "Should set 403 response");
     }{{/if}}{{#if logging}}
 
     #[test]
