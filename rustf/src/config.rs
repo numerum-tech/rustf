@@ -12,19 +12,15 @@ use std::path::Path;
 pub enum Environment {
     #[default]
     Development,
-    Staging,
     Production,
-    Testing,
 }
-
 
 impl Environment {
     /// Get environment from string
     pub fn from_str(env: &str) -> Self {
         match env.to_lowercase().as_str() {
             "production" | "prod" => Environment::Production,
-            "staging" | "stage" => Environment::Staging,
-            "testing" | "test" => Environment::Testing,
+            "development" | "dev" => Environment::Development,
             _ => Environment::Development,
         }
     }
@@ -32,10 +28,8 @@ impl Environment {
     /// Get environment name as string
     pub fn as_str(&self) -> &'static str {
         match self {
-            Environment::Development => "development",
-            Environment::Staging => "staging",
-            Environment::Production => "production",
-            Environment::Testing => "testing",
+            Environment::Development => "dev",
+            Environment::Production => "prod",
         }
     }
 
@@ -43,15 +37,9 @@ impl Environment {
     pub fn is_production(&self) -> bool {
         matches!(self, Environment::Production)
     }
-
-    /// Check if this is a secure environment (staging/production)
-    pub fn is_secure(&self) -> bool {
-        matches!(self, Environment::Staging | Environment::Production)
-    }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct AppConfig {
     #[serde(default)]
     pub environment: Environment,
@@ -149,7 +137,6 @@ pub enum TemplateEngine {
     TotalJs,
 }
 
-
 /// Template storage method - runtime configurable
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -161,7 +148,6 @@ pub enum TemplateStorage {
     #[default]
     Embedded,
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SessionConfig {
@@ -245,8 +231,7 @@ pub struct StaticConfig {
     pub cache_max_age: u64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct DatabaseConfig {
     #[serde(default)]
     pub url: Option<String>,
@@ -395,7 +380,6 @@ fn default_sessions_table() -> String {
     "sessions".to_string()
 }
 
-
 impl Default for ServerConfig {
     fn default() -> Self {
         Self {
@@ -450,7 +434,6 @@ impl Default for StaticConfig {
         }
     }
 }
-
 
 impl Default for CorsConfig {
     fn default() -> Self {
@@ -546,7 +529,7 @@ impl AppConfig {
         config.resolve_views_directory(base_dir)?;
 
         // Apply security defaults for production
-        if config.environment.is_secure() {
+        if config.environment.is_production() {
             config.apply_security_defaults();
         }
 
@@ -749,22 +732,22 @@ impl AppConfig {
         }
 
         // Validate production-specific requirements
-        if self.environment.is_production()
-            && self.database.url.is_none() {
-                eprintln!("WARNING: No database configured in production environment");
-            }
+        if self.environment.is_production() && self.database.url.is_none() {
+            eprintln!("WARNING: No database configured in production environment");
+        }
 
         // Validate paths exist
         // Note: For views directory, we only validate for filesystem storage
         // and only warn if it doesn't exist (might be overridden by CLI)
         if matches!(self.views.storage, TemplateStorage::Filesystem)
-            && !Path::new(&self.views.directory).exists() {
-                // Only warn, don't error - might be overridden by CLI --views flag
-                log::warn!(
-                    "Views directory does not exist: {} (can be overridden with --views flag)",
-                    self.views.directory
-                );
-            }
+            && !Path::new(&self.views.directory).exists()
+        {
+            // Only warn, don't error - might be overridden by CLI --views flag
+            log::warn!(
+                "Views directory does not exist: {} (can be overridden with --views flag)",
+                self.views.directory
+            );
+        }
 
         if !Path::new(&self.static_files.directory).exists() {
             // Static files directory is more critical, so we still error

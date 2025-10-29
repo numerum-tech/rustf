@@ -1,10 +1,10 @@
 use anyhow::{anyhow, Result};
+use rand::Rng;
 use rust_embed::RustEmbed;
 use std::collections::HashMap;
 use std::fs::{self, File};
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use rand::Rng;
 
 #[derive(RustEmbed)]
 #[folder = "templates/"]
@@ -15,11 +15,11 @@ pub async fn run(project_name: String, target_path: Option<PathBuf>, force: bool
     // Validate and normalize project name
     let normalized_name = normalize_project_name(&project_name)?;
     let project_title = project_name_to_title(&project_name);
-    
+
     // Determine target directory
     let base_path = target_path.unwrap_or_else(|| std::env::current_dir().unwrap());
     let project_path = base_path.join(&normalized_name);
-    
+
     // Check if directory exists and handle accordingly
     if project_path.exists() {
         if !force {
@@ -38,22 +38,25 @@ pub async fn run(project_name: String, target_path: Option<PathBuf>, force: bool
                 let backup_manager = BackupManager::new()?;
                 backup_manager.backup_directory(&project_path, "project")?;
             }
-            println!("⚠️  Overwriting existing directory: {}", project_path.display());
+            println!(
+                "⚠️  Overwriting existing directory: {}",
+                project_path.display()
+            );
         }
     }
-    
+
     println!("🚀 Creating new RustF project: {}", project_title);
     println!("📁 Project directory: {}", project_path.display());
-    
+
     // Create project structure
     create_project_structure(&project_path)?;
-    
+
     // Generate template variables
     let variables = create_template_variables(&normalized_name, &project_title);
-    
+
     // Generate files from templates
     generate_project_files(&project_path, &variables)?;
-    
+
     println!("✅ Project '{}' created successfully!", project_title);
     println!();
     println!("📋 Next steps:");
@@ -67,7 +70,7 @@ pub async fn run(project_name: String, target_path: Option<PathBuf>, force: bool
     println!("   • Schema-based model generation support");
     println!("   • Template engine with layout support");
     println!("   • Built-in middleware and security features");
-    
+
     Ok(())
 }
 
@@ -76,7 +79,7 @@ fn normalize_project_name(name: &str) -> Result<String> {
     if name.trim().is_empty() {
         return Err(anyhow!("Project name cannot be empty"));
     }
-    
+
     // Convert to snake_case and validate
     let normalized = name
         .chars()
@@ -95,17 +98,22 @@ fn normalize_project_name(name: &str) -> Result<String> {
         .filter(|s| !s.is_empty())
         .collect::<Vec<_>>()
         .join("_");
-    
+
     // Ensure it starts with a letter
-    if !normalized.chars().next().unwrap_or('_').is_ascii_alphabetic() {
+    if !normalized
+        .chars()
+        .next()
+        .unwrap_or('_')
+        .is_ascii_alphabetic()
+    {
         return Err(anyhow!("Project name must start with a letter"));
     }
-    
+
     // Ensure it's not too long
     if normalized.len() > 50 {
         return Err(anyhow!("Project name is too long (max 50 characters)"));
     }
-    
+
     Ok(normalized)
 }
 
@@ -127,11 +135,14 @@ fn is_directory_empty(path: &Path) -> Result<bool> {
     if !path.exists() {
         return Ok(true);
     }
-    
+
     if !path.is_dir() {
-        return Err(anyhow!("Path exists but is not a directory: {}", path.display()));
+        return Err(anyhow!(
+            "Path exists but is not a directory: {}",
+            path.display()
+        ));
     }
-    
+
     let entries = fs::read_dir(path)?;
     Ok(entries.count() == 0)
 }
@@ -143,7 +154,7 @@ fn create_project_structure(project_path: &Path) -> Result<()> {
         // Source directories
         "src",
         "src/controllers",
-        "src/middleware", 
+        "src/middleware",
         "src/modules",
         "src/models",
         "src/models/base",
@@ -161,44 +172,44 @@ fn create_project_structure(project_path: &Path) -> Result<()> {
         // Upload directory
         "uploads",
     ];
-    
+
     for dir in &directories {
         let dir_path = if dir.is_empty() {
             project_path.to_path_buf()
         } else {
             project_path.join(dir)
         };
-        
+
         fs::create_dir_all(&dir_path)?;
-        
+
         // Create .gitkeep files for empty directories that should be preserved
         if matches!(*dir, "uploads" | "src/models/base") {
             let gitkeep_path = dir_path.join(".gitkeep");
             File::create(gitkeep_path)?.write_all(b"")?;
         }
     }
-    
+
     Ok(())
 }
 
 fn create_template_variables(project_name: &str, project_title: &str) -> HashMap<String, String> {
     let mut variables = HashMap::new();
-    
+
     // Basic project info
     variables.insert("project_name".to_string(), project_name.to_string());
     variables.insert("project_title".to_string(), project_title.to_string());
-    
+
     // Generate random session secret
     let session_secret = generate_session_secret();
     variables.insert("session_secret".to_string(), session_secret);
-    
+
     variables
 }
 
 fn generate_session_secret() -> String {
     const CHARS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
     let mut rng = rand::thread_rng();
-    
+
     (0..64)
         .map(|_| {
             let idx = rng.gen_range(0..CHARS.len());
@@ -213,72 +224,101 @@ fn generate_project_files(project_path: &Path, variables: &HashMap<String, Strin
         // Main project files
         ("project/Cargo.toml.template", "Cargo.toml"),
         ("project/config.toml.template", "config.toml"),
+        ("project/config.dev.toml.template", "config.dev.toml"),
         ("project/main.rs.template", "src/main.rs"),
         ("project/README.md.template", "README.md"),
         ("project/gitignore.template", ".gitignore"),
-        
         // View templates
-        ("views/layouts/default.html.template", "views/layouts/default.html"),
-        
+        (
+            "views/layouts/default.html.template",
+            "views/layouts/default.html",
+        ),
         // Directory README files
-        ("readmes/controllers_README.md.template", "src/controllers/README.md"),
-        ("readmes/middleware_README.md.template", "src/middleware/README.md"),
-        ("readmes/modules_README.md.template", "src/modules/README.md"),
+        (
+            "readmes/controllers_README.md.template",
+            "src/controllers/README.md",
+        ),
+        (
+            "readmes/middleware_README.md.template",
+            "src/middleware/README.md",
+        ),
+        (
+            "readmes/modules_README.md.template",
+            "src/modules/README.md",
+        ),
         ("readmes/models_README.md.template", "src/models/README.md"),
-        ("readmes/models_base_README.md.template", "src/models/base/README.md"),
-        ("readmes/definitions_README.md.template", "src/definitions/README.md"),
+        (
+            "readmes/models_base_README.md.template",
+            "src/models/base/README.md",
+        ),
+        (
+            "readmes/definitions_README.md.template",
+            "src/definitions/README.md",
+        ),
         ("readmes/views_README.md.template", "views/README.md"),
         ("readmes/schemas_README.md.template", "schemas/README.md"),
-        ("readmes/public_css_README.md.template", "public/css/README.md"),
-        ("readmes/public_js_README.md.template", "public/js/README.md"),
-        ("readmes/public_images_README.md.template", "public/images/README.md"),
+        (
+            "readmes/public_css_README.md.template",
+            "public/css/README.md",
+        ),
+        (
+            "readmes/public_js_README.md.template",
+            "public/js/README.md",
+        ),
+        (
+            "readmes/public_images_README.md.template",
+            "public/images/README.md",
+        ),
         ("readmes/uploads_README.md.template", "uploads/README.md"),
-        
         // Schema files
         ("schemas/sessions.yaml.template", "schemas/sessions.yaml"),
     ];
-    
+
     for (template_path, output_path) in &file_mappings {
         println!("📝 Creating {}", output_path);
-        
+
         let template_content = Templates::get(template_path)
             .ok_or_else(|| anyhow!("Template not found: {}", template_path))?;
-        
+
         let content = std::str::from_utf8(template_content.data.as_ref())?;
         let processed_content = process_template(content, variables)?;
-        
+
         let output_file_path = project_path.join(output_path);
-        
+
         // Ensure parent directory exists
         if let Some(parent) = output_file_path.parent() {
             fs::create_dir_all(parent)?;
         }
-        
+
         fs::write(&output_file_path, processed_content)?;
     }
-    
+
     // Create a sample controller
     create_sample_controller(project_path, variables)?;
-    
+
     // Create a sample definition
     create_sample_definition(project_path, variables)?;
-    
+
     Ok(())
 }
 
 fn process_template(content: &str, variables: &HashMap<String, String>) -> Result<String> {
     let mut processed = content.to_string();
-    
+
     for (key, value) in variables {
         let placeholder = format!("{{{{{}}}}}", key);
         processed = processed.replace(&placeholder, value);
     }
-    
+
     Ok(processed)
 }
 
-fn create_sample_controller(project_path: &Path, variables: &HashMap<String, String>) -> Result<()> {
-    let controller_content = format!(r#"use rustf::prelude::*;
+fn create_sample_controller(
+    project_path: &Path,
+    variables: &HashMap<String, String>,
+) -> Result<()> {
+    let controller_content = format!(
+        r#"use rustf::prelude::*;
 
 pub fn install() -> Vec<Route> {{
     routes![
@@ -293,14 +333,14 @@ async fn index(ctx: Context) -> Result<Response> {{
         "message": "Your RustF application is running successfully!",
         "features": [
             "🚀 Auto-discovery for controllers, models, and middleware",
-            "🎨 Tera template engine with layout support", 
+            "🎨 Tera template engine with layout support",
             "🔐 Built-in session management and security features",
             "📊 Schema-based model generation",
             "🛡️ Comprehensive middleware system",
             "🤖 AI-friendly documentation and patterns"
         ]
     }});
-    
+
     ctx.view("/home/index", data)
 }}
 
@@ -309,19 +349,25 @@ async fn about(ctx: Context) -> Result<Response> {{
         "title": "About {}",
         "description": "Built with the RustF framework - an AI-friendly MVC framework for Rust."
     }});
-    
+
     ctx.view("/home/about", data)
 }}
-"#, variables.get("project_title").unwrap_or(&"RustF App".to_string()),
-    variables.get("project_title").unwrap_or(&"RustF App".to_string()));
-    
+"#,
+        variables
+            .get("project_title")
+            .unwrap_or(&"RustF App".to_string()),
+        variables
+            .get("project_title")
+            .unwrap_or(&"RustF App".to_string())
+    );
+
     let controller_path = project_path.join("src/controllers/home.rs");
     fs::write(controller_path, controller_content)?;
     println!("📝 Creating src/controllers/home.rs");
-    
+
     // Create corresponding view templates
     create_sample_views(project_path, variables)?;
-    
+
     Ok(())
 }
 
@@ -329,7 +375,7 @@ fn create_sample_views(project_path: &Path, _variables: &HashMap<String, String>
     // Create home directory
     let home_views_dir = project_path.join("views/home");
     fs::create_dir_all(&home_views_dir)?;
-    
+
     // Create index.html
     let index_content = r#"{% extends "layouts/default.html" %}
 
@@ -341,7 +387,7 @@ fn create_sample_views(project_path: &Path, _variables: &HashMap<String, String>
         <h1>{{ title }}</h1>
         <p class="lead">{{ message }}</p>
     </div>
-    
+
     <div class="features">
         <h2>Framework Features</h2>
         <ul class="feature-list">
@@ -350,7 +396,7 @@ fn create_sample_views(project_path: &Path, _variables: &HashMap<String, String>
         {% endfor %}
         </ul>
     </div>
-    
+
     <div class="actions">
         <a href="/about" class="btn btn-primary">Learn More</a>
         <a href="https://github.com/numerum-tech/rustf" class="btn btn-secondary" target="_blank">
@@ -410,11 +456,11 @@ fn create_sample_views(project_path: &Path, _variables: &HashMap<String, String>
 </style>
 {% endblock %}
 "#;
-    
+
     let index_path = home_views_dir.join("index.html");
     fs::write(index_path, index_content)?;
     println!("📝 Creating views/home/index.html");
-    
+
     // Create about.html
     let about_content = r#"{% extends "layouts/default.html" %}
 
@@ -425,7 +471,7 @@ fn create_sample_views(project_path: &Path, _variables: &HashMap<String, String>
     <div class="container">
         <h1>{{ title }}</h1>
         <p class="lead">{{ description }}</p>
-        
+
         <div class="row">
             <div class="col-md-6">
                 <h2>About RustF</h2>
@@ -434,7 +480,7 @@ fn create_sample_views(project_path: &Path, _variables: &HashMap<String, String>
                     It emphasizes convention over configuration, making it easy for both human developers
                     and AI coding assistants to work with.
                 </p>
-                
+
                 <h3>Key Features</h3>
                 <ul>
                     <li><strong>Auto-Discovery:</strong> Automatic registration of controllers, models, and middleware</li>
@@ -444,11 +490,11 @@ fn create_sample_views(project_path: &Path, _variables: &HashMap<String, String>
                     <li><strong>Schema-Based Models:</strong> Generate models from YAML schema definitions</li>
                 </ul>
             </div>
-            
+
             <div class="col-md-6">
                 <h2>Getting Started</h2>
                 <p>Your RustF application is already configured and ready to use. Here are some next steps:</p>
-                
+
                 <ol>
                     <li>Explore the <code>src/controllers/</code> directory to add new routes</li>
                     <li>Create data models in <code>schemas/</code> and generate them with the CLI</li>
@@ -456,12 +502,12 @@ fn create_sample_views(project_path: &Path, _variables: &HashMap<String, String>
                     <li>Add static assets to <code>public/</code> directory</li>
                     <li>Configure your application in <code>config.toml</code></li>
                 </ol>
-                
+
                 <h3>Documentation</h3>
                 <p>Each directory contains comprehensive README files with AI-friendly documentation and examples.</p>
             </div>
         </div>
-        
+
         <div class="back-link">
             <a href="/" class="btn btn-primary">← Back to Home</a>
         </div>
@@ -512,17 +558,21 @@ code {
 </style>
 {% endblock %}
 "#;
-    
+
     let about_path = home_views_dir.join("about.html");
     fs::write(about_path, about_content)?;
     println!("📝 Creating views/home/about.html");
-    
+
     Ok(())
 }
 
-fn create_sample_definition(project_path: &Path, _variables: &HashMap<String, String>) -> Result<()> {
-    let definition_content = format!(r#"//! Application definitions
-//! 
+fn create_sample_definition(
+    project_path: &Path,
+    _variables: &HashMap<String, String>,
+) -> Result<()> {
+    let definition_content = format!(
+        r#"//! Application definitions
+//!
 //! This module customizes framework behavior through the definitions system.
 //! You can register providers, helpers, validators, and interceptors here.
 
@@ -531,13 +581,13 @@ use rustf::prelude::*;
 use serde_json::Value;
 
 /// Install function called by auto-discovery
-/// 
+///
 /// This function is automatically called by the framework to register
 /// all definitions from this module.
 pub fn install(defs: &mut Definitions) {{
     // Register a custom template helper
     register_helpers(defs);
-    
+
     // Uncomment to add more customizations:
     // register_providers(defs);
     // register_validators(defs);
@@ -570,7 +620,7 @@ fn register_helpers(defs: &mut Definitions) {{
         }}
         Ok(args.first().cloned().unwrap_or(Value::Null))
     }});
-    
+
     // Example: App-specific helper
     defs.register_helper_fn("app_version", |_args, _ctx| {{
         Ok(Value::String("1.0.0".to_string()))
@@ -616,14 +666,14 @@ fn register_validators(defs: &mut Definitions) {{
 /*
 fn register_interceptors(defs: &mut Definitions) {{
     use chrono::Utc;
-    
+
     // Automatically add timestamps to models
     defs.register_json_interceptor("before_model_save", |mut data| {{
         if let Value::Object(ref mut map) = data {{
-            map.insert("updated_at".to_string(), 
+            map.insert("updated_at".to_string(),
                       Value::String(Utc::now().to_rfc3339()));
             if !map.contains_key("created_at") {{
-                map.insert("created_at".to_string(), 
+                map.insert("created_at".to_string(),
                           Value::String(Utc::now().to_rfc3339()));
             }}
         }}
@@ -631,46 +681,50 @@ fn register_interceptors(defs: &mut Definitions) {{
     }});
 }}
 */
-"#);
-    
+"#
+    );
+
     let definition_path = project_path.join("src/definitions/app.rs");
     fs::write(definition_path, definition_content)?;
     println!("📝 Creating src/definitions/app.rs");
-    
+
     Ok(())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_normalize_project_name() {
         assert_eq!(normalize_project_name("MyApp").unwrap(), "myapp");
         assert_eq!(normalize_project_name("my-app").unwrap(), "my_app");
-        assert_eq!(normalize_project_name("My Great App").unwrap(), "my_great_app");
+        assert_eq!(
+            normalize_project_name("My Great App").unwrap(),
+            "my_great_app"
+        );
         assert_eq!(normalize_project_name("my__app").unwrap(), "my_app");
-        
+
         assert!(normalize_project_name("").is_err());
         assert!(normalize_project_name("123app").is_err());
     }
-    
+
     #[test]
     fn test_project_name_to_title() {
         assert_eq!(project_name_to_title("my_app"), "My App");
         assert_eq!(project_name_to_title("my-great-app"), "My Great App");
         assert_eq!(project_name_to_title("MyApp"), "MyApp");
     }
-    
+
     #[test]
     fn test_generate_session_secret() {
         let secret1 = generate_session_secret();
         let secret2 = generate_session_secret();
-        
+
         assert_eq!(secret1.len(), 64);
         assert_eq!(secret2.len(), 64);
         assert_ne!(secret1, secret2); // Should be different
-        
+
         // Should only contain alphanumeric characters
         assert!(secret1.chars().all(|c| c.is_ascii_alphanumeric()));
     }

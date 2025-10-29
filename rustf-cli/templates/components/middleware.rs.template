@@ -1,10 +1,9 @@
 use rustf::prelude::*;
-use rustf::middleware::{Middleware, MiddlewareRegistry, MiddlewareResult, Next};
-use std::pin::Pin;
-use std::future::Future;
+use rustf::middleware::{InboundMiddleware, InboundAction, MiddlewareRegistry};
+use async_trait::async_trait;
 
 /// {{middleware_title}} middleware
-/// 
+///
 /// {{description}}
 pub struct {{middleware_struct}} {
     pub name: &'static str,{{#if auth}}
@@ -26,96 +25,77 @@ impl {{middleware_struct}} {
             log_body: false,{{/if}}
         }
     }{{#if auth}}
-    
+
     pub fn with_protected_paths(mut self, paths: Vec<&str>) -> Self {
         self.protected_paths = paths.into_iter().map(String::from).collect();
         self
     }{{/if}}{{#if logging}}
-    
+
     pub fn with_headers(mut self) -> Self {
         self.log_headers = true;
         self
     }
-    
+
     pub fn with_body(mut self) -> Self {
         self.log_body = true;
         self
     }{{/if}}
 }
 
-impl Middleware for {{middleware_struct}} {
-    fn handle<'a>(&'a self, ctx: &'a mut Context, next: Next) 
-        -> Pin<Box<dyn Future<Output = rustf::Result<MiddlewareResult>> + Send + 'a>> {
-        Box::pin(async move {
-            // Before request processing
-            log::debug!("{{middleware_title}}: Processing request to {}", ctx.request.uri);
-            {{#if auth}}
-            // Check if path requires authentication
-            let path = ctx.request.uri.path();
-            let requires_auth = self.protected_paths.iter()
-                .any(|protected| path.starts_with(protected));
-            
-            if requires_auth {
-                // Check session for user authentication
-                let user_id: Option<i32> = ctx.session_get("user_id")?;
-                
-                if user_id.is_none() {
-                    log::warn!("{{middleware_title}}: Unauthorized access attempt to {}", path);
-                    // Not authenticated - redirect to login
-                    let response = Response::redirect("/login");
-                    return Ok(MiddlewareResult::Stop(response));
-                }
-                
-                log::info!("{{middleware_title}}: Authorized access to {} by user_id: {:?}", path, user_id);
+#[async_trait]
+impl InboundMiddleware for {{middleware_struct}} {
+    async fn process_request(&self, ctx: &mut Context) -> Result<InboundAction> {
+        // Inbound phase: Process request BEFORE controller execution
+        log::debug!("{{middleware_title}}: Processing request to {}", ctx.req.uri);
+        {{#if auth}}
+        // Check if path requires authentication
+        let path = ctx.req.uri.path();
+        let requires_auth = self.protected_paths.iter()
+            .any(|protected| path.starts_with(protected));
+
+        if requires_auth {
+            // Check session for user authentication
+            let user_id: Option<i32> = ctx.session_get("user_id")?;
+
+            if user_id.is_none() {
+                log::warn!("{{middleware_title}}: Unauthorized access attempt to {}", path);
+                // Not authenticated - return 403 and stop processing
+                ctx.throw403(Some("Unauthorized access"))?;
+                return Ok(InboundAction::Stop);
             }
-            {{/if}}{{#if logging}}
-            // Log request details
-            let start = std::time::Instant::now();
-            let method = &ctx.request.method;
-            let uri = &ctx.request.uri;
-            
-            log::info!("→ {} {}", method, uri);
-            
-            if self.log_headers {
-                for (name, value) in &ctx.request.headers {
-                    log::debug!("  Header: {}: {}", name, value);
-                }
+
+            log::info!("{{middleware_title}}: Authorized access to {} by user_id: {:?}", path, user_id);
+        }
+        {{/if}}{{#if logging}}
+        // Log request details
+        let start = std::time::Instant::now();
+        ctx.data.insert("request_start".to_string(), Box::new(start));
+
+        let method = &ctx.req.method;
+        let uri = &ctx.req.uri;
+
+        log::info!("→ {} {}", method, uri);
+
+        if self.log_headers {
+            for (name, value) in &ctx.req.headers {
+                log::debug!("  Header: {}: {}", name, value);
             }
-            
-            if self.log_body {
-                // Note: Be careful logging request bodies in production
-                log::debug!("  Body logging enabled (implementation depends on content type)");
-            }
-            {{/if}}
-            // Continue to next middleware/handler
-            let result = next.call(ctx).await?;
-            
-            // After request processing
-            match &result {
-                MiddlewareResult::Stop(response) => {
-                    // Response is being returned{{#if logging}}
-                    let duration = start.elapsed();
-                    let status = response.status().as_u16();
-                    log::info!("← {} {} {} {:?}", method, uri, status, duration);{{else}}
-                    log::debug!("{{middleware_title}}: Response intercepted");{{/if}}
-                    
-                    // TODO: Add any response modifications here
-                    // For example, add custom headers:
-                    // response.headers.insert("X-{{middleware_title}}", "processed");
-                }
-                MiddlewareResult::Continue => {
-                    log::debug!("{{middleware_title}}: Request continued to next handler");
-                }
-            }
-            
-            Ok(result)
-        })
+        }
+
+        if self.log_body {
+            // Note: Be careful logging request bodies in production
+            log::debug!("  Body logging enabled (implementation depends on content type)");
+        }
+        {{/if}}
+
+        // Continue to controller execution
+        Ok(InboundAction::Continue)
     }
-    
+
     fn name(&self) -> &'static str {
         self.name
     }
-    
+
     fn priority(&self) -> i32 {
         {{priority}}  // {{#if priority_negative}}Run early in the chain{{/if}}{{#if priority_positive}}Run late in the chain{{/if}}{{#unless priority_negative}}{{#unless priority_positive}}Default priority{{/unless}}{{/unless}}
     }
@@ -123,20 +103,20 @@ impl Middleware for {{middleware_struct}} {
 
 /// Required: Registration function for auto-discovery
 pub fn install(registry: &mut MiddlewareRegistry) {
-    registry.register("{{middleware_name}}", {{middleware_struct}}::new(){{#if logging}}.with_headers(){{/if}});
+    registry.register_inbound("{{middleware_name}}", {{middleware_struct}}::new(){{#if logging}}.with_headers(){{/if}});
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_middleware_creation() {
         let middleware = {{middleware_struct}}::new();
         assert_eq!(middleware.name(), "{{middleware_name}}");
         assert_eq!(middleware.priority(), {{priority}});
     }{{#if auth}}
-    
+
     #[tokio::test]
     async fn test_auth_middleware() {
         // TODO: Add comprehensive auth middleware tests
@@ -144,7 +124,7 @@ mod tests {
             .with_protected_paths(vec!["/test"]);
         assert!(!middleware.protected_paths.is_empty());
     }{{/if}}{{#if logging}}
-    
+
     #[test]
     fn test_logging_configuration() {
         let middleware = {{middleware_struct}}::new()

@@ -26,6 +26,8 @@ Thumbs.db
 .env
 .env.local
 .env.production
+config.dev.toml
+config.prod.toml
 
 # Database
 /*.sqlite
