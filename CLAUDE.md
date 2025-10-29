@@ -252,6 +252,10 @@ Key commands:
 rustf-cli analyze         # Analyze project structure
 rustf-cli db introspect   # Database schema analysis
 rustf-cli new controller  # Generate new controller
+rustf-cli new middleware  # Generate new middleware (dual-phase pattern)
+rustf-cli new worker      # Generate new worker (generic async task)
+rustf-cli new module      # Generate new module/service
+rustf-cli new event       # Generate new event handler
 rustf-cli schema validate # Validate YAML schemas
 rustf-cli watch          # Real-time project monitoring
 
@@ -303,9 +307,34 @@ Comprehensive docs in `docs/`:
 
 ### When Adding New Middleware
 1. Create file in `src/middleware/snake_case.rs`
-2. Implement `InboundMiddleware` or `OutboundMiddleware` trait
-3. Auto-discovery handles registration
-4. Consider priority order for execution sequence
+2. Implement `InboundMiddleware` and/or `OutboundMiddleware` trait (dual-phase pattern recommended)
+3. Must use `#[async_trait]` macro on trait implementations
+4. For dual-phase middleware, add `#[derive(Clone)]` to struct
+5. Return `InboundAction::Capture` in inbound phase if you need outbound processing
+6. Auto-discovery handles registration
+7. Consider priority order for execution sequence
+
+**Key Points**:
+- Middleware template generates dual-phase pattern by default (more educational)
+- Access request via `ctx.req` (not `ctx.request`)
+- Access response via `ctx.res` (not `ctx.response`)
+- Use `ctx.set()` and `ctx.get()` for data storage between phases
+- Registration uses `register_dual()`, `register_inbound()`, or `register_outbound()`
+
+### When Adding New Workers
+1. Create file in `src/workers/snake_case.rs`
+2. Implement `pub async fn install() -> Result<()>` function
+3. Use `WORKER::register("kebab-case-name", |ctx| async move { ... })` inside install
+4. Workers are auto-discovered from `src/workers/` directory
+5. Execute with `WORKER::run("kebab-case-name", payload).await`
+6. For progress updates, use `WORKER::call()` and receive via `ctx.emit()`
+
+**Key Points**:
+- Worker template is intentionally simple and generic (no predefined types)
+- Reference `docs/ABOUT_WORKERS.md` for specific patterns (email, batch, cleanup, etc.)
+- Worker names use kebab-case for registration (e.g., "send-email")
+- File names use snake_case (e.g., `send_email.rs`)
+- CLI philosophy: provide structure, not implementation
 
 ### When Working with Context
 - Use `ctx.repository` for data that views need to access

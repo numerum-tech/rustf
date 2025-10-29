@@ -327,13 +327,13 @@ pub fn install() -> Vec<Route> {{
     ]
 }}
 
-async fn index(ctx: Context) -> Result<Response> {{
+async fn index(ctx: &mut Context) -> Result<()> {{
     let data = json!({{
         "title": "Welcome to {}",
         "message": "Your RustF application is running successfully!",
         "features": [
             "🚀 Auto-discovery for controllers, models, and middleware",
-            "🎨 Tera template engine with layout support",
+            "🎨 Total.js template engine with layout support",
             "🔐 Built-in session management and security features",
             "📊 Schema-based model generation",
             "🛡️ Comprehensive middleware system",
@@ -344,7 +344,7 @@ async fn index(ctx: Context) -> Result<Response> {{
     ctx.view("/home/index", data)
 }}
 
-async fn about(ctx: Context) -> Result<Response> {{
+async fn about(ctx: &mut Context) -> Result<()> {{
     let data = json!({{
         "title": "About {}",
         "description": "Built with the RustF framework - an AI-friendly MVC framework for Rust."
@@ -371,196 +371,29 @@ async fn about(ctx: Context) -> Result<Response> {{
     Ok(())
 }
 
-fn create_sample_views(project_path: &Path, _variables: &HashMap<String, String>) -> Result<()> {
+fn create_sample_views(project_path: &Path, variables: &HashMap<String, String>) -> Result<()> {
     // Create home directory
     let home_views_dir = project_path.join("views/home");
     fs::create_dir_all(&home_views_dir)?;
 
-    // Create index.html
-    let index_content = r#"{% extends "layouts/default.html" %}
-
-{% block title %}{{ title }}{% endblock %}
-
-{% block content %}
-<div class="welcome-page">
-    <div class="hero">
-        <h1>{{ title }}</h1>
-        <p class="lead">{{ message }}</p>
-    </div>
-
-    <div class="features">
-        <h2>Framework Features</h2>
-        <ul class="feature-list">
-        {% for feature in features %}
-            <li>{{ feature }}</li>
-        {% endfor %}
-        </ul>
-    </div>
-
-    <div class="actions">
-        <a href="/about" class="btn btn-primary">Learn More</a>
-        <a href="https://github.com/numerum-tech/rustf" class="btn btn-secondary" target="_blank">
-            View Documentation
-        </a>
-    </div>
-</div>
-
-<style>
-.welcome-page {
-    text-align: center;
-    padding: 2rem 0;
-}
-
-.hero {
-    margin-bottom: 3rem;
-}
-
-.hero h1 {
-    font-size: 3rem;
-    margin-bottom: 1rem;
-    color: var(--color-primary, #007bff);
-}
-
-.lead {
-    font-size: 1.25rem;
-    color: var(--color-text-light, #666);
-    margin-bottom: 2rem;
-}
-
-.features {
-    margin-bottom: 3rem;
-}
-
-.feature-list {
-    list-style: none;
-    padding: 0;
-    max-width: 600px;
-    margin: 0 auto;
-}
-
-.feature-list li {
-    padding: 0.75rem;
-    margin: 0.5rem 0;
-    background: var(--color-background-alt, #f8f9fa);
-    border-radius: 0.5rem;
-    border-left: 4px solid var(--color-primary, #007bff);
-}
-
-.actions {
-    margin-top: 2rem;
-}
-
-.actions .btn {
-    margin: 0 0.5rem;
-}
-</style>
-{% endblock %}
-"#;
+    // Load index.html template from embedded files
+    let index_template = Templates::get("views/home/index.html.template")
+        .ok_or_else(|| anyhow!("Template not found: views/home/index.html.template"))?;
+    let index_content = std::str::from_utf8(index_template.data.as_ref())?;
+    let processed_index = process_template(index_content, variables)?;
 
     let index_path = home_views_dir.join("index.html");
-    fs::write(index_path, index_content)?;
+    fs::write(index_path, processed_index)?;
     println!("📝 Creating views/home/index.html");
 
-    // Create about.html
-    let about_content = r#"{% extends "layouts/default.html" %}
-
-{% block title %}{{ title }}{% endblock %}
-
-{% block content %}
-<div class="about-page">
-    <div class="container">
-        <h1>{{ title }}</h1>
-        <p class="lead">{{ description }}</p>
-
-        <div class="row">
-            <div class="col-md-6">
-                <h2>About RustF</h2>
-                <p>
-                    RustF is a modern, AI-friendly MVC web framework for Rust, inspired by Total.js v4.
-                    It emphasizes convention over configuration, making it easy for both human developers
-                    and AI coding assistants to work with.
-                </p>
-
-                <h3>Key Features</h3>
-                <ul>
-                    <li><strong>Auto-Discovery:</strong> Automatic registration of controllers, models, and middleware</li>
-                    <li><strong>Template Engine:</strong> Tera-based views with layout support</li>
-                    <li><strong>Session Management:</strong> Built-in session and flash message support</li>
-                    <li><strong>Security:</strong> CSRF protection, input validation, and security headers</li>
-                    <li><strong>Schema-Based Models:</strong> Generate models from YAML schema definitions</li>
-                </ul>
-            </div>
-
-            <div class="col-md-6">
-                <h2>Getting Started</h2>
-                <p>Your RustF application is already configured and ready to use. Here are some next steps:</p>
-
-                <ol>
-                    <li>Explore the <code>src/controllers/</code> directory to add new routes</li>
-                    <li>Create data models in <code>schemas/</code> and generate them with the CLI</li>
-                    <li>Customize the views in <code>views/</code> directory</li>
-                    <li>Add static assets to <code>public/</code> directory</li>
-                    <li>Configure your application in <code>config.toml</code></li>
-                </ol>
-
-                <h3>Documentation</h3>
-                <p>Each directory contains comprehensive README files with AI-friendly documentation and examples.</p>
-            </div>
-        </div>
-
-        <div class="back-link">
-            <a href="/" class="btn btn-primary">← Back to Home</a>
-        </div>
-    </div>
-</div>
-
-<style>
-.about-page {
-    padding: 2rem 0;
-}
-
-.about-page .lead {
-    font-size: 1.25rem;
-    color: var(--color-text-light, #666);
-    margin-bottom: 2rem;
-}
-
-.about-page h2 {
-    color: var(--color-primary, #007bff);
-    margin-top: 2rem;
-    margin-bottom: 1rem;
-}
-
-.about-page h3 {
-    margin-top: 1.5rem;
-    margin-bottom: 0.75rem;
-}
-
-.about-page ul, .about-page ol {
-    margin-bottom: 1.5rem;
-}
-
-.about-page li {
-    margin-bottom: 0.5rem;
-}
-
-.back-link {
-    margin-top: 3rem;
-    text-align: center;
-}
-
-code {
-    background: var(--color-background-alt, #f8f9fa);
-    padding: 0.2rem 0.4rem;
-    border-radius: 0.25rem;
-    font-family: 'Courier New', monospace;
-}
-</style>
-{% endblock %}
-"#;
+    // Load about.html template from embedded files
+    let about_template = Templates::get("views/home/about.html.template")
+        .ok_or_else(|| anyhow!("Template not found: views/home/about.html.template"))?;
+    let about_content = std::str::from_utf8(about_template.data.as_ref())?;
+    let processed_about = process_template(about_content, variables)?;
 
     let about_path = home_views_dir.join("about.html");
-    fs::write(about_path, about_content)?;
+    fs::write(about_path, processed_about)?;
     println!("📝 Creating views/home/about.html");
 
     Ok(())
