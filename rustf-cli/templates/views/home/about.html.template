@@ -1,0 +1,116 @@
+@{section styles}
+<style>
+    .about-page {
+        padding: 2rem 0;
+    }
+
+    .about-page .lead {
+        font-size: 1.25rem;
+        color: #666;
+        margin-bottom: 2rem;
+    }
+
+    .about-page h2 {
+        color: #007bff;
+        margin-top: 2rem;
+        margin-bottom: 1rem;
+    }
+
+    .about-page h3 {
+        margin-top: 1.5rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .about-page ul, .about-page ol {
+        margin-bottom: 1.5rem;
+    }
+
+    .about-page li {
+        margin-bottom: 0.5rem;
+    }
+
+    .back-link {
+        margin-top: 3rem;
+        text-align: center;
+    }
+
+    code {
+        background: #f8f9fa;
+        padding: 0.2rem 0.4rem;
+        border-radius: 0.25rem;
+        font-family: 'Courier New', monospace;
+    }
+
+    .row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 30px;
+        margin: 30px 0;
+    }
+</style>
+@{end}
+
+<div class="about-page">
+    <div class="container">
+        <h1>@{M.title || 'About {{project_title}}'}</h1>
+        <p class="lead">@{M.description || 'Learn more about this RustF application'}</p>
+
+        <div class="row">
+            <div class="col-md-6">
+                <h2>About RustF</h2>
+                <p>
+                    RustF is a modern, AI-friendly MVC web framework for Rust, inspired by Total.js v4.
+                    It emphasizes convention over configuration, making it easy for both human developers
+                    and AI coding assistants to work with.
+                </p>
+
+                <h3>Key Features</h3>
+                <ul>
+                    <li><strong>Auto-Discovery:</strong> Automatic registration of controllers, models, and middleware</li>
+                    <li><strong>Template Engine:</strong> Total.js template engine with layout support</li>
+                    <li><strong>Session Management:</strong> Built-in session and flash message support</li>
+                    <li><strong>Security:</strong> CSRF protection, input validation, and security headers</li>
+                    <li><strong>Schema-Based Models:</strong> Generate models from YAML schema definitions</li>
+                    <li><strong>Memory Safety:</strong> Arc-based architecture with zero unsafe code</li>
+                    <li><strong>High Performance:</strong> Trie-based routing and template caching</li>
+                </ul>
+            </div>
+
+            <div class="col-md-6">
+                <h2>Getting Started</h2>
+                <p>Your RustF application is already configured and ready to use. Here are some next steps:</p>
+
+                <ol>
+                    <li>Explore the <code>src/controllers/</code> directory to add new routes</li>
+                    <li>Create data models in <code>schemas/</code> and generate them with the CLI</li>
+                    <li>Customize the views in <code>views/</code> directory</li>
+                    <li>Add static assets to <code>public/</code> directory</li>
+                    <li>Configure your application in <code>config.toml</code></li>
+                </ol>
+
+                <h3>Template System</h3>
+                <p>RustF uses the Total.js template engine with the following syntax:</p>
+                <ul>
+                    <li><code>@{{"{"}}M.variable}</code> - Access data from controller</li>
+                    <li><code>@{{"{"}}if condition}...@{{"{"}}fi}</code> - Conditionals</li>
+                    <li><code>@{{"{"}}foreach item in items}...@{{"{"}}end}</code> - Loops</li>
+                    <li><code>@{{"{"}}section('name')}...@{{"{"}}end}</code> - Define sections</li>
+                    <li><code>@{{"{"}}body}</code> - Main content placeholder in layouts</li>
+                </ul>
+
+                <h3>Documentation</h3>
+                <p>Each directory contains comprehensive README files with AI-friendly documentation and examples.</p>
+            </div>
+        </div>
+
+        <div class="back-link">
+            <a href="/" class="btn btn-primary">← Back to Home</a>
+        </div>
+    </div>
+</div>
+
+@{section scripts}
+<script>
+    console.log('About page loaded - {{project_title}}');
+</script>
+@{end}
