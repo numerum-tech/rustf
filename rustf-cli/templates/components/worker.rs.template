@@ -1,221 +1,26 @@
 use rustf::prelude::*;
 use rustf::workers::WORKER;
-use std::time::Duration;
 
 /// {{worker_title}} worker
 ///
 /// {{description}}
 pub async fn install() -> Result<()> {
     WORKER::register("{{worker_name}}", |ctx| async move {
-        {{#if validation}}
-        // Validate payload early
-        let payload = ctx.payload()
-            .ok_or_else(|| Error::validation("{{worker_title}} requires payload"))?;
-        {{/if}}
-
         ctx.info("{{worker_title}}: Starting execution");
-        {{#if email}}
 
-        // ============================================================================
-        // EMAIL WORKER: Send emails asynchronously
-        // ============================================================================
-        {{#if validation}}
-        let to = payload["to"].as_str()
-            .ok_or_else(|| Error::validation("'to' email address required"))?;
-        let subject = payload["subject"].as_str()
-            .unwrap_or("No Subject");
-        let body = payload["body"].as_str()
-            .unwrap_or("");
-
-        ctx.info(&format!("Sending email to: {}", to));
-        {{/if}}
-
-        // Simulate email sending (replace with actual SMTP in production)
-        if ctx.is_development() {
-            ctx.info(&format!("📧 DEV MODE - Email to {} with subject: {}",
-                {{#if validation}}to{{else}}"user@example.com"{{/if}},
-                {{#if validation}}subject{{else}}"Test Subject"{{/if}}
-            ));
-            tokio::time::sleep(Duration::from_millis(100)).await;
-        } else {
-            // Production: integrate with SMTP service
-            // Example: send_smtp_email(to, subject, body).await?;
-            tokio::time::sleep(Duration::from_secs(2)).await;
-        }
-        {{#if progress}}
-
-        ctx.emit(json!({
-            "status": "sent",
-            {{#if validation}}"to": to,{{/if}}
-            "timestamp": chrono::Utc::now().to_rfc3339()
-        }))?;
-        {{/if}}
-
-        ctx.info("✅ Email sent successfully");
-        {{/if}}{{#if file_processing}}
-
-        // ============================================================================
-        // FILE PROCESSING WORKER: Process uploaded files with progress reporting
-        // ============================================================================
-        {{#if validation}}
-        let file_path = payload["file_path"].as_str()
-            .ok_or_else(|| Error::validation("'file_path' is required"))?;
-
-        ctx.info(&format!("Processing file: {}", file_path));
-        {{/if}}
-
-        // Step 1: Validate file
-        {{#if progress}}ctx.emit(json!({"step": "validate", "progress": 25}))?;{{/if}}
-        ctx.info("Step 1: Validating file");
-        // Add file validation logic here
-        tokio::time::sleep(Duration::from_millis(500)).await;
-
-        // Step 2: Process file
-        {{#if progress}}ctx.emit(json!({"step": "process", "progress": 50}))?;{{/if}}
-        ctx.info("Step 2: Processing file data");
-        // Add file processing logic here
-        tokio::time::sleep(Duration::from_secs(1)).await;
-
-        // Step 3: Generate thumbnail (for images) or extract metadata
-        {{#if progress}}ctx.emit(json!({"step": "thumbnail", "progress": 75}))?;{{/if}}
-        ctx.info("Step 3: Generating thumbnail/metadata");
-        // Add thumbnail/metadata generation here
-        tokio::time::sleep(Duration::from_millis(500)).await;
-
-        // Step 4: Save results to database
-        {{#if progress}}ctx.emit(json!({"step": "save", "progress": 100}))?;{{/if}}
-        ctx.info("Step 4: Saving to database");
-        // Add database save logic here
-        tokio::time::sleep(Duration::from_millis(500)).await;
-
-        ctx.info("✅ File processing complete");
-        {{/if}}{{#if cleanup}}
-
-        // ============================================================================
-        // CLEANUP WORKER: Remove old temporary files and maintenance tasks
-        // ============================================================================
-        ctx.info("🧹 Starting cleanup task");
-
-        let temp_dir = {{#if validation}}payload["directory"].as_str()
-            .unwrap_or("/tmp/app_uploads"){{else}}"/tmp/app_uploads"{{/if}};
-        let hours_old = {{#if validation}}payload["hours_old"].as_i64()
-            .unwrap_or(24){{else}}24{{/if}};
-
-        ctx.info(&format!("Cleaning files older than {} hours in {}", hours_old, temp_dir));
-
-        let cutoff = chrono::Utc::now() - chrono::Duration::hours(hours_old);
-        let mut removed_count = 0;
-
-        // Scan and remove old files
-        // Example implementation - replace with actual file system operations
-        if std::path::Path::new(temp_dir).exists() {
-            // Add directory scanning and cleanup logic here
-            removed_count = 5; // Placeholder - replace with actual count
-            tokio::time::sleep(Duration::from_secs(1)).await;
-        }
-        {{#if progress}}
-
-        ctx.emit(json!({
-            "files_removed": removed_count,
-            "directory": temp_dir,
-            "cutoff_time": cutoff.to_rfc3339()
-        }))?;
-        {{/if}}
-
-        ctx.info(&format!("✅ Cleanup complete: {} files removed", removed_count));
-        {{/if}}{{#if batch}}
-
-        // ============================================================================
-        // BATCH PROCESSING WORKER: Process multiple items with progress tracking
-        // ============================================================================
-        {{#if validation}}
-        let items = payload["items"].as_array()
-            .ok_or_else(|| Error::validation("'items' array is required"))?;
-
-        let total = items.len();
-        ctx.info(&format!("Processing {} items in batch", total));
-
-        for (index, item) in items.iter().enumerate() {
-            let progress = ((index + 1) as f64 / total as f64 * 100.0) as u64;
-            {{#if progress}}
-
-            ctx.emit(json!({
-                "current": index + 1,
-                "total": total,
-                "progress": progress,
-                "item": item
-            }))?;
-            {{/if}}
-
-            // Process individual item
-            ctx.info(&format!("Processing item {}/{}", index + 1, total));
-            // Add item processing logic here
-
-            // Small delay to avoid overwhelming external APIs
-            tokio::time::sleep(Duration::from_millis(100)).await;
-        }
-
-        ctx.info(&format!("✅ Processed {} items successfully", total));
-        {{else}}
-        // Sample batch processing without validation
-        let sample_items = vec!["item1", "item2", "item3"];
-        let total = sample_items.len();
-
-        for (index, item) in sample_items.iter().enumerate() {
-            ctx.info(&format!("Processing item {}/{}: {}", index + 1, total, item));
-            {{#if progress}}
-            let progress = ((index + 1) as f64 / total as f64 * 100.0) as u64;
-            ctx.emit(json!({
-                "current": index + 1,
-                "total": total,
-                "progress": progress
-            }))?;
-            {{/if}}
-            tokio::time::sleep(Duration::from_millis(200)).await;
-        }
-
-        ctx.info(&format!("✅ Processed {} items", total));
-        {{/if}}
-        {{/if}}{{#unless email}}{{#unless file_processing}}{{#unless cleanup}}{{#unless batch}}
-
-        // ============================================================================
-        // GENERIC WORKER: Customize this template for your specific use case
-        // ============================================================================
-        {{#if validation}}
-        // Access payload data
-        ctx.info(&format!("Received payload: {}", payload));
-
-        // Extract specific fields as needed
-        // Example:
-        // let user_id = payload["user_id"].as_i64()
-        //     .ok_or_else(|| Error::validation("user_id required"))?;
-        {{/if}}
+        // Access payload if needed
+        // let payload = ctx.payload()
+        //     .ok_or_else(|| Error::validation("Payload required"))?;
+        // let value = payload["key"].as_str()
+        //     .ok_or_else(|| Error::validation("'key' field required"))?;
 
         // Perform your background task here
-        ctx.info("Performing background task...");
-        tokio::time::sleep(Duration::from_secs(2)).await;
-        {{#if progress}}
+        // Example: Process data, call external APIs, update database, etc.
 
-        // Report progress to caller
-        ctx.emit(json!({
-            "status": "in_progress",
-            "progress": 50
-        }))?;
-        {{/if}}
+        // Report progress if needed (requires WORKER::call() instead of run())
+        // ctx.emit(json!({"progress": 50, "status": "processing"}))?;
 
-        // Complete the task
-        tokio::time::sleep(Duration::from_secs(1)).await;
-        {{#if progress}}
-
-        ctx.emit(json!({
-            "status": "completed",
-            "progress": 100
-        }))?;
-        {{/if}}
-
-        ctx.info("✅ Task completed successfully");
-        {{/unless}}{{/unless}}{{/unless}}{{/unless}}
-
+        ctx.info("{{worker_title}}: Completed successfully");
         Ok(())
     }).await?;
 
@@ -229,26 +34,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_{{worker_name_underscored}}_worker() {
-        // Initialize worker manager (required for tests)
-        // Note: In real tests, this would be done by the application setup
-
         // Register the worker
         install().await.expect("Worker registration failed");
 
-        // Test execution with payload
-        {{#if validation}}
-        let payload = json!({
-            {{#if email}}"to": "test@example.com",
-            "subject": "Test Email",
-            "body": "Test message"{{/if}}{{#if file_processing}}"file_path": "/tmp/test_file.txt"{{/if}}{{#if cleanup}}"directory": "/tmp/test",
-            "hours_old": 1{{/if}}{{#if batch}}"items": ["test1", "test2"]{{/if}}{{#unless email}}{{#unless file_processing}}{{#unless cleanup}}{{#unless batch}}"test_key": "test_value"{{/unless}}{{/unless}}{{/unless}}{{/unless}}
-        });
-
-        let result = WORKER::run("{{worker_name}}", Some(payload)).await;
-        {{else}}
+        // Test execution
         let result = WORKER::run("{{worker_name}}", None).await;
-        {{/if}}
-
         assert!(result.is_ok(), "Worker should execute successfully");
     }
 }

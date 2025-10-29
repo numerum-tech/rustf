@@ -287,15 +287,7 @@ pub async fn generate_event(name: String, lifecycle: bool, custom: bool) -> Resu
 }
 
 /// Generate a worker file
-pub async fn generate_worker(
-    name: String,
-    email: bool,
-    file_processing: bool,
-    cleanup: bool,
-    batch: bool,
-    progress: bool,
-    validation: bool,
-) -> Result<()> {
+pub async fn generate_worker(name: String) -> Result<()> {
     let project_path = std::env::current_dir()?;
     let workers_dir = project_path.join("src").join("workers");
 
@@ -326,51 +318,14 @@ pub async fn generate_worker(
     vars.insert("worker_name_underscored", snake_name.clone());
     vars.insert("worker_title", to_title_case(&snake_name));
 
-    // Generate description based on flags
-    let description = if email {
-        format!(
-            "{} - sends emails asynchronously",
-            to_title_case(&snake_name)
-        )
-    } else if file_processing {
-        format!("{} - processes uploaded files", to_title_case(&snake_name))
-    } else if cleanup {
-        format!(
-            "{} - performs cleanup and maintenance tasks",
-            to_title_case(&snake_name)
-        )
-    } else if batch {
-        format!(
-            "{} - processes items in batches",
-            to_title_case(&snake_name)
-        )
-    } else {
+    // Generate description
+    vars.insert(
+        "description",
         format!(
             "{} - background worker for async task execution",
             to_title_case(&snake_name)
-        )
-    };
-    vars.insert("description", description);
-
-    // Add boolean flags
-    if email {
-        vars.insert("email", "true".to_string());
-    }
-    if file_processing {
-        vars.insert("file_processing", "true".to_string());
-    }
-    if cleanup {
-        vars.insert("cleanup", "true".to_string());
-    }
-    if batch {
-        vars.insert("batch", "true".to_string());
-    }
-    if progress {
-        vars.insert("progress", "true".to_string());
-    }
-    if validation {
-        vars.insert("validation", "true".to_string());
-    }
+        ),
+    );
 
     // Render template
     let rendered = handlebars.render("worker", &vars)?;
@@ -380,41 +335,17 @@ pub async fn generate_worker(
     file.write_all(rendered.as_bytes())?;
 
     println!("✅ Created worker: {}", worker_path.display());
-    println!("\n📝 Don't forget to:");
+    println!("\n📝 Next steps:");
     println!("   - Workers are auto-discovered from src/workers/ directory");
-    println!("   - Use #[rustf::auto_discover] or .auto_load() in main.rs");
     println!(
         "   - Execute with: WORKER::run(\"{}\", payload).await",
         kebab_name
     );
-
-    if email {
-        println!("   - Integrate with actual SMTP service in production");
-        println!("   - Configure email settings in config.toml");
-    }
-
-    if file_processing {
-        println!("   - Implement actual file validation and processing logic");
-        println!("   - Consider file size limits and security checks");
-    }
-
-    if cleanup {
-        println!("   - Review cleanup criteria and directory paths");
-        println!("   - Consider scheduling with cron or event system");
-    }
-
-    if batch {
-        println!("   - Add proper error handling for individual item failures");
-        println!("   - Consider using buffer_unordered for concurrent processing");
-    }
-
-    if progress {
-        println!("   - Receive progress updates with: handle.recv().await");
-        println!(
-            "   - Example: let mut handle = WORKER::call(\"{}\", None, payload).await?",
-            kebab_name
-        );
-    }
+    println!(
+        "   - For progress updates: WORKER::call(\"{}\", None, payload).await",
+        kebab_name
+    );
+    println!("   - See docs/ABOUT_WORKERS.md for examples (email, batch, cleanup, etc.)");
 
     Ok(())
 }

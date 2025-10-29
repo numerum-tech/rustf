@@ -86,29 +86,5 @@ pub enum NewCommand {
         /// Worker name (will be converted to kebab-case for registration)
         #[arg(short, long)]
         name: String,
-
-        /// Generate email sending worker template
-        #[arg(long)]
-        email: bool,
-
-        /// Generate file processing worker template
-        #[arg(long)]
-        file_processing: bool,
-
-        /// Generate cleanup task worker template
-        #[arg(long)]
-        cleanup: bool,
-
-        /// Generate batch processing worker template
-        #[arg(long)]
-        batch: bool,
-
-        /// Include progress reporting example (using ctx.emit)
-        #[arg(long)]
-        progress: bool,
-
-        /// Include payload validation example
-        #[arg(long)]
-        validation: bool,
     },
 }
