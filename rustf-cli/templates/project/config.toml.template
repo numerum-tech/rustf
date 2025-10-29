@@ -85,7 +85,8 @@ enabled = true
 # redirect_on_failure = "/error"  # Optional: redirect instead of error response
 # flash_error_key = "error_msg"  # Optional: custom flash message key
 
-[custom]
-app_name = "{{project_title}}"
+[app]
+name = "{{project_title}}"
 version = "1.0.0"
+description = "Add {{project_title}} desctiption here"
 environment = "development"

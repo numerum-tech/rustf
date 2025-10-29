@@ -1,0 +1,48 @@
+# Development Configuration (config.dev.toml)
+# Automatically loaded by both framework and CLI for development environment
+# Overrides settings from config.toml
+
+[server]
+host = "127.0.0.1"
+port = 8000
+
+[database]
+# Local development database
+# Uncomment and configure for your local database
+# url = "mysql://root:password@127.0.0.1/{{project_name}}_dev"
+# url = "postgresql://postgres:password@localhost/{{project_name}}_dev"
+# url = "sqlite://./{{project_name}}_dev.db"
+max_connections = 5
+
+[views]
+# Disable caching for live template reloading
+cache_enabled = false
+
+[static_files]
+# Disable caching for live asset reloading
+cache_enabled = false
+
+[logging]
+# More verbose logging in development
+level = "debug"
+# Uncomment to log to file
+# file = "logs/development.log"
+
+[session]
+# Development session secret (CHANGE IN PRODUCTION!)
+secret = "dev-secret-{{session_secret}}"
+secure = false  # Can use HTTP in development
+
+[middleware.rate_limit]
+# More permissive rate limiting for development
+max_requests = 1000
+window_seconds = 60
+
+[middleware.csrf]
+# CSRF enabled even in development for testing
+enabled = true
+
+[app]
+environment = "development"
+debug_mode = "true"
+# Add your development-specific settings here

@@ -178,7 +178,7 @@ Access via `CONF.get()`, `DB.get()`, etc.
 
 ## Configuration System
 
-Configuration files: `config.toml`, `config.production.toml`
+Configuration files: `config.toml`, `config.prod.toml`
 
 Key sections:
 ```toml
@@ -236,6 +236,17 @@ Located in `rustf-cli/src/`:
 - **Database introspection** and schema management
 - **Code generation** with Handlebars templates
 
+### Configuration Loading (Project-Centric)
+The CLI tool is **project-folder-centric**, not environment-variable-centric:
+- Always operates on `-P <path>` or current directory
+- Automatically loads `config.toml` from project folder
+- **Automatically merges `config.dev.toml`** if present (development overlay)
+- No need to set `RUSTF_ENV` - each project has its own configs
+- Supports multiple projects on same host without environment variable conflicts
+- `DATABASE_URL` environment variable still overrides if needed
+
+This ensures CLI database operations always use development settings, preventing accidental production database access.
+
 Key commands:
 ```bash
 rustf-cli analyze         # Analyze project structure
@@ -243,6 +254,9 @@ rustf-cli db introspect   # Database schema analysis
 rustf-cli new controller  # Generate new controller
 rustf-cli schema validate # Validate YAML schemas
 rustf-cli watch          # Real-time project monitoring
+
+# CLI automatically loads config.dev.toml for database operations
+rustf-cli db list-tables  # Uses development database from config.dev.toml
 ```
 
 ## Schema-Driven Development (rustf-schema)

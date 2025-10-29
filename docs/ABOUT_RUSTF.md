@@ -73,7 +73,7 @@ your_project/
 │   └── images/
 ├── uploads/                 # File uploads directory
 ├── config.toml              # Base configuration
-├── config.production.toml   # Production overrides
+├── config.prod.toml         # Production overrides
 └── Cargo.toml               # Rust project configuration
 ```
 
@@ -921,7 +921,7 @@ mod tests {
 ### Production Configuration
 
 ```toml
-# config.production.toml
+# config.prod.toml
 environment = "production"
 
 [server]

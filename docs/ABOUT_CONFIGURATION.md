@@ -9,7 +9,7 @@ RustF provides a comprehensive configuration system inspired by Total.js, with a
 ### Key Features
 - **Global CONF Access** - Single, uniform way to access configuration anywhere
 - **Dot Notation Paths** - Access nested values with `"server.port"` syntax
-- **Environment Support** - Development, staging, production, and testing environments
+- **Environment Support** - Development and production environments
 - **Multiple Sources** - TOML files, environment variables, and defaults
 - **Type-Safe Access** - Typed getters for strings, integers, booleans, and floats
 - **Custom Settings** - Extensible with application-specific configuration
@@ -301,7 +301,7 @@ feature_x_enabled = "false"
 
 ### Environment-Specific Overrides
 
-#### config.production.toml
+#### config.prod.toml
 ```toml
 # Production-specific overrides
 environment = "production"
@@ -420,7 +420,7 @@ The framework supports configuration via command-line arguments:
 
 # Specify custom config file
 ./myapp --config /path/to/config.toml
-./myapp -c config.production.toml
+./myapp -c config.prod.toml
 
 # Override views directory (if using filesystem storage)
 ./myapp --views /path/to/templates
@@ -458,9 +458,7 @@ RustF automatically detects the environment from these sources (in order):
 ```rust
 pub enum Environment {
     Development,  // Default for local development
-    Staging,      // Pre-production testing
     Production,   // Live production environment
-    Testing,      // Automated testing
 }
 ```
 
@@ -480,13 +478,6 @@ if CONF::is_development() {
     // Development-specific code
     enable_hot_reload();
     show_detailed_errors();
-}
-
-// Check for secure environments (staging/production)
-let config = CONF::all().unwrap();
-if config.environment.is_secure() {
-    enforce_https();
-    enable_security_headers();
 }
 ```
 
@@ -550,11 +541,9 @@ api_key = "${API_KEY}"               # External service credentials
 ### 2. Environment-Specific Files
 
 ```
-config.toml                 # Base configuration (development defaults)
-config.development.toml     # Development overrides
-config.staging.toml         # Staging environment
-config.production.toml      # Production settings
-config.testing.toml         # Test environment
+config.toml          # Base configuration
+config.dev.toml      # Development overrides
+config.prod.toml     # Production settings
 ```
 
 ### 3. Custom Settings Organization
@@ -662,7 +651,7 @@ url = "postgresql://localhost/myapp"
 ### Full Production Configuration
 
 ```toml
-# config.production.toml
+# config.prod.toml
 environment = "production"
 
 [server]
@@ -794,7 +783,7 @@ RustF's configuration system provides:
 ✅ **Single Access Point** - Global CONF for uniform configuration access  
 ✅ **Dot Notation** - Clean path-based access to nested values  
 ✅ **Multiple Sources** - Files, environment variables, and code  
-✅ **Environment Support** - Development, staging, production configs  
+✅ **Environment Support** - Development and production configs  
 ✅ **Type Safety** - Typed getters for different value types  
 ✅ **Validation** - Automatic validation for production requirements  
 ✅ **Extensibility** - Custom settings for application-specific config  
