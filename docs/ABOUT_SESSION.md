@@ -24,9 +24,9 @@ pub struct Session {
 
 RustF supports multiple storage backends through the `SessionStorage` trait:
 
-- **Memory Storage** - Fast in-memory storage with automatic cleanup (implemented)
-- **Redis Storage** - Persistent storage with connection pooling (implemented, requires `redis` feature)
-- **Database Storage** - Planned but not yet implemented (configuration exists, requires `database` feature)
+- **Memory Storage** - Fast in-memory storage with automatic cleanup (implemented, default)
+- **Redis Storage** - Persistent storage with connection pooling (implemented, built-in)
+- **Database Storage** - Planned but not yet implemented (configuration exists)
 
 ## Basic Session Usage
 
@@ -188,7 +188,6 @@ let session_store = SessionStore::with_storage(Arc::new(storage));
 For production environments, use Redis for persistent session storage:
 
 ```rust
-#[cfg(feature = "redis")]
 use rustf::session::redis::RedisSessionStorage;
 
 #[tokio::main]

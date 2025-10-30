@@ -47,8 +47,8 @@ toml = { version = "0.8", optional = true }
 rust-embed = { version = "8.0", optional = true }
 rustf-macros = { version = "0.1.0", path = "../rustf-macros" }
 rustf-schema = { version = "0.1.0", path = "../rustf-schema", optional = true }
-redis = { version = "0.27", features = ["tokio-comp"], optional = true }
-deadpool-redis = { version = "0.18", optional = true }
+redis = { version = "0.27", features = ["tokio-comp"] }
+deadpool-redis = { version = "0.18" }
 clap = { version = "4.4", features = ["derive"], optional = true }
 sha2 = "0.10"
 sha1 = "0.10"
@@ -70,7 +70,6 @@ schema = ["rustf-schema"]
 decimal = ["rust_decimal"]
 uuid = []
 cli = ["clap"]
-redis = ["dep:redis", "deadpool-redis"]
 
 [dev-dependencies]
 tokio-test = "0.4"

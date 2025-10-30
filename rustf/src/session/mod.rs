@@ -10,11 +10,9 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 pub mod config_adapter;
 pub mod factory;
 pub mod manager;
+pub mod redis;
 pub mod security;
 pub mod storage;
-
-#[cfg(feature = "redis")]
-pub mod redis;
 
 /// Security fingerprint for session validation
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -186,7 +186,6 @@ pub enum SessionStorageConfig {
         cleanup_interval: u64,
     },
     /// Redis-based session storage
-    #[cfg(feature = "redis")]
     Redis {
         url: String,
         #[serde(default = "default_redis_prefix")]
@@ -360,19 +359,15 @@ fn default_max_files() -> usize {
 fn default_cleanup_interval() -> u64 {
     300
 } // 5 minutes
-#[cfg(feature = "redis")]
 fn default_redis_prefix() -> String {
     "rustf:session:".to_string()
 }
-#[cfg(feature = "redis")]
 fn default_redis_pool_size() -> usize {
     10
 }
-#[cfg(feature = "redis")]
 fn default_redis_connection_timeout() -> u64 {
     5000
 } // 5 seconds
-#[cfg(feature = "redis")]
 fn default_redis_command_timeout() -> u64 {
     3000
 } // 3 seconds

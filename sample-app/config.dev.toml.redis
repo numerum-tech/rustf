@@ -1,0 +1,10 @@
+# Development Configuration
+# Override session storage to use Redis in development
+
+[session.storage]
+type = "redis"
+url = "redis://localhost:6379"
+prefix = "sample:session:"
+pool_size = 10
+connection_timeout = 5000
+command_timeout = 3000

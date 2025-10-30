@@ -6,7 +6,6 @@ use async_trait::async_trait;
 use deadpool_redis::{Config, Pool, Runtime};
 use redis::AsyncCommands;
 use serde_json;
-#[cfg(feature = "redis")]
 use std::collections::HashMap;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -14,7 +13,6 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 ///
 /// This implementation provides persistent session storage using Redis as the backend.
 /// Features connection pooling for high performance and automatic TTL management.
-#[cfg(feature = "redis")]
 #[derive(Clone)]
 pub struct RedisSessionStorage {
     pool: Pool,
@@ -22,7 +20,6 @@ pub struct RedisSessionStorage {
     fingerprint_mode: FingerprintMode,
 }
 
-#[cfg(feature = "redis")]
 impl RedisSessionStorage {
     /// Create a new Redis session storage with the default configuration
     ///
@@ -133,7 +130,6 @@ impl RedisSessionStorage {
     }
 }
 
-#[cfg(feature = "redis")]
 #[async_trait]
 impl SessionStorage for RedisSessionStorage {
     async fn get(
@@ -279,7 +275,6 @@ impl SessionStorage for RedisSessionStorage {
     }
 }
 
-#[cfg(feature = "redis")]
 #[cfg(test)]
 mod tests {
     use super::*;
