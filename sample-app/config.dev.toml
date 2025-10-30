@@ -7,3 +7,7 @@ prefix = "sample:session:"
 pool_size = 10
 connection_timeout = 5
 response_timeout = 3
+
+[database]
+# Local development database
+url = "mysql://root:masterpopa@127.0.0.1/geacdb"

@@ -31,6 +31,43 @@ fn escape_rust_keyword(field_name: &str) -> String {
     }
 }
 
+/// Check if a Rust type implements the Copy trait
+/// Copy types can be safely returned by value from getters
+fn is_copy_type(type_str: &str) -> bool {
+    matches!(
+        type_str,
+        "i8" | "i16"
+            | "i32"
+            | "i64"
+            | "i128"
+            | "u8"
+            | "u16"
+            | "u32"
+            | "u64"
+            | "u128"
+            | "f32"
+            | "f64"
+            | "bool"
+            | "chrono::DateTime<chrono::Utc>"
+            | "DateTime<Utc>"
+            | "chrono::NaiveDate"
+            | "NaiveDate"
+            | "chrono::NaiveTime"
+            | "NaiveTime"
+    )
+}
+
+/// Extract the inner type from Option<T>
+/// Example: "Option<i32>" -> "i32"
+fn extract_inner_type(option_type: &str) -> &str {
+    if let Some(inner) = option_type.strip_prefix("Option<") {
+        if let Some(without_bracket) = inner.strip_suffix(">") {
+            return without_bracket;
+        }
+    }
+    option_type
+}
+
 // Import the command structures from mod.rs
 use crate::commands::schema::{GenerateTarget, SchemaAction, SchemaCommand};
 
@@ -276,13 +313,19 @@ async fn generate_models(
         .filter(|(_, table)| {
             // Check if table should be included (using database table name)
             if let Some(ref include_list) = tables_filter {
-                if !include_list.iter().any(|t| t.eq_ignore_ascii_case(&table.table)) {
+                if !include_list
+                    .iter()
+                    .any(|t| t.eq_ignore_ascii_case(&table.table))
+                {
                     return false;
                 }
             }
             // Check if table should be excluded (using database table name)
             if let Some(ref exclude_list) = exclude_filter {
-                if exclude_list.iter().any(|t| t.eq_ignore_ascii_case(&table.table)) {
+                if exclude_list
+                    .iter()
+                    .any(|t| t.eq_ignore_ascii_case(&table.table))
+                {
                     return false;
                 }
             }
@@ -1027,11 +1070,18 @@ fn prepare_base_model_variables(
     ];
 
     // Check if we need chrono or other imports
-    let needs_datetime = table.fields.values().any(|f| {
-        matches!(f.field_type.base_type(), "timestamp" | "datetime")
-    });
-    let needs_date = table.fields.values().any(|f| f.field_type.base_type() == "date");
-    let needs_time = table.fields.values().any(|f| f.field_type.base_type() == "time");
+    let needs_datetime = table
+        .fields
+        .values()
+        .any(|f| matches!(f.field_type.base_type(), "timestamp" | "datetime"));
+    let needs_date = table
+        .fields
+        .values()
+        .any(|f| f.field_type.base_type() == "date");
+    let needs_time = table
+        .fields
+        .values()
+        .any(|f| f.field_type.base_type() == "time");
 
     if needs_datetime || needs_date || needs_time {
         let mut chrono_imports = vec![];
@@ -1074,12 +1124,12 @@ fn prepare_base_model_variables(
     if needs_uuid {
         imports.push("use uuid::Uuid;".to_string());
     }
-    
+
     let needs_ipnetwork = table
         .fields
         .values()
         .any(|f| matches!(f.field_type.base_type(), "inet" | "cidr"));
-    
+
     if needs_ipnetwork {
         imports.push("use ipnetwork::IpNetwork;".to_string());
     }
@@ -1261,7 +1311,7 @@ fn prepare_base_model_variables(
                         "Vec<u8>"
                     }
                 }
-                
+
                 // Network types (PostgreSQL)
                 "inet" => {
                     if is_nullable {
@@ -1341,7 +1391,10 @@ fn prepare_base_model_variables(
     }
     vars.insert("struct_fields".to_string(), struct_fields.join("\n"));
     // Template compatibility - some templates use struct_fields_with_docs
-    vars.insert("struct_fields_with_docs".to_string(), struct_fields.join("\n"));
+    vars.insert(
+        "struct_fields_with_docs".to_string(),
+        struct_fields.join("\n"),
+    );
 
     // Generate type constants
     let mut type_constants = Vec::new();
@@ -1514,7 +1567,7 @@ fn prepare_base_model_variables(
                         "Vec<u8>"
                     }
                 }
-                
+
                 // Network types (PostgreSQL)
                 "inet" => {
                     if is_nullable {
@@ -1567,7 +1620,10 @@ fn prepare_base_model_variables(
         if needs_time {
             chrono_imports.push("NaiveTime");
         }
-        type_imports.push(format!("    use chrono::{{{}}};", chrono_imports.join(", ")));
+        type_imports.push(format!(
+            "    use chrono::{{{}}};",
+            chrono_imports.join(", ")
+        ));
     }
     if needs_decimal {
         type_imports.push("    use rust_decimal::Decimal;".to_string());
@@ -1769,7 +1825,7 @@ fn prepare_base_model_variables(
                         "Vec<u8>"
                     }
                 }
-                
+
                 // Network types (PostgreSQL)
                 "inet" => {
                     if is_nullable {
@@ -1997,7 +2053,7 @@ fn prepare_base_model_variables(
                         "Vec<u8>"
                     }
                 }
-                
+
                 // Network types (PostgreSQL)
                 "inet" => {
                     if is_nullable {
@@ -2055,7 +2111,10 @@ fn prepare_base_model_variables(
                 }
             } else {
                 // Fallback if postgres_type_name is not available (shouldn't happen for enums)
-                eprintln!("Warning: Enum field {} missing postgres_type_name", field.name);
+                eprintln!(
+                    "Warning: Enum field {} missing postgres_type_name",
+                    field.name
+                );
                 // Generate without type casting
                 if is_nullable {
                     builder_methods.push(format!(
@@ -2237,7 +2296,7 @@ fn prepare_base_model_variables(
         }
         let escaped_field_name = escape_rust_keyword(&field.name);
         let field_name = &field.name;
-        
+
         // Check if this is a CIDR type (INET uses SqlValue::from automatically)
         let base_type = field.field_type.base_type();
         if base_type == "cidr" {
@@ -2462,7 +2521,7 @@ fn prepare_base_model_variables(
                         "Vec<u8>"
                     }
                 }
-                
+
                 // Network types (PostgreSQL)
                 "inet" => {
                     if is_nullable {
@@ -2733,7 +2792,7 @@ fn prepare_base_model_variables(
                         "Vec<u8>"
                     }
                 }
-                
+
                 // Network types (PostgreSQL)
                 "inet" => {
                     if is_nullable {
@@ -2788,11 +2847,25 @@ fn prepare_base_model_variables(
                 "    /// {}\n    pub fn {}(&self) -> Option<&str> {{\n        self.{}.as_deref()\n    }}",
                 field_doc, escaped_field_name, escaped_field_name
             ));
-        } else if rust_type.starts_with("Option")
-            || rust_type.contains("Vec")
-            || rust_type.contains("serde_json::Value")
-        {
-            // For Option types, Vec, and JSON values, return reference
+        } else if rust_type.starts_with("Option<") {
+            // For Option<T>, check if T is Copy
+            let inner_type = extract_inner_type(&rust_type);
+            if is_copy_type(inner_type) {
+                // For Option<Copy>, return by value (cheap copy)
+                // This makes unwrap_or() work naturally without .copied()
+                field_getters.push(format!(
+                    "    /// {}\n    pub fn {}(&self) -> {} {{\n        self.{}\n    }}",
+                    field_doc, escaped_field_name, rust_type, escaped_field_name
+                ));
+            } else {
+                // For Option<NonCopy>, return reference
+                field_getters.push(format!(
+                    "    /// {}\n    pub fn {}(&self) -> &{} {{\n        &self.{}\n    }}",
+                    field_doc, escaped_field_name, rust_type, escaped_field_name
+                ));
+            }
+        } else if rust_type.contains("Vec") || rust_type.contains("serde_json::Value") {
+            // For Vec and JSON values, return reference
             field_getters.push(format!(
                 "    /// {}\n    pub fn {}(&self) -> &{} {{\n        &self.{}\n    }}",
                 field_doc, escaped_field_name, rust_type, escaped_field_name
@@ -3081,11 +3154,18 @@ fn prepare_wrapper_model_variables(
     // Check if we need additional imports for the wrapper based on field types
     let mut wrapper_imports = Vec::new();
 
-    let needs_datetime = table.fields.values().any(|f| {
-        matches!(f.field_type.base_type(), "timestamp" | "datetime")
-    });
-    let needs_date = table.fields.values().any(|f| f.field_type.base_type() == "date");
-    let needs_time = table.fields.values().any(|f| f.field_type.base_type() == "time");
+    let needs_datetime = table
+        .fields
+        .values()
+        .any(|f| matches!(f.field_type.base_type(), "timestamp" | "datetime"));
+    let needs_date = table
+        .fields
+        .values()
+        .any(|f| f.field_type.base_type() == "date");
+    let needs_time = table
+        .fields
+        .values()
+        .any(|f| f.field_type.base_type() == "time");
 
     if needs_datetime || needs_date || needs_time {
         let mut chrono_imports = vec![];
