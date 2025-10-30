@@ -1,0 +1,228 @@
+# users entity - Generated from database
+
+Users:
+  table: users
+  database_type: mysql
+  database_name: geacdb
+  element_type: table
+  version: 1
+  ai_context: "User authentication and profile management. Handle passwords securely with bcrypt."
+  
+  fields:
+    id:
+      type: mediumint
+      auto: true
+      lang_type: i32
+      required: true
+      primary_key: true
+      ai: "Integer value for counting or identification"
+
+    username:
+      type: string(150)
+      lang_type: String
+      required: true
+      unique: true
+      ai: "Display name for user interface and identification"
+
+    email:
+      type: string(150)
+      lang_type: String
+      required: true
+      unique: true
+      ai: "Valid email format required. Used for authentication and communication."
+
+    mobile_number:
+      type: string(20)
+      lang_type: Option<String>
+      nullable: true
+      unique: true
+      ai: "Phone number with international format support"
+
+    password_hash:
+      type: string(255)
+      lang_type: String
+      required: true
+      ai: "Always store as bcrypt hash. Never store plain passwords!"
+
+    first_name:
+      type: string(100)
+      lang_type: String
+      required: true
+      ai: "Display name for user interface and identification"
+
+    last_name:
+      type: string(100)
+      lang_type: String
+      required: true
+      ai: "Display name for user interface and identification"
+
+    gender:
+      type: enum
+      values:
+        - "F"
+        - "M"
+        - "X"
+      default: "F"
+      lang_type: String
+      required: true
+      ai: "Enumerated value - validate against allowed options"
+
+    birthdate:
+      type: date
+      lang_type: NaiveDate
+      required: true
+      ai: "Database field of type date"
+
+    phone_number:
+      type: string(20)
+      lang_type: Option<String>
+      nullable: true
+      ai: "Phone number with international format support"
+
+    address:
+      type: text
+      lang_type: Option<String>
+      nullable: true
+      ai: "Large text field for extended content"
+
+    job_title:
+      type: string(100)
+      lang_type: Option<String>
+      nullable: true
+      ai: "Display name for user interface and identification"
+
+    manager_id:
+      type: mediumint
+      lang_type: Option<i32>
+      nullable: true
+      ai: "Foreign key reference to manager table"
+      foreign_key: users.id
+
+    is_active:
+      type: tinyint
+      lang_type: Option<i8>
+      nullable: true
+      ai: "Status flag - false indicates soft deletion or deactivation"
+
+    email_verified:
+      type: tinyint
+      lang_type: i8
+      required: true
+      ai: "Valid email format required. Used for authentication and communication."
+
+    phone_verified:
+      type: tinyint
+      lang_type: i8
+      required: true
+      ai: "Phone number with international format support"
+
+    failed_login_attempts:
+      type: int
+      lang_type: Option<i32>
+      nullable: true
+      ai: "Integer value for counting or identification"
+
+    last_failed_login_at:
+      type: timestamp
+      lang_type: Option<DateTime<Utc>>
+      nullable: true
+      ai: "Timestamp field for temporal data tracking"
+
+    last_success_login_at:
+      type: timestamp
+      lang_type: Option<DateTime<Utc>>
+      nullable: true
+      ai: "Timestamp field for temporal data tracking"
+
+    account_locked_until:
+      type: timestamp
+      lang_type: Option<DateTime<Utc>>
+      nullable: true
+      ai: "Integer value for counting or quantity tracking"
+
+    language_preference:
+      type: string(10)
+      lang_type: Option<String>
+      nullable: true
+      ai: "String field with length constraints"
+
+    notification_preference:
+      type: enum
+      values:
+        - "Email"
+        - "InApp"
+        - "SMS"
+        - "Both"
+      default: "Email"
+      lang_type: Option<String>
+      nullable: true
+      ai: "Enumerated value - validate against allowed options"
+
+    profile_photo_url:
+      type: string(255)
+      lang_type: Option<String>
+      nullable: true
+      ai: "URL field - validate format and accessibility"
+
+    profile_photo_updated_at:
+      type: timestamp
+      lang_type: Option<DateTime<Utc>>
+      nullable: true
+      ai: "Last modification timestamp - automatically updated on change"
+
+    totp_secret:
+      type: string(255)
+      lang_type: Option<String>
+      nullable: true
+      ai: "Sensitive token - store securely and never log"
+      column_comment: "Secret TOTP pour MFA"
+
+    totp_enabled:
+      type: tinyint
+      lang_type: Option<i8>
+      nullable: true
+      ai: "Integer value for counting or identification"
+      column_comment: "MFA activé"
+
+    backup_codes:
+      type: json
+      lang_type: Option<serde_json::Value>
+      nullable: true
+      ai: "Unique identifier code - ensure uniqueness constraints"
+      column_comment: "Codes de récupération MFA"
+
+    backup_codes_used:
+      type: json
+      lang_type: Option<serde_json::Value>
+      nullable: true
+      ai: "Unique identifier code - ensure uniqueness constraints"
+      column_comment: "Codes utilisés"
+
+    created_at:
+      type: timestamp
+      lang_type: Option<DateTime<Utc>>
+      nullable: true
+      ai: "Record creation timestamp - automatically set on insert"
+
+    updated_at:
+      type: timestamp
+      lang_type: Option<DateTime<Utc>>
+      nullable: true
+      ai: "Last modification timestamp - automatically updated on change"
+
+  
+  relations:
+    belongs_to:
+      manager:
+        model: Users
+        local_field: manager_id
+        foreign_field: id
+        ai: "Reference to users for relational data integrity"
+  
+  indexes:
+    - manager_id
+    - mobile_number
+    - id
+    - email
+    - username
+

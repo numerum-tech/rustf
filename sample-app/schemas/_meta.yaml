@@ -1,0 +1,23 @@
+# Global schema configuration - Generated from MySQL database
+
+version: "1.0"
+database_type: mysql
+database_name: geacdb
+description: "Schema generated from MySQL database 'geacdb'"
+ai_context: "Generated schemas from existing MySQL database structure with intelligent field mapping"
+
+# Global field defaults
+field_defaults:
+  string:
+    max_length: 255
+    charset: utf8mb4
+    
+  timestamp:
+    default: now
+    on_update: now
+    
+# Code generation settings
+generation:
+  base_class: "BaseModel"
+  use_traits: [HasTimestamps]
+
