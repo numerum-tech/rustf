@@ -71,6 +71,11 @@ pub async fn generate_controller(names: String, crud: bool, routes: bool) -> Res
 }
 
 /// Generate a module/service file
+///
+/// # Arguments
+/// * `name` - Module name
+/// * `shared` - If true, generate as SharedModule service; if false, generate as simple utility
+/// * `with_methods` - If true, include sample methods
 pub async fn generate_module(name: String, shared: bool, with_methods: bool) -> Result<()> {
     let project_path = std::env::current_dir()?;
     let module_dir = project_path.join("src").join("modules");
@@ -105,7 +110,7 @@ pub async fn generate_module(name: String, shared: bool, with_methods: bool) -> 
 
     // Add boolean flags
     if shared {
-        vars.insert("shared", "true".to_string());
+        vars.insert("is_service", "true".to_string());
     }
     if with_methods {
         vars.insert("with_methods", "true".to_string());
@@ -119,11 +124,34 @@ pub async fn generate_module(name: String, shared: bool, with_methods: bool) -> 
     file.write_all(rendered.as_bytes())?;
 
     println!("✅ Created module: {}", module_path.display());
+    println!(
+        "   Type: {}",
+        if shared {
+            "Service (SharedModule)"
+        } else {
+            "Utility (Simple Helper)"
+        }
+    );
 
     if shared {
-        println!("\n📝 Don't forget to:");
-        println!("   - Register your module in main.rs using .modules()");
-        println!("   - Import and use the helper function in your controllers");
+        println!("\n📝 Service Setup Instructions:");
+        println!("   1. Add to your main.rs after MODULE::init():");
+        println!(
+            "      MODULE::register(\"{}\", {}::new())?;",
+            snake_name,
+            to_pascal_case(&snake_name)
+        );
+        println!("   2. Access it in your code:");
+        println!("      let service = MODULE::get(\"{}\")?;", snake_name);
+    } else {
+        println!("\n📝 Utility Usage:");
+        println!("   1. Import directly in your code:");
+        println!("      use modules::{}::{{}};", snake_name);
+        println!("   2. Use the static functions:");
+        println!(
+            "      let result = {}::helper_function(input);",
+            to_pascal_case(&snake_name)
+        );
     }
 
     Ok(())

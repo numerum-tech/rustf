@@ -313,9 +313,8 @@ mod tests {
         config.server.port = 3000;
         config.server.host = "localhost".to_string();
         config.views.directory = "/test/views".to_string();
-        config
-            .custom
-            .insert("api_key".to_string(), "secret123".to_string());
+        // Note: App-defined sections are now accessed via config.section() or CONF::get_string()
+        // with unified access patterns, not via a separate .custom field
 
         // Initialize CONF
         CONF::init(config).unwrap();
@@ -329,10 +328,6 @@ mod tests {
         assert_eq!(
             CONF::get_string("views.directory"),
             Some("/test/views".to_string())
-        );
-        assert_eq!(
-            CONF::get_string("custom.api_key"),
-            Some("secret123".to_string())
         );
 
         // Test with defaults

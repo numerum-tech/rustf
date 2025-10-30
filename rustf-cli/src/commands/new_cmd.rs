@@ -52,13 +52,14 @@ pub enum NewCommand {
         priority: i32,
     },
 
-    /// Generate a module/service with business logic
+    /// Generate a utility module or shared service
     Module {
         /// Module name
         #[arg(short, long)]
         name: String,
 
-        /// Make it a shared module
+        /// Generate as a shared service (SharedModule singleton)
+        /// Default: generate as simple utility module
         #[arg(long)]
         shared: bool,
 

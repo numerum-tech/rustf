@@ -1,123 +1,211 @@
-use rustf::prelude::*;
-use std::sync::Arc;
+{{#if is_service}}
+//! {{module_title}} Service
+//!
+//! This module provides {{description}}
+//!
+//! As a shared module (service), it:
+//! - Implements the SharedModule trait
+//! - Can be registered as a singleton via MODULE::register()
+//! - Can have multiple instances with different configurations
+//! - Should handle stateful business logic
+//!
+//! # Usage
+//! ```rust,ignore
+//! use rustf::prelude::*;
+//!
+//! // Register the service with a unique name
+//! MODULE::init()?;
+//! MODULE::register("{{module_name}}", {{module_struct}}::new())?;
+//!
+//! // Access it elsewhere
+//! let service = MODULE::get("{{module_name}}")?;
+//! ```
 
-/// {{module_title}} Service
-/// 
-/// This module provides {{description}}
+use rustf::prelude::*;
+use rustf::impl_shared_service;
+use anyhow::Result;
+
+/// {{module_title}} Service - implements SharedModule for singleton management
 #[derive(Debug, Clone)]
 pub struct {{module_struct}} {
-    name: String,
-    // Add your service dependencies here
+    // Add your service configuration/dependencies here
+    // config: ServiceConfig,
     // db: Arc<Database>,
     // cache: Arc<Cache>,
 }
+
+impl_shared_service!({{module_struct}});
 
 impl {{module_struct}} {
     /// Create a new instance of {{module_struct}}
     pub fn new() -> Self {
         Self {
-            name: "{{module_struct}}".to_string(),
+            // Initialize your service here
         }
     }
 {{#if with_methods}}
+
     /// Example method: Process data
-    /// 
+    ///
+    /// # Arguments
+    /// * `data` - Input data to process
+    ///
     /// # Example
     /// ```rust,ignore
-    /// let service = {{module_name}}();
+    /// let service = MODULE::get("{{module_name}}")?;
     /// let result = service.process_data(data).await?;
     /// ```
     pub async fn process_data(&self, data: serde_json::Value) -> Result<serde_json::Value> {
         // TODO: Implement your business logic here
-        
+
         // Example validation
         if data.get("required_field").is_none() {
-            return Err(Error::validation("Missing required field"));
+            return Err(anyhow::anyhow!("Missing required field"));
         }
-        
+
         // Process the data
         let processed = json!({
             "processed": true,
             "timestamp": chrono::Utc::now().to_rfc3339(),
             "original": data,
-            "service": self.name
         });
-        
+
         Ok(processed)
     }
-    
+
     /// Example method: Validate input
     pub fn validate_input(&self, input: &str) -> Result<bool> {
         // TODO: Add your validation logic
         if input.is_empty() {
-            return Err(Error::validation("Input cannot be empty"));
+            return Err(anyhow::anyhow!("Input cannot be empty"));
         }
-        
+
         if input.len() < 3 {
-            return Err(Error::validation("Input must be at least 3 characters"));
+            return Err(anyhow::anyhow!("Input must be at least 3 characters"));
         }
-        
+
         Ok(true)
-    }
-    
-    /// Example method: Fetch data with caching
-    pub async fn fetch_data(&self, key: &str) -> Result<serde_json::Value> {
-        // TODO: Implement caching logic
-        // Example: 
-        // if let Some(cached) = self.cache.get(key).await? {
-        //     return Ok(cached);
-        // }
-        
-        // Fetch fresh data
-        let data = json!({
-            "key": key,
-            "data": "Sample data",
-            "fetched_at": chrono::Utc::now().to_rfc3339()
-        });
-        
-        // Store in cache
-        // self.cache.set(key, &data, Duration::from_secs(3600)).await?;
-        
-        Ok(data)
-    }
-    
-    /// Example method: Perform batch operation
-    pub async fn batch_operation(&self, items: Vec<serde_json::Value>) -> Result<Vec<serde_json::Value>> {
-        let mut results = Vec::new();
-        
-        for item in items {
-            // Process each item
-            let processed = self.process_data(item).await?;
-            results.push(processed);
-        }
-        
-        Ok(results)
     }
 {{/if}}
 }
 
-{{#if shared}}
-/// Install function for shared module registration
-/// 
-/// This function is called during application startup to register
-/// the module as a shared service accessible throughout the application.
-pub fn install() -> Arc<{{module_struct}}> {
-    Arc::new({{module_struct}}::new())
+{{#if with_methods}}
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_validate_input() {
+        let service = {{module_struct}}::new();
+
+        assert!(service.validate_input("hello").is_ok());
+        assert!(service.validate_input("").is_err());
+        assert!(service.validate_input("ab").is_err());
+    }
+
+    #[tokio::test]
+    async fn test_process_data() {
+        let service = {{module_struct}}::new();
+
+        let data = json!({
+            "required_field": "value",
+            "other": "data"
+        });
+
+        let result = service.process_data(data).await;
+        assert!(result.is_ok());
+    }
+}
+{{/if}}
+
+{{else}}
+//! {{module_title}} Utility Module
+//!
+//! This module provides {{description}}
+//!
+//! As a simple utility (does NOT implement SharedModule):
+//! - Used directly via import, no registration needed
+//! - Stateless helper functions or utilities
+//! - No singleton overhead
+//! - Perfect for pure functions and helper logic
+//!
+//! # Usage
+//! ```rust,ignore
+//! use modules::{{module_name}}::{{module_struct}};
+//!
+//! // Just use directly - no registration needed!
+//! let result = {{module_struct}}::helper_function(input);
+//! ```
+
+use rustf::prelude::*;
+
+/// {{module_title}} Utility
+///
+/// A simple utility module for {{description}}
+pub struct {{module_struct}};
+
+impl {{module_struct}} {
+{{#if with_methods}}
+    /// Example helper function
+    ///
+    /// # Arguments
+    /// * `input` - Input data for processing
+    ///
+    /// # Returns
+    /// Processed result
+    ///
+    /// # Example
+    /// ```rust,ignore
+    /// let result = {{module_struct}}::helper_function("input");
+    /// ```
+    pub fn helper_function(input: &str) -> String {
+        // TODO: Implement your helper logic here
+        format!("Processed: {}", input)
+    }
+
+    /// Example validation function
+    pub fn is_valid(input: &str) -> bool {
+        // TODO: Add your validation logic
+        !input.is_empty() && input.len() >= 3
+    }
+
+    /// Example transformation function
+    pub fn transform(input: &str) -> String {
+        // TODO: Implement transformation logic
+        input.to_uppercase()
+    }
+{{else}}
+    /// Helper function - implement your utility logic here
+    pub fn helper() -> String {
+        "{{module_title}}".to_string()
+    }
+{{/if}}
 }
 
-/// Helper function to access the service from context
-/// 
-/// # Example
-/// ```rust,ignore
-/// async fn handler(ctx: Context) -> Result<Response> {
-///     let service = {{module_name}}();
-///     let result = service.process_data(data).await?;
-///     ctx.json(result)
-/// }
-/// ```
-pub fn {{module_name}}() -> Arc<{{module_struct}}> {
-    // In a real application, this would retrieve from the shared module registry
-    // For now, creating a new instance
-    Arc::new({{module_struct}}::new())
+{{#if with_methods}}
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_helper_function() {
+        let result = {{module_struct}}::helper_function("test");
+        assert!(result.contains("test"));
+    }
+
+    #[test]
+    fn test_is_valid() {
+        assert!({{module_struct}}::is_valid("hello"));
+        assert!(!{{module_struct}}::is_valid(""));
+        assert!(!{{module_struct}}::is_valid("ab"));
+    }
+
+    #[test]
+    fn test_transform() {
+        let result = {{module_struct}}::transform("hello");
+        assert_eq!(result, "HELLO");
+    }
 }
+{{/if}}
+
 {{/if}}
