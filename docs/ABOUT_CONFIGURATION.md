@@ -92,10 +92,11 @@ pub struct EmailService;
 
 impl EmailService {
     pub fn send_email(&self, to: &str, subject: &str, body: &str) {
-        // Access SMTP configuration without needing Context
-        let smtp_host = CONF::get_string("custom.smtp_host").unwrap_or_else(|| "localhost".to_string());
-        let smtp_port = CONF::get_int("custom.smtp_port").unwrap_or(25);
-        let from_email = CONF::get_string("custom.from_email").unwrap_or_else(|| "noreply@example.com".to_string());
+        // Access custom configuration sections via CONF
+        // All sections (framework or custom) use the same dot notation
+        let smtp_host = CONF::get_string("smtp.host").unwrap_or_else(|| "localhost".to_string());
+        let smtp_port = CONF::get_int("smtp.port").unwrap_or(25);
+        let from_email = CONF::get_string("smtp.user").unwrap_or_else(|| "noreply@example.com".to_string());
         
         // Send email using configuration...
     }
@@ -155,9 +156,11 @@ pub struct AppConfig {
     pub cors: CorsConfig,              // CORS settings
     pub logging: LoggingConfig,        // Logging configuration
     pub uploads: UploadConfig,         // File upload settings
-    pub custom: HashMap<String, String>, // Custom application settings
+    pub sections: HashMap<String, toml::Value>, // User-defined configuration sections
 }
 ```
+
+Framework sections (above) are strongly typed for IDE support and compile-time checking. User-defined sections are stored as TOML values and can be deserialized on-demand using `config.section::<T>("name")`.
 
 ### Configuration Sections
 
@@ -241,14 +244,56 @@ blocked_extensions = ["exe", "bat", "sh", "cmd"]  # Blocked extensions
 create_directories = true   # Auto-create upload directories
 ```
 
-#### Custom Configuration
+#### Custom Application Configuration
+
+Any sections you define in config.toml are automatically available as configuration sections:
+
 ```toml
-[custom]
-api_key = "your-api-key"
-smtp_host = "smtp.gmail.com"
-smtp_port = "587"
-from_email = "noreply@example.com"
-feature_flag = "true"
+[app]
+name = "MyApplication"
+version = "1.0.0"
+debug_mode = false
+
+[payment]
+stripe_key = "sk_test_xxxxx"
+paypal_email = "business@example.com"
+
+[smtp]
+host = "smtp.gmail.com"
+port = 587
+user = "noreply@example.com"
+password = "${SMTP_PASSWORD}"
+```
+
+Access custom sections in Rust code using the `section()` method:
+
+```rust
+use rustf::prelude::*;
+use serde::Deserialize;
+
+#[derive(Deserialize)]
+struct AppConfig {
+    name: String,
+    version: String,
+    debug_mode: bool,
+}
+
+#[derive(Deserialize)]
+struct PaymentConfig {
+    stripe_key: String,
+    paypal_email: String,
+}
+
+// Get typed access to custom sections
+let app_cfg = config.section::<AppConfig>("app")?;
+println!("App: {} v{}", app_cfg.name, app_cfg.version);
+
+let payment = config.section::<PaymentConfig>("payment")?;
+println!("Stripe key: {}", payment.stripe_key);
+
+// Or use CONF global for uniform access
+let app_name = CONF::get_string("app.name")?;
+let stripe_key = CONF::get_string("payment.stripe_key")?;
 ```
 
 ## Configuration Files
@@ -521,6 +566,76 @@ app.on("config.loaded", |ctx| Box::pin(async move {
     Ok(())
 }))
 ```
+
+## Unified Configuration Access
+
+RustF provides a completely unified approach to configuration access - all configuration sections (framework-defined and user-defined) can be accessed using the same patterns:
+
+### Three Ways to Access Configuration
+
+#### 1. Global CONF Singleton (Recommended for Runtime Access)
+The CONF singleton provides dot-notation access to ANY configuration section:
+
+```rust
+use rustf::prelude::*;
+
+// Framework sections
+let port = CONF::get_int("server.port")?;
+let cache_enabled = CONF::get_bool("views.cache_enabled")?;
+
+// Custom app sections - same syntax!
+let app_name = CONF::get_string("app.name")?;
+let stripe_key = CONF::get_string("payment.stripe_key")?;
+let smtp_port = CONF::get_int("smtp.port")?;
+```
+
+#### 2. AppConfig.section() Method (Type-Safe Access)
+For custom sections, use the `section()` method to get type-safe deserialized access:
+
+```rust
+use rustf::prelude::*;
+use serde::Deserialize;
+
+#[derive(Deserialize)]
+struct SmtpConfig {
+    host: String,
+    port: u16,
+    user: String,
+    password: String,
+}
+
+// Get the full section as a typed struct
+let smtp = config.section::<SmtpConfig>("smtp")?;
+println!("SMTP: {}:{}", smtp.host, smtp.port);
+```
+
+#### 3. Templates (Automatic JSON Serialization)
+Templates automatically have access to all configuration sections through the CONF global:
+
+```html
+<!-- Framework sections -->
+<meta name="viewport" content="width=device-width">
+<script>
+    const port = @{CONF.server.port};
+    const cacheEnabled = @{CONF.views.cache_enabled};
+</script>
+
+<!-- Custom app sections - same access pattern -->
+<h1>@{CONF.app.name} v@{CONF.app.version}</h1>
+<script>
+    const stripeKey = '@{CONF.payment.stripe_key}';
+    const smtpHost = '@{CONF.smtp.host}';
+</script>
+```
+
+### Why Unified Access Matters
+
+The unified approach eliminates cognitive overhead:
+- **No special buckets**: Custom sections aren't forced into `custom` or `extra` maps
+- **One pattern**: Whether accessing `server.port` or `app.name`, the syntax is identical
+- **IDE support**: Framework sections have typed IDE support; app sections work with runtime access
+- **Template consistency**: Templates access all sections uniformly
+- **AI-friendly**: One way to do things reduces confusion for human developers and AI assistants
 
 ## Best Practices
 
