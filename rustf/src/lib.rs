@@ -78,7 +78,6 @@ pub use security::{
     CsrfConfig, CsrfMiddleware, HtmlEscaper, InputValidator, PathValidator, SecurityConfig,
 };
 pub use session::factory::SessionStorageFactory;
-#[cfg(feature = "redis")]
 pub use session::redis::RedisSessionStorage;
 pub use session::{Session, SessionData, SessionStorage, SessionStore, StorageStats};
 pub use shared::{SharedModule, SharedModuleType, SharedRegistry, MODULE};

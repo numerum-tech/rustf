@@ -286,7 +286,8 @@ default = ["config", "embedded-views", "auto-discovery", "schema", "decimal", "u
 - `schema` - Schema validation and codegen
 - `decimal` - Rust Decimal type support
 - `uuid` - UUID type support
-- `redis` - Redis session backend
+
+**Note**: Redis session storage is now a built-in feature (no longer behind a feature flag). It's always available regardless of the features enabled.
 
 ## Documentation
 

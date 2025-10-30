@@ -386,9 +386,7 @@ impl ErrorLogger {
             Error::ExternalService { .. } => "ExternalService".to_string(),
             Error::Timeout(_) => "Timeout".to_string(),
             Error::WithContext { .. } => "Context".to_string(),
-            #[cfg(feature = "redis")]
             Error::Redis(_) => "Redis".to_string(),
-            #[cfg(feature = "redis")]
             Error::RedisPool(_) => "RedisPool".to_string(),
         }
     }

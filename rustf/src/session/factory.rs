@@ -63,7 +63,6 @@ impl SessionStorageFactory {
                 Ok(storage)
             }
 
-            #[cfg(feature = "redis")]
             SessionStorageConfig::Redis {
                 url,
                 prefix,
@@ -102,7 +101,6 @@ impl SessionStorageFactory {
     }
 
     /// Create Redis storage with URL
-    #[cfg(feature = "redis")]
     pub async fn create_redis_storage(
         redis_url: &str,
         fingerprint_mode: FingerprintMode,
@@ -134,7 +132,6 @@ mod tests {
         assert_eq!(storage.backend_name(), "memory");
     }
 
-    #[cfg(feature = "redis")]
     #[tokio::test]
     async fn test_create_redis_storage() {
         let config = SessionStorageConfig::Redis {

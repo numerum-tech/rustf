@@ -1,0 +1,9 @@
+# Development environment configuration
+
+[session.storage]
+type = "redis"
+url = "redis://localhost:6379"
+prefix = "sample:session:"
+pool_size = 10
+connection_timeout = 5
+response_timeout = 3
