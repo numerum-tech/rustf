@@ -178,7 +178,56 @@ Access via `CONF.get()`, `DB.get()`, etc.
 
 ## Configuration System
 
-Configuration files: `config.toml`, `config.prod.toml`
+Configuration files: `config.toml`, `config.dev.toml`, `config.prod.toml`
+
+### TOML-Level Configuration Merging
+
+The framework uses **TOML-level merging** to combine base and environment-specific configs:
+
+1. **Load base config** (`config.toml`)
+2. **Load environment config** (`config.dev.toml` or `config.prod.toml`)
+3. **Merge at TOML level** - Using `serde-toml-merge` for deep table merging
+4. **Deserialize merged TOML** into single `AppConfig` struct
+
+This approach ensures:
+- ✅ All config sections merge automatically (no manual logic needed)
+- ✅ Custom app config sections work seamlessly
+- ✅ Nested tables merge properly
+- ✅ Only explicitly-set values override (not defaults)
+- ✅ Future config fields work without code changes
+
+**Example:**
+
+`config.toml`:
+```toml
+[session.storage]
+type = "memory"
+
+[custom.email]
+smtp_host = "smtp.example.com"
+```
+
+`config.dev.toml`:
+```toml
+[session.storage]
+type = "redis"
+url = "redis://localhost:6379"
+
+[custom.email]
+smtp_port = 2525
+```
+
+**Result** (after merging):
+```toml
+[session.storage]
+type = "redis"              # ← Overridden
+url = "redis://localhost:6379"  # ← Added
+# cleanup_interval from defaults
+
+[custom.email]
+smtp_host = "smtp.example.com"  # ← Preserved
+smtp_port = 2525                # ← Overridden
+```
 
 Key sections:
 ```toml
