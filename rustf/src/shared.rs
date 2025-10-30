@@ -2,21 +2,25 @@
 //!
 //! This module provides a framework for organizing shared code across the application,
 //! including both business logic services and utility functions. The system supports
-//! auto-discovery and provides type-safe access to shared modules throughout the application.
+//! explicit registration and provides access to shared modules throughout the application.
 //!
-//! # Global Module Access
+//! # Named Module Registration
 //!
-//! The MODULE system provides Total.js-style global access to registered modules:
+//! The MODULE system uses named registration, allowing multiple instances of the same
+//! type with different configurations:
 //!
 //! ```rust,ignore
-//! // Type-based access (recommended)
-//! let email = MODULE::<EmailService>()?;
+//! // Explicitly register modules with unique names
+//! MODULE::init();
+//! MODULE::register("email-primary", EmailService::new("primary@example.com"))?;
+//! MODULE::register("email-backup", EmailService::new("backup@example.com"))?;
 //!
 //! // Name-based access
-//! let service = MODULE::get("EmailService")?;
+//! let primary = MODULE::get("email-primary")?;
+//! let backup = MODULE::get("email-backup")?;
 //!
 //! // Check if module exists
-//! if MODULE::exists::<EmailService>() {
+//! if MODULE::exists("email-primary") {
 //!     // Module is available
 //! }
 //! ```
@@ -24,6 +28,7 @@
 use crate::error::{Error, Result as RustfResult};
 use anyhow::Result;
 use async_trait::async_trait;
+use dashmap::DashMap;
 use once_cell::sync::OnceCell;
 use std::any::{Any, TypeId};
 use std::collections::HashMap;
@@ -84,11 +89,174 @@ impl std::fmt::Display for SharedModuleType {
     }
 }
 
-/// Registry for managing shared modules
+/// Thread-safe mutable module registry using DashMap for concurrent access
 ///
-/// The SharedRegistry maintains a type-safe registry of shared modules that can be
-/// accessed throughout the application. It supports both registration during app
-/// startup and runtime access with compile-time type safety.
+/// The ModuleRegistry provides a mutable, concurrent-friendly registry for shared modules
+/// using **named registration**. This allows multiple instances of the same type to be
+/// registered with different unique identifiers.
+///
+/// # Named Registration Pattern
+///
+/// Modules are registered with unique string identifiers:
+/// - Each registration must have a unique name
+/// - Multiple instances of the same type can coexist
+/// - Type safety is enforced at compilation time (only SharedModule implementers can register)
+///
+/// # Example
+/// ```rust,ignore
+/// use rustf::shared::MODULE;
+///
+/// // Initialize the module system
+/// MODULE::init();
+///
+/// // Register multiple instances of the same type
+/// MODULE::register("email-primary", EmailService::new("primary@example.com"))?;
+/// MODULE::register("email-backup", EmailService::new("backup@example.com"))?;
+///
+/// // Access by name
+/// let primary = MODULE::get("email-primary")?;
+/// let backup = MODULE::get("email-backup")?;
+/// ```
+pub struct ModuleRegistry {
+    // Named registration: String key -> Module instance
+    modules: DashMap<String, Arc<dyn SharedModule>>,
+}
+
+impl ModuleRegistry {
+    /// Create a new empty module registry
+    pub fn new() -> Self {
+        Self {
+            modules: DashMap::new(),
+        }
+    }
+
+    /// Register a shared module with the registry using a unique name
+    ///
+    /// This is the primary API for registering modules. Only modules that implement
+    /// the SharedModule trait can be registered, enforcing type safety at compile time.
+    ///
+    /// Multiple instances of the same type can be registered with different names,
+    /// allowing for scenarios like multiple email services with different configurations.
+    ///
+    /// # Type Parameters
+    /// * `T` - The module type to register (must implement SharedModule + 'static)
+    ///
+    /// # Arguments
+    /// * `name` - Unique identifier for this module instance
+    /// * `module` - The module instance to register
+    ///
+    /// # Returns
+    /// * `Ok(())` if registration succeeded
+    /// * `Err` if a module with the same name is already registered
+    ///
+    /// # Example
+    /// ```rust,ignore
+    /// MODULE::register("email-service-primary", EmailService::new("primary@example.com"))?;
+    /// MODULE::register("email-service-backup", EmailService::new("backup@example.com"))?;
+    /// ```
+    pub fn register<T: SharedModule + 'static>(&self, name: &str, module: T) -> RustfResult<()> {
+        if self.modules.contains_key(name) {
+            return Err(Error::internal(format!(
+                "Module with name '{}' is already registered",
+                name
+            )));
+        }
+
+        let module = Arc::new(module);
+        log::info!("Registering shared {}: {}", module.module_type(), name);
+
+        self.modules
+            .insert(name.to_string(), module as Arc<dyn SharedModule>);
+
+        Ok(())
+    }
+
+    /// Get a shared module by name
+    ///
+    /// # Arguments
+    /// * `name` - The module name to retrieve
+    ///
+    /// # Returns
+    /// * `Ok(Arc<dyn SharedModule>)` if the module is registered
+    /// * `Err` if the module is not found
+    pub fn get(&self, name: &str) -> RustfResult<Arc<dyn SharedModule>> {
+        self.modules
+            .get(name)
+            .map(|entry| entry.clone())
+            .ok_or_else(|| Error::internal(format!("Module '{}' not found", name)))
+    }
+
+    /// Try to get a shared module by name (returns Option)
+    ///
+    /// # Arguments
+    /// * `name` - The module name to retrieve
+    ///
+    /// # Returns
+    /// * `Some(Arc<dyn SharedModule>)` if the module is registered
+    /// * `None` if the module is not found
+    pub fn get_opt(&self, name: &str) -> Option<Arc<dyn SharedModule>> {
+        self.modules.get(name).map(|entry| entry.clone())
+    }
+
+    /// Shutdown all registered modules
+    ///
+    /// This should be called during application shutdown to allow modules
+    /// to clean up resources properly.
+    ///
+    /// # Returns
+    /// * `Ok(())` when complete (ignores individual module shutdown errors)
+    pub async fn shutdown_all(&self) -> Result<()> {
+        for entry in self.modules.iter() {
+            let name = entry.key().clone();
+            let module = entry.value().clone();
+            log::debug!("Shutting down shared module: {}", name);
+            if let Err(e) = module.shutdown().await {
+                log::warn!("Error shutting down module '{}': {}", name, e);
+            }
+        }
+        Ok(())
+    }
+
+    /// List all registered modules
+    ///
+    /// # Returns
+    /// Vector of (module_name, module_type) tuples
+    pub fn list_modules(&self) -> Vec<(String, SharedModuleType)> {
+        self.modules
+            .iter()
+            .map(|entry| {
+                let name = entry.key().clone();
+                let module_type = entry.value().module_type();
+                (name, module_type)
+            })
+            .collect()
+    }
+
+    /// Check if a module is registered by name
+    ///
+    /// # Arguments
+    /// * `name` - The module name to check
+    ///
+    /// # Returns
+    /// * `true` if the module is registered
+    /// * `false` otherwise
+    pub fn contains(&self, name: &str) -> bool {
+        self.modules.contains_key(name)
+    }
+}
+
+impl Default for ModuleRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Registry for managing shared modules (for backward compatibility with auto-discovery)
+///
+/// This struct is maintained for backward compatibility with the framework's
+/// auto-discovery system. It uses immutable registration during app initialization.
+/// For explicit module registration after initialization, use ModuleRegistry and MODULE::register().
+#[derive(Default)]
 pub struct SharedRegistry {
     modules: HashMap<TypeId, Arc<dyn SharedModule>>,
     modules_by_name: HashMap<String, Arc<dyn SharedModule>>,
@@ -105,11 +273,7 @@ impl SharedRegistry {
 
     /// Register a shared module with the registry
     ///
-    /// # Example
-    /// ```rust,ignore
-    /// registry.register(EmailService::new());
-    /// registry.register(ValidationUtils);
-    /// ```
+    /// This is used during app initialization via auto-discovery.
     pub fn register<T: SharedModule + 'static>(&mut self, module: T) {
         let module = Arc::new(module);
         let type_id = TypeId::of::<T>();
@@ -124,12 +288,6 @@ impl SharedRegistry {
     }
 
     /// Get a shared module by type
-    ///
-    /// # Example
-    /// ```rust,ignore
-    /// let email_service = registry.get::<EmailService>()
-    ///     .ok_or_else(|| Error::internal_error("EmailService not registered"))?;
-    /// ```
     pub fn get<T: SharedModule + 'static>(&self) -> Option<&T> {
         let type_id = TypeId::of::<T>();
         self.modules
@@ -143,9 +301,6 @@ impl SharedRegistry {
     }
 
     /// Initialize all registered modules
-    ///
-    /// This should be called during application startup to allow modules
-    /// to perform any necessary initialization.
     pub async fn initialize_all(&self) -> Result<()> {
         for (name, module) in &self.modules_by_name {
             log::debug!("Initializing shared module: {}", name);
@@ -158,9 +313,6 @@ impl SharedRegistry {
     }
 
     /// Shutdown all registered modules
-    ///
-    /// This should be called during application shutdown to allow modules
-    /// to clean up resources properly.
     pub async fn shutdown_all(&self) -> Result<()> {
         for (name, module) in &self.modules_by_name {
             log::debug!("Shutting down shared module: {}", name);
@@ -188,12 +340,6 @@ impl SharedRegistry {
     /// Check if a module is registered by name
     pub fn contains_name(&self, name: &str) -> bool {
         self.modules_by_name.contains_key(name)
-    }
-}
-
-impl Default for SharedRegistry {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
@@ -299,42 +445,72 @@ mod tests {
     }
 
     // Test service struct
-    pub struct TestService;
+    pub struct TestService {
+        pub config: String,
+    }
     impl_shared_service!(TestService);
 
     impl TestService {
+        pub fn new(config: String) -> Self {
+            Self { config }
+        }
+
         pub async fn do_something(&self) -> Result<String> {
-            Ok("Service result".to_string())
+            Ok(format!("Service result: {}", self.config))
         }
     }
 
     #[tokio::test]
-    async fn test_shared_registry() {
-        let mut registry = SharedRegistry::new();
+    async fn test_module_registry_named_registration() {
+        let registry = ModuleRegistry::new();
 
-        // Register modules
-        registry.register(TestUtils);
-        registry.register(TestService);
+        // Register multiple instances of the same type
+        let service1 = TestService::new("primary".to_string());
+        let service2 = TestService::new("backup".to_string());
 
-        // Test type-based access
-        let _utils = registry.get::<TestUtils>().unwrap();
-        assert_eq!(TestUtils::add_numbers(2, 3), 5);
-
-        let service = registry.get::<TestService>().unwrap();
-        let result = service.do_something().await.unwrap();
-        assert_eq!(result, "Service result");
+        registry.register("service-primary", service1).unwrap();
+        registry.register("service-backup", service2).unwrap();
 
         // Test name-based access
-        assert!(registry.contains_name("TestUtils"));
-        assert!(registry.contains_name("TestService"));
+        let primary = registry.get("service-primary").unwrap();
+        assert!(registry.contains("service-primary"));
+        assert!(registry.contains("service-backup"));
 
         // Test module listing
         let modules = registry.list_modules();
         assert_eq!(modules.len(), 2);
 
-        // Test initialization/shutdown
-        registry.initialize_all().await.unwrap();
+        // Test shutdown (developers handle initialization explicitly)
         registry.shutdown_all().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_module_registry_duplicate_name() {
+        let registry = ModuleRegistry::new();
+
+        let service = TestService::new("config".to_string());
+        registry.register("test-service", service).unwrap();
+
+        // Attempt to register with the same name should fail
+        let service2 = TestService::new("config2".to_string());
+        let result = registry.register("test-service", service2);
+
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("already registered"));
+    }
+
+    #[tokio::test]
+    async fn test_module_registry_not_found() {
+        let registry = ModuleRegistry::new();
+
+        let result = registry.get("non-existent");
+        assert!(result.is_err());
+
+        let opt = registry.get_opt("non-existent");
+        assert!(opt.is_none());
     }
 }
 
@@ -342,27 +518,36 @@ mod tests {
 // Global MODULE System - Total.js Style Access
 // ============================================================================
 
-/// Global module registry instance
-static MODULE_REGISTRY: OnceCell<Arc<SharedRegistry>> = OnceCell::new();
+/// Global module registry instance (using new ModuleRegistry with named registration)
+static MODULE_REGISTRY: OnceCell<ModuleRegistry> = OnceCell::new();
 
-/// Global MODULE accessor for Total.js-style module access
+/// Global MODULE accessor for Total.js-style module access with named registration
 ///
 /// Provides global access to registered modules without needing Context or
 /// dependency injection. This follows the same pattern as APP and CONF.
 ///
+/// # Named Registration Pattern
+///
+/// Modules are registered with unique string identifiers, allowing multiple instances
+/// of the same type:
+///
 /// # Examples
 /// ```rust,ignore
-/// // Type-based access (recommended)
-/// let email = MODULE::<EmailService>()?;
-/// email.send_notification("user@example.com").await?;
+/// // Initialize the module system
+/// MODULE::init();
+///
+/// // Register modules with unique names
+/// MODULE::register("email-primary", EmailService::new("primary@example.com"))?;
+/// MODULE::register("email-backup", EmailService::new("backup@example.com"))?;
+///
+/// // Name-based access
+/// let primary = MODULE::get("email-primary")?;
+/// let backup = MODULE::get("email-backup")?;
 ///
 /// // Check if module exists
-/// if MODULE::exists::<EmailService>() {
+/// if MODULE::exists("email-primary") {
 ///     // Module is available
 /// }
-///
-/// // Name-based access (for dynamic scenarios)
-/// let service = MODULE::get("EmailService")?;
 /// ```
 pub struct MODULE;
 
@@ -370,92 +555,88 @@ impl MODULE {
     /// Initialize the global module registry
     ///
     /// This should be called once during application startup by the framework.
-    /// It connects the SharedRegistry to the global MODULE system.
-    ///
-    /// # Arguments
-    /// * `registry` - The SharedRegistry containing all registered modules
+    /// After initialization, modules can be registered using MODULE::register().
     ///
     /// # Returns
     /// * `Ok(())` if initialization succeeded
     /// * `Err` if the registry was already initialized
-    pub fn init(registry: Arc<SharedRegistry>) -> RustfResult<()> {
+    pub fn init() -> RustfResult<()> {
         MODULE_REGISTRY
-            .set(registry)
+            .set(ModuleRegistry::new())
             .map_err(|_| Error::internal("MODULE registry has already been initialized"))
     }
 
-    /// Get a module by type (recommended approach)
+    /// Register a shared module with a unique name
     ///
-    /// This is the primary way to access modules - it's type-safe and efficient.
-    /// Returns a reference to the singleton instance of the module.
+    /// This is the primary API for developers to register modules explicitly.
+    /// Only modules that implement SharedModule trait can be registered,
+    /// enforcing type safety at compile time.
+    ///
+    /// Multiple instances of the same type can be registered with different names.
     ///
     /// # Type Parameters
-    /// * `T` - The module type to retrieve
+    /// * `T` - The module type to register (must implement SharedModule + 'static)
+    ///
+    /// # Arguments
+    /// * `name` - Unique identifier for this module instance
+    /// * `module` - The module instance to register
     ///
     /// # Returns
-    /// * `Ok(&T)` if the module is registered
-    /// * `Err` if the module is not found or not initialized
+    /// * `Ok(())` if registration succeeded
+    /// * `Err` if not initialized or name already registered
     ///
     /// # Examples
     /// ```rust,ignore
-    /// let email_service = MODULE::<EmailService>()?;
-    /// let cache_service = MODULE::<CacheService>()?;
+    /// MODULE::register("email-primary", EmailService::new("primary@example.com"))?;
+    /// MODULE::register("cache", CacheService::new())?;
     /// ```
-    pub fn get_typed<T: SharedModule + 'static>() -> RustfResult<&'static T> {
+    pub fn register<T: SharedModule + 'static>(name: &str, module: T) -> RustfResult<()> {
         let registry = MODULE_REGISTRY.get().ok_or_else(|| {
             Error::internal(
-                "MODULE registry not initialized. Ensure modules are registered during app startup",
+                "MODULE registry not initialized. Call MODULE::init() during app startup",
             )
         })?;
 
-        registry.get::<T>().ok_or_else(|| {
-            Error::internal(format!(
-                "Module of type {} not registered",
-                std::any::type_name::<T>()
-            ))
-        })
+        registry.register(name, module)
     }
 
-    /// Get a module by name (for dynamic access)
+    /// Get a shared module by name
     ///
-    /// Use this when you need to access modules dynamically by name.
-    /// Note: Type-based access via `MODULE::<T>()` is preferred when possible.
+    /// This is the primary way to access registered modules by their unique name.
+    /// Returns an Arc<dyn SharedModule> which can be cloned cheaply.
     ///
     /// # Arguments
     /// * `name` - The module name to retrieve
     ///
     /// # Returns
-    /// * `Some(Arc<dyn SharedModule>)` if the module exists
-    /// * `None` if the module is not found
+    /// * `Ok(Arc<dyn SharedModule>)` if the module is registered
+    /// * `Err` if the module is not found or registry not initialized
     ///
     /// # Examples
     /// ```rust,ignore
-    /// if let Some(module) = MODULE::get("EmailService") {
-    ///     // Use the module dynamically
-    /// }
+    /// let primary = MODULE::get("email-primary")?;
+    /// let cache = MODULE::get("cache")?;
     /// ```
-    pub fn get(name: &str) -> Option<Arc<dyn SharedModule>> {
-        MODULE_REGISTRY.get()?.get_by_name(name)
+    pub fn get(name: &str) -> RustfResult<Arc<dyn SharedModule>> {
+        let registry = MODULE_REGISTRY.get().ok_or_else(|| {
+            Error::internal(
+                "MODULE registry not initialized. Call MODULE::init() during app startup",
+            )
+        })?;
+
+        registry.get(name)
     }
 
-    /// Check if a module is registered by type
+    /// Try to get a shared module by name (returns Option)
     ///
-    /// # Type Parameters
-    /// * `T` - The module type to check
+    /// # Arguments
+    /// * `name` - The module name to retrieve
     ///
     /// # Returns
-    /// * `true` if the module is registered
-    /// * `false` otherwise
-    ///
-    /// # Examples
-    /// ```rust,ignore
-    /// if MODULE::exists::<EmailService>() {
-    ///     let email = MODULE::<EmailService>()?;
-    ///     // Use email service
-    /// }
-    /// ```
-    pub fn exists<T: SharedModule + 'static>() -> bool {
-        MODULE_REGISTRY.get().and_then(|r| r.get::<T>()).is_some()
+    /// * `Some(Arc<dyn SharedModule>)` if the module is registered
+    /// * `None` if the module is not found or registry not initialized
+    pub fn get_opt(name: &str) -> Option<Arc<dyn SharedModule>> {
+        MODULE_REGISTRY.get()?.get_opt(name)
     }
 
     /// Check if a module is registered by name
@@ -465,18 +646,18 @@ impl MODULE {
     ///
     /// # Returns
     /// * `true` if the module is registered
-    /// * `false` otherwise
+    /// * `false` otherwise (or if registry not initialized)
     ///
     /// # Examples
     /// ```rust,ignore
-    /// if MODULE::exists_by_name("EmailService") {
-    ///     let service = MODULE::get("EmailService").unwrap();
+    /// if MODULE::exists("email-primary") {
+    ///     let email = MODULE::get("email-primary")?;
     /// }
     /// ```
-    pub fn exists_by_name(name: &str) -> bool {
+    pub fn exists(name: &str) -> bool {
         MODULE_REGISTRY
             .get()
-            .map(|r| r.contains_name(name))
+            .map(|r| r.contains(name))
             .unwrap_or(false)
     }
 
@@ -501,7 +682,8 @@ impl MODULE {
     /// Useful for debugging or dynamic module discovery.
     ///
     /// # Returns
-    /// * Vector of module names and their types
+    /// * Vector of (module_name, module_type) tuples
+    /// * Empty vector if registry not initialized
     ///
     /// # Examples
     /// ```rust,ignore
@@ -516,7 +698,7 @@ impl MODULE {
             .map(|r| {
                 r.list_modules()
                     .into_iter()
-                    .map(|(name, module_type)| (name.to_string(), module_type.to_string()))
+                    .map(|(name, module_type)| (name, module_type.to_string()))
                     .collect()
             })
             .unwrap_or_default()
@@ -524,13 +706,13 @@ impl MODULE {
 
     /// Get the underlying registry (for advanced use cases)
     ///
-    /// This provides direct access to the SharedRegistry for scenarios
+    /// This provides direct access to the ModuleRegistry for scenarios
     /// that need more control or access to registry-specific methods.
     ///
     /// # Returns
-    /// * `Some(&Arc<SharedRegistry>)` if initialized
+    /// * `Some(&'static ModuleRegistry)` if initialized
     /// * `None` otherwise
-    pub fn get_registry() -> Option<&'static Arc<SharedRegistry>> {
+    pub fn get_registry() -> Option<&'static ModuleRegistry> {
         MODULE_REGISTRY.get()
     }
 }

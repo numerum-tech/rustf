@@ -717,15 +717,10 @@ impl RustF {
         }
         log::info!("Global repository (APP/MAIN) initialized");
 
-        // Initialize global MODULE system for shared module access
-        if let Err(e) = crate::shared::MODULE::init(Arc::clone(&self.shared)) {
-            log::error!("Failed to initialize global MODULE system: {}", e);
-            return Err(e);
-        }
-        log::info!(
-            "Global MODULE system initialized with {} module(s)",
-            self.shared.list_modules().len()
-        );
+        // Note: MODULE system is NOT initialized by framework anymore.
+        // Developers must explicitly call MODULE::init() in their app code
+        // to initialize the module system for explicit named registration.
+        // This ensures developers have full control over module registration timing.
 
         // Emit config.loaded event
         if let Err(e) = self
@@ -992,9 +987,8 @@ impl RustF {
                         InboundAction::Stop => {
                             // Early return - use response set on context
                             log::debug!("Middleware '{}' stopped chain", middleware.name);
-                            let response = ctx
-                                .take_response()
-                                .unwrap_or_else(Response::internal_error);
+                            let response =
+                                ctx.take_response().unwrap_or_else(Response::internal_error);
                             return Ok(MiddlewareResult::Stop(response));
                         }
                         InboundAction::Capture => {
@@ -1028,9 +1022,7 @@ impl RustF {
         }
 
         // Get the final response from context
-        let final_response = ctx
-            .take_response()
-            .unwrap_or_else(Response::internal_error);
+        let final_response = ctx.take_response().unwrap_or_else(Response::internal_error);
 
         Ok(MiddlewareResult::Stop(final_response))
     }
@@ -1056,9 +1048,7 @@ impl RustF {
             (route_info.handler)(ctx).await?;
 
             // Get the response from context or return 500 if not set
-            let response = ctx
-                .take_response()
-                .unwrap_or_else(Response::internal_error);
+            let response = ctx.take_response().unwrap_or_else(Response::internal_error);
 
             Ok(MiddlewareResult::Stop(response))
         } else {

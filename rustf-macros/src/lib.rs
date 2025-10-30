@@ -151,12 +151,20 @@ fn generate_auto_discovery(dir_name: &str, fn_name: &str) -> proc_macro2::TokenS
 
     // If we're in the rustf framework itself, don't try to auto-discover framework internal modules
     // Only auto-discover in user projects
-    let should_skip = is_rustf_framework && matches!(dir_name, "models" | "workers" | "definitions" | "middleware" | "events");
+    let should_skip = is_rustf_framework
+        && matches!(
+            dir_name,
+            "models" | "workers" | "definitions" | "middleware" | "events"
+        );
 
     if should_skip || !src_dir.exists() {
         // If directory doesn't exist or we should skip it, return empty implementation
         // Use correct path prefix based on whether we're in rustf framework or user project
-        let path_prefix = if is_rustf_framework { quote! { crate } } else { quote! { rustf } };
+        let path_prefix = if is_rustf_framework {
+            quote! { crate }
+        } else {
+            quote! { rustf }
+        };
 
         return match dir_name {
             "controllers" => quote! {
@@ -238,7 +246,7 @@ fn generate_auto_discovery(dir_name: &str, fn_name: &str) -> proc_macro2::TokenS
         let relative_to_target = path
             .strip_prefix(&src_dir)
             .expect("Path should be under target directory");
-        
+
         // Build nested module path (e.g., api::v1::users for api/v1/users.rs)
         let mut path_components = Vec::new();
         for component in relative_to_target.components() {
@@ -256,7 +264,7 @@ fn generate_auto_discovery(dir_name: &str, fn_name: &str) -> proc_macro2::TokenS
 
         // Create the full module path (e.g., "api::v1::users")
         let _module_path = path_components.join("::");
-        
+
         // Generate unique module identifier for nested paths
         let module_ident_str = path_components.join("_");
         let module_ident = syn::Ident::new(&module_ident_str, proc_macro2::Span::call_site());
@@ -278,7 +286,7 @@ fn generate_auto_discovery(dir_name: &str, fn_name: &str) -> proc_macro2::TokenS
                 #[path = #relative_path]
                 pub mod #module_ident;
             });
-            
+
             // Generate function call using the simple identifier
             match dir_name {
                 "controllers" => {
@@ -300,11 +308,10 @@ fn generate_auto_discovery(dir_name: &str, fn_name: &str) -> proc_macro2::TokenS
                     });
                 }
                 "modules" => {
-                    let fn_ident = syn::Ident::new(fn_name, proc_macro2::Span::call_site());
-                    function_calls.push(quote! {
-                        let module = #module_ident::#fn_ident();
-                        registry.register(module);
-                    });
+                    // Modules are now discovered but NOT automatically registered
+                    // Developers must explicitly call MODULE::register() with a unique name
+                    // This allows multiple instances of the same type
+                    // (no code generation needed - just module declarations)
                 }
                 "events" => {
                     let fn_ident = syn::Ident::new(fn_name, proc_macro2::Span::call_site());
@@ -333,7 +340,7 @@ fn generate_auto_discovery(dir_name: &str, fn_name: &str) -> proc_macro2::TokenS
                 #[path = #relative_path]
                 pub mod #module_ident;
             });
-            
+
             // Generate function call with full module path
             match dir_name {
                 "controllers" => {
@@ -355,11 +362,10 @@ fn generate_auto_discovery(dir_name: &str, fn_name: &str) -> proc_macro2::TokenS
                     });
                 }
                 "modules" => {
-                    let fn_ident = syn::Ident::new(fn_name, proc_macro2::Span::call_site());
-                    function_calls.push(quote! {
-                        let module = #module_ident::#fn_ident();
-                        registry.register(module);
-                    });
+                    // Modules are now discovered but NOT automatically registered
+                    // Developers must explicitly call MODULE::register() with a unique name
+                    // This allows multiple instances of the same type
+                    // (no code generation needed - just module declarations)
                 }
                 "events" => {
                     let fn_ident = syn::Ident::new(fn_name, proc_macro2::Span::call_site());
@@ -380,7 +386,11 @@ fn generate_auto_discovery(dir_name: &str, fn_name: &str) -> proc_macro2::TokenS
 
     // Generate the final code based on directory type
     // Use correct path prefix based on whether we're in rustf framework or user project
-    let path_prefix = if is_rustf_framework { quote! { crate } } else { quote! { rustf } };
+    let path_prefix = if is_rustf_framework {
+        quote! { crate }
+    } else {
+        quote! { rustf }
+    };
 
     match dir_name {
         "controllers" => {
@@ -430,17 +440,15 @@ fn generate_auto_discovery(dir_name: &str, fn_name: &str) -> proc_macro2::TokenS
             }
         }
         "modules" => {
-            let module_count = function_calls.len();
             quote! {
                 {
-                    // Module declarations
+                    // Module declarations (auto-discovery only)
                     #(#modules)*
 
-                    // Function to register all modules
-                    |registry: &mut #path_prefix::shared::SharedRegistry| {
-                        log::info!("Auto-discovery: Registering {} module(s)", #module_count);
-                        #(#function_calls)*
-                    }
+                    log::info!("Auto-discovery: Found module(s) - explicit MODULE::register() required for registration");
+                    // Modules are no longer auto-registered. Developers must explicitly call
+                    // MODULE::register("unique-name", module_instance) with a unique name.
+                    // This enables multiple instances of the same type with different configs.
                 }
             }
         }
@@ -513,6 +521,8 @@ pub fn auto_discover(_args: TokenStream, input: TokenStream) -> TokenStream {
 
     // Combine everything
     // Inject auto-discovery hook registration at the start of the function body
+    // Note: Modules are no longer auto-registered via hooks. They're discovered via
+    // auto_modules!() for IDE support, but developers must call MODULE::register() explicitly.
     let register_stmt = parse_quote! {
         rustf::auto::register_hooks(rustf::auto::AutoDiscoveryHooks {
             controllers: Some(|| auto_controllers!()),
@@ -520,10 +530,7 @@ pub fn auto_discover(_args: TokenStream, input: TokenStream) -> TokenStream {
                 let register = auto_models!();
                 register(registry);
             }),
-            shared: Some(|registry: &mut rustf::shared::SharedRegistry| {
-                let register = auto_modules!();
-                register(registry);
-            }),
+            shared: None,  // Modules are no longer auto-registered. Explicit registration only.
             middleware: Some(|registry: &mut rustf::middleware::MiddlewareRegistry| {
                 let register = auto_middleware!();
                 register(registry);
@@ -602,9 +609,10 @@ fn generate_mod_declarations(src_dir: &PathBuf, dir_name: &str) -> proc_macro2::
         }
 
         // Get the relative path from target directory
-        let relative_to_target = path.strip_prefix(&target_dir)
+        let relative_to_target = path
+            .strip_prefix(&target_dir)
             .expect("Path should be under target directory");
-        
+
         // Build nested module path components
         let mut path_components = Vec::new();
         for component in relative_to_target.components() {
@@ -619,11 +627,11 @@ fn generate_mod_declarations(src_dir: &PathBuf, dir_name: &str) -> proc_macro2::
                 }
             }
         }
-        
+
         if path_components.is_empty() {
             continue;
         }
-        
+
         // Skip special files for models
         if dir_name == "models" {
             let module_name = path_components.last().unwrap();
@@ -631,11 +639,11 @@ fn generate_mod_declarations(src_dir: &PathBuf, dir_name: &str) -> proc_macro2::
                 continue;
             }
         }
-        
+
         // Create unique module identifier (e.g., "api_users" for "api/users.rs")
         let module_ident_str = path_components.join("_");
         let module_ident = syn::Ident::new(&module_ident_str, proc_macro2::Span::call_site());
-        
+
         // Generate module declaration with proper path handling
         if path_components.len() == 1 {
             // Simple top-level module - no path attribute needed
@@ -650,7 +658,7 @@ fn generate_mod_declarations(src_dir: &PathBuf, dir_name: &str) -> proc_macro2::
                 pub mod #module_ident;
             });
         }
-        
+
         // Create proper relative path for IDE content
         let relative_path = relative_to_target.to_string_lossy().replace('\\', "/");
         ide_content.push_str(&format!("#[path = \"{}/{}\"]\n", dir_name, relative_path));
@@ -769,7 +777,11 @@ fn generate_worker_discovery() -> proc_macro2::TokenStream {
 
     // If we're in the rustf framework itself, don't try to auto-discover workers
     // (workers/ is an internal module, not user-defined workers)
-    let path_prefix = if is_rustf_framework { quote! { crate } } else { quote! { rustf } };
+    let path_prefix = if is_rustf_framework {
+        quote! { crate }
+    } else {
+        quote! { rustf }
+    };
 
     if is_rustf_framework || !src_dir.exists() {
         // Return empty implementation
