@@ -499,23 +499,58 @@ impl AppConfig {
         // Determine environment
         let env = Self::detect_environment();
 
-        // Load base configuration
+        // Load base configuration as TOML Value
         let base_config_path = base_dir.join("config.toml");
-        let mut config = if base_config_path.exists() {
-            Self::from_file(&base_config_path)?
+        let mut merged_value = if base_config_path.exists() {
+            Self::load_toml_value(&base_config_path)?
         } else {
-            AppConfig::default()
+            // Use default config as Value
+            let default_config = AppConfig::default();
+            toml::to_string(&default_config)
+                .ok()
+                .and_then(|s| toml::from_str(&s).ok())
+                .unwrap_or(toml::Value::Table(toml::map::Map::new()))
         };
+
+        // Load and merge environment-specific configuration if it exists
+        let env_config_path = base_dir.join(format!("config.{}.toml", env.as_str()));
+        if env_config_path.exists() {
+            log::debug!(
+                "Loading environment-specific config from: {}",
+                env_config_path.display()
+            );
+            let env_value = Self::load_toml_value(&env_config_path)?;
+
+            // Merge environment config into base (environment takes precedence)
+            #[cfg(feature = "config")]
+            {
+                use serde_toml_merge::merge;
+                merged_value = merge(merged_value, env_value).map_err(|e| {
+                    Error::internal(format!("Failed to merge configuration files: {}", e))
+                })?;
+            }
+
+            #[cfg(not(feature = "config"))]
+            {
+                // Fallback if feature is not enabled (shouldn't happen in practice)
+                log::warn!(
+                    "Config feature not enabled, skipping environment-specific config merge"
+                );
+            }
+        }
+
+        // Deserialize merged TOML value into AppConfig
+        // Convert toml::Value to serde_json::Value for deserialization
+        let json_value = serde_json::to_value(&merged_value).map_err(|e| {
+            Error::internal(format!("Failed to convert merged configuration: {}", e))
+        })?;
+
+        let mut config: AppConfig = serde_json::from_value(json_value).map_err(|e| {
+            Error::internal(format!("Failed to deserialize merged configuration: {}", e))
+        })?;
 
         // Set detected environment
         config.environment = env.clone();
-
-        // Load environment-specific configuration if it exists
-        let env_config_path = base_dir.join(format!("config.{}.toml", env.as_str()));
-        if env_config_path.exists() {
-            let env_config = Self::from_file(&env_config_path)?;
-            config.merge_with(env_config);
-        }
 
         // Apply environment variable overrides
         config.apply_env_overrides()?;
@@ -535,6 +570,11 @@ impl AppConfig {
 
         // Validate configuration
         config.validate()?;
+
+        log::info!(
+            "Configuration loaded and merged successfully (environment: {})",
+            config.environment.as_str()
+        );
 
         Ok(config)
     }
@@ -574,6 +614,36 @@ impl AppConfig {
         Ok(config)
     }
 
+    /// Load TOML file as a Value (for merging before deserialization)
+    ///
+    /// This is used when merging multiple config files at the TOML level
+    /// rather than at the AppConfig struct level.
+    fn load_toml_value<P: AsRef<Path>>(path: P) -> Result<toml::Value> {
+        let path_ref = path.as_ref();
+
+        let content = fs::read_to_string(path_ref).map_err(|e| {
+            Error::internal(format!(
+                "Failed to read config file '{}': {}. Make sure the file exists and is readable.",
+                path_ref.display(),
+                e
+            ))
+        })?;
+
+        let value: toml::Value = toml::from_str(&content).map_err(|e| {
+            Error::internal(format!(
+                "Failed to parse config file '{}': {}. Check TOML syntax.",
+                path_ref.display(),
+                e
+            ))
+        })?;
+
+        log::debug!(
+            "Successfully loaded TOML value from: {}",
+            path_ref.display()
+        );
+        Ok(value)
+    }
+
     /// Create configuration with environment variable overrides
     pub fn from_env() -> Result<Self> {
         let mut config = AppConfig::default();
@@ -596,91 +666,6 @@ impl AppConfig {
 
         // Default to development
         Environment::Development
-    }
-
-    /// Merge this configuration with another (other takes precedence)
-    pub fn merge_with(&mut self, other: AppConfig) {
-        // Merge server config
-        if other.server.host != default_host() {
-            self.server.host = other.server.host;
-        }
-        if other.server.port != default_port() {
-            self.server.port = other.server.port;
-        }
-        if other.server.timeout != default_timeout() {
-            self.server.timeout = other.server.timeout;
-        }
-        if other.server.ssl_enabled {
-            self.server.ssl_enabled = other.server.ssl_enabled;
-            self.server.ssl_cert = other.server.ssl_cert;
-            self.server.ssl_key = other.server.ssl_key;
-        }
-        if other.server.max_connections != default_max_connections() {
-            self.server.max_connections = other.server.max_connections;
-        }
-
-        // Merge view config
-        if other.views.directory != default_views_dir() {
-            self.views.directory = other.views.directory;
-        }
-        if other.views.default_layout != default_layout() {
-            self.views.default_layout = other.views.default_layout;
-        }
-        self.views.cache_enabled = other.views.cache_enabled;
-        if other.views.extension != default_extension() {
-            self.views.extension = other.views.extension;
-        }
-
-        // Merge session config
-        self.session.enabled = other.session.enabled;
-        if other.session.cookie_name != default_cookie_name() {
-            self.session.cookie_name = other.session.cookie_name;
-        }
-        if other.session.idle_timeout != default_idle_timeout() {
-            self.session.idle_timeout = other.session.idle_timeout;
-        }
-        if other.session.absolute_timeout != default_absolute_timeout() {
-            self.session.absolute_timeout = other.session.absolute_timeout;
-        }
-        if other.session.same_site != default_same_site() {
-            self.session.same_site = other.session.same_site;
-        }
-
-        // Merge session storage configuration (environment-specific storage should take precedence)
-        self.session.storage = other.session.storage;
-
-        // Merge session fingerprint mode
-        if other.session.fingerprint_mode != default_fingerprint_mode() {
-            self.session.fingerprint_mode = other.session.fingerprint_mode;
-        }
-
-        // Merge exempt routes (append rather than replace to preserve base routes)
-        for route in other.session.exempt_routes {
-            if !self.session.exempt_routes.contains(&route) {
-                self.session.exempt_routes.push(route);
-            }
-        }
-
-        // Merge other configs if they have non-default values
-        if other.database.url.is_some() {
-            self.database = other.database;
-        }
-        if other.cors.enabled {
-            self.cors = other.cors;
-        }
-        if other.logging.file.is_some() || other.logging.level != default_log_level() {
-            self.logging = other.logging;
-        }
-
-        // Merge custom settings
-        for (key, value) in other.custom {
-            self.custom.insert(key, value);
-        }
-
-        // Merge extra sections
-        for (key, value) in other.extra {
-            self.extra.insert(key, value);
-        }
     }
 
     /// Apply security defaults for production environments
@@ -1177,6 +1162,121 @@ mod tests {
         assert_eq!(
             base.session.cookie_name, "dev_session",
             "session.cookie_name should be merged"
+        );
+    }
+
+    #[test]
+    #[cfg(feature = "config")]
+    fn test_toml_level_merging_simple() {
+        // Test simple TOML value merging
+        use serde_toml_merge::merge;
+
+        let base_toml = r#"
+[server]
+port = 8000
+host = "127.0.0.1"
+"#;
+
+        let dev_toml = r#"
+[server]
+port = 3000
+"#;
+
+        let base_value: toml::Value = toml::from_str(base_toml).unwrap();
+        let dev_value: toml::Value = toml::from_str(dev_toml).unwrap();
+
+        let merged = merge(base_value, dev_value).unwrap();
+
+        // Verify port was overridden
+        assert_eq!(merged["server"]["port"].as_integer().unwrap(), 3000);
+        // Verify host was preserved from base
+        assert_eq!(merged["server"]["host"].as_str().unwrap(), "127.0.0.1");
+    }
+
+    #[test]
+    #[cfg(feature = "config")]
+    fn test_toml_level_merging_nested_tables() {
+        // Test that nested tables are properly merged
+        use serde_toml_merge::merge;
+
+        let base_toml = r#"
+[session.storage]
+type = "memory"
+cleanup_interval = 300
+
+[session]
+enabled = true
+cookie_name = "base_session"
+"#;
+
+        let dev_toml = r#"
+[session.storage]
+type = "redis"
+url = "redis://localhost:6379"
+"#;
+
+        let base_value: toml::Value = toml::from_str(base_toml).unwrap();
+        let dev_value: toml::Value = toml::from_str(dev_toml).unwrap();
+
+        let merged = merge(base_value, dev_value).unwrap();
+
+        // Verify session.storage was merged properly
+        assert_eq!(
+            merged["session"]["storage"]["type"].as_str().unwrap(),
+            "redis"
+        );
+        assert_eq!(
+            merged["session"]["storage"]["url"].as_str().unwrap(),
+            "redis://localhost:6379"
+        );
+        // Verify session.enabled was preserved
+        assert_eq!(merged["session"]["enabled"].as_bool().unwrap(), true);
+    }
+
+    #[test]
+    #[cfg(feature = "config")]
+    fn test_toml_level_merging_custom_sections() {
+        // Test that custom config sections merge properly
+        use serde_toml_merge::merge;
+
+        let base_toml = r#"
+[custom.email]
+smtp_host = "smtp.example.com"
+smtp_port = 587
+
+[custom.app]
+name = "MyApp"
+"#;
+
+        let dev_toml = r#"
+[custom.email]
+smtp_port = 2525
+
+[custom.logging]
+debug = true
+"#;
+
+        let base_value: toml::Value = toml::from_str(base_toml).unwrap();
+        let dev_value: toml::Value = toml::from_str(dev_toml).unwrap();
+
+        let merged = merge(base_value, dev_value).unwrap();
+
+        // Verify email port was overridden
+        assert_eq!(
+            merged["custom"]["email"]["smtp_port"].as_integer().unwrap(),
+            2525
+        );
+        // Verify email host was preserved
+        assert_eq!(
+            merged["custom"]["email"]["smtp_host"].as_str().unwrap(),
+            "smtp.example.com"
+        );
+        // Verify app section was preserved
+        assert_eq!(merged["custom"]["app"]["name"].as_str().unwrap(), "MyApp");
+        // Verify logging section was added
+        assert_eq!(
+            merged["custom"]["logging"]["debug"].as_bool().unwrap(),
+            true
         );
     }
 }

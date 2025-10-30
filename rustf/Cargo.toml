@@ -43,7 +43,8 @@ sqlx = { version = "0.8", features = [
     "rust_decimal",
 ] }
 ipnetwork = "0.20"
-toml = { version = "0.8", optional = true }
+toml = { version = "0.9", optional = true }
+serde-toml-merge = { version = "0.3", optional = true }
 rust-embed = { version = "8.0", optional = true }
 rustf-macros = { version = "0.1.0", path = "../rustf-macros" }
 rustf-schema = { version = "0.1.0", path = "../rustf-schema", optional = true }
@@ -63,7 +64,7 @@ default = [
     "decimal",
     "uuid",
 ]
-config = ["toml"]
+config = ["toml", "serde-toml-merge"]
 embedded-views = ["rust-embed"]
 auto-discovery = []
 schema = ["rustf-schema"]
