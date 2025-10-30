@@ -192,25 +192,10 @@ impl DbCommand {
 /// Always loads base config.toml and merges config.dev.toml if present
 /// This ensures CLI operates with development settings for each project folder
 async fn load_cli_config(project_path: &PathBuf) -> Result<AppConfig> {
-    // Load base config
-    let config_file = project_path.join("config.toml");
-    let mut config = if config_file.exists() {
-        AppConfig::from_file(config_file)?
-    } else {
-        log::warn!("No config.toml found, using defaults");
-        AppConfig::default()
-    };
-
-    // Always try to load and merge development config
-    let dev_config_file = project_path.join("config.dev.toml");
-    if dev_config_file.exists() {
-        log::debug!("Loading config.dev.toml from project folder");
-        let dev_config = AppConfig::from_file(dev_config_file)?;
-        config.merge_with(dev_config);
-        log::debug!("Merged config.dev.toml successfully");
-    } else {
-        log::debug!("No config.dev.toml found, using base config only");
-    }
+    // Load config using the new TOML-level merging approach
+    // This automatically handles config.toml + config.dev.toml merging
+    let config = AppConfig::load_with_base_dir(project_path)?;
+    log::debug!("Configuration loaded and merged successfully");
 
     Ok(config)
 }
