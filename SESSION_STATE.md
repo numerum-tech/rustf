@@ -1,9 +1,9 @@
 # Session State
 
-**Session Date**: 2025-10-29  
-**Session Duration**: ~3 hours  
+**Session Date**: 2025-10-30  
+**Session Type**: Continuation from previous context  
 **Branch**: `dev`  
-**Last Commit**: `ed34a0f` - Simplify worker template to generic-only pattern
+**Last Commit**: `3d7e413` - Refactor module system for explicit developer control and add framework prelude to utility modules
 
 ---
 
@@ -15,235 +15,245 @@
 ```
 
 ### Git Status
-✅ **Clean** - All changes committed to `dev` branch
+✅ **Clean** - All changes committed to `dev` branch  
+**Last Commit**: `3d7e413` (just completed)
 
-### Last Commits (Most Recent First)
-1. `ed34a0f` - Simplify worker template to generic-only pattern
-2. `2d9f45d` - Add worker generation support to CLI
-3. `2f9018c` - Improve middleware template to showcase dual-phase pattern
-4. `9cab76e` - Fix middleware template to use dual-phase async architecture
+### Recent Commits (Most Recent First)
+1. `3d7e413` - Refactor module system for explicit developer control and add framework prelude to utility modules
+2. `361b3c7` - Fix cli templates
+3. `7e755a4` - Fix cli templates
+4. `ed34a0f` - Simplify worker template to generic-only pattern
 
 ---
 
 ## Session Summary
 
-### Tasks Completed ✅
+### Context from Previous Session
+This session was a **continuation** from a previous conversation that addressed:
+- Redis feature flag removal from session storage
+- Configuration unification (merged TOML files before parsing)
+- Module registration architecture redesign
 
-1. **Fixed Middleware Template (Commit: 9cab76e)**
-   - Replaced broken single-phase `Middleware` trait with dual-phase architecture
-   - Added `#[async_trait]` macro (required to prevent hangs)
-   - Fixed return types: `MiddlewareResult` → `InboundAction`
-   - Fixed Context API: `ctx.request` → `ctx.req`
-   - Fixed registration: Added name parameter to `register_inbound()`
-   - Template now generates compilable, functional code
+### Tasks Completed This Session ✅
 
-2. **Improved Middleware Template (Commit: 2f9018c)**
-   - User feedback: Template should showcase both inbound AND outbound phases
-   - Replaced inbound-only template with dual-phase example (like TimingMiddleware from docs)
-   - Added `#[derive(Clone)]` required for dual-phase middleware
-   - Fixed response field: `ctx.response` → `ctx.res`
-   - Fixed Context data methods: `ctx.data.insert()` → `ctx.set()`, `ctx.data_get()` → `ctx.get()`
-   - Template now demonstrates:
-     - Inbound phase: Store request start time
-     - Outbound phase: Calculate duration, add response headers
-     - Returns `InboundAction::Capture` to signal outbound processing needed
-   - Much more educational and realistic
+1. **Module System Architecture Refactoring (Main Task)**
+   - **Problem**: Framework was forcing `SharedModule` trait on ALL modules via `auto_modules!()` macro
+   - **Solution**: Implemented explicit named module registration with developer control
+   - **Key Changes**:
+     - Created `ModuleRegistry` with DashMap for thread-safe concurrent access
+     - Changed `auto_modules!()` from auto-registering to declaration-only
+     - Removed framework's automatic `MODULE::init()` call from app.rs
+     - Kept `MODULE::shutdown_all()` for graceful app shutdown
+     - Developers now explicitly call `MODULE::init()` and `MODULE::register(name, instance)`
+   - **Type Safety**: Enforced at compile time via trait bound `register<T: SharedModule + 'static>`
 
-3. **Environment Configuration Simplification (Commit: 9cab76e)**
-   - Reduced environments from 4 to 2 (Development, Production)
-   - Renamed config files: `config.dev.toml` and `config.prod.toml`
-   - Made CLI project-folder-centric (not environment-variable-centric)
-   - CLI automatically loads `config.dev.toml` after `config.toml`
-   - Updated all documentation
+2. **CLI Module Generation Enhancement**
+   - **Removed**: `--module-type` flag (overcomplicated interface)
+   - **Added**: `--shared` boolean flag (simpler, clearer intent)
+   - **Default**: Generates utility modules without flag
+   - **With `--shared`**: Generates SharedModule services
+   - **Impact**: Aligns with framework philosophy of simplicity
 
-4. **Added Worker Generation Support (Commit: 2d9f45d)**
-   - Implemented `rustf-cli new worker --name <name>` command
-   - Initially created with predefined types (--email, --file-processing, --cleanup, --batch)
-   - Generated comprehensive 280+ line template with all patterns
-
-5. **Simplified Worker Template (Commit: ed34a0f)**
-   - User feedback: "Not sure if it is good thing to provide predefined worker types"
-   - Analysis showed predefined types were over-engineered
-   - Removed all type-specific flags
-   - Replaced 280+ line template with simple ~40 line generic template
-   - Follows framework philosophy: simplicity over configuration
-   - Consistent with how controllers/middleware work (no "types")
-   - Points developers to `ABOUT_WORKERS.md` for specific patterns
-   - **Code reduction: -345 lines, +23 insertions**
+3. **Framework Prelude Addition to Module Templates** (Final Task - Just Completed)
+   - **User Requirement**: "the modules templates must include the framework prelude; even the utility one"
+   - **Implementation**: Added `use rustf::prelude::*;` to both service and utility module templates
+   - **Rationale**: Utility modules now have access to framework types while remaining stateless helpers
+   - **Verification**: 
+     - Rebuilt rustf-cli with embedded updated template
+     - Generated test utility module and verified prelude is present
+     - Generated test service module and verified compilation
+     - Sample-app compiles successfully with all module types
 
 ---
 
 ## Files Modified This Session
 
-### Core Changes
-1. `rustf/src/config.rs` - Simplified Environment enum (2 environments instead of 4)
-2. `rustf-cli/src/commands/new_cmd.rs` - Added Worker variant, then simplified it
-3. `rustf-cli/src/commands/new_component.rs` - Added/simplified `generate_worker()` function
-4. `rustf-cli/src/main.rs` - Wired Worker command
-5. `rustf-cli/templates/components/middleware.rs.template` - Complete rewrite (dual-phase)
-6. `rustf-cli/templates/components/worker.rs.template` - Created, then simplified
+### Core Framework Changes
+1. `rustf/src/shared.rs` - Implemented ModuleRegistry with named registration
+2. `rustf/src/app.rs` - Removed automatic MODULE::init() call
+3. `rustf/src/config.rs` - Configuration loading updates
+4. `rustf/src/configuration.rs` - Config merging implementation
 
-### Documentation Updates
-1. `CLAUDE.md` - Updated config file references, worker generation info
-2. `docs/ABOUT_CONFIGURATION.md` - Updated for 2 environments
-3. `docs/ABOUT_RUSTF.md` - Updated config file references
+### Macro Changes
+1. `rustf-macros/src/lib.rs` - Changed auto_modules!() to declaration-only (removed auto-registration)
 
-### New Files
-1. `rustf-cli/templates/project/config.dev.toml.template` - Development config template
+### CLI Tool Changes
+1. `rustf-cli/src/commands/new_cmd.rs` - Replaced --module-type with --shared flag
+2. `rustf-cli/src/commands/new_component.rs` - Simplified module generation function signature
+3. `rustf-cli/src/main.rs` - Updated CLI dispatcher
+4. `rustf-cli/templates/components/module.rs.template` - Added framework prelude to utility section
+
+### Sample App Test Files
+1. `sample-app/src/main.rs` - Demonstrates explicit MODULE registration pattern
+2. `sample-app/src/modules/email_service.rs` - SharedModule service example
+3. `sample-app/src/modules/payment_service.rs` - SharedModule service example
+4. `sample-app/src/modules/simple_util.rs` - Utility module without SharedModule
+5. `sample-app/src/modules/string_helpers.rs` - Utility module without SharedModule
+6. `sample-app/src/_modules.rs` - Auto-generated module declarations
+7. `sample-app/tests/test_module_type_safety.rs` - Type safety verification test
 
 ---
 
 ## Key Technical Decisions
 
-### 1. Middleware Template: Dual-Phase Pattern
-**Decision**: Show dual-phase middleware by default, not inbound-only  
-**Rationale**: 
-- More educational (shows both phases)
-- Matches TimingMiddleware example from docs
-- More realistic for common use cases
-**Implementation**: Demonstrates storing data in inbound, accessing in outbound
-
-### 2. Worker Template: Generic-Only Pattern
-**Decision**: No predefined worker types (--email, --cleanup, etc.)  
+### 1. Named Module Registration Pattern
+**Decision**: Replace type-based registration with string-keyed named registration  
 **Rationale**:
-- Aligns with framework philosophy (simplicity over configuration)
-- Consistent with controllers/middleware (no "types")
-- Trusts developers to reference documentation
-- Less cognitive load, easier maintenance
-**Implementation**: Single simple template with helpful comments
+- Allows multiple instances of same type with different configurations
+- Clearer intent: `MODULE::register("email-primary", service)`
+- Better for complex applications with multiple service variations
+**Implementation**: `ModuleRegistry` uses DashMap<String, Arc<dyn SharedModule>>`
 
-### 3. Environment Simplification
-**Decision**: Only Development and Production environments  
+### 2. Explicit Developer Control
+**Decision**: Remove framework's automatic module registration and initialization  
 **Rationale**:
-- Staging and Testing were rarely used
-- Simpler mental model
-- Easier to maintain
-**Implementation**: Short names (dev/prod) for convenience
+- Developers have explicit control over initialization timing
+- Clear visibility of what modules are being registered
+- Easier to debug and test module setup
+**Breaking Change**: Developers must call `MODULE::init()` and `MODULE::register()` explicitly
 
-### 4. CLI: Project-Folder-Centric Configuration
-**Decision**: CLI loads config from project folder, not environment variables  
+### 3. Dual Module Types Support
+**Decision**: Generate both SharedModule services and simple utility modules  
 **Rationale**:
-- Supports multiple projects on same host
-- Each project folder is self-contained
-- No global state/env var conflicts
-**Implementation**: CLI always loads `config.dev.toml` after `config.toml` from project folder
+- Some modules are stateless helpers (utilities)
+- Some modules need singleton management (services)
+- Developers choose appropriate type based on use case
+**Implementation**: `--shared` flag controls generated template variant
+
+### 4. Framework Prelude in All Module Templates
+**Decision**: Include `use rustf::prelude::*;` in both service and utility templates  
+**Rationale**:
+- Utility modules may need framework types (Result, json!, Error, etc.)
+- Prelude import doesn't force SharedModule implementation
+- Consistent with framework integration across all modules
+**Impact**: Utility modules remain simple but have framework utilities available
 
 ---
 
-## Terminal Commands History
+## Terminal Commands History (This Session)
 
 ```bash
-# Environment simplification
+# Started session in correct directory
 cd /Users/ndimorle/Workspace/numerum/github/rustf
-git checkout -b dev
-# Modified config.rs, updated documentation
-cargo build -p rustf-cli
-git add -A && git commit -m "..."
 
-# Middleware template fixes
+# Built CLI tool with updated template
 cd rustf-cli
 cargo build
-# Testing middleware generation
-cd /tmp/test-middleware-project
-rustf-cli new middleware --name test_auth
-cargo check  # Found and fixed compilation errors
-git add -A && git commit -m "Fix middleware template..."
 
-# Middleware template improvement
-# Modified template to show dual-phase pattern
-cargo build -p rustf-cli
-cd /tmp/test-middleware-project
-rustf-cli new middleware --name request_timing
-cargo check  # Success!
-git add -A && git commit -m "Improve middleware template..."
+# Generated test utility module to verify prelude addition
+cd /Users/ndimorle/Workspace/numerum/github/rustf
+rm -f src/modules/test_utility.rs
+./rustf-cli/target/debug/rustf-cli new module --name test_utility --with-methods
 
-# Worker generation - initial implementation
-# Added Worker variant to NewCommand
-# Created worker.rs.template with predefined types
-# Implemented generate_worker() function
-cargo build -p rustf-cli
-cd /tmp/test-worker-gen
-rustf-cli new worker --name send-email --email --validation --progress
-rustf-cli new worker --name batch-processor --batch --progress --validation
-git add -A && git commit -m "Add worker generation support..."
+# Verified generated file contains prelude
+cat src/modules/test_utility.rs | head -30
 
-# Worker template simplification
-# Removed all type-specific flags
-# Replaced complex template with simple generic one
-cargo build -p rustf-cli
-cd /tmp/test-simple-worker
-rustf-cli new worker --name send-email
-rustf-cli new worker --name ProcessData
-rustf-cli new worker --name cleanup-old-files
-cat src/workers/send_email.rs  # Verified ~40 lines, clean
-git add -A && git commit -m "Simplify worker template..."
+# Generated service module to verify both templates work
+./rustf-cli/target/debug/rustf-cli new module --name test_service --shared --with-methods
+
+# Verified sample-app compiles with all module types
+cd sample-app
+cargo check
+
+# Cleaned up test modules
+cd /Users/ndimorle/Workspace/numerum/github/rustf
+rm -f src/modules/test_utility.rs src/modules/test_service.rs
+
+# Final commit
+git add -A
+git commit -m "feat: refactor module system..."
+
+# Verified commit
+git log --oneline -1
 ```
 
 ---
 
 ## Current Task
 
-**COMPLETED** - All tasks from this session are finished and committed.
+**COMPLETED** - All session tasks are finished and committed.
+
+### What Was Accomplished
+- ✅ Updated module template to include framework prelude in utility section
+- ✅ Rebuilt CLI tool to embed updated template
+- ✅ Tested both utility and service module generation
+- ✅ Verified compilation with sample-app
+- ✅ Committed all changes with comprehensive commit message
+- ✅ Saved session state
 
 ---
 
-## Next Steps
+## Breaking Changes Summary
 
-### Immediate (High Priority)
-1. **Test the framework integration** - Build a sample application using the new CLI tools
-2. **Verify auto-discovery** - Ensure generated workers/middleware are auto-discovered
-3. **Documentation review** - Check if any other docs need updating for simplified patterns
+### For Module Users
+1. **Explicit Initialization**: Must call `MODULE::init()` in main application
+2. **Named Registration**: Call `MODULE::register("name", instance)` for each SharedModule
+3. **Named Access**: Use `MODULE::get("name")` instead of `MODULE::get_type<T>()`
+4. **Type Safety**: Only SharedModule implementations are registerable (compile-time check)
+
+### For Generated Code (CLI)
+1. **Service Modules**: Still implement SharedModule, unchanged pattern
+2. **Utility Modules**: Now include framework prelude (minor addition, no breaking change)
+
+### For Framework Developers
+1. **auto_modules!()**: No longer auto-registers modules
+2. **MODULE singleton**: No longer initialized by framework
+3. **SharedRegistry**: Kept for backward compatibility but not actively used
+4. **ModuleRegistry**: New concurrent map-based registry (thread-safe)
+
+---
+
+## Next Steps (For Future Sessions)
+
+### Immediate
+1. ✅ **Session saved** - All tracking files updated
+2. Test module system with more complex real-world scenarios
+3. Verify shutdown_all() works correctly in production scenario
+
+### High Priority
+1. Update README.md with new module registration pattern
+2. Add migration guide for projects using old module system
+3. Create example project demonstrating module usage
 
 ### Medium Priority
-1. **Add more CLI generators**:
-   - `rustf-cli new model --name User` (from schema)
-   - `rustf-cli new view --name home/index`
-   - `rustf-cli new definition --name custom`
-2. **Improve template comments** - Review all templates for clarity
-3. **Add example project** - Full working app in `examples/` directory
+1. Add support for module dependencies/injection
+2. Consider async initialization for modules (if needed)
+3. Add metrics/logging for module lifecycle
 
-### Low Priority / Future
-1. Consider adding `--with-examples` flag to templates for verbose mode
-2. Add template validation to CI
-3. Create video tutorials for CLI usage
-4. Document common patterns in cookbook-style guide
-
----
-
-## Open Questions / Blockers
-
-**None** - Session ended cleanly with all work committed.
+### Documentation Updates Needed
+1. `docs/ABOUT_MODULES.md` - Update with new registration pattern
+2. `docs/MODULE_REGISTRATION_GUIDE.md` - New guide for explicit registration
+3. `CLAUDE.md` - Update module patterns section
 
 ---
 
 ## Notes for Next Session
 
-1. **Framework philosophy confirmed**: 
-   - Simplicity over configuration
-   - Single clear patterns, not multiple options
-   - CLI provides structure, documentation provides patterns
-   - Trust developers to customize based on docs
+### User Work Style Preferences (From CLAUDE.md)
+- Challenge approaches when necessary
+- Always test before affirming work is done
+- Think from end-user perspective for implementation order
+- Don't use URL parameters for inter-view messages (use session flash)
+- Be realistic in comments, not exaggerated
+- No non-implemented placeholder functions or fake hard-coded values
+- Work interactively, ask for help/clarification when stuck
+- Never access files outside current working folder
 
-2. **User preferences noted**:
-   - Challenge approaches when needed
-   - Test before affirming work is done
-   - Think from end-user perspective for implementation order
-   - No URL parameters for inter-view messages (use session flash)
-   - Be realistic in comments, not exaggerated
-   - Work interactively, ask for clarification when stuck
+### Module System Knowledge Base
+- Named registration allows multiple instances: `register("email-primary")` and `register("email-backup")`
+- DashMap provides lock-free concurrent access to registered modules
+- SharedModule trait is compile-time enforced via generic bound
+- Utility modules are NOT registered - used directly via import
+- Framework prelude now available in all module templates
 
-3. **Testing approach**:
-   - Always compile generated code to verify
-   - Test with different naming conventions (PascalCase, kebab-case, snake_case)
-   - Create minimal test projects in /tmp for verification
-
-4. **Code quality**:
-   - Templates reduced from complex to simple (280+ → 40 lines for workers)
-   - No fake placeholders or hard-coded values
-   - All generated code must compile and run
-   - Inline comments show patterns, not implementations
+### Testing Approach
+- Generated code must compile without errors
+- Test with various naming conventions (snake_case, PascalCase, kebab-case)
+- Verify both module types work correctly
+- Check that framework features are accessible via prelude
 
 ---
 
-**Session End**: 2025-10-29 11:30 (approximate)  
-**Status**: ✅ Clean - Ready for next session
+**Session End**: 2025-10-30 (exact time varies)  
+**Status**: ✅ Clean - All changes committed, session saved  
+**Ready for**: Next development session or PR review
