@@ -68,12 +68,10 @@ pub struct AppConfig {
     #[serde(default)]
     pub uploads: UploadConfig,
 
-    #[serde(default)]
-    pub custom: HashMap<String, String>,
-
-    // Capture all other sections not explicitly defined above
+    // All other sections - user-defined configuration sections
+    // These sections are stored as TOML values and can be deserialized on-demand
     #[serde(flatten)]
-    pub extra: HashMap<String, serde_json::Value>,
+    pub sections: HashMap<String, toml::Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1007,6 +1005,90 @@ impl AppConfig {
     pub fn is_debug(&self) -> bool {
         cfg!(debug_assertions) || env::var("RUSTF_DEBUG").is_ok()
     }
+
+    /// Get a custom configuration section by name
+    ///
+    /// Deserializes a custom section from the configuration into the specified type.
+    /// This allows type-safe access to application-defined configuration sections.
+    ///
+    /// # Arguments
+    /// * `name` - The name of the configuration section
+    ///
+    /// # Returns
+    /// * `Ok(T)` - The deserialized configuration section
+    /// * `Err` - If the section doesn't exist or deserialization fails
+    ///
+    /// # Example
+    /// ```ignore
+    /// #[derive(serde::Deserialize)]
+    /// struct AppSettings {
+    ///     api_key: String,
+    ///     max_connections: usize,
+    /// }
+    ///
+    /// let settings = config.section::<AppSettings>("app")?;
+    /// println!("API Key: {}", settings.api_key);
+    /// ```
+    pub fn section<T: serde::de::DeserializeOwned>(&self, name: &str) -> Result<T> {
+        self.sections
+            .get(name)
+            .ok_or_else(|| {
+                Error::internal(format!(
+                    "Configuration section '{}' not found. Check your config.toml.",
+                    name
+                ))
+            })
+            .and_then(|value| {
+                serde_json::from_value(serde_json::to_value(value).map_err(|e| {
+                    Error::internal(format!(
+                        "Failed to serialize section '{}' to JSON: {}",
+                        name, e
+                    ))
+                })?)
+                .map_err(|e| {
+                    Error::internal(format!("Failed to deserialize section '{}': {}", name, e))
+                })
+            })
+    }
+
+    /// Get a raw configuration value from a custom section
+    ///
+    /// Returns the TOML value at the specified section, or None if not found.
+    /// This allows access to configuration values without requiring full deserialization.
+    ///
+    /// # Arguments
+    /// * `section_name` - The name of the configuration section
+    ///
+    /// # Returns
+    /// * `Some(&toml::Value)` - The configuration value
+    /// * `None` - If the section doesn't exist
+    ///
+    /// # Example
+    /// ```ignore
+    /// if let Some(value) = config.get_value("app.name") {
+    ///     println!("App name: {:?}", value);
+    /// }
+    /// ```
+    pub fn get_value(&self, section_name: &str) -> Option<&toml::Value> {
+        self.sections.get(section_name)
+    }
+
+    /// Check if a custom configuration section exists
+    ///
+    /// Returns true if the specified section is defined in the configuration.
+    ///
+    /// # Arguments
+    /// * `name` - The name of the configuration section
+    ///
+    /// # Example
+    /// ```ignore
+    /// if config.has_section("payment") {
+    ///     let payment = config.section::<PaymentConfig>("payment")?;
+    /// }
+    /// ```
+    pub fn has_section(&self, name: &str) -> bool {
+        self.sections.contains_key(name)
+    }
 }
 
 // TOML support
@@ -1278,5 +1360,111 @@ debug = true
             merged["custom"]["logging"]["debug"].as_bool().unwrap(),
             true
         );
+    }
+
+    #[test]
+    fn test_custom_section_access() {
+        // Test that custom sections are properly accessible
+        use serde::{Deserialize, Serialize};
+
+        #[derive(Debug, Deserialize, Serialize, PartialEq)]
+        struct AppSettings {
+            name: String,
+            version: String,
+            debug: bool,
+        }
+
+        let mut config = AppConfig::default();
+
+        // Add a custom section to the config
+        let app_value = toml::Value::Table(toml::map::Map::from_iter(vec![
+            (
+                "name".to_string(),
+                toml::Value::String("TestApp".to_string()),
+            ),
+            (
+                "version".to_string(),
+                toml::Value::String("1.0.0".to_string()),
+            ),
+            ("debug".to_string(), toml::Value::Boolean(true)),
+        ]));
+
+        config.sections.insert("app".to_string(), app_value);
+
+        // Test has_section
+        assert!(config.has_section("app"));
+        assert!(!config.has_section("nonexistent"));
+
+        // Test get_value
+        assert!(config.get_value("app").is_some());
+        assert!(config.get_value("nonexistent").is_none());
+
+        // Test section() deserialization
+        let app_settings: AppSettings = config.section("app").unwrap();
+        assert_eq!(app_settings.name, "TestApp");
+        assert_eq!(app_settings.version, "1.0.0");
+        assert_eq!(app_settings.debug, true);
+    }
+
+    #[test]
+    fn test_custom_section_error_handling() {
+        // Test error handling when section is missing
+        use serde::Deserialize;
+
+        #[derive(Debug, Deserialize)]
+        struct PaymentConfig {
+            stripe_key: String,
+        }
+
+        let config = AppConfig::default();
+
+        // Should return error for missing section
+        let result: Result<PaymentConfig> = config.section("payment");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("not found"));
+    }
+
+    #[test]
+    fn test_custom_sections_with_toml_loading() {
+        // Test that custom sections are properly loaded and accessible
+        let config_toml = r#"
+[server]
+port = 8000
+
+[app]
+name = "TestApp"
+version = "2.0.0"
+
+[payment]
+stripe_key = "sk_test_123"
+enabled = true
+"#;
+
+        let config: AppConfig = toml::from_str(config_toml).unwrap();
+
+        // Verify framework section is typed
+        assert_eq!(config.server.port, 8000);
+
+        // Verify custom sections are in sections
+        assert!(config.has_section("app"));
+        assert!(config.has_section("payment"));
+        assert!(!config.has_section("nonexistent"));
+
+        // Verify can access values
+        assert!(config.get_value("app").is_some());
+        assert!(config.get_value("payment").is_some());
+
+        // Verify can access specific values within sections
+        let app_name = config
+            .get_value("app")
+            .and_then(|v| v.get("name"))
+            .and_then(|v| v.as_str());
+        assert_eq!(app_name, Some("TestApp"));
+
+        let stripe_key = config
+            .get_value("payment")
+            .and_then(|v| v.get("stripe_key"))
+            .and_then(|v| v.as_str());
+        assert_eq!(stripe_key, Some("sk_test_123"));
     }
 }
