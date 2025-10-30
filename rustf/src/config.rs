@@ -646,6 +646,21 @@ impl AppConfig {
             self.session.same_site = other.session.same_site;
         }
 
+        // Merge session storage configuration (environment-specific storage should take precedence)
+        self.session.storage = other.session.storage;
+
+        // Merge session fingerprint mode
+        if other.session.fingerprint_mode != default_fingerprint_mode() {
+            self.session.fingerprint_mode = other.session.fingerprint_mode;
+        }
+
+        // Merge exempt routes (append rather than replace to preserve base routes)
+        for route in other.session.exempt_routes {
+            if !self.session.exempt_routes.contains(&route) {
+                self.session.exempt_routes.push(route);
+            }
+        }
+
         // Merge other configs if they have non-default values
         if other.database.url.is_some() {
             self.database = other.database;
@@ -1022,5 +1037,146 @@ mod toml {
         Err(Error::internal(
             "TOML support not enabled. Add 'config' feature.",
         ))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_session_storage_merge_redis() {
+        // Test that Redis storage configuration from env config overrides base config
+        let mut base = AppConfig::default();
+        base.session.storage = SessionStorageConfig::Memory {
+            cleanup_interval: 300,
+        };
+
+        let mut dev = AppConfig::default();
+        dev.session.storage = SessionStorageConfig::Redis {
+            url: "redis://localhost:6379".to_string(),
+            prefix: "test:session:".to_string(),
+            pool_size: 10,
+            connection_timeout: 5000,
+            command_timeout: 3000,
+        };
+
+        // Merge dev config into base
+        base.merge_with(dev);
+
+        // Verify Redis storage is now active
+        assert!(
+            matches!(base.session.storage, SessionStorageConfig::Redis { .. }),
+            "Session storage should be Redis after merge"
+        );
+    }
+
+    #[test]
+    fn test_session_storage_merge_memory() {
+        // Test that Memory storage configuration is preserved if set
+        let mut base = AppConfig::default();
+        base.session.storage = SessionStorageConfig::Redis {
+            url: "redis://localhost:6379".to_string(),
+            prefix: "test:".to_string(),
+            pool_size: 10,
+            connection_timeout: 5000,
+            command_timeout: 3000,
+        };
+
+        let mut dev = AppConfig::default();
+        dev.session.storage = SessionStorageConfig::Memory {
+            cleanup_interval: 600,
+        };
+
+        // Merge dev config into base
+        base.merge_with(dev);
+
+        // Verify Memory storage is now active
+        assert!(
+            matches!(
+                base.session.storage,
+                SessionStorageConfig::Memory {
+                    cleanup_interval: 600
+                }
+            ),
+            "Session storage should be Memory after merge"
+        );
+    }
+
+    #[test]
+    fn test_session_fingerprint_mode_merge() {
+        // Test that fingerprint_mode is merged from env config
+        let mut base = AppConfig::default();
+        base.session.fingerprint_mode = "strict".to_string();
+
+        let mut dev = AppConfig::default();
+        dev.session.fingerprint_mode = "soft".to_string();
+
+        base.merge_with(dev);
+
+        assert_eq!(
+            base.session.fingerprint_mode, "soft",
+            "Fingerprint mode should be updated from dev config"
+        );
+    }
+
+    #[test]
+    fn test_session_exempt_routes_merge() {
+        // Test that exempt routes are merged (not replaced)
+        let mut base = AppConfig::default();
+        base.session.exempt_routes = vec!["/health".to_string(), "/status".to_string()];
+
+        let mut dev = AppConfig::default();
+        dev.session.exempt_routes = vec!["/test".to_string()];
+
+        base.merge_with(dev);
+
+        // Verify both base and dev routes are present
+        assert!(
+            base.session.exempt_routes.contains(&"/health".to_string()),
+            "Base exempt route /health should be preserved"
+        );
+        assert!(
+            base.session.exempt_routes.contains(&"/status".to_string()),
+            "Base exempt route /status should be preserved"
+        );
+        assert!(
+            base.session.exempt_routes.contains(&"/test".to_string()),
+            "Dev exempt route /test should be added"
+        );
+        assert_eq!(
+            base.session.exempt_routes.len(),
+            3,
+            "Should have 3 exempt routes total"
+        );
+    }
+
+    #[test]
+    fn test_session_other_fields_merge() {
+        // Test that other session fields are properly merged
+        let mut base = AppConfig::default();
+        base.session.enabled = true;
+        base.session.idle_timeout = 1800;
+        base.session.cookie_name = "base_session".to_string();
+
+        let mut dev = AppConfig::default();
+        dev.session.enabled = false;
+        dev.session.idle_timeout = 3600;
+        dev.session.cookie_name = "dev_session".to_string();
+
+        base.merge_with(dev);
+
+        assert_eq!(
+            base.session.enabled, false,
+            "session.enabled should be merged"
+        );
+        assert_eq!(
+            base.session.idle_timeout, 3600,
+            "session.idle_timeout should be merged"
+        );
+        assert_eq!(
+            base.session.cookie_name, "dev_session",
+            "session.cookie_name should be merged"
+        );
     }
 }
