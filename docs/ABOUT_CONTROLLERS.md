@@ -211,9 +211,26 @@ let user_id = ctx.param("id").unwrap_or("0");
 // Query parameters (?page=2 -> page)
 let page = ctx.query("page").unwrap_or("1");
 
-// Form data (POST forms)
+// Form data - Three approaches available:
+
+// 1. Manual parsing (low-level, verbose but flexible)
 let form_data = ctx.body_form()?;
 let email = form_data.get("email").unwrap_or(&String::new());
+
+// 2. Typed parsing (recommended - automatic deserialization)
+#[derive(serde::Deserialize)]
+struct LoginForm {
+    email: String,
+    password: String,
+}
+let form: LoginForm = ctx.body_form_typed()?;
+let email = form.email;
+
+// 3. Individual field helpers (for simple cases)
+let email = ctx.str_body("email")?;              // Required field
+let name = ctx.str_body_or("name", "Anonymous"); // Optional with default
+let age = ctx.int_body("age")?;                  // Parse as integer
+let active = ctx.bool_body_or("active", false);  // Parse as boolean
 
 // JSON body
 let json_data: MyStruct = ctx.body_json()?;
@@ -621,26 +638,24 @@ async fn view_login(ctx: &mut Context) -> Result<()> {
 }
 
 async fn do_login(ctx: &mut Context) -> Result<()> {
-    let form_data = ctx.body_form()?;
-    let empty = String::new();
-    let email = form_data.get("email").unwrap_or(&empty);
-    let password = form_data.get("password").unwrap_or(&empty);
-    
+    // Parse form data into typed structure
+    let form: LoginForm = ctx.body_form_typed()?;
+
     // Input validation
-    if !email.contains('@') || password.is_empty() {
+    if !form.email.contains('@') || form.password.is_empty() {
         ctx.flash_error("Please provide a valid email and password");
         return ctx.redirect("/auth/login");
     }
 
     // Authentication logic (use proper password hashing in production)
-    if email == "admin@example.com" && password == "password" {
+    if form.email == "admin@example.com" && form.password == "password" {
         ctx.session_set("user", json!({
             "id": 1,
-            "email": email,
+            "email": form.email,
             "name": "Admin User",
             "role": "admin"
         }))?;
-        
+
         ctx.flash_success("Login successful!");
         ctx.redirect("/dashboard")
     } else {
@@ -663,40 +678,338 @@ async fn view_register(ctx: &mut Context) -> Result<()> {
 }
 
 async fn do_register(ctx: &mut Context) -> Result<()> {
-    let form_data = ctx.body_form()?;
-    let empty = String::new();
-    let email = form_data.get("email").unwrap_or(&empty);
-    let password = form_data.get("password").unwrap_or(&empty);
-    let name = form_data.get("name").unwrap_or(&empty);
-    
+    // Parse form data into typed structure
+    let form: RegisterForm = ctx.body_form_typed()?;
+
     // Validation
-    if !email.contains('@') {
+    if !form.email.contains('@') {
         ctx.flash_error("Please provide a valid email address");
         return ctx.redirect("/auth/register");
     }
-    
-    if password.len() < 8 {
+
+    if form.password.len() < 8 {
         ctx.flash_error("Password must be at least 8 characters long");
         return ctx.redirect("/auth/register");
     }
-    
-    if name.trim().is_empty() {
+
+    if form.name.trim().is_empty() {
         ctx.flash_error("Please provide your name");
         return ctx.redirect("/auth/register");
     }
-    
+
     // Check if user already exists (simplified)
     // In real app: check database
-    if email == "admin@example.com" {
+    if form.email == "admin@example.com" {
         ctx.flash_error("User already exists");
         return ctx.redirect("/auth/register");
     }
-    
+
     // Create user (in real app: hash password, save to database)
-    ctx.flash_success(&format!("Account created successfully for {}! You can now log in.", name));
+    ctx.flash_success(&format!("Account created successfully for {}! You can now log in.", form.name));
     ctx.redirect("/auth/login")
 }
 ```
+
+### Form Handling with Typed Parsing
+
+RustF provides `body_form_typed<T>()` for automatic form deserialization into Rust structures, significantly reducing boilerplate code.
+
+#### Basic Form Parsing
+
+```rust
+use rustf::prelude::*;
+use serde::Deserialize;
+
+// Define your form structure
+#[derive(Deserialize)]
+struct ContactForm {
+    name: String,
+    email: String,
+    message: String,
+}
+
+pub fn install() -> Vec<Route> {
+    routes![
+        GET  "/contact" => view_contact,
+        POST "/contact" => submit_contact,
+    ]
+}
+
+async fn view_contact(ctx: &mut Context) -> Result<()> {
+    ctx.view("/contact", json!({"title": "Contact Us"}))
+}
+
+async fn submit_contact(ctx: &mut Context) -> Result<()> {
+    // Parse form directly into typed structure
+    let form: ContactForm = ctx.body_form_typed()?;
+
+    // Validate
+    if !form.email.contains('@') {
+        ctx.flash_error("Please provide a valid email address");
+        return ctx.redirect("/contact");
+    }
+
+    if form.message.trim().is_empty() {
+        ctx.flash_error("Message cannot be empty");
+        return ctx.redirect("/contact");
+    }
+
+    // Process form data
+    log::info!("Contact form from {}: {}", form.name, form.email);
+
+    ctx.flash_success("Thank you! We'll get back to you soon.");
+    ctx.redirect("/")
+}
+```
+
+#### Optional Fields
+
+Use `Option<T>` for optional form fields:
+
+```rust
+#[derive(Deserialize)]
+struct ProfileForm {
+    name: String,              // Required
+    bio: Option<String>,       // Optional
+    website: Option<String>,   // Optional
+    age: Option<i32>,          // Optional number
+    newsletter: Option<bool>,  // Optional checkbox
+}
+
+async fn update_profile(ctx: &mut Context) -> Result<()> {
+    let form: ProfileForm = ctx.body_form_typed()?;
+
+    // Required field is always present
+    let name = form.name;
+
+    // Optional fields can be None
+    if let Some(bio) = form.bio {
+        log::info!("User bio: {}", bio);
+    }
+
+    // Provide defaults for optional fields
+    let website = form.website.unwrap_or_else(|| "Not provided".to_string());
+    let age = form.age.unwrap_or(0);
+    let newsletter = form.newsletter.unwrap_or(false);
+
+    ctx.flash_success("Profile updated!");
+    ctx.redirect("/profile")
+}
+```
+
+#### Working with Arrays (Multiple Select / Checkboxes)
+
+Handle multiple values using `Vec<T>`:
+
+```rust
+#[derive(Deserialize)]
+struct PreferencesForm {
+    username: String,
+    interests: Vec<String>,      // Multiple checkboxes
+    languages: Vec<String>,       // Multiple select
+    notifications: Option<Vec<String>>, // Optional multiple
+}
+
+async fn save_preferences(ctx: &mut Context) -> Result<()> {
+    let form: PreferencesForm = ctx.body_form_typed()?;
+
+    // Handle multiple values
+    log::info!("User interests: {:?}", form.interests);
+    log::info!("Languages: {:?}", form.languages);
+
+    // Optional arrays
+    if let Some(notif) = form.notifications {
+        log::info!("Notification preferences: {:?}", notif);
+    }
+
+    ctx.flash_success("Preferences saved!");
+    ctx.redirect("/settings")
+}
+```
+
+**HTML Form Example:**
+```html
+<form method="POST">
+    <input name="username" value="john_doe" />
+
+    <!-- Multiple checkboxes with same name -->
+    <input type="checkbox" name="interests" value="sports" checked />
+    <input type="checkbox" name="interests" value="music" checked />
+    <input type="checkbox" name="interests" value="travel" />
+
+    <!-- Multiple select -->
+    <select name="languages" multiple>
+        <option value="en" selected>English</option>
+        <option value="fr" selected>French</option>
+        <option value="es">Spanish</option>
+    </select>
+</form>
+```
+
+#### Post-Processing Transformations
+
+Apply transformations after parsing:
+
+```rust
+#[derive(Deserialize)]
+struct CountryForm {
+    code: String,
+    name: String,
+    native_name: Option<String>,
+    timezone: Option<String>,
+}
+
+async fn save_country(ctx: &mut Context) -> Result<()> {
+    let mut form: CountryForm = ctx.body_form_typed()?;
+
+    // Apply transformations
+    form.code = form.code.trim().to_uppercase();
+    form.name = form.name.trim().to_string();
+
+    // Transform optional fields
+    form.native_name = form.native_name
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty());
+
+    form.timezone = form.timezone
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty());
+
+    // Validate transformed data
+    if form.code.len() != 2 {
+        ctx.flash_error("Country code must be exactly 2 characters");
+        return ctx.redirect("/countries/new");
+    }
+
+    // Save to database...
+
+    ctx.flash_success(&format!("Country {} created!", form.name));
+    ctx.redirect("/countries")
+}
+```
+
+#### Nested Structures
+
+Handle complex nested forms:
+
+```rust
+#[derive(Deserialize)]
+struct Address {
+    street: String,
+    city: String,
+    country: String,
+    postal_code: String,
+}
+
+#[derive(Deserialize)]
+struct UserForm {
+    name: String,
+    email: String,
+    address: Address,  // Nested structure
+}
+
+async fn create_user(ctx: &mut Context) -> Result<()> {
+    let form: UserForm = ctx.body_form_typed()?;
+
+    // Access nested data
+    log::info!("User: {}", form.name);
+    log::info!("Address: {}, {}", form.address.city, form.address.country);
+
+    ctx.json(json!({
+        "success": true,
+        "user": form
+    }))
+}
+```
+
+**HTML Form Example:**
+```html
+<form method="POST">
+    <input name="name" value="John Doe" />
+    <input name="email" value="john@example.com" />
+
+    <!-- Nested fields use dot notation -->
+    <input name="address.street" value="123 Main St" />
+    <input name="address.city" value="New York" />
+    <input name="address.country" value="USA" />
+    <input name="address.postal_code" value="10001" />
+</form>
+```
+
+#### Error Handling
+
+Handle parsing errors gracefully:
+
+```rust
+async fn safe_form_handler(ctx: &mut Context) -> Result<()> {
+    // Parse form with error handling
+    let form: ContactForm = match ctx.body_form_typed() {
+        Ok(f) => f,
+        Err(e) => {
+            log::error!("Form parsing error: {}", e);
+            ctx.flash_error("Invalid form data. Please check your input.");
+            return ctx.redirect("/contact");
+        }
+    };
+
+    // Process valid form...
+    ctx.flash_success("Form submitted successfully!");
+    ctx.redirect("/")
+}
+```
+
+#### Comparison: Three Approaches
+
+```rust
+// ❌ Approach 1: Manual (verbose, error-prone)
+async fn manual_approach(ctx: &mut Context) -> Result<()> {
+    let form_data = ctx.body_form()?;
+    let name = form_data.get("name").unwrap_or(&String::new()).clone();
+    let email = form_data.get("email").unwrap_or(&String::new()).clone();
+    let age = form_data.get("age").unwrap_or(&String::new()).parse::<i32>().unwrap_or(0);
+    // ... lots of repetitive code
+}
+
+// ⚠️ Approach 2: Field helpers (good for simple forms)
+async fn field_helpers_approach(ctx: &mut Context) -> Result<()> {
+    let name = ctx.str_body("name")?;
+    let email = ctx.str_body("email")?;
+    let age = ctx.int_body("age")?;
+    // Good for 2-3 fields, becomes verbose with many fields
+}
+
+// ✅ Approach 3: Typed parsing (recommended for complex forms)
+#[derive(Deserialize)]
+struct UserForm {
+    name: String,
+    email: String,
+    age: i32,
+}
+
+async fn typed_approach(ctx: &mut Context) -> Result<()> {
+    let form: UserForm = ctx.body_form_typed()?;
+    // Clean, type-safe, and concise!
+}
+```
+
+#### When to Use Each Method
+
+**Use `body_form_typed<T>()`** when:
+- ✅ Form has 4+ fields
+- ✅ You need type safety
+- ✅ You have nested data structures
+- ✅ You want to reuse form structures
+- ✅ You need to pass form data to other functions
+
+**Use individual field helpers** (`str_body()`, etc.) when:
+- ✅ Form has 1-3 simple fields
+- ✅ You need immediate validation
+- ✅ Quick prototyping
+
+**Use manual `body_form()`** when:
+- ✅ You need maximum flexibility
+- ✅ Dynamic field names
+- ✅ Custom parsing logic
 
 ### RESTful API Controller
 
