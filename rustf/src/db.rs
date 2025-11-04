@@ -55,7 +55,7 @@ impl DB {
 
             match AnyDatabase::connect(url).await {
                 Ok(db) => {
-                    log::info!("Database connection established successfully");
+                    log::info!("Database connected");
                     Some(Arc::new(db))
                 }
                 Err(e) => {
@@ -67,7 +67,6 @@ impl DB {
                 }
             }
         } else {
-            log::info!("No database URL provided - database operations will be unavailable");
             None
         };
 
@@ -691,34 +690,21 @@ impl DB {
     pub async fn shutdown() -> Result<()> {
         // Shutdown registry databases
         if let Ok(registry) = Self::get_registry() {
-            for name in registry.list_databases().await {
-                log::info!("Closing database connection: {}", name);
-            }
             registry.clear().await;
         }
 
         // Shutdown legacy DATABASE
         if let Some(db_option) = DATABASE.get() {
             if let Some(connection) = db_option.as_ref() {
-                // First check if connection is still alive
-                if let Ok(true) = Self::ping().await {
-                    log::info!("Database connection is alive, proceeding with shutdown");
-                }
-
-                log::info!("Closing database connections...");
-
                 match connection.as_ref() {
                     AnyDatabase::Postgres(pool) => {
                         pool.close().await;
-                        log::info!("PostgreSQL connections closed");
                     }
                     AnyDatabase::MySQL(pool) => {
                         pool.close().await;
-                        log::info!("MySQL connections closed");
                     }
                     AnyDatabase::SQLite(pool) => {
                         pool.close().await;
-                        log::info!("SQLite connections closed");
                     }
                 }
             }

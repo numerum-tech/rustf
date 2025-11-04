@@ -99,19 +99,6 @@ pub async fn create_session_middleware(
 
     let session_config: InternalSessionConfig = config.session.clone().into();
 
-    // Log session configuration for debugging
-    log::info!("Session middleware enabled with config:");
-    log::info!("  Cookie name: {}", session_config.cookie_name);
-    log::info!("  Idle timeout: {:?}", session_config.idle_timeout);
-    log::info!("  Absolute timeout: {:?}", session_config.absolute_timeout);
-    log::info!("  SameSite: {:?}", session_config.same_site);
-    log::info!("  Secure: {}", session_config.secure);
-    log::info!("  Fingerprint mode: {:?}", session_config.fingerprint_mode);
-    log::info!("  Storage: {:?}", config.session.storage);
-    if !session_config.exempt_routes.is_empty() {
-        log::info!("  Exempt routes: {:?}", session_config.exempt_routes);
-    }
-
     // Try to use configured storage (checks definitions first, then config)
     match crate::middleware::builtin::session::SessionMiddleware::with_configured_storage(
         session_config.clone(),

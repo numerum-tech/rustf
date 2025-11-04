@@ -968,12 +968,6 @@ impl RustF {
             // Only process if middleware has inbound phase and should run
             if let Some(ref inbound) = middleware.inbound {
                 if inbound.should_run(ctx) {
-                    log::debug!(
-                        "Executing inbound middleware '{}' (priority: {})",
-                        middleware.name,
-                        middleware.priority
-                    );
-
                     // Process the request (now async)
                     let action = inbound.process_request(ctx).await?;
 
@@ -986,7 +980,6 @@ impl RustF {
                         }
                         InboundAction::Stop => {
                             // Early return - use response set on context
-                            log::debug!("Middleware '{}' stopped chain", middleware.name);
                             let response =
                                 ctx.take_response().unwrap_or_else(Response::internal_error);
                             return Ok(MiddlewareResult::Stop(response));
@@ -1001,7 +994,6 @@ impl RustF {
         }
 
         // Phase 2: Execute the route handler
-        log::debug!("All inbound middleware passed, executing route handler");
         let result = self.execute_route_handler(ctx).await?;
 
         let response = match result {
@@ -1016,7 +1008,6 @@ impl RustF {
         // Context has all modifications from both inbound middleware and handler
         for middleware in outbound_stack.iter().rev() {
             if let Some(ref outbound) = middleware.outbound {
-                log::debug!("Executing outbound middleware '{}'", middleware.name);
                 outbound.process_response(ctx).await?;
             }
         }
