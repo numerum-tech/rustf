@@ -107,8 +107,6 @@ pub fn directory_setup(
                         perms.set_mode(0o755); // rwxr-xr-x
                         fs::set_permissions(path, perms).await?;
                     }
-                } else {
-                    log::debug!("Directory already exists: {}", dir);
                 }
             }
 
@@ -143,10 +141,6 @@ pub fn cleanup_manager(
             log::info!("Running cleanup manager");
 
             if !temp_dir.exists() {
-                log::debug!(
-                    "Temp directory does not exist, skipping cleanup: {:?}",
-                    temp_dir
-                );
                 return Ok(());
             }
 
@@ -167,8 +161,6 @@ pub fn cleanup_manager(
                 if let Ok(modified) = metadata.modified() {
                     if let Ok(age) = now.duration_since(modified) {
                         if age > max_age {
-                            log::debug!("Removing old file: {:?} (age: {:?})", path, age);
-
                             if metadata.is_dir() {
                                 if let Err(e) = fs::remove_dir_all(&path).await {
                                     log::warn!("Failed to remove directory {:?}: {}", path, e);
@@ -217,10 +209,6 @@ pub fn log_rotation(
             log::info!("Running log rotation");
 
             if !log_dir.exists() {
-                log::debug!(
-                    "Log directory does not exist, skipping rotation: {:?}",
-                    log_dir
-                );
                 return Ok(());
             }
 
@@ -500,7 +488,6 @@ pub fn cleanup_temp_files(
         Box::pin(async move {
             // Only clean temp files in development by default
             if !ctx.is_development() {
-                log::debug!("Skipping temp file cleanup in {} mode", ctx.env());
                 return Ok(());
             }
 
@@ -542,15 +529,9 @@ pub fn notify_shutdown(
         Box::pin(async move {
             log::info!("Notifying external services of shutdown");
 
-            // Here you would implement actual webhook notification
-            log::debug!(
-                "Would notify webhook: {} (environment: {})",
-                webhook_url,
-                ctx.env()
-            );
-
             // Placeholder for actual implementation
             // You might use reqwest or similar to send the notification
+            let _ = (webhook_url, ctx.env()); // Suppress unused variable warnings
 
             Ok(())
         })

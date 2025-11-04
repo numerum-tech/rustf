@@ -164,8 +164,6 @@ impl RequestPool {
                 }
             }
         }
-
-        log::info!("Warmed up RequestPool with {} objects", pool.len());
     }
 }
 
@@ -256,12 +254,6 @@ pub fn global_request_pool() -> &'static RequestPool {
     REQUEST_POOL.get_or_init(|| {
         let core_count = num_cpus::get();
         let pool_size = (core_count * 4).max(16).min(512);
-
-        log::info!(
-            "Initializing global RequestPool with {} objects (detected {} CPU cores)",
-            pool_size,
-            core_count
-        );
 
         let pool = RequestPool::new(pool_size);
         pool.warm_up(pool_size / 2); // Pre-populate 50% of pool

@@ -478,7 +478,6 @@ impl AppConfig {
         let base_dir = if cfg!(debug_assertions) && Path::new("target/debug").exists() {
             // Look for config relative to target/debug (where the binary runs)
             if Path::new("../../config.toml").exists() {
-                log::debug!("Development mode: Using config.toml from project root");
                 "../.."
             } else {
                 "."
@@ -513,10 +512,6 @@ impl AppConfig {
         // Load and merge environment-specific configuration if it exists
         let env_config_path = base_dir.join(format!("config.{}.toml", env.as_str()));
         if env_config_path.exists() {
-            log::debug!(
-                "Loading environment-specific config from: {}",
-                env_config_path.display()
-            );
             let env_value = Self::load_toml_value(&env_config_path)?;
 
             // Merge environment config into base (environment takes precedence)
@@ -961,7 +956,6 @@ impl AppConfig {
         if views_path.is_absolute() {
             // Absolute path - use as-is but normalize
             self.views.directory = views_path.to_string_lossy().to_string();
-            log::debug!("Using absolute views directory: {}", self.views.directory);
         } else {
             // Relative path - make it relative to the config base directory
             let resolved_path = base_dir.as_ref().join(views_path);
@@ -971,25 +965,13 @@ impl AppConfig {
                 match resolved_path.canonicalize() {
                     Ok(canonical) => {
                         self.views.directory = canonical.to_string_lossy().to_string();
-                        log::debug!(
-                            "Resolved views directory (canonical): {}",
-                            self.views.directory
-                        );
                     }
                     Err(_) => {
                         self.views.directory = resolved_path.to_string_lossy().to_string();
-                        log::debug!(
-                            "Resolved views directory (logical): {}",
-                            self.views.directory
-                        );
                     }
                 }
             } else {
                 self.views.directory = resolved_path.to_string_lossy().to_string();
-                log::debug!(
-                    "Resolved views directory (non-existent): {}",
-                    self.views.directory
-                );
             }
         }
 

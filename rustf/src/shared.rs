@@ -163,8 +163,6 @@ impl ModuleRegistry {
         }
 
         let module = Arc::new(module);
-        log::info!("Registering shared {}: {}", module.module_type(), name);
-
         self.modules
             .insert(name.to_string(), module as Arc<dyn SharedModule>);
 
@@ -278,8 +276,6 @@ impl SharedRegistry {
         let module = Arc::new(module);
         let type_id = TypeId::of::<T>();
         let name = module.name().to_string();
-
-        log::info!("Registering shared {}: {}", module.module_type(), name);
 
         self.modules
             .insert(type_id, module.clone() as Arc<dyn SharedModule>);

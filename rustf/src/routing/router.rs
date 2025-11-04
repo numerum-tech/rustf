@@ -30,14 +30,6 @@ impl Router {
             .add_route(&route.method, &route.path, route.handler, route.xhr_only);
         // XHR routes count as 2 (GET + POST)
         self.route_count += if route.method == "XHR" { 2 } else { 1 };
-
-        log::debug!(
-            "Added route: {} {} (XHR: {}, total: {})",
-            route.method,
-            route.path,
-            route.xhr_only,
-            self.route_count
-        );
     }
 
     /// Match a route in the router

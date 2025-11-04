@@ -70,7 +70,6 @@ impl APP {
             Error::internal("MAIN repository has already been initialized".to_string())
         })?;
 
-        log::debug!("Global APP/MAIN repository initialized");
         Ok(())
     }
 

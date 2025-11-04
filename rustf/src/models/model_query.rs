@@ -365,9 +365,6 @@ impl<T: BaseModel> ModelQuery<T> {
             .build()
             .map_err(|e| Error::template(format!("Query build failed: {}", e)))?;
 
-        log::debug!("Executing query: {}", sql);
-        log::debug!("With parameters: {:?}", params);
-
         T::execute_select_query(&sql, params)
             .await
             .map_err(|e| Error::template(format!("Query execution failed: {}", e)))
@@ -490,12 +487,6 @@ impl<T: BaseModel> ModelQuery<T> {
             .query_builder
             .build()
             .map_err(|e| Error::template(format!("Count query build failed: {}", e)))?;
-
-        log::debug!(
-            "Executing count query: {} with {} parameters",
-            sql,
-            params.len()
-        );
 
         let row = DB::fetch_one_with_params(&sql, params)
             .await

@@ -178,7 +178,6 @@ impl SessionStorage for MemorySessionStorage {
                 // Remove expired session
                 drop(session_data);
                 self.sessions.remove(session_id);
-                log::debug!("MemoryStorage: Session {} expired and removed", session_id);
                 return Ok(None);
             }
 
@@ -198,32 +197,13 @@ impl SessionStorage for MemorySessionStorage {
             // Update last accessed time
             session_data.touch();
             let data_clone = session_data.clone();
-            log::debug!(
-                "MemoryStorage: Retrieved session {} with {} data entries",
-                session_id,
-                if let serde_json::Value::Object(ref map) = data_clone.data {
-                    map.len()
-                } else {
-                    0
-                }
-            );
             Ok(Some(data_clone))
         } else {
-            log::debug!("MemoryStorage: Session {} not found", session_id);
             Ok(None)
         }
     }
 
     async fn set(&self, session_id: &str, data: &SessionData, _ttl: Duration) -> Result<()> {
-        log::debug!(
-            "MemoryStorage: Storing session {} with {} data entries",
-            session_id,
-            if let serde_json::Value::Object(ref map) = data.data {
-                map.len()
-            } else {
-                0
-            }
-        );
         self.sessions.insert(session_id.to_string(), data.clone());
         Ok(())
     }
@@ -320,8 +300,7 @@ impl SessionStorage for MemorySessionStorage {
         );
         backend_metrics.insert(
             "oldest_session_age_secs".to_string(),
-            now.saturating_sub(oldest_session)
-            .to_string(),
+            now.saturating_sub(oldest_session).to_string(),
         );
         backend_metrics.insert("session_timeout_secs".to_string(), timeout_secs.to_string());
         backend_metrics.insert(

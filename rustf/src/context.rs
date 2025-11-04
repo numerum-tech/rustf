@@ -1043,8 +1043,6 @@ impl Context {
         // Get stored token data from session
         let token_data: Option<serde_json::Value> = session.get(token_id);
 
-        log::debug!("Verify CSRF : Session CSRF is:  {:?}", token_data);
-
         let token_data = match token_data {
             Some(data) => data,
             None => return Ok(false),
