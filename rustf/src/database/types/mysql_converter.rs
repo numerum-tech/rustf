@@ -419,13 +419,6 @@ impl TypeConverter for MySqlTypeConverter {
         let type_info = column.type_info();
         let type_name = type_info.name();
 
-        // Debug log the column type
-        log::debug!(
-            "Extracting column '{}' with MySQL type '{}'",
-            column_name,
-            type_name
-        );
-
         // Now we know the value is NOT NULL, so we can extract it based on type
         match type_name {
             "BOOLEAN" | "BOOL" => {
