@@ -101,23 +101,17 @@ impl PostgresTypeConverter {
     ) -> Result<SqlValue> {
         // Try to get as DateTime<Utc> directly (for TIMESTAMPTZ)
         if let Ok(dt) = row.try_get::<DateTime<Utc>, _>(index) {
-            log::debug!(
-                "Successfully extracted TIMESTAMPTZ as DateTime<Utc>: {}",
-                dt
-            );
             return Ok(SqlValue::DateTime(dt.to_rfc3339()));
         }
 
         // Try without timezone info (for TIMESTAMP)
         if let Ok(ndt) = row.try_get::<NaiveDateTime, _>(index) {
-            log::debug!("Successfully extracted TIMESTAMP as NaiveDateTime: {}", ndt);
             let dt = DateTime::<Utc>::from_naive_utc_and_offset(ndt, Utc);
             return Ok(SqlValue::DateTime(dt.to_rfc3339()));
         }
 
         // Try as string (fallback for unusual formats)
         if let Ok(s) = row.try_get::<String, _>(index) {
-            log::debug!("Successfully extracted timestamp as String: {}", s);
             return Ok(SqlValue::DateTime(s));
         }
 
@@ -442,20 +436,8 @@ impl TypeConverter for PostgresTypeConverter {
             })?
             .is_null()
         {
-            log::debug!(
-                "Column '{}' with PostgreSQL type '{}' is NULL",
-                column_name,
-                type_name
-            );
             return Ok(SqlValue::Null);
         }
-
-        // Debug log the column type (for non-NULL values)
-        log::debug!(
-            "Extracting column '{}' with PostgreSQL type '{}'",
-            column_name,
-            type_name
-        );
 
         // Now we know the value is NOT NULL, so we can extract it based on type
         match type_name {
@@ -595,7 +577,6 @@ impl TypeConverter for PostgresTypeConverter {
 
                     // Try to extract as Vec<String> (most common case for arrays)
                     if let Ok(val) = pg_row.try_get::<Vec<String>, _>(column_index) {
-                        log::debug!("Extracted array as Vec<String>: {:?}", val);
                         let array_values: Vec<SqlValue> =
                             val.into_iter().map(SqlValue::String).collect();
                         return Ok(SqlValue::Array(array_values));
@@ -603,7 +584,6 @@ impl TypeConverter for PostgresTypeConverter {
 
                     // Try as Vec<i32> for integer arrays
                     if let Ok(val) = pg_row.try_get::<Vec<i32>, _>(column_index) {
-                        log::debug!("Extracted array as Vec<i32>: {:?}", val);
                         let array_values: Vec<SqlValue> =
                             val.into_iter().map(SqlValue::Int).collect();
                         return Ok(SqlValue::Array(array_values));
@@ -611,7 +591,6 @@ impl TypeConverter for PostgresTypeConverter {
 
                     // Try as Vec<i64> for bigint arrays
                     if let Ok(val) = pg_row.try_get::<Vec<i64>, _>(column_index) {
-                        log::debug!("Extracted array as Vec<i64>: {:?}", val);
                         let array_values: Vec<SqlValue> =
                             val.into_iter().map(SqlValue::BigInt).collect();
                         return Ok(SqlValue::Array(array_values));
@@ -619,7 +598,6 @@ impl TypeConverter for PostgresTypeConverter {
 
                     // Try as Vec<f64> for float arrays
                     if let Ok(val) = pg_row.try_get::<Vec<f64>, _>(column_index) {
-                        log::debug!("Extracted array as Vec<f64>: {:?}", val);
                         let array_values: Vec<SqlValue> =
                             val.into_iter().map(SqlValue::Double).collect();
                         return Ok(SqlValue::Array(array_values));
@@ -627,7 +605,6 @@ impl TypeConverter for PostgresTypeConverter {
 
                     // Try as Vec<bool> for boolean arrays
                     if let Ok(val) = pg_row.try_get::<Vec<bool>, _>(column_index) {
-                        log::debug!("Extracted array as Vec<bool>: {:?}", val);
                         let array_values: Vec<SqlValue> =
                             val.into_iter().map(SqlValue::Bool).collect();
                         return Ok(SqlValue::Array(array_values));
@@ -635,7 +612,6 @@ impl TypeConverter for PostgresTypeConverter {
 
                     // Try as Vec<Uuid> for UUID arrays
                     if let Ok(val) = pg_row.try_get::<Vec<sqlx::types::Uuid>, _>(column_index) {
-                        log::debug!("Extracted array as Vec<Uuid>: {:?}", val);
                         let array_values: Vec<SqlValue> = val
                             .into_iter()
                             .map(|uuid| SqlValue::Uuid(uuid.to_string()))
@@ -645,7 +621,6 @@ impl TypeConverter for PostgresTypeConverter {
 
                     // Try as Vec<chrono::NaiveDate> for date arrays
                     if let Ok(val) = pg_row.try_get::<Vec<chrono::NaiveDate>, _>(column_index) {
-                        log::debug!("Extracted array as Vec<NaiveDate>: {:?}", val);
                         let array_values: Vec<SqlValue> = val
                             .into_iter()
                             .map(|date| SqlValue::Date(date.to_string()))
@@ -655,7 +630,6 @@ impl TypeConverter for PostgresTypeConverter {
 
                     // Try as Vec<chrono::NaiveTime> for time arrays
                     if let Ok(val) = pg_row.try_get::<Vec<chrono::NaiveTime>, _>(column_index) {
-                        log::debug!("Extracted array as Vec<NaiveTime>: {:?}", val);
                         let array_values: Vec<SqlValue> = val
                             .into_iter()
                             .map(|time| SqlValue::Time(time.to_string()))
@@ -667,7 +641,6 @@ impl TypeConverter for PostgresTypeConverter {
                     if let Ok(val) =
                         pg_row.try_get::<Vec<chrono::DateTime<chrono::Utc>>, _>(column_index)
                     {
-                        log::debug!("Extracted array as Vec<DateTime>: {:?}", val);
                         let array_values: Vec<SqlValue> = val
                             .into_iter()
                             .map(|dt| SqlValue::Timestamp(dt.timestamp()))
@@ -678,7 +651,6 @@ impl TypeConverter for PostgresTypeConverter {
                     // Try as Vec<rust_decimal::Decimal> for decimal arrays
                     #[cfg(feature = "decimal")]
                     if let Ok(val) = pg_row.try_get::<Vec<rust_decimal::Decimal>, _>(column_index) {
-                        log::debug!("Extracted array as Vec<Decimal>: {:?}", val);
                         let array_values: Vec<SqlValue> =
                             val.into_iter().map(SqlValue::Decimal).collect();
                         return Ok(SqlValue::Array(array_values));
@@ -686,18 +658,14 @@ impl TypeConverter for PostgresTypeConverter {
 
                     // Try as Vec<Vec<u8>> for bytea arrays
                     if let Ok(val) = pg_row.try_get::<Vec<Vec<u8>>, _>(column_index) {
-                        log::debug!("Extracted array as Vec<Vec<u8>>: {:?}", val);
-                        let array_values: Vec<SqlValue> = val
-                            .into_iter()
-                            .map(SqlValue::Bytes)
-                            .collect();
+                        let array_values: Vec<SqlValue> =
+                            val.into_iter().map(SqlValue::Bytes).collect();
                         return Ok(SqlValue::Array(array_values));
                     }
 
                     // For enum arrays or other custom types, try JSON representation
                     if let Ok(val) = pg_row.try_get::<serde_json::Value, _>(column_index) {
                         if let serde_json::Value::Array(arr) = val {
-                            log::debug!("Extracted array via JSON: {:?}", arr);
                             let array_values: Vec<SqlValue> = arr
                                 .into_iter()
                                 .map(|v| match v {
@@ -728,27 +696,19 @@ impl TypeConverter for PostgresTypeConverter {
                 }
 
                 // Check if this might be a custom enum type (non-array)
-                let is_likely_enum = !is_array && 
+                let is_likely_enum = !is_array &&
                                     !type_name.contains("(") &&      // not a composite type
                                     type_name.chars().all(|c| c.is_alphanumeric() || c == '_'); // valid identifier
 
                 if is_likely_enum {
-                    log::debug!(
-                        "Attempting to extract PostgreSQL enum type '{}' from column '{}'",
-                        type_name,
-                        column_name
-                    );
-
                     // Try multiple extraction methods
                     // Method 1: Direct string extraction (sometimes works)
                     if let Ok(val) = pg_row.try_get::<String, _>(column_index) {
-                        log::debug!("Extracted enum via String: {}", val);
                         return Ok(SqlValue::Enum(val));
                     }
 
                     // Method 2: Try &str
                     if let Ok(val) = pg_row.try_get::<&str, _>(column_index) {
-                        log::debug!("Extracted enum via &str: {}", val);
                         return Ok(SqlValue::Enum(val.to_string()));
                     }
 
@@ -758,7 +718,6 @@ impl TypeConverter for PostgresTypeConverter {
 
                     // Try to decode as text - this should work for enums
                     if let Ok(text_val) = <&str as Decode<'_, sqlx::Postgres>>::decode(value_ref) {
-                        log::debug!("Extracted enum via Decode: {}", text_val);
                         return Ok(SqlValue::Enum(text_val.to_string()));
                     }
 
@@ -805,14 +764,8 @@ impl TypeConverter for PostgresTypeConverter {
             let json_value = value.to_json();
 
             // Debug log the conversion for troubleshooting
-            if json_value.is_null() {
-                log::debug!("Column '{}' converted to JSON null", name);
-            }
-
             obj.insert(name.to_string(), json_value);
         }
-
-        log::debug!("Row converted to JSON: {:?}", obj);
 
         Ok(JsonValue::Object(obj))
     }

@@ -579,10 +579,9 @@ impl RenderContext {
 
             // Check loop stack for item variables
             for loop_ctx in self.loop_stack.iter().rev() {
-                if loop_ctx.item_name == name
-                    && loop_ctx.current_index < loop_ctx.items.len() {
-                        return loop_ctx.items[loop_ctx.current_index].clone();
-                    }
+                if loop_ctx.item_name == name && loop_ctx.current_index < loop_ctx.items.len() {
+                    return loop_ctx.items[loop_ctx.current_index].clone();
+                }
             }
 
             // Finally check locals (helper params, etc.)
@@ -654,10 +653,11 @@ impl RenderContext {
                     let mut found = None;
                     for loop_ctx in self.loop_stack.iter().rev() {
                         if loop_ctx.item_name == base
-                            && loop_ctx.current_index < loop_ctx.items.len() {
-                                found = Some(loop_ctx.items[loop_ctx.current_index].clone());
-                                break;
-                            }
+                            && loop_ctx.current_index < loop_ctx.items.len()
+                        {
+                            found = Some(loop_ctx.items[loop_ctx.current_index].clone());
+                            break;
+                        }
                     }
 
                     if let Some(v) = found {
@@ -1220,15 +1220,7 @@ impl Renderer {
                 collection,
                 body,
             } => {
-                eprintln!(
-                    "DEBUG: render_node - Loop with collection: {:?}",
-                    collection
-                );
                 let collection_value = self.context.evaluate_expression(collection)?;
-                eprintln!(
-                    "DEBUG: render_node - Collection value: {:?}",
-                    collection_value
-                );
 
                 if let Value::Array(items) = collection_value {
                     let mut output = String::new();
@@ -1652,11 +1644,7 @@ impl Renderer {
                 }
             }
 
-            Node::Config(key) => Ok(self
-                .context
-                .config
-                .get(key).cloned()
-                .unwrap_or_default()),
+            Node::Config(key) => Ok(self.context.config.get(key).cloned().unwrap_or_default()),
 
             Node::Repository(key) => Ok(self
                 .context

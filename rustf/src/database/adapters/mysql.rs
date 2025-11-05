@@ -62,13 +62,6 @@ impl DatabaseAdapter for MySqlAdapter {
     }
 
     async fn execute(&self, sql: &str, params: Vec<SqlValue>) -> Result<QueryResult> {
-        // Log SQL in development mode
-        #[cfg(debug_assertions)]
-        {
-            log::debug!("MySQL EXECUTE: {}", sql);
-            log::debug!("  Parameters: {:?}", params);
-        }
-
         let mut query = sqlx::query(sql);
 
         // Bind parameters using the converter
@@ -88,13 +81,6 @@ impl DatabaseAdapter for MySqlAdapter {
     }
 
     async fn fetch_all(&self, sql: &str, params: Vec<SqlValue>) -> Result<Vec<JsonValue>> {
-        // Log SQL in development mode
-        #[cfg(debug_assertions)]
-        {
-            log::debug!("MySQL FETCH_ALL: {}", sql);
-            log::debug!("  Parameters: {:?}", params);
-        }
-
         let mut query = sqlx::query(sql);
 
         // Bind parameters using the converter
@@ -116,13 +102,6 @@ impl DatabaseAdapter for MySqlAdapter {
     }
 
     async fn fetch_one(&self, sql: &str, params: Vec<SqlValue>) -> Result<Option<JsonValue>> {
-        // Log SQL in development mode
-        #[cfg(debug_assertions)]
-        {
-            log::debug!("MySQL FETCH_ONE: {}", sql);
-            log::debug!("  Parameters: {:?}", params);
-        }
-
         let mut query = sqlx::query(sql);
 
         // Bind parameters using the converter

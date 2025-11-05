@@ -458,7 +458,6 @@ impl TotalJsEngine {
 
         // Apply layout if specified
         if let Some(layout_name) = layout {
-            log::debug!("Applying layout: {}", layout_name);
             let layout_path = self.layout_path(layout_name);
             let layout_ast = self.load_template(&layout_path)?;
 
@@ -527,7 +526,6 @@ impl TotalJsEngine {
 
             layout_renderer.render(&layout_ast)
         } else {
-            log::debug!("No layout applied - rendering template without layout");
             Ok(content)
         }
     }

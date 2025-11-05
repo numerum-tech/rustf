@@ -285,14 +285,6 @@ impl TypeConverter for SqliteTypeConverter {
         let type_info = column.type_info();
         let type_name = type_info.name();
 
-        // Debug log the column type
-        log::debug!(
-            "Extracting column '{}' with SQLite type '{}' (declared as '{}')",
-            column_name,
-            type_name,
-            column_type
-        );
-
         // SQLite uses type affinity, not strict types
         // We need to determine the best extraction method based on the declared type
         let affinity = Self::get_type_affinity(column_type);
