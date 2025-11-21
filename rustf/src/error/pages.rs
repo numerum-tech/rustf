@@ -9,6 +9,7 @@ use crate::http::Response;
 use crate::views::ViewEngine;
 use hyper::StatusCode;
 use serde_json::{json, Value};
+use simd_json;
 use std::sync::Arc;
 
 /// Error page configuration and rendering
@@ -574,7 +575,8 @@ mod tests {
             .any(|(k, v)| k == "Content-Type" && v.contains("application/json")));
 
         let body_str = String::from_utf8(response.body).unwrap();
-        let json_data: Value = serde_json::from_str(&body_str).unwrap();
+        let mut body_bytes = body_str.clone().into_bytes();
+        let json_data: Value = simd_json::from_slice(&mut body_bytes).unwrap();
 
         assert_eq!(json_data["status"], 400);
         assert_eq!(json_data["error"], true);
@@ -610,7 +612,8 @@ mod tests {
             .any(|(k, v)| k == "Content-Type" && v.contains("application/json")));
 
         let body_str = String::from_utf8(response.body).unwrap();
-        let health_data: HealthCheckResult = serde_json::from_str(&body_str).unwrap();
+        let mut body_bytes = body_str.clone().into_bytes();
+        let health_data: HealthCheckResult = simd_json::from_slice(&mut body_bytes).unwrap();
 
         assert!(!health_data.version.is_empty());
         assert!(!health_data.timestamp.is_empty());

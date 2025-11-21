@@ -7,6 +7,7 @@ use crate::views::ViewEngine;
 use hyper::StatusCode;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
+use simd_json;
 use std::any::Any;
 use std::collections::HashMap;
 use std::path::Path;
@@ -783,8 +784,10 @@ impl Context {
             if text.is_empty() {
                 Ok(serde_json::Value::Null)
             } else {
-                // Try to parse as JSON, fallback to string value
-                Ok(serde_json::from_str(&text).unwrap_or(serde_json::Value::String(text)))
+                // Try to parse as JSON using simd-json (2-3x faster), fallback to string value
+                let mut text_bytes = text.into_bytes();
+                Ok(simd_json::from_slice(&mut text_bytes)
+                    .unwrap_or_else(|_| serde_json::Value::String(String::from_utf8_lossy(&text_bytes).to_string())))
             }
         }
     }

@@ -6,6 +6,7 @@ use crate::error::{Error, Result};
 use async_trait::async_trait;
 use chrono::DateTime;
 use serde_json::Value as JsonValue;
+use simd_json;
 use sqlx::sqlite::SqliteRow;
 use sqlx::{Column, Row, TypeInfo, ValueRef};
 
@@ -76,7 +77,8 @@ impl SqliteTypeConverter {
                 if let Ok(val) = row.try_get::<String, _>(index) {
                     // Check if this is a JSON column
                     if column_name.to_lowercase().contains("json") {
-                        if let Ok(json_val) = serde_json::from_str(&val) {
+                        let mut val_bytes = val.clone().into_bytes();
+                        if let Ok(json_val) = simd_json::from_slice(&mut val_bytes) {
                             return Ok(SqlValue::Json(json_val));
                         }
                     }

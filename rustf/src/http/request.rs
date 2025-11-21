@@ -3,6 +3,7 @@ use crate::http::files::{FileCollection, MultipartParser};
 use hyper::{Body, Request as HyperRequest};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
+use simd_json;
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -101,8 +102,10 @@ impl Request {
     }
 
     pub fn body_as_json<T: DeserializeOwned>(&self) -> Result<T> {
-        let body_str = String::from_utf8_lossy(&self.body_bytes);
-        serde_json::from_str(&body_str).map_err(Error::Json)
+        // Use simd-json for faster parsing (2-3x faster than serde_json)
+        let mut body_bytes = self.body_bytes.clone();
+        simd_json::from_slice(&mut body_bytes)
+            .map_err(|e| Error::internal(format!("Failed to parse JSON: {}", e)))
     }
 
     pub fn body_as_form(&self) -> Result<HashMap<String, String>> {

@@ -55,6 +55,10 @@ sha2 = "0.10"
 sha1 = "0.10"
 md-5 = "0.10"
 
+# Fast JSON parsing (2-3x faster than serde_json)
+# Note: simd-json is primarily for parsing, not serialization
+simd-json = { version = "0.13", features = ["serde", "alloc"] }
+
 [features]
 default = [
     "config",
