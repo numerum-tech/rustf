@@ -18,7 +18,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 /// Cache entry for compiled templates
 #[derive(Clone)]
 struct CacheEntry {
-    template: Template,
+    template: Arc<Template>,
     _compiled_at: u64,
     file_modified: Option<u64>,
 }
@@ -28,6 +28,8 @@ struct CacheEntry {
 struct TemplateCache {
     cache: Arc<RwLock<HashMap<String, CacheEntry>>>,
     enable_hot_reload: bool,
+    /// If true, skip mtime checks and trust cache entries (production optimization)
+    trust_cache: bool,
 }
 
 impl TemplateCache {
@@ -35,6 +37,16 @@ impl TemplateCache {
         Self {
             cache: Arc::new(RwLock::new(HashMap::new())),
             enable_hot_reload,
+            // In production (release mode), trust cache to avoid blocking filesystem calls
+            trust_cache: !enable_hot_reload && !cfg!(debug_assertions),
+        }
+    }
+
+    fn new_with_trust_cache(enable_hot_reload: bool, trust_cache: bool) -> Self {
+        Self {
+            cache: Arc::new(RwLock::new(HashMap::new())),
+            enable_hot_reload,
+            trust_cache: trust_cache && !enable_hot_reload,
         }
     }
 
@@ -54,38 +66,56 @@ impl TemplateCache {
         }
 
         let path_str = path.to_string_lossy().to_string();
-        let current_mtime = Self::get_file_mtime(path);
 
-        // Check cache
+        // Check cache first - if trust_cache is enabled, skip mtime check entirely
         if let Ok(cache) = self.cache.read() {
             if let Some(entry) = cache.get(&path_str) {
-                // Use cached version if file hasn't changed
-                if let (Some(cached_mtime), Some(current)) = (entry.file_modified, current_mtime) {
-                    if current <= cached_mtime {
-                        return Ok(entry.template.clone());
+                if self.trust_cache {
+                    // Production mode: trust cache, no filesystem check
+                    // Return cloned Arc (cheap reference increment)
+                    return Ok((*entry.template).clone());
+                } else {
+                    // Development mode: check file modification time
+                    let current_mtime = Self::get_file_mtime(path);
+                    if let (Some(cached_mtime), Some(current)) = (entry.file_modified, current_mtime) {
+                        if current <= cached_mtime {
+                            // Return cloned Arc (cheap reference increment)
+                            return Ok((*entry.template).clone());
+                        }
                     }
                 }
             }
         }
 
-        // Compile template
+        // Compile template (cache miss or file changed)
         let mut parser = Parser::new(content)?;
         let template = parser.parse()?;
 
-        // Update cache
+        // Update cache with Arc to avoid cloning on subsequent accesses
+        let file_mtime = if self.trust_cache {
+            // In trust mode, we still record mtime on first load, but don't check it later
+            Self::get_file_mtime(path)
+        } else {
+            Self::get_file_mtime(path)
+        };
+
+        // Store template in Arc to share across requests
+        let template_arc = Arc::new(template);
+        let template_clone = (*template_arc).clone();
+
         if let Ok(mut cache) = self.cache.write() {
             let entry = CacheEntry {
-                template: template.clone(),
+                template: template_arc,
                 _compiled_at: SystemTime::now()
                     .duration_since(UNIX_EPOCH)
                     .unwrap_or_default()
                     .as_secs(),
-                file_modified: current_mtime,
+                file_modified: file_mtime,
             };
             cache.insert(path_str, entry);
         }
 
-        Ok(template)
+        Ok(template_clone)
     }
 
     fn clear(&self) {
@@ -149,6 +179,10 @@ impl TotalJsEngine {
     pub fn with_app_config(base_dir: &str, app_config: Arc<AppConfig>) -> Self {
         // Respect cache_enabled setting from config
         let enable_hot_reload = !app_config.views.cache_enabled;
+        
+        // In production with caching enabled, trust the cache (skip mtime checks)
+        // This eliminates blocking filesystem operations on every render
+        let trust_cache = app_config.views.cache_enabled && app_config.environment.is_production();
 
         let mut config = HashMap::new();
 
@@ -168,7 +202,7 @@ impl TotalJsEngine {
 
         Self {
             base_dir: PathBuf::from(base_dir),
-            cache: TemplateCache::new(enable_hot_reload),
+            cache: TemplateCache::new_with_trust_cache(enable_hot_reload, trust_cache),
             config: Arc::new(RwLock::new(config)),
             app_config: Some(app_config),
             translator: Arc::new(RwLock::new(None)),

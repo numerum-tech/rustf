@@ -1138,7 +1138,10 @@ impl Renderer {
 
     /// Render a list of nodes
     fn render_nodes(&mut self, nodes: &[Node]) -> Result<String> {
-        let mut output = String::new();
+        // Pre-allocate capacity: estimate ~512 bytes per node on average
+        // This reduces reallocations during string building
+        let estimated_capacity = nodes.len() * 512;
+        let mut output = String::with_capacity(estimated_capacity.min(64 * 1024)); // Cap at 64KB
 
         for node in nodes {
             output.push_str(&self.render_node(node)?);
@@ -1149,7 +1152,9 @@ impl Renderer {
 
     /// Render nodes with loop control flow detection
     fn render_nodes_with_control(&mut self, nodes: &[Node]) -> Result<(String, LoopControl)> {
-        let mut output = String::new();
+        // Pre-allocate capacity: estimate ~512 bytes per node on average
+        let estimated_capacity = nodes.len() * 512;
+        let mut output = String::with_capacity(estimated_capacity.min(64 * 1024)); // Cap at 64KB
 
         for node in nodes {
             match node {
@@ -1223,7 +1228,9 @@ impl Renderer {
                 let collection_value = self.context.evaluate_expression(collection)?;
 
                 if let Value::Array(items) = collection_value {
-                    let mut output = String::new();
+                    // Pre-allocate capacity: estimate ~256 bytes per item
+                    let estimated_capacity = items.len() * 256;
+                    let mut output = String::with_capacity(estimated_capacity.min(64 * 1024)); // Cap at 64KB
 
                     // Create loop context
                     let loop_ctx = LoopContext {
