@@ -9,8 +9,10 @@ use crate::http::Request;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::OpenOptions;
-use std::io::Write;
+use std::io::{BufWriter, Write};
 use std::sync::Arc;
+use std::sync::OnceLock;
+use regex::Regex;
 
 /// Log levels for error logging
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
@@ -119,6 +121,22 @@ impl RequestContext {
             user_agent: request.user_agent().map(|s| s.to_string()),
         }
     }
+}
+
+/// Pre-compiled regex patterns for error message sanitization
+/// Compiled once at startup to avoid recompilation on every log entry
+static SANITIZE_PATTERNS: OnceLock<Vec<Regex>> = OnceLock::new();
+
+fn get_sanitize_patterns() -> &'static Vec<Regex> {
+    SANITIZE_PATTERNS.get_or_init(|| {
+        vec![
+            Regex::new(r"password=\w+").unwrap_or_else(|_| Regex::new(r".").unwrap()), // Fallback to match-all if compilation fails
+            Regex::new(r"token=[\w\-\.]+").unwrap_or_else(|_| Regex::new(r".").unwrap()),
+            Regex::new(r"key=[\w\-\.]+").unwrap_or_else(|_| Regex::new(r".").unwrap()),
+            Regex::new(r"secret=[\w\-\.]+").unwrap_or_else(|_| Regex::new(r".").unwrap()),
+            Regex::new(r"api_key=[\w\-\.]+").unwrap_or_else(|_| Regex::new(r".").unwrap()),
+        ]
+    })
 }
 
 /// Error logger with configurable output and formatting
@@ -288,18 +306,25 @@ impl ErrorLogger {
             }
         }
 
-        let mut file = OpenOptions::new()
+        let file = OpenOptions::new()
             .create(true)
             .append(true)
             .open(file_path)
             .map_err(|e| Error::internal(format!("Failed to open log file: {}", e)))?;
 
-        // Write JSON formatted log entry
-        let json_line = serde_json::to_string(entry)
-            .map_err(|e| Error::internal(format!("Failed to serialize log entry: {}", e)))?;
+        // Use BufWriter for better I/O performance
+        let mut writer = BufWriter::new(file);
 
-        writeln!(file, "{}", json_line)
+        // Write JSON formatted log entry directly to writer (avoids intermediate string allocation)
+        serde_json::to_writer(&mut writer, entry)
+            .map_err(|e| Error::internal(format!("Failed to serialize log entry: {}", e)))?;
+        
+        writeln!(writer)
             .map_err(|e| Error::internal(format!("Failed to write to log file: {}", e)))?;
+        
+        // Flush buffer to ensure data is written
+        writer.flush()
+            .map_err(|e| Error::internal(format!("Failed to flush log file: {}", e)))?;
 
         Ok(())
     }
@@ -332,22 +357,12 @@ impl ErrorLogger {
 
     /// Sanitize error message for production
     fn sanitize_error_message(&self, error: &Error) -> String {
+        // Use pre-compiled regex patterns for better performance
         let error_str = error.to_string();
-
-        // Remove sensitive information patterns
-        let patterns_to_remove = [
-            r"password=\w+",
-            r"token=[\w\-\.]+",
-            r"key=[\w\-\.]+",
-            r"secret=[\w\-\.]+",
-            r"api_key=[\w\-\.]+",
-        ];
-
         let mut sanitized = error_str.clone();
-        for pattern in &patterns_to_remove {
-            if let Ok(re) = regex::Regex::new(pattern) {
-                sanitized = re.replace_all(&sanitized, "$1[REDACTED]").to_string();
-            }
+        
+        for pattern in get_sanitize_patterns().iter() {
+            sanitized = pattern.replace_all(&sanitized, "[REDACTED]").to_string();
         }
 
         // Generic error messages for production
