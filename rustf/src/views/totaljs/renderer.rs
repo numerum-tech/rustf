@@ -799,6 +799,19 @@ impl RenderContext {
                 eprintln!("DEBUG: evaluate_expression - FunctionCall: {}", name);
                 self.evaluate_function_call(name, args)
             }
+
+            Expression::Ternary {
+                condition,
+                then_expr,
+                else_expr,
+            } => {
+                let cond_value = self.evaluate_expression(condition)?;
+                if self.is_truthy(&cond_value) {
+                    self.evaluate_expression(then_expr)
+                } else {
+                    self.evaluate_expression(else_expr)
+                }
+            }
         }
     }
 
@@ -1178,8 +1191,15 @@ impl Renderer {
         match node {
             Node::Text(text) => Ok(text.clone()),
 
-            Node::Variable { name, raw } => {
-                let value = self.context.resolve_variable(name);
+            Node::Variable { name, raw, expression } => {
+                let value = if let Some(expr) = expression {
+                    // Evaluate the expression
+                    self.context.evaluate_expression(expr)?
+                } else {
+                    // Resolve as variable name
+                    self.context.resolve_variable(name)
+                };
+                
                 // Don't escape certain system variables that contain safe paths/URLs
                 let should_escape = if !raw {
                     match name.as_str() {
@@ -1759,6 +1779,7 @@ mod tests {
                 Node::Variable {
                     name: "M.name".to_string(),
                     raw: false,
+                    expression: None,
                 },
                 Node::Text("!".to_string()),
             ],
@@ -1809,6 +1830,7 @@ mod tests {
                     Node::Variable {
                         name: "item".to_string(),
                         raw: false,
+                        expression: None,
                     },
                     Node::Text(" ".to_string()),
                 ],
@@ -1833,11 +1855,13 @@ mod tests {
                 Node::Variable {
                     name: "M.html".to_string(),
                     raw: false,
+                    expression: None,
                 },
                 Node::Text(" ".to_string()),
                 Node::Variable {
                     name: "M.html".to_string(),
                     raw: true,
+                    expression: None,
                 },
             ],
             sections: HashMap::new(),
@@ -1868,6 +1892,7 @@ mod tests {
                     Node::Variable {
                         name: "num".to_string(),
                         raw: false,
+                        expression: None,
                     },
                     Node::Text(",".to_string()),
                 ],
@@ -1893,6 +1918,7 @@ mod tests {
                     Node::Variable {
                         name: "num".to_string(),
                         raw: false,
+                        expression: None,
                     },
                     Node::Text(" ".to_string()),
                 ],
@@ -1922,6 +1948,7 @@ mod tests {
                     Node::Variable {
                         name: "num".to_string(),
                         raw: false,
+                        expression: None,
                     },
                     Node::Text("-".to_string()),
                 ],
@@ -1934,5 +1961,136 @@ mod tests {
         let mut renderer3 = Renderer::new(context3);
         let result3 = renderer3.render(&template3).unwrap();
         assert_eq!(result3, "0-2-4-6-8-");
+    }
+
+    #[test]
+    fn test_ternary_operator() {
+        // Test simple ternary with true condition
+        let template = Template {
+            nodes: vec![Node::Variable {
+                name: "true ? 'yes' : 'no'".to_string(),
+                raw: false,
+                expression: Some(Expression::Ternary {
+                    condition: Box::new(Expression::Boolean(true)),
+                    then_expr: Box::new(Expression::String("yes".to_string())),
+                    else_expr: Box::new(Expression::String("no".to_string())),
+                }),
+            }],
+            sections: HashMap::new(),
+            helpers: HashMap::new(),
+        };
+
+        let context = RenderContext::new(json!({}));
+        let mut renderer = Renderer::new(context);
+        let result = renderer.render(&template).unwrap();
+        assert_eq!(result, "yes");
+
+        // Test simple ternary with false condition
+        let template2 = Template {
+            nodes: vec![Node::Variable {
+                name: "false ? 'yes' : 'no'".to_string(),
+                raw: false,
+                expression: Some(Expression::Ternary {
+                    condition: Box::new(Expression::Boolean(false)),
+                    then_expr: Box::new(Expression::String("yes".to_string())),
+                    else_expr: Box::new(Expression::String("no".to_string())),
+                }),
+            }],
+            sections: HashMap::new(),
+            helpers: HashMap::new(),
+        };
+
+        let context2 = RenderContext::new(json!({}));
+        let mut renderer2 = Renderer::new(context2);
+        let result2 = renderer2.render(&template2).unwrap();
+        assert_eq!(result2, "no");
+    }
+
+    #[test]
+    fn test_ternary_with_variables() {
+        // Test ternary with variable condition
+        let template = Template {
+            nodes: vec![Node::Variable {
+                name: "M.isActive ? M.name : 'Guest'".to_string(),
+                raw: false,
+                expression: Some(Expression::Ternary {
+                    condition: Box::new(Expression::PropertyAccess {
+                        object: Box::new(Expression::Variable("M".to_string())),
+                        property: "isActive".to_string(),
+                    }),
+                    then_expr: Box::new(Expression::PropertyAccess {
+                        object: Box::new(Expression::Variable("M".to_string())),
+                        property: "name".to_string(),
+                    }),
+                    else_expr: Box::new(Expression::String("Guest".to_string())),
+                }),
+            }],
+            sections: HashMap::new(),
+            helpers: HashMap::new(),
+        };
+
+        // Test with active user
+        let context = RenderContext::new(json!({
+            "isActive": true,
+            "name": "Alice"
+        }));
+        let mut renderer = Renderer::new(context);
+        let result = renderer.render(&template).unwrap();
+        assert_eq!(result, "Alice");
+
+        // Test with inactive user
+        let context2 = RenderContext::new(json!({
+            "isActive": false,
+            "name": "Bob"
+        }));
+        let mut renderer2 = Renderer::new(context2);
+        let result2 = renderer2.render(&template).unwrap();
+        assert_eq!(result2, "Guest");
+    }
+
+    #[test]
+    fn test_ternary_with_expressions() {
+        // Test ternary with comparison expression
+        let template = Template {
+            nodes: vec![Node::Variable {
+                name: "(M.a > M.b) ? 'greater' : 'lesser'".to_string(),
+                raw: false,
+                expression: Some(Expression::Ternary {
+                    condition: Box::new(Expression::BinaryOp {
+                        left: Box::new(Expression::PropertyAccess {
+                            object: Box::new(Expression::Variable("M".to_string())),
+                            property: "a".to_string(),
+                        }),
+                        op: BinaryOperator::GreaterThan,
+                        right: Box::new(Expression::PropertyAccess {
+                            object: Box::new(Expression::Variable("M".to_string())),
+                            property: "b".to_string(),
+                        }),
+                    }),
+                    then_expr: Box::new(Expression::String("greater".to_string())),
+                    else_expr: Box::new(Expression::String("lesser".to_string())),
+                }),
+            }],
+            sections: HashMap::new(),
+            helpers: HashMap::new(),
+        };
+
+        // Test with a > b
+        let context = RenderContext::new(json!({
+            "a": 10,
+            "b": 5
+        }));
+        let mut renderer = Renderer::new(context);
+        let result = renderer.render(&template).unwrap();
+        assert_eq!(result, "greater");
+
+        // Test with a < b
+        let context2 = RenderContext::new(json!({
+            "a": 3,
+            "b": 7
+        }));
+        let mut renderer2 = Renderer::new(context2);
+        let result2 = renderer2.render(&template).unwrap();
+        assert_eq!(result2, "lesser");
     }
 }
