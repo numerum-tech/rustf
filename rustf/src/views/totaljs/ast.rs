@@ -6,10 +6,11 @@ pub enum Node {
     /// Plain text content
     Text(String),
 
-    /// Variable interpolation @{variable}
+    /// Variable interpolation @{variable} or @{expression}
     Variable {
         name: String,
         raw: bool, // true for @{!variable}
+        expression: Option<Expression>, // Some(expr) when name contains an expression like ternary
     },
 
     /// Conditional block @{if}...@{else}...@{fi}
@@ -142,6 +143,13 @@ pub enum Expression {
     UnaryOp {
         op: UnaryOperator,
         operand: Box<Expression>,
+    },
+
+    /// Ternary operation (condition ? then_expr : else_expr)
+    Ternary {
+        condition: Box<Expression>,
+        then_expr: Box<Expression>,
+        else_expr: Box<Expression>,
     },
 
     /// Null value
