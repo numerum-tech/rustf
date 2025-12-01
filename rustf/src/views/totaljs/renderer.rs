@@ -589,12 +589,8 @@ impl RenderContext {
                 return value.clone();
             }
 
-            // Fallback to checking model data for top-level properties
-            if let Value::Object(map) = &self.data {
-                if let Some(value) = map.get(name) {
-                    return value.clone();
-                }
-            }
+            // No fallback to model data - direct variable access is not allowed
+            // Variables must be accessed via explicit prefixes: model.key, repository.key, session.key, etc.
         } else {
             // Dotted path - need to resolve base first
             let base = parts[0];
@@ -664,10 +660,9 @@ impl RenderContext {
                         v
                     } else if let Some(value) = self.locals.get(base) {
                         value.clone()
-                    } else if let Value::Object(map) = &self.data {
-                        // Fallback to checking data for top-level properties
-                        map.get(base).cloned().unwrap_or(Value::Null)
                     } else {
+                        // No fallback to model data - unknown base names are not allowed
+                        // Only known prefixes (repository, R, model, M, session, etc.) are permitted
                         Value::Null
                     }
                 }
@@ -2092,5 +2087,226 @@ mod tests {
         let mut renderer2 = Renderer::new(context2);
         let result2 = renderer2.render(&template).unwrap();
         assert_eq!(result2, "lesser");
+    }
+
+    #[test]
+    fn test_direct_variable_access_blocked() {
+        // Test that direct access to model properties is blocked
+        let template = Template {
+            nodes: vec![Node::Variable {
+                name: "customProperty".to_string(),
+                raw: false,
+                expression: None,
+            }],
+            sections: HashMap::new(),
+            helpers: HashMap::new(),
+        };
+
+        let context = RenderContext::new(json!({
+            "customProperty": "should not be accessible"
+        }));
+        let mut renderer = Renderer::new(context);
+        let result = renderer.render(&template).unwrap();
+        
+        // Should return empty string (Null value converted to string)
+        assert_eq!(result, "");
+    }
+
+    #[test]
+    fn test_explicit_model_access_works() {
+        // Test that explicit model access works
+        let template = Template {
+            nodes: vec![Node::Variable {
+                name: "model.customProperty".to_string(),
+                raw: false,
+                expression: None,
+            }],
+            sections: HashMap::new(),
+            helpers: HashMap::new(),
+        };
+
+        let context = RenderContext::new(json!({
+            "customProperty": "accessible via model"
+        }));
+        let mut renderer = Renderer::new(context);
+        let result = renderer.render(&template).unwrap();
+        
+        assert_eq!(result, "accessible via model");
+    }
+
+    #[test]
+    fn test_explicit_m_alias_works() {
+        // Test that M alias works for model access
+        let template = Template {
+            nodes: vec![Node::Variable {
+                name: "M.customProperty".to_string(),
+                raw: false,
+                expression: None,
+            }],
+            sections: HashMap::new(),
+            helpers: HashMap::new(),
+        };
+
+        let context = RenderContext::new(json!({
+            "customProperty": "accessible via M"
+        }));
+        let mut renderer = Renderer::new(context);
+        let result = renderer.render(&template).unwrap();
+        
+        assert_eq!(result, "accessible via M");
+    }
+
+    #[test]
+    fn test_repository_access_works() {
+        // Test that repository access works
+        let template = Template {
+            nodes: vec![Node::Variable {
+                name: "repository.key".to_string(),
+                raw: false,
+                expression: None,
+            }],
+            sections: HashMap::new(),
+            helpers: HashMap::new(),
+        };
+
+        let context = RenderContext::new(json!({}))
+            .with_repository(json!({
+                "key": "repository value"
+            }));
+        let mut renderer = Renderer::new(context);
+        let result = renderer.render(&template).unwrap();
+        
+        assert_eq!(result, "repository value");
+    }
+
+    #[test]
+    fn test_r_alias_works() {
+        // Test that R alias works for repository access
+        let template = Template {
+            nodes: vec![Node::Variable {
+                name: "R.key".to_string(),
+                raw: false,
+                expression: None,
+            }],
+            sections: HashMap::new(),
+            helpers: HashMap::new(),
+        };
+
+        let context = RenderContext::new(json!({}))
+            .with_repository(json!({
+                "key": "R alias value"
+            }));
+        let mut renderer = Renderer::new(context);
+        let result = renderer.render(&template).unwrap();
+        
+        assert_eq!(result, "R alias value");
+    }
+
+    #[test]
+    fn test_session_access_works() {
+        // Test that session access works
+        let template = Template {
+            nodes: vec![Node::Variable {
+                name: "session.key".to_string(),
+                raw: false,
+                expression: None,
+            }],
+            sections: HashMap::new(),
+            helpers: HashMap::new(),
+        };
+
+        let context = RenderContext::new(json!({}))
+            .with_session(json!({
+                "key": "session value"
+            }));
+        let mut renderer = Renderer::new(context);
+        let result = renderer.render(&template).unwrap();
+        
+        assert_eq!(result, "session value");
+    }
+
+    #[test]
+    fn test_framework_globals_still_work() {
+        // Test that framework globals are still accessible
+        let template = Template {
+            nodes: vec![
+                Node::Variable {
+                    name: "url".to_string(),
+                    raw: false,
+                    expression: None,
+                },
+                Node::Text(" ".to_string()),
+                Node::Variable {
+                    name: "hostname".to_string(),
+                    raw: false,
+                    expression: None,
+                },
+            ],
+            sections: HashMap::new(),
+            helpers: HashMap::new(),
+        };
+
+        let context = RenderContext::new(json!({}))
+            .with_url("/test".to_string())
+            .with_hostname("example.com".to_string());
+        let mut renderer = Renderer::new(context);
+        let result = renderer.render(&template).unwrap();
+        
+        assert_eq!(result, "/test example.com");
+    }
+
+    #[test]
+    fn test_loop_variables_still_work() {
+        // Test that loop variables are still accessible
+        let template = Template {
+            nodes: vec![Node::Loop {
+                item_name: "item".to_string(),
+                collection: Expression::Array(vec![
+                    Expression::String("A".to_string()),
+                    Expression::String("B".to_string()),
+                ]),
+                body: vec![
+                    Node::Variable {
+                        name: "item".to_string(),
+                        raw: false,
+                        expression: None,
+                    },
+                    Node::Text(" ".to_string()),
+                ],
+            }],
+            sections: HashMap::new(),
+            helpers: HashMap::new(),
+        };
+
+        let context = RenderContext::new(json!({}));
+        let mut renderer = Renderer::new(context);
+        let result = renderer.render(&template).unwrap();
+        
+        assert_eq!(result, "A B ");
+    }
+
+    #[test]
+    fn test_unknown_dotted_path_returns_empty() {
+        // Test that unknown base names in dotted paths return empty
+        let template = Template {
+            nodes: vec![Node::Variable {
+                name: "unknownBase.property".to_string(),
+                raw: false,
+                expression: None,
+            }],
+            sections: HashMap::new(),
+            helpers: HashMap::new(),
+        };
+
+        let context = RenderContext::new(json!({
+            "unknownBase": {
+                "property": "should not be accessible"
+            }
+        }));
+        let mut renderer = Renderer::new(context);
+        let result = renderer.render(&template).unwrap();
+        
+        // Should return empty string (Null value)
+        assert_eq!(result, "");
     }
 }
