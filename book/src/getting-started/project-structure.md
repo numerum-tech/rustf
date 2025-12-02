@@ -1,0 +1,375 @@
+# Project Structure
+
+Understanding the RustF project structure is essential for building maintainable applications. This guide explains the standard layout and conventions.
+
+## Standard Project Layout
+
+```
+your_project/
+├── src/
+│   ├── main.rs              # Application entry point with auto-discovery
+│   ├── controllers/         # HTTP request handlers
+│   │   ├── home.rs          # Home page controller
+│   │   ├── auth.rs          # Authentication controller  
+│   │   ├── users.rs         # User management controller
+│   │   └── api/             # API controllers (namespaced)
+│   │       ├── users.rs     # User API endpoints
+│   │       └── posts.rs     # Post API endpoints
+│   ├── models/              # Database models (schema-generated)
+│   │   ├── users.rs         # User model wrapper
+│   │   ├── posts.rs         # Post model wrapper
+│   │   └── base/            # Auto-generated base models (DO NOT EDIT)
+│   │       ├── users_base.rs
+│   │       └── posts_base.rs
+│   ├── modules/             # Business logic modules
+│   │   ├── user_service.rs  # User business logic
+│   │   └── email_service.rs # Email functionality
+│   ├── middleware/          # Custom middleware
+│   │   └── auth.rs          # Authentication middleware
+│   ├── _controllers.rs      # Auto-generated (IDE support only)
+│   ├── _models.rs           # Auto-generated (IDE support only)
+│   └── _modules.rs          # Auto-generated (IDE support only)
+├── views/                   # Template files
+│   ├── layouts/
+│   │   └── application.html # Default layout
+│   ├── home/
+│   │   ├── index.html       # Home page template
+│   │   └── about.html       # About page template
+│   └── auth/
+│       └── login.html       # Login form template
+├── schemas/                 # YAML schema definitions
+│   ├── users.yaml           # User table schema
+│   ├── posts.yaml           # Posts table schema
+│   └── _meta.yaml           # Database metadata
+├── public/                  # Static files
+│   ├── css/
+│   ├── js/
+│   └── images/
+├── uploads/                 # File uploads directory
+├── config.toml              # Base configuration
+├── config.prod.toml         # Production overrides
+└── Cargo.toml               # Rust project configuration
+```
+
+## Directory Descriptions
+
+### `src/` - Source Code
+
+All Rust source code lives in the `src/` directory.
+
+#### `src/main.rs`
+
+The application entry point. Typically contains:
+
+```rust
+use rustf::prelude::*;
+
+#[tokio::main]
+async fn main() -> rustf::Result<()> {
+    env_logger::init();
+    
+    let app = RustF::new()
+        .controllers(auto_controllers!())
+        .middleware_from(auto_middleware!());
+    
+    app.start().await
+}
+```
+
+#### `src/controllers/` - Request Handlers
+
+Controllers handle HTTP requests and define routes. Each controller file must have an `install()` function.
+
+**Example: `src/controllers/home.rs`**
+```rust
+use rustf::prelude::*;
+
+pub fn install() -> Vec<Route> {
+    routes![
+        GET "/" => index,
+        GET "/about" => about,
+    ]
+}
+
+async fn index(ctx: &mut Context) -> Result<()> {
+    ctx.view("home/index", json!({}))
+}
+```
+
+**Nested Controllers: `src/controllers/api/users.rs`**
+```rust
+use rustf::prelude::*;
+
+pub fn install() -> Vec<Route> {
+    routes![
+        GET "/api/users" => list_users,
+        GET "/api/users/{id}" => get_user,
+    ]
+}
+```
+
+#### `src/models/` - Database Models
+
+Models represent database tables and provide type-safe database access.
+
+**Structure:**
+- `src/models/users.rs` - User model wrapper (your code)
+- `src/models/base/users_base.rs` - Auto-generated base model (don't edit)
+
+**Example: `src/models/users.rs`**
+```rust
+use rustf::prelude::*;
+use crate::models::base::users_base::UsersBase;
+
+pub struct Users {
+    base: UsersBase,
+}
+
+impl Users {
+    pub fn new() -> Self {
+        Self {
+            base: UsersBase::new(),
+        }
+    }
+    
+    // Add custom methods here
+}
+```
+
+#### `src/modules/` - Business Logic
+
+Modules contain business logic separate from HTTP concerns. They're shared across controllers and can be accessed via `MODULE`.
+
+**Example: `src/modules/user_service.rs`**
+```rust
+use rustf::prelude::*;
+
+pub struct UserService;
+
+impl UserService {
+    pub fn create_user(&self, name: &str, email: &str) -> Result<User> {
+        // Business logic here
+    }
+}
+
+// Register as shared module
+impl_shared_service!(UserService);
+```
+
+#### `src/middleware/` - Request Processing
+
+Middleware processes requests before they reach controllers.
+
+**Example: `src/middleware/auth.rs`**
+```rust
+use rustf::prelude::*;
+
+pub struct AuthMiddleware;
+
+impl InboundMiddleware for AuthMiddleware {
+    fn handle(&self, ctx: &mut Context) -> MiddlewareResult {
+        // Authentication logic
+        MiddlewareResult::Continue
+    }
+}
+
+pub fn install(registry: &mut MiddlewareRegistry) {
+    registry.register("auth", AuthMiddleware::new());
+}
+```
+
+#### `src/_*.rs` - Auto-Generated Files
+
+These files are generated by auto-discovery macros for IDE support:
+- `_controllers.rs` - Controller module declarations
+- `_models.rs` - Model module declarations
+- `_modules.rs` - Module declarations
+
+**Important:** These files are NOT compiled. They're only for IDE autocomplete.
+
+### `views/` - Templates
+
+Template files organized by feature.
+
+**Structure:**
+```
+views/
+├── layouts/
+│   └── application.html     # Default layout
+├── home/
+│   ├── index.html           # Home page
+│   └── about.html           # About page
+└── auth/
+    └── login.html           # Login form
+```
+
+**Layout Example: `views/layouts/application.html`**
+```html
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{title}}</title>
+</head>
+<body>
+    {{@body}}
+</body>
+</html>
+```
+
+**View Example: `views/home/index.html`**
+```html
+<h1>Welcome</h1>
+<p>Hello, {{name}}!</p>
+```
+
+### `schemas/` - Database Schemas
+
+YAML schema definitions for database tables. Used by the CLI to generate models.
+
+**Example: `schemas/users.yaml`**
+```yaml
+table: users
+fields:
+  id:
+    type: integer
+    primary: true
+    auto_increment: true
+  name:
+    type: string
+    length: 255
+    required: true
+  email:
+    type: string
+    length: 255
+    required: true
+    unique: true
+```
+
+### `public/` - Static Assets
+
+Static files served directly by the web server.
+
+```
+public/
+├── css/
+│   └── style.css
+├── js/
+│   └── app.js
+└── images/
+    └── logo.png
+```
+
+Access via: `http://localhost:8000/css/style.css`
+
+### `uploads/` - User Uploads
+
+Directory for user-uploaded files. Location is configurable in `config.toml`.
+
+### Configuration Files
+
+#### `config.toml` - Base Configuration
+
+```toml
+[server]
+host = "127.0.0.1"
+port = 8000
+
+[views]
+directory = "views"
+cache_enabled = false
+```
+
+#### `config.prod.toml` - Production Overrides
+
+```toml
+[server]
+host = "0.0.0.0"
+port = 8080
+
+[views]
+cache_enabled = true
+
+[session]
+secure = true
+```
+
+## File Naming Conventions
+
+| Component | Convention | Example |
+|-----------|------------|---------|
+| **Controllers** | `snake_case.rs` | `users.rs`, `auth.rs` |
+| **Models** | `snake_case.rs` | `users.rs`, `blog_posts.rs` |
+| **Modules** | `snake_case.rs` | `user_service.rs`, `email_service.rs` |
+| **Middleware** | `snake_case.rs` | `auth.rs`, `rate_limit.rs` |
+| **Templates** | `snake_case.html` | `index.html`, `user_profile.html` |
+| **Schemas** | `snake_case.yaml` | `users.yaml`, `blog_posts.yaml` |
+
+## Best Practices
+
+### 1. Organize by Feature
+
+Group related files together:
+
+```
+src/controllers/
+├── users.rs          # User-related routes
+├── posts.rs          # Post-related routes
+└── comments.rs       # Comment-related routes
+```
+
+### 2. Use Namespaces for APIs
+
+Separate API controllers:
+
+```
+src/controllers/
+├── api/
+│   ├── v1/
+│   │   ├── users.rs
+│   │   └── posts.rs
+│   └── v2/
+│       └── users.rs
+```
+
+### 3. Keep Models Simple
+
+Models should be thin wrappers around base models:
+
+```rust
+// Good: Thin wrapper
+pub struct Users {
+    base: UsersBase,
+}
+
+// Avoid: Complex logic in models
+// Move business logic to modules
+```
+
+### 4. Separate Concerns
+
+- **Controllers** - HTTP request/response handling
+- **Models** - Database access
+- **Modules** - Business logic
+- **Middleware** - Cross-cutting concerns
+
+## Auto-Discovery
+
+RustF automatically discovers components based on file location:
+
+- `src/controllers/*.rs` → Controllers
+- `src/models/*.rs` → Models
+- `src/modules/*.rs` → Modules
+- `src/middleware/*.rs` → Middleware
+
+No manual registration needed!
+
+## Next Steps
+
+Now that you understand the project structure:
+
+1. **[Controllers Guide](../guides/controllers.md)** - Learn about routing
+2. **[Models Guide](../guides/database.md)** - Work with databases
+3. **[Views Guide](../guides/views.md)** - Use templates
+4. **[Modules Guide](../advanced/modules.md)** - Share business logic
+
+
