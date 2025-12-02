@@ -1,0 +1,498 @@
+<!DOCTYPE HTML>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Real-World Application - RustF Framework Documentation</title>
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="Complete guide to the RustF MVC web framework for Rust">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <base href="../">
+
+        <link rel="stylesheet" href="book.css">
+        <link href="https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800" rel="stylesheet" type="text/css">
+        <link href="https://fonts.googleapis.com/css?family=Source+Code+Pro:500" rel="stylesheet" type="text/css">
+
+        <link rel="shortcut icon" href="favicon.png">
+
+        <!-- Font Awesome -->
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
+
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme -->
+        
+
+        
+
+        <!-- Fetch Clipboard.js from CDN but have a local fallback -->
+        <script src="https://cdn.jsdelivr.net/clipboard.js/1.6.1/clipboard.min.js"></script>
+        <script>
+            if (typeof Clipboard == 'undefined') {
+                document.write(unescape("%3Cscript src='clipboard.min.js'%3E%3C/script%3E"));
+            }
+        </script>
+
+        <!-- Fetch JQuery from CDN but have a local fallback -->
+        <script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+        <script>
+            if (typeof jQuery == 'undefined') {
+                document.write(unescape("%3Cscript src='jquery.js'%3E%3C/script%3E"));
+            }
+        </script>
+
+        <!-- Fetch store.js from local - TODO add CDN when 2.x.x is available on cdnjs -->
+        <script src="store.js"></script>
+
+    </head>
+    <body class="light">
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme = store.get('mdbook-theme');
+            if (theme === null || theme === undefined) { theme = 'light'; }
+            $('body').removeClass().addClass(theme);
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var sidebar = store.get('mdbook-sidebar');
+            if (sidebar === "hidden") { $("html").addClass("sidebar-hidden") }
+            else if (sidebar === "visible") { $("html").addClass("sidebar-visible") }
+        </script>
+
+        <div id="sidebar" class="sidebar">
+            <ul class="chapter"><li class="affix"><a href="README.html">Introduction</a></li><li><a href="getting-started/README.html"><strong>1.</strong> Quick Start</a></li><li><a href="getting-started/installation.html"><strong>2.</strong> Installation</a></li><li><a href="getting-started/hello-world.html"><strong>3.</strong> Hello World</a></li><li><a href="getting-started/project-structure.html"><strong>4.</strong> Project Structure</a></li><li><a href="guides/controllers.html"><strong>5.</strong> Controllers &amp; Routing</a></li><li><a href="guides/views.html"><strong>6.</strong> Views &amp; Templates</a></li><li><a href="guides/middleware.html"><strong>7.</strong> Middleware</a></li><li><a href="guides/sessions.html"><strong>8.</strong> Sessions</a></li><li><a href="guides/database.html"><strong>9.</strong> Database Integration</a></li><li><a href="guides/configuration.html"><strong>10.</strong> Configuration</a></li><li><a href="guides/security.html"><strong>11.</strong> Security</a></li><li><a href="guides/error-handling.html"><strong>12.</strong> Error Handling</a></li><li><a href="guides/schemas.html"><strong>13.</strong> Schemas &amp; Definitions</a></li><li><a href="advanced/README.html"><strong>14.</strong> Overview</a></li><li><a href="advanced/performance.html"><strong>15.</strong> Performance Optimization</a></li><li><a href="advanced/workers.html"><strong>16.</strong> Workers</a></li><li><a href="advanced/events.html"><strong>17.</strong> Events</a></li><li><a href="advanced/modules.html"><strong>18.</strong> Modules</a></li><li><a href="advanced/cli.html"><strong>19.</strong> CLI Tool</a></li><li><a href="api-reference/README.html"><strong>20.</strong> Overview</a></li><li><a href="api-reference/context.html"><strong>21.</strong> Context API</a></li><li><a href="api-reference/models.html"><strong>22.</strong> Model API</a></li><li><a href="api-reference/routing.html"><strong>23.</strong> Routing API</a></li><li><a href="api-reference/utilities.html"><strong>24.</strong> Utilities</a></li><li><a href="examples/README.html"><strong>25.</strong> Overview</a></li><li><a href="examples/rest-api.html"><strong>26.</strong> Building a REST API</a></li><li><a href="examples/authentication.html"><strong>27.</strong> Authentication</a></li><li><a href="examples/real-world-app.html" class="active"><strong>28.</strong> Real-World Application</a></li><li><a href="deployment/production.html"><strong>29.</strong> Production Deployment</a></li><li><a href="deployment/docker.html"><strong>30.</strong> Docker</a></li></ul>
+        </div>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page" tabindex="-1">
+                
+                <div id="menu-bar" class="menu-bar">
+                    <div class="left-buttons">
+                        <i id="sidebar-toggle" class="fa fa-bars" title="Toggle sidebar"></i>
+                        <i id="theme-toggle" class="fa fa-paint-brush" title="Change theme"></i>
+                    </div>
+
+                    <h1 class="menu-title">RustF Framework Documentation</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html">
+                            <i id="print-button" class="fa fa-print" title="Print this book"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <div id="content" class="content">
+                    <a class="header" href="examples/real-world-app.html#real-world-application-example" id="real-world-application-example"><h1>Real-World Application Example</h1></a>
+<p>This guide demonstrates building a complete blog application with RustF, covering all major framework features.</p>
+<a class="header" href="examples/real-world-app.html#application-overview" id="application-overview"><h2>Application Overview</h2></a>
+<p>We'll build a blog application with:</p>
+<ul>
+<li>User authentication</li>
+<li>Blog post management</li>
+<li>Comments system</li>
+<li>Admin panel</li>
+<li>Search functionality</li>
+</ul>
+<a class="header" href="examples/real-world-app.html#project-structure" id="project-structure"><h2>Project Structure</h2></a>
+<pre><code>blog-app/
+├── src/
+│   ├── main.rs
+│   ├── controllers/
+│   │   ├── home.rs
+│   │   ├── auth.rs
+│   │   ├── posts.rs
+│   │   ├── comments.rs
+│   │   └── admin/
+│   │       └── dashboard.rs
+│   ├── models/
+│   │   ├── users.rs
+│   │   ├── posts.rs
+│   │   └── comments.rs
+│   ├── modules/
+│   │   ├── user_service.rs
+│   │   └── post_service.rs
+│   └── middleware/
+│       └── auth.rs
+├── views/
+│   ├── layouts/
+│   │   └── application.html
+│   ├── home/
+│   │   └── index.html
+│   ├── posts/
+│   │   ├── index.html
+│   │   ├── show.html
+│   │   └── create.html
+│   └── auth/
+│       ├── login.html
+│       └── register.html
+└── config.toml
+</code></pre>
+<a class="header" href="examples/real-world-app.html#main-application" id="main-application"><h2>Main Application</h2></a>
+<a class="header" href="examples/real-world-app.html#srcmainrs" id="srcmainrs"><h3>src/main.rs</h3></a>
+<pre><pre class="playpen"><code class="language-rust">use rustf::prelude::*;
+
+#[tokio::main]
+async fn main() -&gt; rustf::Result&lt;()&gt; {
+    env_logger::init();
+    
+    let app = RustF::new()
+        .controllers(auto_controllers!())
+        .models(auto_models!())
+        .middleware_from(auto_middleware!());
+    
+    println!(&quot;🚀 Blog application running at http://127.0.0.1:8000&quot;);
+    app.start().await
+}
+</code></pre></pre>
+<a class="header" href="examples/real-world-app.html#controllers" id="controllers"><h2>Controllers</h2></a>
+<a class="header" href="examples/real-world-app.html#home-controller" id="home-controller"><h3>Home Controller</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// src/controllers/home.rs
+use rustf::prelude::*;
+
+pub fn install() -&gt; Vec&lt;Route&gt; {
+    routes![
+        GET &quot;/&quot; =&gt; index,
+        GET &quot;/search&quot; =&gt; search,
+    ]
+}
+
+async fn index(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    // Get recent posts
+    let recent_posts = get_recent_posts(5)?;
+    
+    ctx.repository_set(&quot;recent_posts&quot;, json!(recent_posts));
+    ctx.view(&quot;/home/index&quot;, json!({
+        &quot;title&quot;: &quot;Welcome to My Blog&quot;
+    }))
+}
+
+async fn search(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    let query = ctx.query(&quot;q&quot;).unwrap_or(&quot;&quot;);
+    
+    if query.is_empty() {
+        return ctx.redirect(&quot;/&quot;);
+    }
+    
+    let results = search_posts(query)?;
+    
+    ctx.view(&quot;/home/search&quot;, json!({
+        &quot;title&quot;: format!(&quot;Search: {}&quot;, query),
+        &quot;query&quot;: query,
+        &quot;results&quot;: results
+    }))
+}
+#}</code></pre></pre>
+<a class="header" href="examples/real-world-app.html#posts-controller" id="posts-controller"><h3>Posts Controller</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// src/controllers/posts.rs
+use rustf::prelude::*;
+
+pub fn install() -&gt; Vec&lt;Route&gt; {
+    routes![
+        GET  &quot;/posts&quot;          =&gt; index,
+        GET  &quot;/posts/{id}&quot;     =&gt; show,
+        GET  &quot;/posts/create&quot;   =&gt; create_form,
+        POST &quot;/posts&quot;          =&gt; create,
+        GET  &quot;/posts/{id}/edit&quot; =&gt; edit_form,
+        PUT  &quot;/posts/{id}&quot;     =&gt; update,
+        DELETE &quot;/posts/{id}&quot;   =&gt; delete,
+    ]
+}
+
+async fn index(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    let page = ctx.int_query_or(&quot;page&quot;, 1);
+    let posts = get_posts_paginated(page, 10)?;
+    
+    ctx.view(&quot;/posts/index&quot;, json!({
+        &quot;title&quot;: &quot;All Posts&quot;,
+        &quot;posts&quot;: posts,
+        &quot;page&quot;: page
+    }))
+}
+
+async fn show(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    let post_id = ctx.int_param(&quot;id&quot;)?;
+    let post = get_post_by_id(post_id)?;
+    
+    if post.is_none() {
+        return ctx.throw404(Some(&quot;Post not found&quot;));
+    }
+    
+    let comments = get_comments_for_post(post_id)?;
+    
+    ctx.view(&quot;/posts/show&quot;, json!({
+        &quot;title&quot;: post.title.clone(),
+        &quot;post&quot;: post,
+        &quot;comments&quot;: comments
+    }))
+}
+
+async fn create(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    // Require authentication
+    ctx.require_auth()?;
+    
+    let form: CreatePostForm = ctx.body_form_typed()?;
+    
+    // Validation
+    validate_post_form(&amp;form)?;
+    
+    // Create post
+    let post = create_new_post(&amp;form, get_current_user_id(ctx)?)?;
+    
+    ctx.flash_success(&quot;Post created successfully!&quot;)?;
+    ctx.redirect(&amp;format!(&quot;/posts/{}&quot;, post.id))
+}
+#}</code></pre></pre>
+<a class="header" href="examples/real-world-app.html#models" id="models"><h2>Models</h2></a>
+<a class="header" href="examples/real-world-app.html#post-model" id="post-model"><h3>Post Model</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// src/models/posts.rs
+use rustf::prelude::*;
+
+pub struct Posts {
+    base: PostsBase,
+}
+
+impl Posts {
+    pub fn new() -&gt; Self {
+        Self {
+            base: PostsBase::new(),
+        }
+    }
+    
+    pub fn find_recent(&amp;self, limit: i32) -&gt; Result&lt;Vec&lt;Post&gt;&gt; {
+        self.base.query()
+            .where_eq(&quot;published&quot;, true)
+            .order_by(&quot;created_at&quot;, OrderDirection::Desc)
+            .limit(limit)
+            .find()
+    }
+    
+    pub fn search(&amp;self, query: &amp;str) -&gt; Result&lt;Vec&lt;Post&gt;&gt; {
+        self.base.query()
+            .where_like(&quot;title&quot;, &amp;format!(&quot;%{}%&quot;, query))
+            .or_where_like(&quot;content&quot;, &amp;format!(&quot;%{}%&quot;, query))
+            .where_eq(&quot;published&quot;, true)
+            .find()
+    }
+}
+#}</code></pre></pre>
+<a class="header" href="examples/real-world-app.html#modules" id="modules"><h2>Modules</h2></a>
+<a class="header" href="examples/real-world-app.html#post-service" id="post-service"><h3>Post Service</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// src/modules/post_service.rs
+use rustf::prelude::*;
+
+pub struct PostService;
+
+impl PostService {
+    pub fn create_post(&amp;self, data: &amp;CreatePostData, author_id: i32) -&gt; Result&lt;Post&gt; {
+        // Business logic for creating posts
+        // Validation, formatting, etc.
+    }
+    
+    pub fn can_edit(&amp;self, post: &amp;Post, user_id: i32) -&gt; bool {
+        post.author_id == user_id || is_admin(user_id)
+    }
+}
+
+impl_shared_service!(PostService);
+#}</code></pre></pre>
+<a class="header" href="examples/real-world-app.html#middleware" id="middleware"><h2>Middleware</h2></a>
+<a class="header" href="examples/real-world-app.html#auth-middleware" id="auth-middleware"><h3>Auth Middleware</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// src/middleware/auth.rs
+use rustf::prelude::*;
+
+pub struct AuthMiddleware;
+
+impl InboundMiddleware for AuthMiddleware {
+    fn handle(&amp;self, ctx: &amp;mut Context) -&gt; MiddlewareResult {
+        let path = ctx.path();
+        
+        // Protected paths
+        if path.starts_with(&quot;/posts/create&quot;) || 
+           path.starts_with(&quot;/posts/&quot;) &amp;&amp; ctx.req.method() == &quot;POST&quot; {
+            
+            if !ctx.has_session() || 
+               !ctx.session().map(|s| s.is_authenticated()).unwrap_or(false) {
+                ctx.flash_error(&quot;Please login to continue&quot;)?;
+                ctx.redirect(&quot;/auth/login&quot;);
+                return MiddlewareResult::Stop;
+            }
+        }
+        
+        MiddlewareResult::Continue
+    }
+}
+
+pub fn install(registry: &amp;mut MiddlewareRegistry) {
+    registry.register(&quot;auth&quot;, AuthMiddleware);
+}
+#}</code></pre></pre>
+<a class="header" href="examples/real-world-app.html#configuration" id="configuration"><h2>Configuration</h2></a>
+<a class="header" href="examples/real-world-app.html#configtoml" id="configtoml"><h3>config.toml</h3></a>
+<pre><code class="language-toml">[server]
+host = &quot;127.0.0.1&quot;
+port = 8000
+
+[database]
+url = &quot;sqlite:blog.db&quot;
+
+[session]
+timeout = 3600
+secure = false
+http_only = true
+
+[views]
+directory = &quot;views&quot;
+cache_enabled = false
+default_layout = &quot;layouts/application&quot;
+</code></pre>
+<a class="header" href="examples/real-world-app.html#views" id="views"><h2>Views</h2></a>
+<a class="header" href="examples/real-world-app.html#layout" id="layout"><h3>Layout</h3></a>
+<pre><code class="language-html">&lt;!-- views/layouts/application.html --&gt;
+&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+    &lt;title&gt;@{model.title} - My Blog&lt;/title&gt;
+    &lt;link rel=&quot;stylesheet&quot; href=&quot;/css/style.css&quot;&gt;
+&lt;/head&gt;
+&lt;body&gt;
+    &lt;nav&gt;
+        &lt;a href=&quot;/&quot;&gt;Home&lt;/a&gt;
+        &lt;a href=&quot;/posts&quot;&gt;Posts&lt;/a&gt;
+        @{if repository.user}
+            &lt;a href=&quot;/posts/create&quot;&gt;New Post&lt;/a&gt;
+            &lt;a href=&quot;/auth/logout&quot;&gt;Logout&lt;/a&gt;
+        @{else}
+            &lt;a href=&quot;/auth/login&quot;&gt;Login&lt;/a&gt;
+        @{fi}
+    &lt;/nav&gt;
+    
+    @{if flash.success_msg}
+        &lt;div class=&quot;alert success&quot;&gt;@{flash.success_msg}&lt;/div&gt;
+    @{fi}
+    
+    @{if flash.error_msg}
+        &lt;div class=&quot;alert error&quot;&gt;@{flash.error_msg}&lt;/div&gt;
+    @{fi}
+    
+    &lt;main&gt;
+        {{@body}}
+    &lt;/main&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre>
+<a class="header" href="examples/real-world-app.html#testing" id="testing"><h2>Testing</h2></a>
+<a class="header" href="examples/real-world-app.html#manual-testing" id="manual-testing"><h3>Manual Testing</h3></a>
+<pre><code class="language-bash"># Start server
+cargo run
+
+# Test endpoints
+curl http://localhost:8000/
+curl http://localhost:8000/posts
+curl http://localhost:8000/posts/1
+</code></pre>
+<a class="header" href="examples/real-world-app.html#integration-tests" id="integration-tests"><h3>Integration Tests</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+#[cfg(test)]
+mod tests {
+    use super::*;
+    
+    #[tokio::test]
+    async fn test_create_post() {
+        // Test post creation
+    }
+    
+    #[tokio::test]
+    async fn test_search_posts() {
+        // Test search functionality
+    }
+}
+#}</code></pre></pre>
+<a class="header" href="examples/real-world-app.html#deployment" id="deployment"><h2>Deployment</h2></a>
+<p>See the <a href="../deployment/production.md">Deployment Guide</a> for production deployment instructions.</p>
+<a class="header" href="examples/real-world-app.html#next-steps" id="next-steps"><h2>Next Steps</h2></a>
+<ul>
+<li>Add email notifications</li>
+<li>Add RSS feed</li>
+<li>Add social sharing</li>
+<li>Add analytics</li>
+<li>Add caching layer</li>
+<li>Add CDN for static assets</li>
+</ul>
+
+                </div>
+
+                <!-- Mobile navigation buttons -->
+                
+                    <a rel="prev" href="examples/authentication.html" class="mobile-nav-chapters previous" title="Previous chapter">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                
+
+                
+                    <a rel="next" href="deployment/production.html" class="mobile-nav-chapters next" title="Next chapter">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+                
+
+            </div>
+
+            
+                <a href="examples/authentication.html" class="nav-chapters previous" title="You can navigate through the chapters using the arrow keys">
+                    <i class="fa fa-angle-left"></i>
+                </a>
+            
+
+            
+                <a href="deployment/production.html" class="nav-chapters next" title="You can navigate through the chapters using the arrow keys">
+                    <i class="fa fa-angle-right"></i>
+                </a>
+            
+
+        </div>
+
+
+        <!-- Local fallback for Font Awesome -->
+        <script>
+            if ($(".fa").css("font-family") !== "FontAwesome") {
+                $('<link rel="stylesheet" type="text/css" href="_FontAwesome/css/font-awesome.css">').prependTo('head');
+            }
+        </script>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        
+
+        
+
+        
+
+        
+
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS script -->
+        
+
+    </body>
+</html>

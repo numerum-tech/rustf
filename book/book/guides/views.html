@@ -1,0 +1,2261 @@
+<!DOCTYPE HTML>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Views &amp; Templates - RustF Framework Documentation</title>
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="Complete guide to the RustF MVC web framework for Rust">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <base href="../">
+
+        <link rel="stylesheet" href="book.css">
+        <link href="https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800" rel="stylesheet" type="text/css">
+        <link href="https://fonts.googleapis.com/css?family=Source+Code+Pro:500" rel="stylesheet" type="text/css">
+
+        <link rel="shortcut icon" href="favicon.png">
+
+        <!-- Font Awesome -->
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
+
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme -->
+        
+
+        
+
+        <!-- Fetch Clipboard.js from CDN but have a local fallback -->
+        <script src="https://cdn.jsdelivr.net/clipboard.js/1.6.1/clipboard.min.js"></script>
+        <script>
+            if (typeof Clipboard == 'undefined') {
+                document.write(unescape("%3Cscript src='clipboard.min.js'%3E%3C/script%3E"));
+            }
+        </script>
+
+        <!-- Fetch JQuery from CDN but have a local fallback -->
+        <script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+        <script>
+            if (typeof jQuery == 'undefined') {
+                document.write(unescape("%3Cscript src='jquery.js'%3E%3C/script%3E"));
+            }
+        </script>
+
+        <!-- Fetch store.js from local - TODO add CDN when 2.x.x is available on cdnjs -->
+        <script src="store.js"></script>
+
+    </head>
+    <body class="light">
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme = store.get('mdbook-theme');
+            if (theme === null || theme === undefined) { theme = 'light'; }
+            $('body').removeClass().addClass(theme);
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var sidebar = store.get('mdbook-sidebar');
+            if (sidebar === "hidden") { $("html").addClass("sidebar-hidden") }
+            else if (sidebar === "visible") { $("html").addClass("sidebar-visible") }
+        </script>
+
+        <div id="sidebar" class="sidebar">
+            <ul class="chapter"><li class="affix"><a href="README.html">Introduction</a></li><li><a href="getting-started/README.html"><strong>1.</strong> Quick Start</a></li><li><a href="getting-started/installation.html"><strong>2.</strong> Installation</a></li><li><a href="getting-started/hello-world.html"><strong>3.</strong> Hello World</a></li><li><a href="getting-started/project-structure.html"><strong>4.</strong> Project Structure</a></li><li><a href="guides/controllers.html"><strong>5.</strong> Controllers &amp; Routing</a></li><li><a href="guides/views.html" class="active"><strong>6.</strong> Views &amp; Templates</a></li><li><a href="guides/middleware.html"><strong>7.</strong> Middleware</a></li><li><a href="guides/sessions.html"><strong>8.</strong> Sessions</a></li><li><a href="guides/database.html"><strong>9.</strong> Database Integration</a></li><li><a href="guides/configuration.html"><strong>10.</strong> Configuration</a></li><li><a href="guides/security.html"><strong>11.</strong> Security</a></li><li><a href="guides/error-handling.html"><strong>12.</strong> Error Handling</a></li><li><a href="guides/schemas.html"><strong>13.</strong> Schemas &amp; Definitions</a></li><li><a href="advanced/README.html"><strong>14.</strong> Overview</a></li><li><a href="advanced/performance.html"><strong>15.</strong> Performance Optimization</a></li><li><a href="advanced/workers.html"><strong>16.</strong> Workers</a></li><li><a href="advanced/events.html"><strong>17.</strong> Events</a></li><li><a href="advanced/modules.html"><strong>18.</strong> Modules</a></li><li><a href="advanced/cli.html"><strong>19.</strong> CLI Tool</a></li><li><a href="api-reference/README.html"><strong>20.</strong> Overview</a></li><li><a href="api-reference/context.html"><strong>21.</strong> Context API</a></li><li><a href="api-reference/models.html"><strong>22.</strong> Model API</a></li><li><a href="api-reference/routing.html"><strong>23.</strong> Routing API</a></li><li><a href="api-reference/utilities.html"><strong>24.</strong> Utilities</a></li><li><a href="examples/README.html"><strong>25.</strong> Overview</a></li><li><a href="examples/rest-api.html"><strong>26.</strong> Building a REST API</a></li><li><a href="examples/authentication.html"><strong>27.</strong> Authentication</a></li><li><a href="examples/real-world-app.html"><strong>28.</strong> Real-World Application</a></li><li><a href="deployment/production.html"><strong>29.</strong> Production Deployment</a></li><li><a href="deployment/docker.html"><strong>30.</strong> Docker</a></li></ul>
+        </div>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page" tabindex="-1">
+                
+                <div id="menu-bar" class="menu-bar">
+                    <div class="left-buttons">
+                        <i id="sidebar-toggle" class="fa fa-bars" title="Toggle sidebar"></i>
+                        <i id="theme-toggle" class="fa fa-paint-brush" title="Change theme"></i>
+                    </div>
+
+                    <h1 class="menu-title">RustF Framework Documentation</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html">
+                            <i id="print-button" class="fa fa-print" title="Print this book"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <div id="content" class="content">
+                    <a class="header" href="guides/views.html#rustf-view--template-engine-layer" id="rustf-view--template-engine-layer"><h1>RustF View &amp; Template Engine Layer</h1></a>
+<a class="header" href="guides/views.html#overview" id="overview"><h2>Overview</h2></a>
+<p>RustF provides a powerful view system with Total.js as the built-in template engine. The framework is optimized for Total.js templates, providing a familiar syntax for Total.js developers and direct integration with framework features.</p>
+<a class="header" href="guides/views.html#template-engine" id="template-engine"><h2>Template Engine</h2></a>
+<a class="header" href="guides/views.html#totaljs-built-in" id="totaljs-built-in"><h3>Total.js (Built-in)</h3></a>
+<ul>
+<li><strong>No feature flag required</strong> - Always available</li>
+<li><strong>Syntax</strong>: Uses <code>@{...}</code> for expressions</li>
+<li><strong>Compatible with Total.js v4</strong> - Familiar syntax for Total.js developers</li>
+<li><strong>Optimized for RustF</strong> - Direct integration with framework features</li>
+<li><strong>Powerful features</strong> - Conditionals, loops, layouts, sections, helpers</li>
+<li><strong>Auto-escaping</strong> - HTML is escaped by default for security</li>
+</ul>
+<a class="header" href="guides/views.html#configuration" id="configuration"><h2>Configuration</h2></a>
+<p>Configure your template engine in <code>config.toml</code>:</p>
+<pre><code class="language-toml">[views]
+directory = &quot;views&quot;                # Template directory
+default_layout = &quot;layouts/default&quot;  # Default layout template
+cache_enabled = false              # Template caching (dev: false, prod: true)
+extension = &quot;html&quot;                 # File extension for templates
+# engine is always &quot;totaljs&quot; - no other options available
+storage = &quot;filesystem&quot;             # Choose: &quot;filesystem&quot; or &quot;embedded&quot;
+default_root = &quot;&quot;                  # Base URL path for deployment (e.g., &quot;/app&quot;)
+</code></pre>
+<a class="header" href="guides/views.html#basic-usage" id="basic-usage"><h2>Basic Usage</h2></a>
+<a class="header" href="guides/views.html#in-controllers" id="in-controllers"><h3>In Controllers</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use rustf::prelude::*;
+
+#[rustf::install]
+impl HomeController {
+    #[route(GET, &quot;/&quot;)]
+    pub async fn index(ctx: Context) -&gt; Result&lt;Response&gt; {
+        // Render a template with data
+        ctx.view(&quot;home/index&quot;, json!({
+            &quot;title&quot;: &quot;Welcome&quot;,
+            &quot;message&quot;: &quot;Hello from RustF!&quot;,
+            &quot;features&quot;: vec![&quot;Fast&quot;, &quot;Safe&quot;, &quot;Productive&quot;]
+        }))
+    }
+    
+    #[route(GET, &quot;/about&quot;)]
+    pub async fn about(mut ctx: Context) -&gt; Result&lt;Response&gt; {
+        // Render with custom layout
+        ctx.layout(&quot;layouts/special&quot;)
+            .view(&quot;about&quot;, json!({
+                &quot;title&quot;: &quot;About Us&quot;
+            }))
+    }
+    
+    #[route(GET, &quot;/standalone&quot;)]
+    pub async fn standalone(mut ctx: Context) -&gt; Result&lt;Response&gt; {
+        // Render without layout
+        ctx.layout(&quot;&quot;)  // Empty string = no layout
+            .view(&quot;standalone&quot;, json!({
+                &quot;content&quot;: &quot;This page has no layout&quot;
+            }))
+    }
+}
+#}</code></pre></pre>
+<a class="header" href="guides/views.html#context-methods" id="context-methods"><h3>Context Methods</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Basic template rendering
+ctx.view(&quot;template_name&quot;, data)
+
+// Set custom layout (requires mut ctx)
+ctx.layout(&quot;layouts/special&quot;)
+    .view(&quot;template&quot;, data)
+
+// Render without layout
+ctx.layout(&quot;&quot;)  // Empty string = no layout
+    .view(&quot;template&quot;, data)
+
+// Use default layout from config (no need to call layout())
+ctx.view(&quot;template&quot;, data)  // Uses config.views.default_layout
+
+// Render HTML string directly
+ctx.html(&quot;&lt;h1&gt;Direct HTML&lt;/h1&gt;&quot;)
+
+// JSON response
+ctx.json(data)
+
+// Text response
+ctx.text(&quot;Plain text response&quot;)
+#}</code></pre></pre>
+<a class="header" href="guides/views.html#totaljs-template-syntax" id="totaljs-template-syntax"><h2>Total.js Template Syntax</h2></a>
+<a class="header" href="guides/views.html#variables" id="variables"><h3>Variables</h3></a>
+<pre><code class="language-html">&lt;!-- Model/View data access --&gt;
+&lt;h1&gt;@{model.title}&lt;/h1&gt;
+&lt;h1&gt;@{M.title}&lt;/h1&gt;  &lt;!-- Alias for model --&gt;
+
+&lt;!-- Nested properties --&gt;
+&lt;p&gt;@{model.user.name}&lt;/p&gt;
+&lt;p&gt;@{M.user.name}&lt;/p&gt;  &lt;!-- Alias --&gt;
+
+&lt;!-- With default value --&gt;
+&lt;!-- Default values using || operator --&gt;
+&lt;p&gt;@{model.description || 'No description'}&lt;/p&gt;
+&lt;p&gt;@{user.avatar || '/images/default-avatar.png'}&lt;/p&gt;
+&lt;span&gt;@{settings.theme || 'light'}&lt;/span&gt;
+</code></pre>
+<p><strong>Using <code>||</code> for Fallback Values:</strong></p>
+<p>The <code>||</code> (OR) operator provides default values when the left operand is falsy (null, undefined, empty string, 0, false, empty array/object):</p>
+<pre><code class="language-html">&lt;!-- String defaults --&gt;
+&lt;p&gt;Bio: @{user.bio || &quot;No bio available&quot;}&lt;/p&gt;
+
+&lt;!-- Numeric defaults --&gt;
+&lt;p&gt;Items per page: @{settings.pageSize || 20}&lt;/p&gt;
+
+&lt;!-- Chaining multiple fallbacks --&gt;
+&lt;h1&gt;@{custom_title || page.title || &quot;Untitled Page&quot;}&lt;/h1&gt;
+</code></pre>
+<a class="header" href="guides/views.html#conditionals" id="conditionals"><h3>Conditionals</h3></a>
+<a class="header" href="guides/views.html#basic-ifelse" id="basic-ifelse"><h4>Basic If/Else</h4></a>
+<pre><code class="language-html">@{if model.logged_in}
+    &lt;p&gt;Welcome, @{model.username}!&lt;/p&gt;
+@{else}
+    &lt;p&gt;Please log in&lt;/p&gt;
+@{fi}
+
+&lt;!-- Inline conditional --&gt;
+&lt;div class=&quot;@{if M.active}active@{else}inactive@{fi}&quot;&gt;
+</code></pre>
+<a class="header" href="guides/views.html#comparison-operators" id="comparison-operators"><h4>Comparison Operators</h4></a>
+<pre><code class="language-html">&lt;!-- Equality --&gt;
+@{if user.role == &quot;admin&quot;}
+    &lt;p&gt;Admin Dashboard&lt;/p&gt;
+@{fi}
+
+@{if status != &quot;deleted&quot;}
+    &lt;p&gt;Active Item&lt;/p&gt;
+@{fi}
+
+&lt;!-- Strict equality (type-sensitive) --&gt;
+@{if count === 0}
+    &lt;p&gt;Exactly zero&lt;/p&gt;
+@{fi}
+
+&lt;!-- Numeric comparison --&gt;
+@{if age &gt;= 18}
+    &lt;p&gt;Adult content&lt;/p&gt;
+@{fi}
+
+@{if stock &gt; 0}
+    &lt;button&gt;Add to Cart&lt;/button&gt;
+@{else}
+    &lt;span&gt;Out of Stock&lt;/span&gt;
+@{fi}
+
+@{if price &lt;= budget}
+    &lt;span class=&quot;affordable&quot;&gt;Within Budget&lt;/span&gt;
+@{fi}
+</code></pre>
+<p><strong>Supported Comparison Operators:</strong></p>
+<ul>
+<li><code>==</code> - Loose equality (type coercion)</li>
+<li><code>!=</code> - Loose inequality</li>
+<li><code>===</code> - Strict equality (no type coercion)</li>
+<li><code>!==</code> - Strict inequality</li>
+<li><code>&lt;</code> - Less than</li>
+<li><code>&gt;</code> - Greater than</li>
+<li><code>&lt;=</code> - Less than or equal</li>
+<li><code>&gt;=</code> - Greater than or equal</li>
+</ul>
+<a class="header" href="guides/views.html#logical-operators" id="logical-operators"><h4>Logical Operators</h4></a>
+<p><strong>AND (<code>&amp;&amp;</code>)</strong> - Both conditions must be true:</p>
+<pre><code class="language-html">@{if user.is_admin &amp;&amp; user.is_active}
+    &lt;a href=&quot;/admin&quot;&gt;Admin Panel&lt;/a&gt;
+@{fi}
+
+@{if age &gt;= 18 &amp;&amp; has_id}
+    &lt;p&gt;Access granted&lt;/p&gt;
+@{fi}
+</code></pre>
+<p><strong>OR (<code>||</code>)</strong> - At least one condition must be true:</p>
+<pre><code class="language-html">@{if user.is_admin || user.is_moderator}
+    &lt;div class=&quot;staff-tools&quot;&gt;Staff Area&lt;/div&gt;
+@{fi}
+
+@{if is_weekend || is_holiday}
+    &lt;span&gt;🎉 Special Hours&lt;/span&gt;
+@{fi}
+</code></pre>
+<p><strong>Complex Conditions</strong> - Combine with parentheses:</p>
+<pre><code class="language-html">@{if (age &gt;= 18 &amp;&amp; verified) || is_staff}
+    &lt;p&gt;Access granted&lt;/p&gt;
+@{fi}
+
+@{if (is_member &amp;&amp; points &gt; 100) || is_vip}
+    &lt;span class=&quot;badge&quot;&gt;Premium&lt;/span&gt;
+@{fi}
+</code></pre>
+<a class="header" href="guides/views.html#negation-with-" id="negation-with-"><h4>Negation with <code>!</code></h4></a>
+<pre><code class="language-html">&lt;!-- NOT operator --&gt;
+@{if !user.is_banned}
+    &lt;p&gt;Welcome back!&lt;/p&gt;
+@{fi}
+
+@{if !is_empty}
+    &lt;ul&gt;@{foreach item in items}...@{end}&lt;/ul&gt;
+@{fi}
+
+&lt;!-- Negating expressions --&gt;
+@{if !(status == &quot;deleted&quot; || status == &quot;archived&quot;)}
+    &lt;button&gt;Edit&lt;/button&gt;
+@{fi}
+</code></pre>
+<a class="header" href="guides/views.html#else-if-chains-with-elif" id="else-if-chains-with-elif"><h4>Else-If Chains with <code>@{elif}</code></h4></a>
+<pre><code class="language-html">@{if score &gt; 90}
+    &lt;span class=&quot;grade-a&quot;&gt;A - Excellent!&lt;/span&gt;
+@{elif score &gt; 80}
+    &lt;span class=&quot;grade-b&quot;&gt;B - Good Job&lt;/span&gt;
+@{elif score &gt; 70}
+    &lt;span class=&quot;grade-c&quot;&gt;C - Fair&lt;/span&gt;
+@{elif score &gt; 60}
+    &lt;span class=&quot;grade-d&quot;&gt;D - Needs Improvement&lt;/span&gt;
+@{else}
+    &lt;span class=&quot;grade-f&quot;&gt;F - Failed&lt;/span&gt;
+@{fi}
+</code></pre>
+<p><strong>Multiple elif branches:</strong></p>
+<pre><code class="language-html">@{if role == &quot;owner&quot;}
+    &lt;p&gt;Full Access&lt;/p&gt;
+@{elif role == &quot;admin&quot;}
+    &lt;p&gt;Administrative Access&lt;/p&gt;
+@{elif role == &quot;moderator&quot;}
+    &lt;p&gt;Moderation Access&lt;/p&gt;
+@{elif role == &quot;member&quot;}
+    &lt;p&gt;Member Access&lt;/p&gt;
+@{else}
+    &lt;p&gt;Guest Access&lt;/p&gt;
+@{fi}
+</code></pre>
+<a class="header" href="guides/views.html#truthyfalsy-values" id="truthyfalsy-values"><h4>Truthy/Falsy Values</h4></a>
+<p>Values are evaluated as truthy or falsy in conditionals:</p>
+<p><strong>Falsy values:</strong></p>
+<ul>
+<li><code>false</code></li>
+<li><code>null</code></li>
+<li><code>0</code></li>
+<li><code>&quot;&quot;</code> (empty string)</li>
+<li><code>[]</code> (empty array)</li>
+<li><code>{}</code> (empty object)</li>
+</ul>
+<p><strong>Truthy values:</strong></p>
+<ul>
+<li><code>true</code></li>
+<li>Any non-zero number</li>
+<li>Any non-empty string</li>
+<li>Any non-empty array</li>
+<li>Any non-empty object</li>
+</ul>
+<pre><code class="language-html">&lt;!-- Check if value exists and is truthy --&gt;
+@{if user.email}
+    &lt;p&gt;Email: @{user.email}&lt;/p&gt;
+@{fi}
+
+&lt;!-- Check if array has items --&gt;
+@{if products}
+    &lt;p&gt;@{products.length} products available&lt;/p&gt;
+@{fi}
+</code></pre>
+<a class="header" href="guides/views.html#loops" id="loops"><h3>Loops</h3></a>
+<pre><code class="language-html">&lt;!-- Array iteration --&gt;
+@{foreach item in model.items}
+    &lt;li&gt;@{item.name} - @{item.price}&lt;/li&gt;
+@{end}
+
+&lt;!-- With index (using M alias) --&gt;
+@{foreach item, index in M.items}
+    &lt;li&gt;@{index}: @{item}&lt;/li&gt;
+@{end}
+</code></pre>
+<a class="header" href="guides/views.html#escaping" id="escaping"><h3>Escaping</h3></a>
+<pre><code class="language-html">&lt;!-- Auto-escaped (safe by default) --&gt;
+&lt;p&gt;@{model.user_input}&lt;/p&gt;
+
+&lt;!-- Raw HTML (unescaped) --&gt;
+&lt;div&gt;@{!M.html_content}&lt;/div&gt;
+</code></pre>
+<a class="header" href="guides/views.html#expressions--operators" id="expressions--operators"><h3>Expressions &amp; Operators</h3></a>
+<p>The Total.js template engine supports rich expressions with multiple operator types, allowing for complex logic directly in templates.</p>
+<a class="header" href="guides/views.html#operator-reference" id="operator-reference"><h4>Operator Reference</h4></a>
+<table><thead><tr><th> Category </th><th> Operators </th><th> Description </th><th> Example </th></tr></thead><tbody>
+<tr><td> <strong>Comparison</strong> </td><td> <code>==</code>, <code>!=</code> </td><td> Loose equality/inequality (with type coercion) </td><td> <code>@{if age == &quot;18&quot;}</code> </td></tr>
+<tr><td> </td><td> <code>===</code>, <code>!==</code> </td><td> Strict equality/inequality (no type coercion) </td><td> <code>@{if count === 0}</code> </td></tr>
+<tr><td> </td><td> <code>&lt;</code>, <code>&gt;</code> </td><td> Less than, greater than </td><td> <code>@{if price &gt; 100}</code> </td></tr>
+<tr><td> </td><td> <code>&lt;=</code>, <code>&gt;=</code> </td><td> Less/greater than or equal </td><td> <code>@{if stock &lt;= 5}</code> </td></tr>
+<tr><td> <strong>Logical</strong> </td><td> <code>&amp;&amp;</code> </td><td> AND - both must be true </td><td> <code>@{if a &amp;&amp; b}</code> </td></tr>
+<tr><td> </td><td> <code>\|\|</code> </td><td> OR - at least one must be true </td><td> <code>@{if a \|\| b}</code> </td></tr>
+<tr><td> <strong>Unary</strong> </td><td> <code>!</code> </td><td> NOT - negates boolean </td><td> <code>@{if !is_deleted}</code> </td></tr>
+<tr><td> </td><td> <code>-</code> </td><td> Negation - negates number </td><td> <code>@{-value}</code> </td></tr>
+<tr><td> <strong>Arithmetic</strong> </td><td> <code>+</code> </td><td> Addition / String concatenation </td><td> <code>@{price + tax}</code> </td></tr>
+<tr><td> </td><td> <code>-</code> </td><td> Subtraction </td><td> <code>@{total - discount}</code> </td></tr>
+<tr><td> </td><td> <code>*</code> </td><td> Multiplication </td><td> <code>@{price * quantity}</code> </td></tr>
+<tr><td> </td><td> <code>/</code> </td><td> Division </td><td> <code>@{total / count}</code> </td></tr>
+<tr><td> </td><td> <code>%</code> </td><td> Modulo (remainder) </td><td> <code>@{index % 2}</code> </td></tr>
+</tbody></table>
+<a class="header" href="guides/views.html#operator-precedence" id="operator-precedence"><h4>Operator Precedence</h4></a>
+<p>Operators are evaluated in the following order (highest to lowest precedence):</p>
+<ol>
+<li><strong>Parentheses</strong> <code>( )</code> - Grouping (evaluated first)</li>
+<li><strong>Unary</strong> <code>!</code>, <code>-</code> - NOT, negation</li>
+<li><strong>Multiplication/Division</strong> <code>*</code>, <code>/</code>, <code>%</code> - Arithmetic</li>
+<li><strong>Addition/Subtraction</strong> <code>+</code>, <code>-</code> - Arithmetic</li>
+<li><strong>Comparison</strong> <code>&lt;</code>, <code>&gt;</code>, <code>&lt;=</code>, <code>&gt;=</code> - Relational</li>
+<li><strong>Equality</strong> <code>==</code>, <code>!=</code>, <code>===</code>, <code>!==</code> - Equality checks</li>
+<li><strong>Logical AND</strong> <code>&amp;&amp;</code> - Boolean AND</li>
+<li><strong>Logical OR</strong> <code>||</code> - Boolean OR (evaluated last)</li>
+</ol>
+<p><strong>Examples:</strong></p>
+<pre><code class="language-html">&lt;!-- Precedence without parentheses --&gt;
+@{if x + 5 &gt; 10 &amp;&amp; y &lt; 20}
+    &lt;!-- Evaluates as: ((x + 5) &gt; 10) &amp;&amp; (y &lt; 20) --&gt;
+@{fi}
+
+&lt;!-- Using parentheses to control precedence --&gt;
+@{if (a || b) &amp;&amp; c}
+    &lt;!-- OR is evaluated before AND due to parentheses --&gt;
+@{fi}
+</code></pre>
+<a class="header" href="guides/views.html#arithmetic-operations" id="arithmetic-operations"><h4>Arithmetic Operations</h4></a>
+<pre><code class="language-html">&lt;!-- Basic arithmetic --&gt;
+&lt;p&gt;Subtotal: $@{price * quantity}&lt;/p&gt;
+&lt;p&gt;Tax: $@{subtotal * 0.08}&lt;/p&gt;
+&lt;p&gt;Total: $@{subtotal + (subtotal * 0.08)}&lt;/p&gt;
+
+&lt;!-- Complex calculations --&gt;
+&lt;p&gt;Price per unit: $@{total_price / item_count}&lt;/p&gt;
+&lt;p&gt;Discount: @{(original_price - sale_price) / original_price * 100}%&lt;/p&gt;
+
+&lt;!-- Modulo for alternating styles --&gt;
+@{foreach item, index in items}
+    &lt;tr class=&quot;@{if index % 2 == 0}even@{else}odd@{fi}&quot;&gt;
+        &lt;td&gt;@{item.name}&lt;/td&gt;
+    &lt;/tr&gt;
+@{end}
+</code></pre>
+<a class="header" href="guides/views.html#string-concatenation" id="string-concatenation"><h4>String Concatenation</h4></a>
+<pre><code class="language-html">&lt;!-- Concatenate strings with + --&gt;
+&lt;p&gt;@{first_name + &quot; &quot; + last_name}&lt;/p&gt;
+&lt;p&gt;@{&quot;Hello, &quot; + user.name + &quot;!&quot;}&lt;/p&gt;
+
+&lt;!-- Build URLs --&gt;
+&lt;a href=&quot;@{&quot;/products/&quot; + product.id}&quot;&gt;View Product&lt;/a&gt;
+
+&lt;!-- Combine with variables --&gt;
+&lt;p&gt;@{greeting + &quot; &quot; + M.username}&lt;/p&gt;
+</code></pre>
+<a class="header" href="guides/views.html#default-values-with-" id="default-values-with-"><h4>Default Values with <code>||</code></h4></a>
+<p>The <code>||</code> operator provides fallback values when the left side is falsy:</p>
+<pre><code class="language-html">&lt;!-- Simple default --&gt;
+&lt;p&gt;@{user.bio || &quot;No bio provided&quot;}&lt;/p&gt;
+
+&lt;!-- Nested properties with default --&gt;
+&lt;p&gt;@{user.profile.avatar || &quot;/images/default-avatar.png&quot;}&lt;/p&gt;
+
+&lt;!-- Numeric defaults --&gt;
+&lt;p&gt;Items per page: @{settings.page_size || 20}&lt;/p&gt;
+
+&lt;!-- Chain multiple defaults --&gt;
+&lt;p&gt;@{custom_title || default_title || &quot;Untitled&quot;}&lt;/p&gt;
+</code></pre>
+<a class="header" href="guides/views.html#complex-expressions" id="complex-expressions"><h4>Complex Expressions</h4></a>
+<pre><code class="language-html">&lt;!-- Nested conditionals in expressions --&gt;
+&lt;p class=&quot;@{if score &gt;= 90}excellent@{elif score &gt;= 70}good@{else}poor@{fi}&quot;&gt;
+    Score: @{score}
+&lt;/p&gt;
+
+&lt;!-- Mathematical expressions in conditionals --&gt;
+@{if (price * quantity) &gt; budget}
+    &lt;span class=&quot;warning&quot;&gt;Over budget!&lt;/span&gt;
+@{fi}
+
+&lt;!-- Combining multiple operators --&gt;
+@{if ((total - discount) * tax_rate) &lt; 100 &amp;&amp; is_member}
+    &lt;span&gt;Free shipping!&lt;/span&gt;
+@{fi}
+
+&lt;!-- Expression in attribute values --&gt;
+&lt;div data-score=&quot;@{points * 10}&quot; 
+     class=&quot;level-@{if points &gt; 100}high@{else}low@{fi}&quot;&gt;
+&lt;/div&gt;
+</code></pre>
+<a class="header" href="guides/views.html#grouping-with-parentheses" id="grouping-with-parentheses"><h4>Grouping with Parentheses</h4></a>
+<p>Use parentheses to control evaluation order and clarify complex expressions:</p>
+<pre><code class="language-html">&lt;!-- Without parentheses (may be unclear) --&gt;
+@{if a &amp;&amp; b || c &amp;&amp; d}  &lt;!-- Evaluates as: (a &amp;&amp; b) || (c &amp;&amp; d) --&gt;
+
+&lt;!-- With parentheses (explicit) --&gt;
+@{if (a &amp;&amp; b) || (c &amp;&amp; d)}  &lt;!-- Same result, but clearer intent --&gt;
+
+&lt;!-- Change evaluation order --&gt;
+@{if a &amp;&amp; (b || c) &amp;&amp; d}  &lt;!-- OR evaluated before outer ANDs --&gt;
+
+&lt;!-- Arithmetic grouping --&gt;
+&lt;p&gt;@{(price + shipping) * (1 + tax_rate)}&lt;/p&gt;
+</code></pre>
+<a class="header" href="guides/views.html#practical-examples" id="practical-examples"><h4>Practical Examples</h4></a>
+<p><strong>Shopping Cart Total:</strong></p>
+<pre><code class="language-html">@{var subtotal = 0}
+@{foreach item in cart.items}
+    @{var item_total = item.price * item.quantity}
+    @{subtotal = subtotal + item_total}
+    &lt;tr&gt;
+        &lt;td&gt;@{item.name}&lt;/td&gt;
+        &lt;td&gt;@{item.quantity} × $@{item.price}&lt;/td&gt;
+        &lt;td&gt;$@{item_total}&lt;/td&gt;
+    &lt;/tr&gt;
+@{end}
+&lt;tr class=&quot;total&quot;&gt;
+    &lt;td colspan=&quot;2&quot;&gt;Subtotal:&lt;/td&gt;
+    &lt;td&gt;$@{subtotal}&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+    &lt;td colspan=&quot;2&quot;&gt;Tax (@{tax_rate * 100}%):&lt;/td&gt;
+    &lt;td&gt;$@{subtotal * tax_rate}&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr class=&quot;grand-total&quot;&gt;
+    &lt;td colspan=&quot;2&quot;&gt;Total:&lt;/td&gt;
+    &lt;td&gt;$@{subtotal + (subtotal * tax_rate)}&lt;/td&gt;
+&lt;/tr&gt;
+</code></pre>
+<p><strong>Pagination Logic:</strong></p>
+<pre><code class="language-html">@{var total_pages = Math.ceil(total_items / items_per_page)}
+@{var has_prev = current_page &gt; 1}
+@{var has_next = current_page &lt; total_pages}
+
+&lt;div class=&quot;pagination&quot;&gt;
+    @{if has_prev}
+        &lt;a href=&quot;?page=@{current_page - 1}&quot;&gt;Previous&lt;/a&gt;
+    @{fi}
+    
+    &lt;span&gt;Page @{current_page} of @{total_pages}&lt;/span&gt;
+    
+    @{if has_next}
+        &lt;a href=&quot;?page=@{current_page + 1}&quot;&gt;Next&lt;/a&gt;
+    @{fi}
+&lt;/div&gt;
+</code></pre>
+<p><strong>Access Control:</strong></p>
+<pre><code class="language-html">@{var can_edit = (user.id === post.author_id) || user.is_admin}
+@{var can_delete = user.is_admin || (user.is_moderator &amp;&amp; post.flagged)}
+@{var can_publish = (user.role === &quot;editor&quot; || user.role === &quot;admin&quot;) &amp;&amp; !post.published}
+
+@{if can_edit}
+    &lt;button onclick=&quot;editPost()&quot;&gt;Edit&lt;/button&gt;
+@{fi}
+
+@{if can_delete}
+    &lt;button onclick=&quot;deletePost()&quot; class=&quot;danger&quot;&gt;Delete&lt;/button&gt;
+@{fi}
+
+@{if can_publish}
+    &lt;button onclick=&quot;publishPost()&quot; class=&quot;primary&quot;&gt;Publish&lt;/button&gt;
+@{fi}
+</code></pre>
+<a class="header" href="guides/views.html#data-access-in-templates" id="data-access-in-templates"><h3>Data Access in Templates</h3></a>
+<a class="header" href="guides/views.html#global-constants" id="global-constants"><h4>Global Constants</h4></a>
+<p>These are directly accessible without any prefix:</p>
+<pre><code class="language-html">@{url}          &lt;!-- Current request URL --&gt;
+@{hostname}     &lt;!-- Server hostname --&gt;
+@{root}         &lt;!-- Application root path (from config.default_root) --&gt;
+@{index}        &lt;!-- Current loop index (inside foreach) --&gt;
+@{csrf_token}   &lt;!-- CSRF token for forms --&gt;
+</code></pre>
+<a class="header" href="guides/views.html#data-source-objects" id="data-source-objects"><h4>Data Source Objects</h4></a>
+<p>These objects can be accessed entirely or via dot notation for properties:</p>
+<pre><code class="language-html">&lt;!-- Configuration (entire object or properties) --&gt;
+@{CONF}               &lt;!-- Entire config object --&gt;
+@{CONF.app_name}      &lt;!-- Specific config value --&gt;
+@{CONF.default_root}  &lt;!-- Deployment root path --&gt;
+
+&lt;!-- Session (entire object or properties) --&gt;
+@{session}            &lt;!-- Entire session object --&gt;
+@{session.user_id}    &lt;!-- Specific session value --&gt;
+@{session.cart}       &lt;!-- Session cart data --&gt;
+
+&lt;!-- Flash Messages (stored in session, aliased for convenience) --&gt;
+@{flash}              &lt;!-- All flash messages --&gt;
+@{flash.error}        &lt;!-- Error flash message --&gt;
+@{flash.success}      &lt;!-- Success flash message --&gt;
+@{flash.info}         &lt;!-- Info flash message --&gt;
+@{flash.custom_key}   &lt;!-- Custom flash message --&gt;
+
+&lt;!-- Query parameters (entire object or properties) --&gt;
+@{query}              &lt;!-- All query parameters --&gt;
+@{query.page}         &lt;!-- Specific query parameter --&gt;
+@{query.search}       &lt;!-- Search query parameter --&gt;
+
+&lt;!-- User (entire object or properties) --&gt;
+@{user}               &lt;!-- Entire user object --&gt;
+@{user.name}          &lt;!-- User's name --&gt;
+@{user.email}         &lt;!-- User's email --&gt;
+
+&lt;!-- Context Repository (per-handler) --&gt;
+@{repository}         &lt;!-- Entire repository object --&gt;
+@{repository.key}     &lt;!-- Specific repository value --&gt;
+@{R.key}              &lt;!-- Shorthand for repository.key --&gt;
+
+&lt;!-- Global Repository (application-wide) --&gt;
+@{APP.key}            &lt;!-- Global repository value --&gt;
+@{MAIN.key}           &lt;!-- Alias for APP.key --&gt;
+
+&lt;!-- Model/View Data (from ctx.view()) --&gt;
+@{model}              &lt;!-- Entire model object --&gt;
+@{model.key}          &lt;!-- Specific model value --&gt;
+@{M}                  &lt;!-- Alias for entire model --&gt;
+@{M.key}              &lt;!-- Alias for model.key --&gt;
+</code></pre>
+<a class="header" href="guides/views.html#loop-variables" id="loop-variables"><h4>Loop Variables</h4></a>
+<p>Within <code>@{foreach}</code> loops, the iterator variable is directly accessible:</p>
+<pre><code class="language-html">@{foreach product in model.products}
+    &lt;!-- 'product' is directly accessible here --&gt;
+    &lt;h3&gt;@{product.name}&lt;/h3&gt;
+    &lt;p&gt;Price: @{product.price}&lt;/p&gt;
+    &lt;p&gt;Index: @{index}&lt;/p&gt;  &lt;!-- Loop index is available --&gt;
+@{end}
+
+&lt;!-- Looping over objects --&gt;
+@{foreach key, value in CONF}
+    &lt;p&gt;Config @{key}: @{value}&lt;/p&gt;
+@{end}
+</code></pre>
+<a class="header" href="guides/views.html#built-in-functions" id="built-in-functions"><h3>Built-in Functions</h3></a>
+<pre><code class="language-html">&lt;!-- URL helpers --&gt;
+@{url('/path')}         &lt;!-- Generate URL with root prefix --&gt;
+@{css('/static/app.css')}  &lt;!-- CSS link tag --&gt;
+@{js('/static/app.js')}    &lt;!-- Script tag --&gt;
+
+&lt;!-- Data formatting --&gt;
+@{json(data)}           &lt;!-- JSON stringify --&gt;
+@{encode(text)}         &lt;!-- URL encode --&gt;
+@{escape(html)}         &lt;!-- HTML escape --&gt;
+
+&lt;!-- String manipulation --&gt;
+@{upper(text)}          &lt;!-- Uppercase --&gt;
+@{lower(text)}          &lt;!-- Lowercase --&gt;
+@{trim(text)}           &lt;!-- Trim whitespace --&gt;
+@{capitalize(text)}     &lt;!-- Capitalize first letter --&gt;
+
+&lt;!-- Iteration helpers --&gt;
+@{range(10)}            &lt;!-- Generate array [0,1,2,3,4,5,6,7,8,9] --&gt;
+@{range(1, 11)}         &lt;!-- Generate array [1,2,3,4,5,6,7,8,9,10] --&gt;
+@{range(0, 10, 2)}      &lt;!-- Generate array [0,2,4,6,8] with step --&gt;
+</code></pre>
+<a class="header" href="guides/views.html#range-function-examples" id="range-function-examples"><h4>Range Function Examples</h4></a>
+<p>The <code>range()</code> function generates numeric sequences for loops:</p>
+<pre><code class="language-html">&lt;!-- Simple range: 0 to N-1 --&gt;
+@{foreach num in range(5)}
+    &lt;p&gt;Item @{num}&lt;/p&gt;  &lt;!-- Outputs: 0, 1, 2, 3, 4 --&gt;
+@{end}
+
+&lt;!-- Range with start and stop --&gt;
+@{foreach page in range(1, 6)}
+    &lt;a href=&quot;/page/@{page}&quot;&gt;Page @{page}&lt;/a&gt;  &lt;!-- Pages 1-5 --&gt;
+@{end}
+
+&lt;!-- Range with custom step --&gt;
+@{foreach year in range(2020, 2030, 2)}
+    &lt;option value=&quot;@{year}&quot;&gt;@{year}&lt;/option&gt;  &lt;!-- 2020, 2022, 2024, 2026, 2028 --&gt;
+@{end}
+
+&lt;!-- Practical example: pagination --&gt;
+@{foreach page in range(1, model.totalPages + 1)}
+    @{if page == model.currentPage}
+        &lt;span class=&quot;active&quot;&gt;@{page}&lt;/span&gt;
+    @{else}
+        &lt;a href=&quot;?page=@{page}&quot;&gt;@{page}&lt;/a&gt;
+    @{fi}
+@{end}
+</code></pre>
+<a class="header" href="guides/views.html#template-partials-and-includes" id="template-partials-and-includes"><h3>Template Partials and Includes</h3></a>
+<p>Total.js templates support including other templates (partials) using the <code>@{view()}</code> function:</p>
+<pre><code class="language-html">&lt;!-- Include a partial template --&gt;
+@{view('partials/header')}
+
+&lt;!-- Include with specific model data --&gt;
+@{view('partials/user-card', model.currentUser)}
+
+&lt;!-- Include in loops --&gt;
+@{foreach user in model.users}
+    @{view('partials/user-card', user)}
+@{end}
+
+&lt;!-- Nested partials (partials can include other partials) --&gt;
+&lt;!-- In partials/sidebar.html: --&gt;
+@{view('partials/user-info', model.user)}
+@{view('partials/menu', model.menuItems)}
+</code></pre>
+<a class="header" href="guides/views.html#partial-template-example" id="partial-template-example"><h4>Partial Template Example</h4></a>
+<p>Create reusable components in <code>views/partials/</code>:</p>
+<pre><code class="language-html">&lt;!-- views/partials/user-card.html --&gt;
+&lt;div class=&quot;user-card&quot;&gt;
+    &lt;img src=&quot;@{model.avatar}&quot; alt=&quot;@{model.name}&quot;&gt;
+    &lt;h3&gt;@{model.name}&lt;/h3&gt;
+    &lt;p&gt;@{model.email}&lt;/p&gt;
+    @{if model.isAdmin}
+        &lt;span class=&quot;badge&quot;&gt;Admin&lt;/span&gt;
+    @{fi}
+&lt;/div&gt;
+</code></pre>
+<p>Use it in your main templates:</p>
+<pre><code class="language-html">&lt;!-- views/users/list.html --&gt;
+&lt;div class=&quot;users-grid&quot;&gt;
+    @{foreach user in model.users}
+        @{view('partials/user-card', user)}
+    @{end}
+&lt;/div&gt;
+</code></pre>
+<a class="header" href="guides/views.html#important-notes" id="important-notes"><h4>Important Notes</h4></a>
+<ul>
+<li>Partials have access to all global data (repository, session, etc.)</li>
+<li>When passing model data, the partial receives only that data as its model</li>
+<li>Partials are loaded relative to the views directory</li>
+<li>Nested partials are supported (partials can include other partials)</li>
+<li>Currently, array indexing in expressions (e.g., <code>model.users[0]</code>) is not supported in the view() function</li>
+</ul>
+<a class="header" href="guides/views.html#layouts" id="layouts"><h2>Layouts</h2></a>
+<a class="header" href="guides/views.html#layout-system-overview" id="layout-system-overview"><h3>Layout System Overview</h3></a>
+<p>RustF follows the Total.js pattern for layouts:</p>
+<ul>
+<li><strong>Default layout</strong>: Configured in <code>config.toml</code> as <code>views.default_layout</code> (default: <code>&quot;layouts/default&quot;</code>)</li>
+<li><strong>Custom layout</strong>: Use <code>ctx.layout(&quot;path/to/layout&quot;)</code> in controller (requires <code>mut ctx</code>)</li>
+<li><strong>No layout</strong>: Use <code>ctx.layout(&quot;&quot;)</code> with empty string</li>
+<li><strong>Layout inheritance</strong>: Templates can specify their own layout with <code>@{layout('path')}</code></li>
+</ul>
+<a class="header" href="guides/views.html#controller-side-layout-control" id="controller-side-layout-control"><h3>Controller-Side Layout Control</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use rustf::prelude::*;
+
+#[rustf::install]
+impl PageController {
+    // Uses default layout from config
+    #[route(GET, &quot;/&quot;)]
+    pub async fn index(ctx: Context) -&gt; Result&lt;Response&gt; {
+        ctx.view(&quot;home/index&quot;, json!({&quot;title&quot;: &quot;Home&quot;}))
+    }
+    
+    // Custom layout
+    #[route(GET, &quot;/admin&quot;)]
+    pub async fn admin(mut ctx: Context) -&gt; Result&lt;Response&gt; {
+        ctx.layout(&quot;layouts/admin&quot;)  // Set custom layout
+            .view(&quot;admin/dashboard&quot;, json!({&quot;user&quot;: &quot;Admin&quot;}))
+    }
+    
+    // No layout (standalone page)
+    #[route(GET, &quot;/api-doc&quot;)]
+    pub async fn api_doc(mut ctx: Context) -&gt; Result&lt;Response&gt; {
+        ctx.layout(&quot;&quot;)  // Empty string = no layout
+            .view(&quot;docs/api&quot;, json!({&quot;version&quot;: &quot;1.0&quot;}))
+    }
+}
+#}</code></pre></pre>
+<a class="header" href="guides/views.html#totaljs-layouts" id="totaljs-layouts"><h3>Total.js Layouts</h3></a>
+<p>Define a layout (<code>views/layouts/default.html</code>):</p>
+<pre><code class="language-html">&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+    &lt;title&gt;@{if model.title}@{model.title} - @{fi}My App&lt;/title&gt;
+    @{css('/static/css/main.css')}
+&lt;/head&gt;
+&lt;body&gt;
+    &lt;nav&gt;
+        &lt;a href=&quot;@{root}/&quot;&gt;Home&lt;/a&gt;
+        &lt;a href=&quot;@{root}/about&quot;&gt;About&lt;/a&gt;
+    &lt;/nav&gt;
+    
+    &lt;main&gt;
+        @{body}  &lt;!-- Child template content renders here --&gt;
+    &lt;/main&gt;
+    
+    @{js('/static/js/app.js')}
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre>
+<p>Use in child template (<code>views/home/index.html</code>):</p>
+<pre><code class="language-html">@{layout('layouts/default')}  &lt;!-- Optional: Override controller layout --&gt;
+
+&lt;h1&gt;@{model.title}&lt;/h1&gt;
+&lt;p&gt;@{M.message}&lt;/p&gt;
+
+@{foreach feature in model.features}
+    &lt;div&gt;@{feature}&lt;/div&gt;
+@{end}
+</code></pre>
+<a class="header" href="guides/views.html#sections" id="sections"><h2>Sections</h2></a>
+<a class="header" href="guides/views.html#section-system-overview" id="section-system-overview"><h3>Section System Overview</h3></a>
+<p>Sections allow child templates to define content blocks that parent layouts can render in specific locations. This is the standard pattern for customizing different areas of a layout (head content, sidebar, footer, etc.) from child views.</p>
+<p><strong>Key Concepts</strong>:</p>
+<ul>
+<li><strong>Child defines sections</strong>: Use <code>@{section name}...@{end}</code> in child templates</li>
+<li><strong>Parent renders sections</strong>: Use <code>@{section('name')}</code> in layout templates</li>
+<li><strong>Optional sections</strong>: Missing sections render as empty (no errors)</li>
+<li><strong>Multiple sections</strong>: Child can define multiple sections for different layout areas</li>
+</ul>
+<a class="header" href="guides/views.html#basic-section-usage" id="basic-section-usage"><h3>Basic Section Usage</h3></a>
+<p><strong>Layout with Section Placeholders</strong> (<code>views/layouts/main.html</code>):</p>
+<pre><code class="language-html">&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+    &lt;title&gt;@{M.title}&lt;/title&gt;
+    
+    &lt;!-- Child can inject custom styles here --&gt;
+    @{section('styles')}
+    
+    &lt;!-- Child can add meta tags, scripts, etc. --&gt;
+    @{section('head')}
+&lt;/head&gt;
+&lt;body&gt;
+    &lt;header&gt;
+        &lt;!-- Child can customize header --&gt;
+        @{section('header')}
+    &lt;/header&gt;
+    
+    &lt;main&gt;
+        @{body}  &lt;!-- Main content --&gt;
+    &lt;/main&gt;
+    
+    &lt;aside&gt;
+        &lt;!-- Child can provide sidebar content --&gt;
+        @{section('sidebar')}
+    &lt;/aside&gt;
+    
+    &lt;footer&gt;
+        &lt;!-- Child can customize footer --&gt;
+        @{section('footer')}
+    &lt;/footer&gt;
+    
+    &lt;!-- Child can inject page-specific scripts --&gt;
+    @{section('scripts')}
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre>
+<p><strong>Child Template Defining Sections</strong> (<code>views/products/detail.html</code>):</p>
+<pre><code class="language-html">@{section styles}
+&lt;link rel=&quot;stylesheet&quot; href=&quot;/css/products.css&quot;&gt;
+&lt;style&gt;
+    .product-gallery { display: grid; }
+&lt;/style&gt;
+@{end}
+
+@{section head}
+&lt;meta property=&quot;og:title&quot; content=&quot;@{M.product.name}&quot;&gt;
+&lt;meta property=&quot;og:image&quot; content=&quot;@{M.product.image}&quot;&gt;
+@{end}
+
+@{section header}
+&lt;h1&gt;@{M.product.name}&lt;/h1&gt;
+&lt;nav class=&quot;breadcrumb&quot;&gt;
+    &lt;a href=&quot;@{root}/&quot;&gt;Home&lt;/a&gt; &amp;gt;
+    &lt;a href=&quot;@{root}/products&quot;&gt;Products&lt;/a&gt; &amp;gt;
+    @{M.product.category}
+&lt;/nav&gt;
+@{end}
+
+&lt;!-- Main content (rendered in @{body}) --&gt;
+&lt;div class=&quot;product-detail&quot;&gt;
+    &lt;img src=&quot;@{M.product.image}&quot; alt=&quot;@{M.product.name}&quot;&gt;
+    &lt;div class=&quot;product-info&quot;&gt;
+        &lt;p class=&quot;price&quot;&gt;$@{M.product.price}&lt;/p&gt;
+        &lt;p&gt;@{M.product.description}&lt;/p&gt;
+    &lt;/div&gt;
+&lt;/div&gt;
+
+@{section sidebar}
+&lt;h3&gt;Related Products&lt;/h3&gt;
+@{foreach item in M.related}
+    &lt;div class=&quot;related-item&quot;&gt;
+        &lt;a href=&quot;/products/@{item.id}&quot;&gt;@{item.name}&lt;/a&gt;
+    &lt;/div&gt;
+@{end}
+@{end}
+
+@{section scripts}
+&lt;script src=&quot;/js/product-gallery.js&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+    initProductGallery('@{M.product.id}');
+&lt;/script&gt;
+@{end}
+</code></pre>
+<a class="header" href="guides/views.html#section-features" id="section-features"><h3>Section Features</h3></a>
+<p><strong>1. Optional Sections</strong> - No errors if section not defined:</p>
+<pre><code class="language-html">&lt;!-- Layout --&gt;
+&lt;div class=&quot;notifications&quot;&gt;
+    @{section('alerts')}  &lt;!-- Empty if child doesn't define it --&gt;
+&lt;/div&gt;
+
+&lt;!-- Child - can choose to define or skip --&gt;
+@{section alerts}
+&lt;div class=&quot;alert&quot;&gt;Special offer!&lt;/div&gt;
+@{end}
+</code></pre>
+<p><strong>2. Conditional Sections</strong>:</p>
+<pre><code class="language-html">&lt;!-- Child template --&gt;
+@{if M.show_newsletter}
+    @{section footer}
+    &lt;div class=&quot;newsletter-signup&quot;&gt;
+        &lt;form&gt;...&lt;/form&gt;
+    &lt;/div&gt;
+    @{end}
+@{fi}
+</code></pre>
+<p><strong>3. Sections with Dynamic Content</strong>:</p>
+<pre><code class="language-html">&lt;!-- Child template --&gt;
+@{section sidebar}
+    &lt;h3&gt;Categories&lt;/h3&gt;
+    @{foreach cat in M.categories}
+        &lt;a href=&quot;/category/@{cat.slug}&quot;&gt;@{cat.name}&lt;/a&gt;
+    @{end}
+    
+    &lt;h3&gt;Tags&lt;/h3&gt;
+    @{foreach tag in M.tags}
+        &lt;span class=&quot;tag&quot;&gt;@{tag}&lt;/span&gt;
+    @{end}
+@{end}
+</code></pre>
+<p><strong>4. Multiple Sections in One Template</strong>:</p>
+<pre><code class="language-html">&lt;!-- A single child view can define many sections --&gt;
+@{section meta}...@{end}
+@{section styles}...@{end}
+@{section header}...@{end}
+
+&lt;!-- Main content here --&gt;
+
+@{section sidebar}...@{end}
+@{section footer}...@{end}
+@{section scripts}...@{end}
+</code></pre>
+<a class="header" href="guides/views.html#common-section-patterns" id="common-section-patterns"><h3>Common Section Patterns</h3></a>
+<p><strong>Meta Tags &amp; SEO</strong>:</p>
+<pre><code class="language-html">&lt;!-- Layout head --&gt;
+@{section('meta')}
+
+&lt;!-- Child defines SEO metadata --&gt;
+@{section meta}
+&lt;meta name=&quot;description&quot; content=&quot;@{M.description}&quot;&gt;
+&lt;meta name=&quot;keywords&quot; content=&quot;@{M.keywords}&quot;&gt;
+&lt;link rel=&quot;canonical&quot; href=&quot;@{M.canonical_url}&quot;&gt;
+@{end}
+</code></pre>
+<p><strong>Page-Specific Styles</strong>:</p>
+<pre><code class="language-html">&lt;!-- Layout head --&gt;
+@{section('page_styles')}
+
+&lt;!-- Child adds custom CSS --&gt;
+@{section page_styles}
+&lt;link rel=&quot;stylesheet&quot; href=&quot;/css/dashboard.css&quot;&gt;
+&lt;style&gt;
+    .dashboard-widget { margin: 1rem; }
+&lt;/style&gt;
+@{end}
+</code></pre>
+<p><strong>JavaScript Initialization</strong>:</p>
+<pre><code class="language-html">&lt;!-- Layout before &lt;/body&gt; --&gt;
+@{section('page_scripts')}
+
+&lt;!-- Child adds page logic --&gt;
+@{section page_scripts}
+&lt;script src=&quot;/js/chart.min.js&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+    initCharts(@{json(M.chart_data)});
+&lt;/script&gt;
+@{end}
+</code></pre>
+<p><strong>Breadcrumbs</strong>:</p>
+<pre><code class="language-html">&lt;!-- Layout --&gt;
+&lt;nav class=&quot;breadcrumbs&quot;&gt;
+    &lt;a href=&quot;/&quot;&gt;Home&lt;/a&gt;
+    @{section('breadcrumbs')}
+&lt;/nav&gt;
+
+&lt;!-- Child extends breadcrumb trail --&gt;
+@{section breadcrumbs}
+&amp;gt; &lt;a href=&quot;/products&quot;&gt;Products&lt;/a&gt;
+&amp;gt; @{M.category}
+@{end}
+</code></pre>
+<a class="header" href="guides/views.html#section-vs-head-special-placeholder" id="section-vs-head-special-placeholder"><h3>Section vs @{head} Special Placeholder</h3></a>
+<p>RustF provides a special <code>@{head}</code> placeholder that automatically renders content from a section named &quot;head&quot;:</p>
+<pre><code class="language-html">&lt;!-- These are equivalent: --&gt;
+@{section('head')}
+@{head}
+</code></pre>
+<p>The <code>@{head}</code> placeholder is a convenience feature inherited from Total.js for adding content to the HTML <code>&lt;head&gt;</code> section. For all other sections, use the explicit <code>@{section('name')}</code> syntax.</p>
+<a class="header" href="guides/views.html#best-practices" id="best-practices"><h3>Best Practices</h3></a>
+<ol>
+<li>
+<p><strong>Name sections clearly</strong>: Use descriptive names like <code>page_styles</code>, <code>sidebar_menu</code>, <code>footer_links</code></p>
+</li>
+<li>
+<p><strong>Document expected sections</strong>: Comment layout templates to show which sections are available:</p>
+<pre><code class="language-html">&lt;!-- Available sections:
+     - styles: Custom CSS for this page
+     - header: Page-specific header content
+     - sidebar: Sidebar widgets
+     - scripts: Page-specific JavaScript
+--&gt;
+</code></pre>
+</li>
+<li>
+<p><strong>Keep sections focused</strong>: Each section should have a single, clear purpose</p>
+</li>
+<li>
+<p><strong>Make sections optional</strong>: Don't require every child to define every section</p>
+</li>
+<li>
+<p><strong>Use consistent naming</strong>: Establish naming conventions across your app:</p>
+<ul>
+<li><code>page_styles</code> / <code>page_scripts</code> for page-specific assets</li>
+<li><code>meta</code> for SEO metadata</li>
+<li><code>header</code> / <code>footer</code> / <code>sidebar</code> for layout areas</li>
+</ul>
+</li>
+</ol>
+<a class="header" href="guides/views.html#example-complete-blog-post-template" id="example-complete-blog-post-template"><h3>Example: Complete Blog Post Template</h3></a>
+<p><strong>Layout</strong> (<code>views/layouts/blog.html</code>):</p>
+<pre><code class="language-html">&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+    &lt;title&gt;@{M.title} - My Blog&lt;/title&gt;
+    &lt;meta charset=&quot;UTF-8&quot;&gt;
+    @{section('meta')}
+    @{css('/css/blog.css')}
+    @{section('styles')}
+&lt;/head&gt;
+&lt;body&gt;
+    &lt;header class=&quot;site-header&quot;&gt;
+        &lt;h1&gt;My Blog&lt;/h1&gt;
+        @{section('breadcrumbs')}
+    &lt;/header&gt;
+    
+    &lt;div class=&quot;content-wrapper&quot;&gt;
+        &lt;article&gt;
+            @{section('article_header')}
+            @{body}
+        &lt;/article&gt;
+        
+        &lt;aside class=&quot;sidebar&quot;&gt;
+            @{section('sidebar')}
+        &lt;/aside&gt;
+    &lt;/div&gt;
+    
+    &lt;footer&gt;
+        @{section('comments')}
+        &lt;p&gt;&amp;copy; 2025 My Blog&lt;/p&gt;
+    &lt;/footer&gt;
+    
+    @{js('/js/blog.js')}
+    @{section('scripts')}
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre>
+<p><strong>Blog Post</strong> (<code>views/blog/post.html</code>):</p>
+<pre><code class="language-html">@{section meta}
+&lt;meta name=&quot;description&quot; content=&quot;@{M.excerpt}&quot;&gt;
+&lt;meta name=&quot;author&quot; content=&quot;@{M.author}&quot;&gt;
+&lt;meta property=&quot;og:image&quot; content=&quot;@{M.featured_image}&quot;&gt;
+@{end}
+
+@{section breadcrumbs}
+&lt;a href=&quot;/blog&quot;&gt;Blog&lt;/a&gt; &amp;gt;
+&lt;a href=&quot;/blog/@{M.category}&quot;&gt;@{M.category_name}&lt;/a&gt;
+@{end}
+
+@{section article_header}
+&lt;h1&gt;@{M.title}&lt;/h1&gt;
+&lt;div class=&quot;meta&quot;&gt;
+    By @{M.author} on @{M.published_date}
+&lt;/div&gt;
+&lt;img src=&quot;@{M.featured_image}&quot; alt=&quot;@{M.title}&quot;&gt;
+@{end}
+
+&lt;!-- Main article content --&gt;
+&lt;div class=&quot;article-body&quot;&gt;
+    @{M.content}
+&lt;/div&gt;
+
+@{section sidebar}
+&lt;h3&gt;About the Author&lt;/h3&gt;
+&lt;p&gt;@{M.author_bio}&lt;/p&gt;
+
+&lt;h3&gt;Related Posts&lt;/h3&gt;
+@{foreach post in M.related_posts}
+    &lt;a href=&quot;/blog/@{post.slug}&quot;&gt;@{post.title}&lt;/a&gt;
+@{end}
+@{end}
+
+@{section comments}
+&lt;div class=&quot;comments&quot;&gt;
+    &lt;h3&gt;Comments (@{M.comment_count})&lt;/h3&gt;
+    @{foreach comment in M.comments}
+        &lt;div class=&quot;comment&quot;&gt;
+            &lt;strong&gt;@{comment.author}&lt;/strong&gt;
+            &lt;p&gt;@{comment.text}&lt;/p&gt;
+        &lt;/div&gt;
+    @{end}
+&lt;/div&gt;
+@{end}
+
+@{section scripts}
+&lt;script src=&quot;/js/syntax-highlighter.js&quot;&gt;&lt;/script&gt;
+&lt;script&gt;highlightCode();&lt;/script&gt;
+@{end}
+</code></pre>
+<a class="header" href="guides/views.html#storage-options" id="storage-options"><h2>Storage Options</h2></a>
+<a class="header" href="guides/views.html#filesystem-development" id="filesystem-development"><h3>Filesystem (Development)</h3></a>
+<ul>
+<li>Templates loaded from disk at runtime</li>
+<li>Supports hot-reloading</li>
+<li>Easy to modify during development</li>
+<li>Configure with: <code>storage = &quot;filesystem&quot;</code></li>
+</ul>
+<a class="header" href="guides/views.html#embedded-production" id="embedded-production"><h3>Embedded (Production)</h3></a>
+<ul>
+<li>Templates compiled into binary</li>
+<li>Faster startup, no file I/O</li>
+<li>Requires <code>embedded-views</code> feature</li>
+<li>Configure with: <code>storage = &quot;embedded&quot;</code></li>
+</ul>
+<a class="header" href="guides/views.html#advanced-features" id="advanced-features"><h2>Advanced Features</h2></a>
+<a class="header" href="guides/views.html#custom-template-functions" id="custom-template-functions"><h3>Custom Template Functions</h3></a>
+<p>Register custom functions for Total.js templates:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use rustf::views::TotalJsEngine;
+
+// In your app setup
+let mut engine = TotalJsEngine::new(&quot;views&quot;);
+engine.register_function(&quot;format_price&quot;, |args| {
+    if let Some(Value::Number(n)) = args.first() {
+        Value::String(format!(&quot;${:.2}&quot;, n.as_f64().unwrap_or(0.0)))
+    } else {
+        Value::String(&quot;$0.00&quot;.to_string())
+    }
+});
+
+// Use in template
+// @{format_price(19.99)} =&gt; &quot;$19.99&quot;
+#}</code></pre></pre>
+<a class="header" href="guides/views.html#csrf-protection" id="csrf-protection"><h3>CSRF Protection</h3></a>
+<p>Automatic CSRF token injection:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// In controller - generate token and render view
+ctx.generate_csrf()?;
+ctx.view(&quot;form&quot;, data)
+#}</code></pre></pre>
+<pre><code class="language-html">&lt;!-- In template - Total.js --&gt;
+&lt;form method=&quot;POST&quot;&gt;
+    @{csrf_field}  &lt;!-- Renders hidden input with token --&gt;
+    &lt;!-- or manually --&gt;
+    &lt;input type=&quot;hidden&quot; name=&quot;_token&quot; value=&quot;@{csrf_token}&quot;&gt;
+&lt;/form&gt;
+</code></pre>
+<a class="header" href="guides/views.html#repository-system" id="repository-system"><h3>Repository System</h3></a>
+<p>RustF provides two repository systems for sharing data between controllers and views:</p>
+<a class="header" href="guides/views.html#context-repository-per-request" id="context-repository-per-request"><h4>Context Repository (Per-Request)</h4></a>
+<p>The context repository is request-scoped data that controllers can set to share with templates. It's useful for page-specific settings, user permissions, or any data that's specific to the current request.</p>
+<p><strong>Setting in Controllers:</strong></p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Requires mut ctx for repository operations
+async fn dashboard(mut ctx: Context) -&gt; Result&lt;Response&gt; {
+    // Set various types of repository data
+    ctx.repository_set(&quot;current_section&quot;, &quot;analytics&quot;)
+       .repository_set(&quot;sidebar_expanded&quot;, true)
+       .repository_set(&quot;user_role&quot;, &quot;admin&quot;)
+       .repository_set(&quot;available_actions&quot;, json!([&quot;view&quot;, &quot;edit&quot;, &quot;delete&quot;]))
+       .repository_set(&quot;theme&quot;, json!({
+           &quot;primary_color&quot;: &quot;#007bff&quot;,
+           &quot;mode&quot;: &quot;dark&quot;
+       }));
+    
+    // Repository data is automatically available in templates
+    ctx.view(&quot;dashboard/index&quot;, json!({
+        &quot;title&quot;: &quot;Dashboard&quot;,
+        &quot;stats&quot;: get_stats().await?
+    }))
+}
+#}</code></pre></pre>
+<p><strong>Accessing in Templates:</strong></p>
+<pre><code class="language-html">&lt;!-- Using R. prefix (recommended, shorter) --&gt;
+@{if R.user_role == 'admin'}
+    &lt;div class=&quot;admin-panel&quot;&gt;
+        @{foreach action in R.available_actions}
+            &lt;button&gt;@{action}&lt;/button&gt;
+        @{end}
+    &lt;/div&gt;
+@{fi}
+
+&lt;!-- Using repository. prefix (alternative) --&gt;
+&lt;div class=&quot;sidebar @{if repository.sidebar_expanded}expanded@{fi}&quot;&gt;
+    Current Section: @{repository.current_section}
+&lt;/div&gt;
+
+&lt;!-- Accessing nested data --&gt;
+&lt;style&gt;
+    :root {
+        --primary-color: @{R.theme.primary_color};
+    }
+    body.@{R.theme.mode} {
+        /* Dark mode styles */
+    }
+&lt;/style&gt;
+</code></pre>
+<a class="header" href="guides/views.html#global-repository-appmain" id="global-repository-appmain"><h4>Global Repository (APP/MAIN)</h4></a>
+<p>The global repository is application-wide data shared across all requests. It's typically set during application initialization and contains site-wide settings, application metadata, or shared constants.</p>
+<p><strong>Setting During Application Setup:</strong></p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// In your main.rs or app initialization
+use rustf::views::TotalJsEngine;
+
+let engine = TotalJsEngine::new(&quot;views&quot;);
+engine.set_global_repository(json!({
+    &quot;site_name&quot;: &quot;My Application&quot;,
+    &quot;version&quot;: &quot;2.1.0&quot;,
+    &quot;copyright&quot;: &quot;© 2024 MyCompany&quot;,
+    &quot;contact_email&quot;: &quot;support@example.com&quot;,
+    &quot;features&quot;: {
+        &quot;comments&quot;: true,
+        &quot;notifications&quot;: true,
+        &quot;api_v2&quot;: false
+    },
+    &quot;social_links&quot;: {
+        &quot;twitter&quot;: &quot;https://twitter.com/myapp&quot;,
+        &quot;github&quot;: &quot;https://github.com/myapp&quot;
+    }
+}));
+#}</code></pre></pre>
+<p><strong>Accessing in Templates:</strong></p>
+<pre><code class="language-html">&lt;!-- Using APP. prefix --&gt;
+&lt;footer&gt;
+    &lt;p&gt;@{APP.copyright}&lt;/p&gt;
+    &lt;p&gt;Contact: &lt;a href=&quot;mailto:@{APP.contact_email}&quot;&gt;@{APP.contact_email}&lt;/a&gt;&lt;/p&gt;
+    &lt;p&gt;Version @{APP.version}&lt;/p&gt;
+&lt;/footer&gt;
+
+&lt;!-- Using MAIN. prefix (alias for APP) --&gt;
+&lt;title&gt;@{title} - @{MAIN.site_name}&lt;/title&gt;
+
+&lt;!-- Checking features --&gt;
+@{if APP.features.comments}
+    &lt;div class=&quot;comments-section&quot;&gt;
+        &lt;!-- Comments enabled --&gt;
+    &lt;/div&gt;
+@{fi}
+
+&lt;!-- Social links --&gt;
+&lt;div class=&quot;social&quot;&gt;
+    @{if APP.social_links.twitter}
+        &lt;a href=&quot;@{APP.social_links.twitter}&quot;&gt;Twitter&lt;/a&gt;
+    @{fi}
+    @{if APP.social_links.github}
+        &lt;a href=&quot;@{APP.social_links.github}&quot;&gt;GitHub&lt;/a&gt;
+    @{fi}
+&lt;/div&gt;
+</code></pre>
+<a class="header" href="guides/views.html#repository-vs-data-whats-the-difference" id="repository-vs-data-whats-the-difference"><h4>Repository vs Data: What's the Difference?</h4></a>
+<p><strong>Repository Data (<code>R.</code> or <code>repository.</code>)</strong></p>
+<ul>
+<li>Available to all views called within the same handler function</li>
+<li>Set using <code>ctx.repository_set()</code> before calling views</li>
+<li>Ideal for shared UI elements, user info, theme settings</li>
+<li>Lives for the duration of the handler function execution</li>
+</ul>
+<p><strong>View Data (Model)</strong></p>
+<ul>
+<li>Specific to each individual view call</li>
+<li>Passed via <code>ctx.view(template, data)</code></li>
+<li>Accessed via <code>@{model.key}</code> or <code>@{M.key}</code> prefix</li>
+<li>For page-specific content</li>
+<li>Only available in that specific view call</li>
+<li>Preferabily used for data flowing from db to form or vis versa</li>
+</ul>
+<p><strong>Example showing both:</strong></p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+async fn product_page(mut ctx: Context) -&gt; Result&lt;Response&gt; {
+    // Repository: Available to all views called in this handler
+    ctx.repository_set(&quot;nav_items&quot;, get_navigation())
+       .repository_set(&quot;user&quot;, get_current_user())
+       .repository_set(&quot;cart_count&quot;, get_cart_count());
+    
+    // Could render multiple views, all would have repository access
+    if should_show_banner() {
+        // This view has access to repository data
+        let banner_html = ctx.render_partial(&quot;/partials/banner&quot;, json!({}))?;
+    }
+    
+    // View data: Specific to this view call
+    let data = json!({
+        &quot;product&quot;: get_product(id),
+        &quot;reviews&quot;: get_reviews(id),
+        &quot;related&quot;: get_related_products(id)
+    });
+    
+    // Main view also has access to repository data
+    ctx.view(&quot;/products/show&quot;, data)
+}
+#}</code></pre></pre>
+<pre><code class="language-html">&lt;!-- Repository data accessible in the template --&gt;
+&lt;nav&gt;
+    @{foreach item in R.nav_items}
+        &lt;a href=&quot;@{item.url}&quot;&gt;@{item.title}&lt;/a&gt;
+    @{end}
+    &lt;span class=&quot;cart&quot;&gt;Cart (@{R.cart_count})&lt;/span&gt;
+&lt;/nav&gt;
+
+&lt;!-- View data (Model) specific to this template --&gt;
+&lt;h1&gt;@{model.product.name}&lt;/h1&gt;
+&lt;p&gt;@{M.product.description}&lt;/p&gt;
+@{foreach review in model.reviews}
+    &lt;div class=&quot;review&quot;&gt;@{review.text}&lt;/div&gt;
+@{end}
+</code></pre>
+<a class="header" href="guides/views.html#repository-best-practices" id="repository-best-practices"><h4>Repository Best Practices</h4></a>
+<ol>
+<li>
+<p><strong>Use Context Repository for:</strong></p>
+<ul>
+<li>Data needed by multiple views within the same handler</li>
+<li>User information for the current request</li>
+<li>UI state for the current handler (theme, layout settings)</li>
+<li>Temporary computed values used across view calls</li>
+<li>Avoiding data duplication when rendering multiple views</li>
+</ul>
+</li>
+<li>
+<p><strong>Use Global Repository (APP/MAIN) for:</strong></p>
+<ul>
+<li>Application metadata (name, version, copyright)</li>
+<li>Site-wide configuration (features, limits)</li>
+<li>Constants needed across the entire application</li>
+<li>External service URLs and API keys (non-sensitive)</li>
+<li>Data accessible throughout the application, not just in views</li>
+</ul>
+</li>
+<li>
+<p><strong>Naming Conventions:</strong></p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// ✅ Good: Clear, semantic names
+ctx.repository_set(&quot;user_permissions&quot;, permissions);
+ctx.repository_set(&quot;page_metadata&quot;, metadata);
+
+// ❌ Bad: Generic or unclear names
+ctx.repository_set(&quot;data&quot;, something);
+ctx.repository_set(&quot;x&quot;, value);
+#}</code></pre></pre>
+</li>
+<li>
+<p><strong>Performance Considerations:</strong></p>
+<ul>
+<li>Context repository exists only during handler execution (keep it reasonable)</li>
+<li>Global repository is shared application-wide (can hold more persistent data)</li>
+<li>Context repository is cleared when handler returns</li>
+<li>Global repository persists for the application's lifetime</li>
+</ul>
+</li>
+<li>
+<p><strong>Common Patterns:</strong></p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Pattern 1: Set common data at the start of a handler
+async fn my_handler(mut ctx: Context) -&gt; Result&lt;Response&gt; {
+    // Set repository data first
+    ctx.repository_set(&quot;user&quot;, get_current_user(&amp;ctx)?);
+    ctx.repository_set(&quot;notifications&quot;, get_notifications(&amp;ctx)?);
+    
+    // Then render view(s) that need this data
+    ctx.view(&quot;/my_template&quot;, specific_data)
+}
+
+// Pattern 2: Use repository for feature flags
+ctx.repository_set(&quot;features&quot;, json!({
+    &quot;new_editor&quot;: is_feature_enabled(&quot;new_editor&quot;),
+    &quot;beta_api&quot;: is_feature_enabled(&quot;beta_api&quot;)
+}));
+
+// Pattern 3: Breadcrumb builder
+ctx.repository_set(&quot;breadcrumbs&quot;, json!([
+    {&quot;label&quot;: &quot;Home&quot;, &quot;url&quot;: &quot;/&quot;},
+    {&quot;label&quot;: &quot;Products&quot;, &quot;url&quot;: &quot;/products&quot;},
+    {&quot;label&quot;: product.name, &quot;url&quot;: null}  // Current page
+]));
+#}</code></pre></pre>
+</li>
+</ol>
+<a class="header" href="guides/views.html#flash-messages" id="flash-messages"><h3>Flash Messages</h3></a>
+<p>Flash messages are one-time messages that survive redirects but are automatically cleared when a view is rendered. They provide a clean way to show user feedback across page redirections.</p>
+<a class="header" href="guides/views.html#setting-flash-messages-in-controllers" id="setting-flash-messages-in-controllers"><h4>Setting Flash Messages in Controllers</h4></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Standard convenience methods
+ctx.flash_success(&quot;User created successfully!&quot;);
+ctx.flash_error(&quot;Invalid credentials&quot;);
+ctx.flash_info(&quot;Please check your email&quot;);
+
+// Generic flash setter for any key and serializable value
+ctx.flash(&quot;warning_msg&quot;, &quot;This is a warning&quot;)?;
+ctx.flash(&quot;user_level&quot;, 42)?;
+ctx.flash(&quot;notification&quot;, json!({
+    &quot;text&quot;: &quot;You have new messages&quot;,
+    &quot;count&quot;: 5
+}))?;
+ctx.flash(&quot;recent_actions&quot;, vec![&quot;Logged in&quot;, &quot;Updated profile&quot;])?;
+
+// Manual flash management
+ctx.flash_clear();                    // Clear all flash messages
+ctx.flash_clear_key(&quot;error_msg&quot;);     // Clear specific flash message
+
+// Typical usage pattern
+if validation_failed {
+    ctx.flash_error(&quot;Please correct the errors below&quot;);
+    return ctx.redirect(&quot;/form&quot;);
+}
+
+ctx.flash_success(&quot;Form submitted successfully!&quot;);
+ctx.redirect(&quot;/dashboard&quot;)
+#}</code></pre></pre>
+<a class="header" href="guides/views.html#accessing-flash-messages-in-templates" id="accessing-flash-messages-in-templates"><h4>Accessing Flash Messages in Templates</h4></a>
+<p>Flash messages are stored in the session but are aliased for convenience, so you can access them directly using <code>@{flash.xxx}</code> instead of <code>@{session.flash.xxx}</code>:</p>
+<pre><code class="language-html">&lt;!-- Standard flash messages - Total.js --&gt;
+@{if flash.success_msg}
+    &lt;div class=&quot;alert alert-success&quot;&gt;@{flash.success_msg}&lt;/div&gt;
+@{fi}
+
+@{if flash.error_msg}
+    &lt;div class=&quot;alert alert-error&quot;&gt;@{flash.error_msg}&lt;/div&gt;
+@{fi}
+
+@{if flash.info_msg}
+    &lt;div class=&quot;alert alert-info&quot;&gt;@{flash.info_msg}&lt;/div&gt;
+@{fi}
+
+&lt;!-- Custom flash messages --&gt;
+@{if flash.warning_msg}
+    &lt;div class=&quot;alert alert-warning&quot;&gt;@{flash.warning_msg}&lt;/div&gt;
+@{fi}
+
+&lt;!-- Complex flash data --&gt;
+@{if flash.notification}
+    &lt;div class=&quot;notification&quot;&gt;
+        @{flash.notification.text}
+        @{if flash.notification.count}
+            &lt;span class=&quot;badge&quot;&gt;@{flash.notification.count}&lt;/span&gt;
+        @{fi}
+    &lt;/div&gt;
+@{fi}
+
+&lt;!-- Array flash data --&gt;
+@{if flash.recent_actions}
+    &lt;div class=&quot;recent-actions&quot;&gt;
+        &lt;h4&gt;Recent Actions:&lt;/h4&gt;
+        &lt;ul&gt;
+        @{foreach action in flash.recent_actions}
+            &lt;li&gt;@{action}&lt;/li&gt;
+        @{end}
+        &lt;/ul&gt;
+    &lt;/div&gt;
+@{fi}
+
+&lt;!-- Number flash data --&gt;
+@{if flash.user_level}
+    &lt;div class=&quot;user-level&quot;&gt;Level: @{flash.user_level}&lt;/div&gt;
+@{fi}
+</code></pre>
+<a class="header" href="guides/views.html#flash-message-lifecycle" id="flash-message-lifecycle"><h4>Flash Message Lifecycle</h4></a>
+<ul>
+<li><strong>Set in controller</strong>: Flash messages are stored in the session</li>
+<li><strong>Survive redirects</strong>: Messages persist through HTTP redirects</li>
+<li><strong>Auto-cleared on view render</strong>: Messages are automatically removed when any view is rendered</li>
+<li><strong>Manual clearing</strong>: Use <code>flash_clear()</code> or <code>flash_clear_key()</code> for explicit control</li>
+</ul>
+<a class="header" href="guides/views.html#best-practices-1" id="best-practices-1"><h4>Best Practices</h4></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// ✅ Good: Use specific flash keys for different message types
+ctx.flash(&quot;validation_error&quot;, &quot;Email is required&quot;)?;
+ctx.flash(&quot;success&quot;, &quot;Account created&quot;)?;
+ctx.flash(&quot;warning&quot;, &quot;Trial period expires soon&quot;)?;
+
+// ✅ Good: Clear flash before setting new messages in error scenarios
+if let Err(e) = process_data() {
+    ctx.flash_clear(); // Clear any existing flash
+    ctx.flash_error(&amp;format!(&quot;Processing failed: {}&quot;, e));
+    return ctx.redirect(&quot;/retry&quot;);
+}
+
+// ✅ Good: Use structured data for complex notifications
+ctx.flash(&quot;notification&quot;, json!({
+    &quot;type&quot;: &quot;info&quot;,
+    &quot;title&quot;: &quot;System Update&quot;,
+    &quot;message&quot;: &quot;Maintenance scheduled for tonight&quot;,
+    &quot;actions&quot;: [{&quot;text&quot;: &quot;Learn More&quot;, &quot;url&quot;: &quot;/maintenance&quot;}]
+}))?;
+
+// ✅ Good: Selective clearing for fine-grained control
+ctx.flash_clear_key(&quot;error_msg&quot;); // Keep other flash messages
+ctx.flash_success(&quot;Operation completed!&quot;);
+#}</code></pre></pre>
+<a class="header" href="guides/views.html#static-asset-helpers" id="static-asset-helpers"><h3>Static Asset Helpers</h3></a>
+<pre><code class="language-html">&lt;!-- Total.js built-in helpers --&gt;
+@{css('/static/css/app.css')}
+&lt;!-- Renders: &lt;link rel=&quot;stylesheet&quot; href=&quot;/static/css/app.css&quot;&gt; --&gt;
+
+@{js('/static/js/app.js')}
+&lt;!-- Renders: &lt;script src=&quot;/static/js/app.js&quot;&gt;&lt;/script&gt; --&gt;
+
+&lt;!-- With root path --&gt;
+@{css(root + '/static/css/app.css')}
+&lt;!-- Renders: &lt;link rel=&quot;stylesheet&quot; href=&quot;/myapp/static/css/app.css&quot;&gt; --&gt;
+</code></pre>
+<a class="header" href="guides/views.html#translation--internationalization-i18n" id="translation--internationalization-i18n"><h3>Translation &amp; Internationalization (i18n)</h3></a>
+<p>RustF provides a Total.js-style translation system using resource files with automatic key generation and view-scoped translations.</p>
+<a class="header" href="guides/views.html#template-syntax" id="template-syntax"><h4>Template Syntax</h4></a>
+<pre><code class="language-html">&lt;!-- Direct text translation (key generated from text) --&gt;
+&lt;h1&gt;@(Welcome to our application)&lt;/h1&gt;
+&lt;p&gt;@(Please enter your credentials)&lt;/p&gt;
+
+&lt;!-- Translation by custom key --&gt;
+&lt;footer&gt;@(#app.copyright)&lt;/footer&gt;
+&lt;nav&gt;@(#nav.home)&lt;/nav&gt;
+</code></pre>
+<a class="header" href="guides/views.html#resource-file-format" id="resource-file-format"><h4>Resource File Format</h4></a>
+<p>Translation files use the <code>.res</code> extension and are stored in the <code>resources/</code> directory:</p>
+<pre><code># resources/default.res
+[global]
+# Common translations used across multiple views
+save : &quot;Save&quot;
+cancel : &quot;Cancel&quot;
+loading : &quot;Loading...&quot;
+
+[views/home/index]
+# View-specific translations
+welcome_to_our_application : &quot;Welcome to our application&quot;
+please_enter_your_credentials : &quot;Please enter your credentials&quot;
+
+[views/layouts/main]
+# Layout translations
+app.copyright : &quot;© 2024 My Company&quot;
+nav.home : &quot;Home&quot;
+</code></pre>
+<a class="header" href="guides/views.html#setting-up-translations" id="setting-up-translations"><h4>Setting Up Translations</h4></a>
+<p><strong>Loading translations in your application:</strong></p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use rustf::prelude::*;
+use rustf::views::TotalJsEngine;
+
+// During app initialization
+let engine = TotalJsEngine::new(&quot;views&quot;);
+
+// Load translations from resources directory
+engine.load_translations(Path::new(&quot;resources&quot;))?;
+
+// Or manually with resource translation system
+use rustf::views::totaljs::resource_translation::ResourceTranslationSystem;
+
+let mut translator = ResourceTranslationSystem::new();
+translator.load_resources_dir(Path::new(&quot;resources&quot;))?;
+translator.set_language(&quot;fr&quot;);  // Switch to French
+engine.set_resource_translator(translator);
+#}</code></pre></pre>
+<a class="header" href="guides/views.html#managing-translations-with-cli" id="managing-translations-with-cli"><h4>Managing Translations with CLI</h4></a>
+<pre><code class="language-bash"># Scan views and generate default.res with all discovered translations
+rustf-cli translations scan
+
+# Output:
+# 🔍 Scanning views for translations...
+# ✅ Generated resources/default.res with 45 translations
+
+# Update existing language files with new keys
+rustf-cli translations update --lang fr
+
+# Output:
+# 🔄 Regenerating default.res...
+# 📝 Updating fr.res...
+# 📊 Update Report for fr.res:
+#   ✓ Existing translations preserved: 42
+#   ⚠️  New keys needing translation: 3
+#      - welcome_message
+#      - user_greeting
+#      - logout_confirm
+
+# Check for missing translations
+rustf-cli translations check --lang es
+
+# Show translation statistics
+rustf-cli translations stats
+</code></pre>
+<a class="header" href="guides/views.html#translation-workflow" id="translation-workflow"><h4>Translation Workflow</h4></a>
+<ol>
+<li><strong>Write views with translatable text:</strong></li>
+</ol>
+<pre><code class="language-html">&lt;!-- views/home/index.html --&gt;
+&lt;h1&gt;@(Welcome to RustF)&lt;/h1&gt;
+&lt;p&gt;@(Build fast web applications)&lt;/p&gt;
+&lt;div&gt;@(#custom.message)&lt;/div&gt;
+</code></pre>
+<ol start="2">
+<li><strong>Generate translation keys:</strong></li>
+</ol>
+<pre><code class="language-bash">rustf-cli translations scan
+</code></pre>
+<ol start="3">
+<li><strong>Translate to other languages:</strong></li>
+</ol>
+<pre><code class="language-bash"># Copy default to create language file
+cp resources/default.res resources/fr.res
+
+# Edit fr.res and translate the values
+vim resources/fr.res
+</code></pre>
+<ol start="4">
+<li><strong>View generated fr.res:</strong></li>
+</ol>
+<pre><code># resources/fr.res
+[global]
+save : &quot;Enregistrer&quot;
+cancel : &quot;Annuler&quot;
+loading : &quot;Chargement...&quot;
+
+[views/home/index]
+welcome_to_rustf : &quot;Bienvenue à RustF&quot;
+build_fast_web_applications : &quot;Construire des applications web rapides&quot;
+custom.message : &quot;&quot;  # TODO: needs translation
+</code></pre>
+<a class="header" href="guides/views.html#key-generation" id="key-generation"><h4>Key Generation</h4></a>
+<ul>
+<li>Text in <code>@(text)</code> is converted to a readable slug key (max 30 chars)</li>
+<li>Spaces become underscores, special characters removed</li>
+<li>Common translations (appearing in 3+ views) are automatically moved to <code>[global]</code></li>
+<li>Custom keys using <code>@(#key)</code> are preserved as-is</li>
+</ul>
+<a class="header" href="guides/views.html#best-practices-2" id="best-practices-2"><h4>Best Practices</h4></a>
+<ol>
+<li>
+<p><strong>Use descriptive custom keys for important text:</strong></p>
+<pre><code class="language-html">@(#app.title)       &lt;!-- Good: Clear purpose --&gt;
+@(#msg1)           &lt;!-- Bad: Unclear --&gt;
+</code></pre>
+</li>
+<li>
+<p><strong>Keep translations organized by view:</strong></p>
+<ul>
+<li>Each view gets its own section in the .res file</li>
+<li>Layouts have their own sections</li>
+<li>Common text automatically extracted to global</li>
+</ul>
+</li>
+<li>
+<p><strong>Language switching in controllers:</strong></p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Set language based on user preference
+if let Some(lang) = ctx.session_get(&quot;language&quot;) {
+    engine.resource_translator.set_language(&amp;lang);
+}
+#}</code></pre></pre>
+</li>
+<li>
+<p><strong>Fallback language support:</strong></p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+translator.set_fallback(&quot;en&quot;);  // English as fallback
+#}</code></pre></pre>
+</li>
+</ol>
+<a class="header" href="guides/views.html#global-view-api" id="global-view-api"><h2>Global VIEW API</h2></a>
+<p>RustF provides a global <code>VIEW</code> API for rendering templates from anywhere in your application without needing a <code>Context</code> instance. This is particularly useful for:</p>
+<ul>
+<li>Email generation in background workers</li>
+<li>PDF/report generation</li>
+<li>Dynamic content rendering in services</li>
+<li>Template rendering in middleware or utilities</li>
+</ul>
+<a class="header" href="guides/views.html#basic-usage-1" id="basic-usage-1"><h3>Basic Usage</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use rustf::prelude::*;
+use serde_json::json;
+
+// Render an inline template string
+let html = VIEW::render_string(
+    &quot;Hello @{M.name}!&quot;,
+    json!({&quot;name&quot;: &quot;Alice&quot;}),
+    None
+)?;
+// Output: &quot;Hello Alice!&quot;
+
+// Render a template file
+let html = VIEW::render(
+    &quot;emails/welcome&quot;,
+    json!({&quot;user&quot;: &quot;Alice&quot;}),
+    None,
+    Some(&quot;layouts/email&quot;)
+)?;
+#}</code></pre></pre>
+<a class="header" href="guides/views.html#method-signatures" id="method-signatures"><h3>Method Signatures</h3></a>
+<a class="header" href="guides/views.html#viewrender_string" id="viewrender_string"><h4><code>VIEW::render_string()</code></h4></a>
+<p>Render an inline template string with model and optional repository data.</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+pub fn render_string(
+    template_string: &amp;str,
+    model: Value,
+    repository: Option&lt;Value&gt;
+) -&gt; Result&lt;String&gt;
+#}</code></pre></pre>
+<p><strong>Parameters:</strong></p>
+<ul>
+<li><code>template_string</code>: Template content as string</li>
+<li><code>model</code>: Main template data (accessible as <code>@{M.key}</code>)</li>
+<li><code>repository</code>: Optional context data (accessible as <code>@{R.key}</code>)</li>
+</ul>
+<p><strong>Example:</strong></p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+let template = &quot;Welcome @{M.user}, your role is @{R.role}&quot;;
+let model = json!({&quot;user&quot;: &quot;Alice&quot;});
+let repository = json!({&quot;role&quot;: &quot;Admin&quot;});
+
+let html = VIEW::render_string(template, model, Some(repository))?;
+// Output: &quot;Welcome Alice, your role is Admin&quot;
+#}</code></pre></pre>
+<a class="header" href="guides/views.html#viewrender" id="viewrender"><h4><code>VIEW::render()</code></h4></a>
+<p>Render a template file with model, repository, and optional layout.</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+pub fn render(
+    template_path: &amp;str,
+    model: Value,
+    repository: Option&lt;Value&gt;,
+    layout: Option&lt;&amp;str&gt;
+) -&gt; Result&lt;String&gt;
+#}</code></pre></pre>
+<p><strong>Parameters:</strong></p>
+<ul>
+<li><code>template_path</code>: Path to template (relative to views directory, without extension)</li>
+<li><code>model</code>: Main template data (accessible as <code>@{M.key}</code>)</li>
+<li><code>repository</code>: Optional context data (accessible as <code>@{R.key}</code>)</li>
+<li><code>layout</code>: Optional layout template name</li>
+</ul>
+<p><strong>Example:</strong></p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+let html = VIEW::render(
+    &quot;reports/sales&quot;,
+    json!({&quot;month&quot;: &quot;January&quot;, &quot;total&quot;: 50000}),
+    Some(json!({&quot;company&quot;: &quot;ACME Corp&quot;, &quot;year&quot;: 2025})),
+    Some(&quot;layouts/pdf&quot;)
+)?;
+#}</code></pre></pre>
+<a class="header" href="guides/views.html#model-vs-repository-data" id="model-vs-repository-data"><h3>Model vs Repository Data</h3></a>
+<p>The VIEW API maintains the same model/repository separation as controller rendering:</p>
+<ul>
+<li><strong>Model (<code>@{M.key}</code>)</strong>: Primary template data - the main content</li>
+<li><strong>Repository (<code>@{R.key}</code>)</strong>: Context/metadata - site config, user info, etc.</li>
+</ul>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+let model = json!({
+    &quot;product&quot;: &quot;Widget&quot;,
+    &quot;price&quot;: 29.99,
+    &quot;quantity&quot;: 5
+});
+
+let repository = json!({
+    &quot;site_name&quot;: &quot;My Store&quot;,
+    &quot;currency&quot;: &quot;USD&quot;,
+    &quot;tax_rate&quot;: 0.08
+});
+
+let template = r#&quot;
+    &lt;h1&gt;@{R.site_name}&lt;/h1&gt;
+    &lt;p&gt;Product: @{M.product}&lt;/p&gt;
+    &lt;p&gt;Price: @{R.currency} @{M.price}&lt;/p&gt;
+&quot;#;
+
+let html = VIEW::render_string(template, model, Some(repository))?;
+#}</code></pre></pre>
+<a class="header" href="guides/views.html#use-cases" id="use-cases"><h3>Use Cases</h3></a>
+<a class="header" href="guides/views.html#email-generation-in-workers" id="email-generation-in-workers"><h4>Email Generation in Workers</h4></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use rustf::prelude::*;
+
+pub async fn send_welcome_email(ctx: WorkerContext) -&gt; rustf::Result&lt;()&gt; {
+    let email_template = r#&quot;
+        &lt;html&gt;
+        &lt;body&gt;
+            &lt;h1&gt;Welcome to @{R.app_name}!&lt;/h1&gt;
+            &lt;p&gt;Hello @{M.name},&lt;/p&gt;
+            &lt;p&gt;Thanks for signing up. Your username is: @{M.username}&lt;/p&gt;
+            &lt;footer&gt;&amp;copy; @{R.year} @{R.company}&lt;/footer&gt;
+        &lt;/body&gt;
+        &lt;/html&gt;
+    &quot;#;
+    
+    let model = json!({
+        &quot;name&quot;: ctx.data[&quot;name&quot;],
+        &quot;username&quot;: ctx.data[&quot;username&quot;]
+    });
+    
+    let repository = json!({
+        &quot;app_name&quot;: &quot;My App&quot;,
+        &quot;year&quot;: 2025,
+        &quot;company&quot;: &quot;My Company Inc.&quot;
+    });
+    
+    let html = VIEW::render_string(email_template, model, Some(repository))?;
+    
+    // Send email with html content
+    send_email(&amp;ctx.data[&quot;email&quot;].as_str().unwrap(), &amp;html).await?;
+    Ok(())
+}
+#}</code></pre></pre>
+<a class="header" href="guides/views.html#report-generation" id="report-generation"><h4>Report Generation</h4></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use rustf::prelude::*;
+
+pub fn generate_sales_report(sales_data: Vec&lt;SaleRecord&gt;) -&gt; rustf::Result&lt;String&gt; {
+    let template = r#&quot;
+        &lt;h1&gt;Sales Report - @{M.period}&lt;/h1&gt;
+        &lt;table&gt;
+            &lt;tr&gt;&lt;th&gt;Product&lt;/th&gt;&lt;th&gt;Units&lt;/th&gt;&lt;th&gt;Revenue&lt;/th&gt;&lt;/tr&gt;
+            @{foreach item in M.items}
+            &lt;tr&gt;
+                &lt;td&gt;@{item}&lt;/td&gt;
+                &lt;td&gt;@{item}&lt;/td&gt;
+                &lt;td&gt;$@{item}&lt;/td&gt;
+            &lt;/tr&gt;
+            @{end}
+        &lt;/table&gt;
+        &lt;p&gt;Generated: @{R.generated_date}&lt;/p&gt;
+    &quot;#;
+    
+    let model = json!({
+        &quot;period&quot;: &quot;Q1 2025&quot;,
+        &quot;items&quot;: sales_data
+    });
+    
+    let repository = json!({
+        &quot;generated_date&quot;: chrono::Utc::now().to_rfc3339()
+    });
+    
+    VIEW::render_string(template, model, Some(repository))
+}
+#}</code></pre></pre>
+<a class="header" href="guides/views.html#dynamic-content-in-middleware" id="dynamic-content-in-middleware"><h4>Dynamic Content in Middleware</h4></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use rustf::prelude::*;
+
+pub async fn render_error_page(status: u16, message: &amp;str) -&gt; rustf::Result&lt;String&gt; {
+    let template = r#&quot;
+        &lt;!DOCTYPE html&gt;
+        &lt;html&gt;
+        &lt;head&gt;&lt;title&gt;Error @{M.status}&lt;/title&gt;&lt;/head&gt;
+        &lt;body&gt;
+            &lt;h1&gt;@{M.status} - @{M.title}&lt;/h1&gt;
+            &lt;p&gt;@{M.message}&lt;/p&gt;
+            &lt;footer&gt;@{R.app_name}&lt;/footer&gt;
+        &lt;/body&gt;
+        &lt;/html&gt;
+    &quot;#;
+    
+    let model = json!({
+        &quot;status&quot;: status,
+        &quot;title&quot;: if status == 404 { &quot;Not Found&quot; } else { &quot;Error&quot; },
+        &quot;message&quot;: message
+    });
+    
+    let repository = json!({
+        &quot;app_name&quot;: &quot;My Application&quot;
+    });
+    
+    VIEW::render_string(template, model, Some(repository))
+}
+#}</code></pre></pre>
+<a class="header" href="guides/views.html#template-file-rendering" id="template-file-rendering"><h4>Template File Rendering</h4></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// views/emails/order_confirmation.html
+// &lt;h1&gt;Order Confirmation&lt;/h1&gt;
+// &lt;p&gt;Thank you @{M.customer_name}!&lt;/p&gt;
+// &lt;p&gt;Order #@{M.order_id} has been confirmed.&lt;/p&gt;
+
+use rustf::prelude::*;
+
+pub async fn send_order_confirmation(order: Order) -&gt; rustf::Result&lt;()&gt; {
+    let html = VIEW::render(
+        &quot;emails/order_confirmation&quot;,
+        json!({
+            &quot;customer_name&quot;: order.customer_name,
+            &quot;order_id&quot;: order.id,
+            &quot;total&quot;: order.total
+        }),
+        Some(json!({
+            &quot;site_name&quot;: &quot;My Shop&quot;,
+            &quot;support_email&quot;: &quot;support@myshop.com&quot;
+        })),
+        Some(&quot;layouts/email&quot;)  // Use email layout
+    )?;
+    
+    send_email(&amp;order.customer_email, &amp;html).await?;
+    Ok(())
+}
+#}</code></pre></pre>
+<a class="header" href="guides/views.html#limitations" id="limitations"><h3>Limitations</h3></a>
+<ol>
+<li><strong>No Session Data</strong>: Global VIEW API doesn't have access to session data (use <code>ctx.view()</code> in controllers for session access)</li>
+<li><strong>Initialization Required</strong>: VIEW must be initialized during app startup (automatic with <code>auto_load()</code>)</li>
+<li><strong>Template Features</strong>: All Total.js features work (conditionals, loops, variables, etc.)</li>
+</ol>
+<a class="header" href="guides/views.html#best-practices-3" id="best-practices-3"><h3>Best Practices</h3></a>
+<ol>
+<li><strong>Use Model/Repository Separation</strong>: Keep template data (<code>M</code>) separate from context (<code>R</code>)</li>
+<li><strong>Validate Before Rendering</strong>: Ensure data is complete before calling VIEW</li>
+<li><strong>Handle Errors</strong>: Always handle <code>Result</code> from VIEW methods</li>
+<li><strong>Cache Templates</strong>: Use file-based templates for better caching in production</li>
+<li><strong>Test Rendering</strong>: Unit test your templates with VIEW::render_string()</li>
+</ol>
+<a class="header" href="guides/views.html#performance-tips" id="performance-tips"><h2>Performance Tips</h2></a>
+<a class="header" href="guides/views.html#development" id="development"><h3>Development</h3></a>
+<pre><code class="language-toml">[views]
+cache_enabled = false  # Hot-reload templates
+</code></pre>
+<a class="header" href="guides/views.html#production" id="production"><h3>Production</h3></a>
+<pre><code class="language-toml">[views]
+cache_enabled = true   # Cache compiled templates
+storage = &quot;embedded&quot;   # Embed templates in binary
+</code></pre>
+<a class="header" href="guides/views.html#template-caching" id="template-caching"><h3>Template Caching</h3></a>
+<p>Templates are automatically cached when <code>cache_enabled = true</code>:</p>
+<ul>
+<li>First request compiles the template</li>
+<li>Subsequent requests use cached version</li>
+<li>No manual cache management needed</li>
+</ul>
+<a class="header" href="guides/views.html#directory-structure" id="directory-structure"><h2>Directory Structure</h2></a>
+<pre><code>views/
+├── layouts/
+│   └── application.html    # Main layout
+├── home/
+│   ├── index.html          # Homepage
+│   └── about.html          # About page
+├── auth/
+│   ├── login.html          # Login form
+│   └── register.html       # Registration
+└── components/
+    ├── navbar.html         # Reusable navbar
+    └── footer.html         # Reusable footer
+</code></pre>
+<a class="header" href="guides/views.html#error-handling" id="error-handling"><h2>Error Handling</h2></a>
+<a class="header" href="guides/views.html#template-not-found" id="template-not-found"><h3>Template Not Found</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Graceful fallback
+match ctx.view(&quot;missing-template&quot;, data) {
+    Ok(response) =&gt; Ok(response),
+    Err(_) =&gt; ctx.view(&quot;errors/404&quot;, json!({&quot;message&quot;: &quot;Page not found&quot;}))
+}
+#}</code></pre></pre>
+<a class="header" href="guides/views.html#syntax-errors" id="syntax-errors"><h3>Syntax Errors</h3></a>
+<ul>
+<li><strong>Total.js</strong>: Errors shown with line numbers during development</li>
+<li><strong>Tera</strong>: Compile-time checking with detailed error messages</li>
+</ul>
+<a class="header" href="guides/views.html#migration-guide" id="migration-guide"><h2>Migration Guide</h2></a>
+<a class="header" href="guides/views.html#from-tera-to-totaljs" id="from-tera-to-totaljs"><h3>From Tera to Total.js</h3></a>
+<table><thead><tr><th> Tera </th><th> Total.js </th></tr></thead><tbody>
+<tr><td> <code>{{ variable }}</code> </td><td> <code>@{variable}</code> </td></tr>
+<tr><td> <code>{% if condition %}</code> </td><td> <code>@{if condition}</code> </td></tr>
+<tr><td> <code>{% endif %}</code> </td><td> <code>@{fi}</code> </td></tr>
+<tr><td> <code>{% for item in items %}</code> </td><td> <code>@{foreach item in items}</code> </td></tr>
+<tr><td> <code>{% endfor %}</code> </td><td> <code>@{end}</code> </td></tr>
+<tr><td> <code>{{ var \| escape }}</code> </td><td> <code>@{var}</code> (auto-escaped) </td></tr>
+<tr><td> <code>{{ var \| safe }}</code> </td><td> <code>@{!var}</code> </td></tr>
+</tbody></table>
+<a class="header" href="guides/views.html#from-totaljs-to-tera" id="from-totaljs-to-tera"><h3>From Total.js to Tera</h3></a>
+<table><thead><tr><th> Total.js </th><th> Tera </th></tr></thead><tbody>
+<tr><td> <code>@{variable}</code> </td><td> <code>{{ variable }}</code> </td></tr>
+<tr><td> <code>@{if condition}</code> </td><td> <code>{% if condition %}</code> </td></tr>
+<tr><td> <code>@{fi}</code> </td><td> <code>{% endif %}</code> </td></tr>
+<tr><td> <code>@{foreach item in items}</code> </td><td> <code>{% for item in items %}</code> </td></tr>
+<tr><td> <code>@{end}</code> </td><td> <code>{% endfor %}</code> </td></tr>
+<tr><td> <code>@{!raw_html}</code> </td><td> <code>{{ raw_html \| safe }}</code> </td></tr>
+</tbody></table>
+<a class="header" href="guides/views.html#best-practices-4" id="best-practices-4"><h2>Best Practices</h2></a>
+<ol>
+<li><strong>Use layouts</strong> - Define common structure once</li>
+<li><strong>Escape user input</strong> - Use auto-escaping by default</li>
+<li><strong>Cache in production</strong> - Enable template caching</li>
+<li><strong>Organize templates</strong> - Group by feature/module</li>
+<li><strong>Keep logic minimal</strong> - Complex logic belongs in controllers</li>
+<li><strong>Use components</strong> - Create reusable template parts</li>
+<li><strong>Validate data</strong> - Don't trust template input</li>
+<li><strong>Handle errors</strong> - Provide fallback templates</li>
+</ol>
+<a class="header" href="guides/views.html#troubleshooting" id="troubleshooting"><h2>Troubleshooting</h2></a>
+<a class="header" href="guides/views.html#templates-not-loading" id="templates-not-loading"><h3>Templates Not Loading</h3></a>
+<ul>
+<li>Check <code>views.directory</code> in config.toml</li>
+<li>Verify file extensions match <code>views.extension</code></li>
+<li>Ensure template names don't include extension in controller</li>
+</ul>
+<a class="header" href="guides/views.html#variables-not-rendering" id="variables-not-rendering"><h3>Variables Not Rendering</h3></a>
+<ul>
+<li>Check variable names match exactly</li>
+<li>Verify data is passed to <code>ctx.view()</code></li>
+<li>Use <code>@{json(variable)}</code> to debug data structure</li>
+</ul>
+<a class="header" href="guides/views.html#layout-issues" id="layout-issues"><h3>Layout Issues</h3></a>
+<ul>
+<li>Verify layout path is correct</li>
+<li>Check <code>@{content}</code> placeholder exists in layout</li>
+<li>Ensure child template specifies layout</li>
+</ul>
+<a class="header" href="guides/views.html#performance-issues" id="performance-issues"><h3>Performance Issues</h3></a>
+<ul>
+<li>Enable <code>cache_enabled</code> in production</li>
+<li>Use <code>embedded</code> storage for deployment</li>
+<li>Minimize template complexity</li>
+<li>Move heavy logic to controllers</li>
+</ul>
+<a class="header" href="guides/views.html#examples" id="examples"><h2>Examples</h2></a>
+<a class="header" href="guides/views.html#complete-controller-with-views-and-repositories" id="complete-controller-with-views-and-repositories"><h3>Complete Controller with Views and Repositories</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use rustf::prelude::*;
+
+#[rustf::install]
+impl ProductController {
+    #[route(GET, &quot;/products&quot;)]
+    pub async fn index(mut ctx: Context) -&gt; Result&lt;Response&gt; {
+        let products = vec![
+            json!({&quot;id&quot;: 1, &quot;name&quot;: &quot;Widget&quot;, &quot;price&quot;: 19.99}),
+            json!({&quot;id&quot;: 2, &quot;name&quot;: &quot;Gadget&quot;, &quot;price&quot;: 29.99}),
+        ];
+        
+        // Set context repository for this page
+        ctx.repository_set(&quot;view_mode&quot;, &quot;grid&quot;)
+           .repository_set(&quot;filters_available&quot;, json!([&quot;price&quot;, &quot;category&quot;, &quot;brand&quot;]))
+           .repository_set(&quot;user_preferences&quot;, json!({
+               &quot;currency&quot;: &quot;USD&quot;,
+               &quot;show_tax&quot;: true
+           }));
+        
+        ctx.view(&quot;products/index&quot;, json!({
+            &quot;title&quot;: &quot;Our Products&quot;,
+            &quot;products&quot;: products,
+            &quot;featured&quot;: true
+        }))
+    }
+    
+    #[route(GET, &quot;/products/:id&quot;)]
+    pub async fn show(mut ctx: Context) -&gt; Result&lt;Response&gt; {
+        let id = ctx.param(&quot;id&quot;)?;
+        
+        // Fetch product from database
+        let product = json!({
+            &quot;id&quot;: id,
+            &quot;name&quot;: &quot;Premium Widget&quot;,
+            &quot;price&quot;: 49.99,
+            &quot;description&quot;: &quot;High-quality widget&quot;
+        });
+        
+        // Set repository data for product page
+        ctx.repository_set(&quot;breadcrumbs&quot;, json!([
+            {&quot;name&quot;: &quot;Home&quot;, &quot;url&quot;: &quot;/&quot;},
+            {&quot;name&quot;: &quot;Products&quot;, &quot;url&quot;: &quot;/products&quot;},
+            {&quot;name&quot;: &quot;Premium Widget&quot;, &quot;url&quot;: null}
+        ]))
+        .repository_set(&quot;show_reviews&quot;, true)
+        .repository_set(&quot;related_products_count&quot;, 5);
+        
+        ctx.view(&quot;products/show&quot;, product)
+    }
+    
+    #[route(POST, &quot;/products/:id/buy&quot;)]
+    pub async fn purchase(ctx: Context) -&gt; Result&lt;Response&gt; {
+        let id = ctx.param(&quot;id&quot;)?;
+        
+        // Process purchase...
+        
+        ctx.flash(&quot;success&quot;, &quot;Purchase completed!&quot;);
+        ctx.redirect(&amp;format!(&quot;/products/{}&quot;, id))
+    }
+}
+#}</code></pre></pre>
+<a class="header" href="guides/views.html#template-with-all-features-including-repositories" id="template-with-all-features-including-repositories"><h3>Template with All Features Including Repositories</h3></a>
+<pre><code class="language-html">@{layout('layouts/default')}
+
+&lt;!-- Page specific CSS --&gt;
+@{css('/static/css/products.css')}
+
+&lt;!-- Breadcrumbs from repository --&gt;
+@{if R.breadcrumbs}
+    &lt;nav class=&quot;breadcrumbs&quot;&gt;
+        @{foreach crumb in R.breadcrumbs}
+            @{if crumb.url}
+                &lt;a href=&quot;@{crumb.url}&quot;&gt;@{crumb.name}&lt;/a&gt; /
+            @{else}
+                &lt;span&gt;@{crumb.name}&lt;/span&gt;
+            @{fi}
+        @{end}
+    &lt;/nav&gt;
+@{fi}
+
+&lt;div class=&quot;products-page view-@{R.view_mode}&quot;&gt;
+    &lt;h1&gt;@{title}&lt;/h1&gt;
+    
+    &lt;!-- Filters from repository --&gt;
+    @{if R.filters_available}
+        &lt;div class=&quot;filters&quot;&gt;
+            @{foreach filter in R.filters_available}
+                &lt;button class=&quot;filter-btn&quot;&gt;Filter by @{filter}&lt;/button&gt;
+            @{end}
+        &lt;/div&gt;
+    @{fi}
+    
+    &lt;!-- User preferences from repository --&gt;
+    &lt;div class=&quot;preferences&quot;&gt;
+        Currency: @{R.user_preferences.currency}
+        @{if R.user_preferences.show_tax}
+            &lt;small&gt;(Prices include tax)&lt;/small&gt;
+        @{fi}
+    &lt;/div&gt;
+    
+    &lt;!-- Conditional rendering --&gt;
+    @{if featured}
+        &lt;div class=&quot;featured-banner&quot;&gt;
+            &lt;p&gt;Check out our featured products!&lt;/p&gt;
+        &lt;/div&gt;
+    @{fi}
+    
+    &lt;!-- Loop through products --&gt;
+    &lt;div class=&quot;product-grid&quot;&gt;
+        @{foreach product in products}
+            &lt;div class=&quot;product-card&quot;&gt;
+                &lt;h3&gt;@{product.name}&lt;/h3&gt;
+                &lt;p class=&quot;price&quot;&gt;@{format_price(product.price)}&lt;/p&gt;
+                &lt;a href=&quot;@{root}/products/@{product.id}&quot; class=&quot;btn&quot;&gt;
+                    View Details
+                &lt;/a&gt;
+            &lt;/div&gt;
+        @{end}
+    &lt;/div&gt;
+    
+    &lt;!-- Reviews section if enabled --&gt;
+    @{if R.show_reviews}
+        &lt;div class=&quot;reviews-section&quot;&gt;
+            &lt;h2&gt;Customer Reviews&lt;/h2&gt;
+            &lt;!-- Reviews content --&gt;
+        &lt;/div&gt;
+    @{fi}
+    
+    &lt;!-- Related products --&gt;
+    @{if R.related_products_count &gt; 0}
+        &lt;div class=&quot;related&quot;&gt;
+            &lt;p&gt;See @{R.related_products_count} related products&lt;/p&gt;
+        &lt;/div&gt;
+    @{fi}
+    
+    &lt;!-- Raw HTML inclusion --&gt;
+    @{if marketing_content}
+        @{!marketing_content}
+    @{fi}
+&lt;/div&gt;
+
+&lt;!-- Footer with global repository data --&gt;
+&lt;footer&gt;
+    &lt;p&gt;@{APP.site_name} v@{APP.version}&lt;/p&gt;
+    &lt;p&gt;@{MAIN.copyright}&lt;/p&gt;
+    &lt;p&gt;Contact: @{APP.contact_email}&lt;/p&gt;
+&lt;/footer&gt;
+
+&lt;!-- Page specific JS --&gt;
+@{js('/static/js/products.js')}
+</code></pre>
+<p>This documentation provides a complete guide to using the RustF view system with practical examples and best practices for both Total.js and Tera template engines.</p>
+
+                </div>
+
+                <!-- Mobile navigation buttons -->
+                
+                    <a rel="prev" href="guides/controllers.html" class="mobile-nav-chapters previous" title="Previous chapter">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                
+
+                
+                    <a rel="next" href="guides/middleware.html" class="mobile-nav-chapters next" title="Next chapter">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+                
+
+            </div>
+
+            
+                <a href="guides/controllers.html" class="nav-chapters previous" title="You can navigate through the chapters using the arrow keys">
+                    <i class="fa fa-angle-left"></i>
+                </a>
+            
+
+            
+                <a href="guides/middleware.html" class="nav-chapters next" title="You can navigate through the chapters using the arrow keys">
+                    <i class="fa fa-angle-right"></i>
+                </a>
+            
+
+        </div>
+
+
+        <!-- Local fallback for Font Awesome -->
+        <script>
+            if ($(".fa").css("font-family") !== "FontAwesome") {
+                $('<link rel="stylesheet" type="text/css" href="_FontAwesome/css/font-awesome.css">').prependTo('head');
+            }
+        </script>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        
+
+        
+
+        
+
+        
+
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS script -->
+        
+
+    </body>
+</html>

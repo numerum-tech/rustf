@@ -1,0 +1,463 @@
+<!DOCTYPE HTML>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Project Structure - RustF Framework Documentation</title>
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="Complete guide to the RustF MVC web framework for Rust">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <base href="../">
+
+        <link rel="stylesheet" href="book.css">
+        <link href="https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800" rel="stylesheet" type="text/css">
+        <link href="https://fonts.googleapis.com/css?family=Source+Code+Pro:500" rel="stylesheet" type="text/css">
+
+        <link rel="shortcut icon" href="favicon.png">
+
+        <!-- Font Awesome -->
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
+
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme -->
+        
+
+        
+
+        <!-- Fetch Clipboard.js from CDN but have a local fallback -->
+        <script src="https://cdn.jsdelivr.net/clipboard.js/1.6.1/clipboard.min.js"></script>
+        <script>
+            if (typeof Clipboard == 'undefined') {
+                document.write(unescape("%3Cscript src='clipboard.min.js'%3E%3C/script%3E"));
+            }
+        </script>
+
+        <!-- Fetch JQuery from CDN but have a local fallback -->
+        <script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+        <script>
+            if (typeof jQuery == 'undefined') {
+                document.write(unescape("%3Cscript src='jquery.js'%3E%3C/script%3E"));
+            }
+        </script>
+
+        <!-- Fetch store.js from local - TODO add CDN when 2.x.x is available on cdnjs -->
+        <script src="store.js"></script>
+
+    </head>
+    <body class="light">
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme = store.get('mdbook-theme');
+            if (theme === null || theme === undefined) { theme = 'light'; }
+            $('body').removeClass().addClass(theme);
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var sidebar = store.get('mdbook-sidebar');
+            if (sidebar === "hidden") { $("html").addClass("sidebar-hidden") }
+            else if (sidebar === "visible") { $("html").addClass("sidebar-visible") }
+        </script>
+
+        <div id="sidebar" class="sidebar">
+            <ul class="chapter"><li class="affix"><a href="README.html">Introduction</a></li><li><a href="getting-started/README.html"><strong>1.</strong> Quick Start</a></li><li><a href="getting-started/installation.html"><strong>2.</strong> Installation</a></li><li><a href="getting-started/hello-world.html"><strong>3.</strong> Hello World</a></li><li><a href="getting-started/project-structure.html" class="active"><strong>4.</strong> Project Structure</a></li><li><a href="guides/controllers.html"><strong>5.</strong> Controllers &amp; Routing</a></li><li><a href="guides/views.html"><strong>6.</strong> Views &amp; Templates</a></li><li><a href="guides/middleware.html"><strong>7.</strong> Middleware</a></li><li><a href="guides/sessions.html"><strong>8.</strong> Sessions</a></li><li><a href="guides/database.html"><strong>9.</strong> Database Integration</a></li><li><a href="guides/configuration.html"><strong>10.</strong> Configuration</a></li><li><a href="guides/security.html"><strong>11.</strong> Security</a></li><li><a href="guides/error-handling.html"><strong>12.</strong> Error Handling</a></li><li><a href="guides/schemas.html"><strong>13.</strong> Schemas &amp; Definitions</a></li><li><a href="advanced/README.html"><strong>14.</strong> Overview</a></li><li><a href="advanced/performance.html"><strong>15.</strong> Performance Optimization</a></li><li><a href="advanced/workers.html"><strong>16.</strong> Workers</a></li><li><a href="advanced/events.html"><strong>17.</strong> Events</a></li><li><a href="advanced/modules.html"><strong>18.</strong> Modules</a></li><li><a href="advanced/cli.html"><strong>19.</strong> CLI Tool</a></li><li><a href="api-reference/README.html"><strong>20.</strong> Overview</a></li><li><a href="api-reference/context.html"><strong>21.</strong> Context API</a></li><li><a href="api-reference/models.html"><strong>22.</strong> Model API</a></li><li><a href="api-reference/routing.html"><strong>23.</strong> Routing API</a></li><li><a href="api-reference/utilities.html"><strong>24.</strong> Utilities</a></li><li><a href="examples/README.html"><strong>25.</strong> Overview</a></li><li><a href="examples/rest-api.html"><strong>26.</strong> Building a REST API</a></li><li><a href="examples/authentication.html"><strong>27.</strong> Authentication</a></li><li><a href="examples/real-world-app.html"><strong>28.</strong> Real-World Application</a></li><li><a href="deployment/production.html"><strong>29.</strong> Production Deployment</a></li><li><a href="deployment/docker.html"><strong>30.</strong> Docker</a></li></ul>
+        </div>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page" tabindex="-1">
+                
+                <div id="menu-bar" class="menu-bar">
+                    <div class="left-buttons">
+                        <i id="sidebar-toggle" class="fa fa-bars" title="Toggle sidebar"></i>
+                        <i id="theme-toggle" class="fa fa-paint-brush" title="Change theme"></i>
+                    </div>
+
+                    <h1 class="menu-title">RustF Framework Documentation</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html">
+                            <i id="print-button" class="fa fa-print" title="Print this book"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <div id="content" class="content">
+                    <a class="header" href="getting-started/project-structure.html#project-structure" id="project-structure"><h1>Project Structure</h1></a>
+<p>Understanding the RustF project structure is essential for building maintainable applications. This guide explains the standard layout and conventions.</p>
+<a class="header" href="getting-started/project-structure.html#standard-project-layout" id="standard-project-layout"><h2>Standard Project Layout</h2></a>
+<pre><code>your_project/
+├── src/
+│   ├── main.rs              # Application entry point with auto-discovery
+│   ├── controllers/         # HTTP request handlers
+│   │   ├── home.rs          # Home page controller
+│   │   ├── auth.rs          # Authentication controller  
+│   │   ├── users.rs         # User management controller
+│   │   └── api/             # API controllers (namespaced)
+│   │       ├── users.rs     # User API endpoints
+│   │       └── posts.rs     # Post API endpoints
+│   ├── models/              # Database models (schema-generated)
+│   │   ├── users.rs         # User model wrapper
+│   │   ├── posts.rs         # Post model wrapper
+│   │   └── base/            # Auto-generated base models (DO NOT EDIT)
+│   │       ├── users_base.rs
+│   │       └── posts_base.rs
+│   ├── modules/             # Business logic modules
+│   │   ├── user_service.rs  # User business logic
+│   │   └── email_service.rs # Email functionality
+│   ├── middleware/          # Custom middleware
+│   │   └── auth.rs          # Authentication middleware
+│   ├── _controllers.rs      # Auto-generated (IDE support only)
+│   ├── _models.rs           # Auto-generated (IDE support only)
+│   └── _modules.rs          # Auto-generated (IDE support only)
+├── views/                   # Template files
+│   ├── layouts/
+│   │   └── application.html # Default layout
+│   ├── home/
+│   │   ├── index.html       # Home page template
+│   │   └── about.html       # About page template
+│   └── auth/
+│       └── login.html       # Login form template
+├── schemas/                 # YAML schema definitions
+│   ├── users.yaml           # User table schema
+│   ├── posts.yaml           # Posts table schema
+│   └── _meta.yaml           # Database metadata
+├── public/                  # Static files
+│   ├── css/
+│   ├── js/
+│   └── images/
+├── uploads/                 # File uploads directory
+├── config.toml              # Base configuration
+├── config.prod.toml         # Production overrides
+└── Cargo.toml               # Rust project configuration
+</code></pre>
+<a class="header" href="getting-started/project-structure.html#directory-descriptions" id="directory-descriptions"><h2>Directory Descriptions</h2></a>
+<a class="header" href="getting-started/project-structure.html#src---source-code" id="src---source-code"><h3><code>src/</code> - Source Code</h3></a>
+<p>All Rust source code lives in the <code>src/</code> directory.</p>
+<a class="header" href="getting-started/project-structure.html#srcmainrs" id="srcmainrs"><h4><code>src/main.rs</code></h4></a>
+<p>The application entry point. Typically contains:</p>
+<pre><pre class="playpen"><code class="language-rust">use rustf::prelude::*;
+
+#[tokio::main]
+async fn main() -&gt; rustf::Result&lt;()&gt; {
+    env_logger::init();
+    
+    let app = RustF::new()
+        .controllers(auto_controllers!())
+        .middleware_from(auto_middleware!());
+    
+    app.start().await
+}
+</code></pre></pre>
+<a class="header" href="getting-started/project-structure.html#srccontrollers---request-handlers" id="srccontrollers---request-handlers"><h4><code>src/controllers/</code> - Request Handlers</h4></a>
+<p>Controllers handle HTTP requests and define routes. Each controller file must have an <code>install()</code> function.</p>
+<p><strong>Example: <code>src/controllers/home.rs</code></strong></p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use rustf::prelude::*;
+
+pub fn install() -&gt; Vec&lt;Route&gt; {
+    routes![
+        GET &quot;/&quot; =&gt; index,
+        GET &quot;/about&quot; =&gt; about,
+    ]
+}
+
+async fn index(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    ctx.view(&quot;home/index&quot;, json!({}))
+}
+#}</code></pre></pre>
+<p><strong>Nested Controllers: <code>src/controllers/api/users.rs</code></strong></p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use rustf::prelude::*;
+
+pub fn install() -&gt; Vec&lt;Route&gt; {
+    routes![
+        GET &quot;/api/users&quot; =&gt; list_users,
+        GET &quot;/api/users/{id}&quot; =&gt; get_user,
+    ]
+}
+#}</code></pre></pre>
+<a class="header" href="getting-started/project-structure.html#srcmodels---database-models" id="srcmodels---database-models"><h4><code>src/models/</code> - Database Models</h4></a>
+<p>Models represent database tables and provide type-safe database access.</p>
+<p><strong>Structure:</strong></p>
+<ul>
+<li><code>src/models/users.rs</code> - User model wrapper (your code)</li>
+<li><code>src/models/base/users_base.rs</code> - Auto-generated base model (don't edit)</li>
+</ul>
+<p><strong>Example: <code>src/models/users.rs</code></strong></p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use rustf::prelude::*;
+use crate::models::base::users_base::UsersBase;
+
+pub struct Users {
+    base: UsersBase,
+}
+
+impl Users {
+    pub fn new() -&gt; Self {
+        Self {
+            base: UsersBase::new(),
+        }
+    }
+    
+    // Add custom methods here
+}
+#}</code></pre></pre>
+<a class="header" href="getting-started/project-structure.html#srcmodules---business-logic" id="srcmodules---business-logic"><h4><code>src/modules/</code> - Business Logic</h4></a>
+<p>Modules contain business logic separate from HTTP concerns. They're shared across controllers and can be accessed via <code>MODULE</code>.</p>
+<p><strong>Example: <code>src/modules/user_service.rs</code></strong></p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use rustf::prelude::*;
+
+pub struct UserService;
+
+impl UserService {
+    pub fn create_user(&amp;self, name: &amp;str, email: &amp;str) -&gt; Result&lt;User&gt; {
+        // Business logic here
+    }
+}
+
+// Register as shared module
+impl_shared_service!(UserService);
+#}</code></pre></pre>
+<a class="header" href="getting-started/project-structure.html#srcmiddleware---request-processing" id="srcmiddleware---request-processing"><h4><code>src/middleware/</code> - Request Processing</h4></a>
+<p>Middleware processes requests before they reach controllers.</p>
+<p><strong>Example: <code>src/middleware/auth.rs</code></strong></p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use rustf::prelude::*;
+
+pub struct AuthMiddleware;
+
+impl InboundMiddleware for AuthMiddleware {
+    fn handle(&amp;self, ctx: &amp;mut Context) -&gt; MiddlewareResult {
+        // Authentication logic
+        MiddlewareResult::Continue
+    }
+}
+
+pub fn install(registry: &amp;mut MiddlewareRegistry) {
+    registry.register(&quot;auth&quot;, AuthMiddleware::new());
+}
+#}</code></pre></pre>
+<a class="header" href="getting-started/project-structure.html#src_rs---auto-generated-files" id="src_rs---auto-generated-files"><h4><code>src/_*.rs</code> - Auto-Generated Files</h4></a>
+<p>These files are generated by auto-discovery macros for IDE support:</p>
+<ul>
+<li><code>_controllers.rs</code> - Controller module declarations</li>
+<li><code>_models.rs</code> - Model module declarations</li>
+<li><code>_modules.rs</code> - Module declarations</li>
+</ul>
+<p><strong>Important:</strong> These files are NOT compiled. They're only for IDE autocomplete.</p>
+<a class="header" href="getting-started/project-structure.html#views---templates" id="views---templates"><h3><code>views/</code> - Templates</h3></a>
+<p>Template files organized by feature.</p>
+<p><strong>Structure:</strong></p>
+<pre><code>views/
+├── layouts/
+│   └── application.html     # Default layout
+├── home/
+│   ├── index.html           # Home page
+│   └── about.html           # About page
+└── auth/
+    └── login.html           # Login form
+</code></pre>
+<p><strong>Layout Example: <code>views/layouts/application.html</code></strong></p>
+<pre><code class="language-html">&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+    &lt;title&gt;{{title}}&lt;/title&gt;
+&lt;/head&gt;
+&lt;body&gt;
+    {{@body}}
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre>
+<p><strong>View Example: <code>views/home/index.html</code></strong></p>
+<pre><code class="language-html">&lt;h1&gt;Welcome&lt;/h1&gt;
+&lt;p&gt;Hello, {{name}}!&lt;/p&gt;
+</code></pre>
+<a class="header" href="getting-started/project-structure.html#schemas---database-schemas" id="schemas---database-schemas"><h3><code>schemas/</code> - Database Schemas</h3></a>
+<p>YAML schema definitions for database tables. Used by the CLI to generate models.</p>
+<p><strong>Example: <code>schemas/users.yaml</code></strong></p>
+<pre><code class="language-yaml">table: users
+fields:
+  id:
+    type: integer
+    primary: true
+    auto_increment: true
+  name:
+    type: string
+    length: 255
+    required: true
+  email:
+    type: string
+    length: 255
+    required: true
+    unique: true
+</code></pre>
+<a class="header" href="getting-started/project-structure.html#public---static-assets" id="public---static-assets"><h3><code>public/</code> - Static Assets</h3></a>
+<p>Static files served directly by the web server.</p>
+<pre><code>public/
+├── css/
+│   └── style.css
+├── js/
+│   └── app.js
+└── images/
+    └── logo.png
+</code></pre>
+<p>Access via: <code>http://localhost:8000/css/style.css</code></p>
+<a class="header" href="getting-started/project-structure.html#uploads---user-uploads" id="uploads---user-uploads"><h3><code>uploads/</code> - User Uploads</h3></a>
+<p>Directory for user-uploaded files. Location is configurable in <code>config.toml</code>.</p>
+<a class="header" href="getting-started/project-structure.html#configuration-files" id="configuration-files"><h3>Configuration Files</h3></a>
+<a class="header" href="getting-started/project-structure.html#configtoml---base-configuration" id="configtoml---base-configuration"><h4><code>config.toml</code> - Base Configuration</h4></a>
+<pre><code class="language-toml">[server]
+host = &quot;127.0.0.1&quot;
+port = 8000
+
+[views]
+directory = &quot;views&quot;
+cache_enabled = false
+</code></pre>
+<a class="header" href="getting-started/project-structure.html#configprodtoml---production-overrides" id="configprodtoml---production-overrides"><h4><code>config.prod.toml</code> - Production Overrides</h4></a>
+<pre><code class="language-toml">[server]
+host = &quot;0.0.0.0&quot;
+port = 8080
+
+[views]
+cache_enabled = true
+
+[session]
+secure = true
+</code></pre>
+<a class="header" href="getting-started/project-structure.html#file-naming-conventions" id="file-naming-conventions"><h2>File Naming Conventions</h2></a>
+<table><thead><tr><th> Component </th><th> Convention </th><th> Example </th></tr></thead><tbody>
+<tr><td> <strong>Controllers</strong> </td><td> <code>snake_case.rs</code> </td><td> <code>users.rs</code>, <code>auth.rs</code> </td></tr>
+<tr><td> <strong>Models</strong> </td><td> <code>snake_case.rs</code> </td><td> <code>users.rs</code>, <code>blog_posts.rs</code> </td></tr>
+<tr><td> <strong>Modules</strong> </td><td> <code>snake_case.rs</code> </td><td> <code>user_service.rs</code>, <code>email_service.rs</code> </td></tr>
+<tr><td> <strong>Middleware</strong> </td><td> <code>snake_case.rs</code> </td><td> <code>auth.rs</code>, <code>rate_limit.rs</code> </td></tr>
+<tr><td> <strong>Templates</strong> </td><td> <code>snake_case.html</code> </td><td> <code>index.html</code>, <code>user_profile.html</code> </td></tr>
+<tr><td> <strong>Schemas</strong> </td><td> <code>snake_case.yaml</code> </td><td> <code>users.yaml</code>, <code>blog_posts.yaml</code> </td></tr>
+</tbody></table>
+<a class="header" href="getting-started/project-structure.html#best-practices" id="best-practices"><h2>Best Practices</h2></a>
+<a class="header" href="getting-started/project-structure.html#1-organize-by-feature" id="1-organize-by-feature"><h3>1. Organize by Feature</h3></a>
+<p>Group related files together:</p>
+<pre><code>src/controllers/
+├── users.rs          # User-related routes
+├── posts.rs          # Post-related routes
+└── comments.rs       # Comment-related routes
+</code></pre>
+<a class="header" href="getting-started/project-structure.html#2-use-namespaces-for-apis" id="2-use-namespaces-for-apis"><h3>2. Use Namespaces for APIs</h3></a>
+<p>Separate API controllers:</p>
+<pre><code>src/controllers/
+├── api/
+│   ├── v1/
+│   │   ├── users.rs
+│   │   └── posts.rs
+│   └── v2/
+│       └── users.rs
+</code></pre>
+<a class="header" href="getting-started/project-structure.html#3-keep-models-simple" id="3-keep-models-simple"><h3>3. Keep Models Simple</h3></a>
+<p>Models should be thin wrappers around base models:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Good: Thin wrapper
+pub struct Users {
+    base: UsersBase,
+}
+
+// Avoid: Complex logic in models
+// Move business logic to modules
+#}</code></pre></pre>
+<a class="header" href="getting-started/project-structure.html#4-separate-concerns" id="4-separate-concerns"><h3>4. Separate Concerns</h3></a>
+<ul>
+<li><strong>Controllers</strong> - HTTP request/response handling</li>
+<li><strong>Models</strong> - Database access</li>
+<li><strong>Modules</strong> - Business logic</li>
+<li><strong>Middleware</strong> - Cross-cutting concerns</li>
+</ul>
+<a class="header" href="getting-started/project-structure.html#auto-discovery" id="auto-discovery"><h2>Auto-Discovery</h2></a>
+<p>RustF automatically discovers components based on file location:</p>
+<ul>
+<li><code>src/controllers/*.rs</code> → Controllers</li>
+<li><code>src/models/*.rs</code> → Models</li>
+<li><code>src/modules/*.rs</code> → Modules</li>
+<li><code>src/middleware/*.rs</code> → Middleware</li>
+</ul>
+<p>No manual registration needed!</p>
+<a class="header" href="getting-started/project-structure.html#next-steps" id="next-steps"><h2>Next Steps</h2></a>
+<p>Now that you understand the project structure:</p>
+<ol>
+<li><strong><a href="../guides/controllers.md">Controllers Guide</a></strong> - Learn about routing</li>
+<li><strong><a href="../guides/database.md">Models Guide</a></strong> - Work with databases</li>
+<li><strong><a href="../guides/views.md">Views Guide</a></strong> - Use templates</li>
+<li><strong><a href="../advanced/modules.md">Modules Guide</a></strong> - Share business logic</li>
+</ol>
+
+                </div>
+
+                <!-- Mobile navigation buttons -->
+                
+                    <a rel="prev" href="getting-started/hello-world.html" class="mobile-nav-chapters previous" title="Previous chapter">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                
+
+                
+                    <a rel="next" href="guides/controllers.html" class="mobile-nav-chapters next" title="Next chapter">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+                
+
+            </div>
+
+            
+                <a href="getting-started/hello-world.html" class="nav-chapters previous" title="You can navigate through the chapters using the arrow keys">
+                    <i class="fa fa-angle-left"></i>
+                </a>
+            
+
+            
+                <a href="guides/controllers.html" class="nav-chapters next" title="You can navigate through the chapters using the arrow keys">
+                    <i class="fa fa-angle-right"></i>
+                </a>
+            
+
+        </div>
+
+
+        <!-- Local fallback for Font Awesome -->
+        <script>
+            if ($(".fa").css("font-family") !== "FontAwesome") {
+                $('<link rel="stylesheet" type="text/css" href="_FontAwesome/css/font-awesome.css">').prependTo('head');
+            }
+        </script>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        
+
+        
+
+        
+
+        
+
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS script -->
+        
+
+    </body>
+</html>

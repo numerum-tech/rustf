@@ -1,0 +1,663 @@
+<!DOCTYPE HTML>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>CLI Tool - RustF Framework Documentation</title>
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="Complete guide to the RustF MVC web framework for Rust">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <base href="../">
+
+        <link rel="stylesheet" href="book.css">
+        <link href="https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800" rel="stylesheet" type="text/css">
+        <link href="https://fonts.googleapis.com/css?family=Source+Code+Pro:500" rel="stylesheet" type="text/css">
+
+        <link rel="shortcut icon" href="favicon.png">
+
+        <!-- Font Awesome -->
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
+
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme -->
+        
+
+        
+
+        <!-- Fetch Clipboard.js from CDN but have a local fallback -->
+        <script src="https://cdn.jsdelivr.net/clipboard.js/1.6.1/clipboard.min.js"></script>
+        <script>
+            if (typeof Clipboard == 'undefined') {
+                document.write(unescape("%3Cscript src='clipboard.min.js'%3E%3C/script%3E"));
+            }
+        </script>
+
+        <!-- Fetch JQuery from CDN but have a local fallback -->
+        <script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+        <script>
+            if (typeof jQuery == 'undefined') {
+                document.write(unescape("%3Cscript src='jquery.js'%3E%3C/script%3E"));
+            }
+        </script>
+
+        <!-- Fetch store.js from local - TODO add CDN when 2.x.x is available on cdnjs -->
+        <script src="store.js"></script>
+
+    </head>
+    <body class="light">
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme = store.get('mdbook-theme');
+            if (theme === null || theme === undefined) { theme = 'light'; }
+            $('body').removeClass().addClass(theme);
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var sidebar = store.get('mdbook-sidebar');
+            if (sidebar === "hidden") { $("html").addClass("sidebar-hidden") }
+            else if (sidebar === "visible") { $("html").addClass("sidebar-visible") }
+        </script>
+
+        <div id="sidebar" class="sidebar">
+            <ul class="chapter"><li class="affix"><a href="README.html">Introduction</a></li><li><a href="getting-started/README.html"><strong>1.</strong> Quick Start</a></li><li><a href="getting-started/installation.html"><strong>2.</strong> Installation</a></li><li><a href="getting-started/hello-world.html"><strong>3.</strong> Hello World</a></li><li><a href="getting-started/project-structure.html"><strong>4.</strong> Project Structure</a></li><li><a href="guides/controllers.html"><strong>5.</strong> Controllers &amp; Routing</a></li><li><a href="guides/views.html"><strong>6.</strong> Views &amp; Templates</a></li><li><a href="guides/middleware.html"><strong>7.</strong> Middleware</a></li><li><a href="guides/sessions.html"><strong>8.</strong> Sessions</a></li><li><a href="guides/database.html"><strong>9.</strong> Database Integration</a></li><li><a href="guides/configuration.html"><strong>10.</strong> Configuration</a></li><li><a href="guides/security.html"><strong>11.</strong> Security</a></li><li><a href="guides/error-handling.html"><strong>12.</strong> Error Handling</a></li><li><a href="guides/schemas.html"><strong>13.</strong> Schemas &amp; Definitions</a></li><li><a href="advanced/README.html"><strong>14.</strong> Overview</a></li><li><a href="advanced/performance.html"><strong>15.</strong> Performance Optimization</a></li><li><a href="advanced/workers.html"><strong>16.</strong> Workers</a></li><li><a href="advanced/events.html"><strong>17.</strong> Events</a></li><li><a href="advanced/modules.html"><strong>18.</strong> Modules</a></li><li><a href="advanced/cli.html" class="active"><strong>19.</strong> CLI Tool</a></li><li><a href="api-reference/README.html"><strong>20.</strong> Overview</a></li><li><a href="api-reference/context.html"><strong>21.</strong> Context API</a></li><li><a href="api-reference/models.html"><strong>22.</strong> Model API</a></li><li><a href="api-reference/routing.html"><strong>23.</strong> Routing API</a></li><li><a href="api-reference/utilities.html"><strong>24.</strong> Utilities</a></li><li><a href="examples/README.html"><strong>25.</strong> Overview</a></li><li><a href="examples/rest-api.html"><strong>26.</strong> Building a REST API</a></li><li><a href="examples/authentication.html"><strong>27.</strong> Authentication</a></li><li><a href="examples/real-world-app.html"><strong>28.</strong> Real-World Application</a></li><li><a href="deployment/production.html"><strong>29.</strong> Production Deployment</a></li><li><a href="deployment/docker.html"><strong>30.</strong> Docker</a></li></ul>
+        </div>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page" tabindex="-1">
+                
+                <div id="menu-bar" class="menu-bar">
+                    <div class="left-buttons">
+                        <i id="sidebar-toggle" class="fa fa-bars" title="Toggle sidebar"></i>
+                        <i id="theme-toggle" class="fa fa-paint-brush" title="Change theme"></i>
+                    </div>
+
+                    <h1 class="menu-title">RustF Framework Documentation</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html">
+                            <i id="print-button" class="fa fa-print" title="Print this book"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <div id="content" class="content">
+                    <a class="header" href="advanced/cli.html#rustf-cli-complete-guide" id="rustf-cli-complete-guide"><h1>RustF CLI Complete Guide</h1></a>
+<p><strong>Comprehensive documentation for rustf-cli - The AI-friendly command-line tool for RustF framework</strong></p>
+<a class="header" href="advanced/cli.html#overview" id="overview"><h2>Overview</h2></a>
+<p>RustF CLI is a powerful command-line tool designed for analyzing, managing, and developing RustF web applications. It provides comprehensive project analysis, database introspection, schema management, code generation, and includes built-in MCP (Model Context Protocol) server support for AI coding assistants.</p>
+<a class="header" href="advanced/cli.html#key-features" id="key-features"><h3>Key Features</h3></a>
+<ul>
+<li>🔍 <strong>Project Analysis</strong> - Deep inspection and validation of RustF applications</li>
+<li>🤖 <strong>AI Agent Integration</strong> - MCP server with read-only mode for safe remote access</li>
+<li>🗄️ <strong>Database Tools</strong> - Multi-database support (PostgreSQL, MySQL, SQLite)</li>
+<li>📋 <strong>Schema Management</strong> - YAML-based schema validation and model generation</li>
+<li>🚀 <strong>Code Generation</strong> - Create projects, controllers, modules, and events</li>
+<li>💾 <strong>Automatic Backups</strong> - Safety backups when using <code>--force</code> flags</li>
+<li>📊 <strong>Performance Analysis</strong> - Benchmarking and cache statistics</li>
+<li>🔒 <strong>Security First</strong> - Read-only mode by default for remote access</li>
+</ul>
+<a class="header" href="advanced/cli.html#installation" id="installation"><h2>Installation</h2></a>
+<p>The RustF CLI is included with the RustF framework:</p>
+<pre><code class="language-bash"># Build from source
+cd rustf-cli
+cargo build --release
+
+# The binary will be at: target/release/rustf-cli
+# Add to PATH for system-wide access
+export PATH=&quot;$PATH:/path/to/rustf/rustf-cli/target/release&quot;
+</code></pre>
+<a class="header" href="advanced/cli.html#global-options" id="global-options"><h2>Global Options</h2></a>
+<p>All commands support these global options:</p>
+<pre><code class="language-bash">-P, --project &lt;PATH&gt;     # Specify project directory (defaults to current)
+-v, --verbose            # Enable verbose output for debugging
+-h, --help              # Show help information
+-V, --version           # Show version information
+</code></pre>
+<a class="header" href="advanced/cli.html#command-reference" id="command-reference"><h2>Command Reference</h2></a>
+<p>The CLI provides 9 main commands, each with specific functionality:</p>
+<a class="header" href="advanced/cli.html#1-analyze---project-component-analysis" id="1-analyze---project-component-analysis"><h3>1. <code>analyze</code> - Project Component Analysis</h3></a>
+<p>Analyze various aspects of your RustF project.</p>
+<pre><code class="language-bash">rustf-cli analyze &lt;SUBCOMMAND&gt;
+</code></pre>
+<p><strong>Subcommands:</strong></p>
+<ul>
+<li>
+<p><strong><code>backups</code></strong> - List and analyze project backups</p>
+<pre><code class="language-bash">rustf-cli analyze backups [--detailed]
+# Shows backups created by --force operations
+</code></pre>
+</li>
+<li>
+<p><strong><code>controllers</code></strong> - List controllers and their handlers</p>
+<pre><code class="language-bash">rustf-cli analyze controllers [-n &lt;NAME&gt;]
+</code></pre>
+</li>
+<li>
+<p><strong><code>discover</code></strong> - Quick project discovery and overview</p>
+<pre><code class="language-bash">rustf-cli analyze discover [-f &lt;FILTER&gt;]
+</code></pre>
+</li>
+<li>
+<p><strong><code>middleware</code></strong> - Analyze middleware chain and execution order</p>
+<pre><code class="language-bash">rustf-cli analyze middleware [--conflicts]
+</code></pre>
+</li>
+<li>
+<p><strong><code>models</code></strong> - Discover and analyze models</p>
+<pre><code class="language-bash">rustf-cli analyze models [--relationships]
+</code></pre>
+</li>
+<li>
+<p><strong><code>project</code></strong> - Complete project analysis</p>
+<pre><code class="language-bash">rustf-cli analyze project [--detailed] [-f &lt;FORMAT&gt;]
+# FORMAT: table (default), json, yaml
+</code></pre>
+</li>
+<li>
+<p><strong><code>routes</code></strong> - Display route tree with parameters</p>
+<pre><code class="language-bash">rustf-cli analyze routes [--conflicts-only] [--validate]
+</code></pre>
+</li>
+<li>
+<p><strong><code>views</code></strong> - Analyze views and templates</p>
+<pre><code class="language-bash">rustf-cli analyze views [--layout] [-n &lt;NAME&gt;] [--security]
+</code></pre>
+</li>
+</ul>
+<a class="header" href="advanced/cli.html#2-db---database-operations" id="2-db---database-operations"><h3>2. <code>db</code> - Database Operations</h3></a>
+<p>Introspect and manage database schemas.</p>
+<pre><code class="language-bash">rustf-cli db &lt;SUBCOMMAND&gt;
+</code></pre>
+<p><strong>Subcommands:</strong></p>
+<ul>
+<li>
+<p><strong><code>describe</code></strong> - Describe table structure</p>
+<pre><code class="language-bash">rustf-cli db describe &lt;TABLE_NAME&gt; [--connection &lt;NAME&gt;] [--format &lt;FORMAT&gt;]
+</code></pre>
+</li>
+<li>
+<p><strong><code>diff-schema</code></strong> - Compare database with schema files</p>
+<pre><code class="language-bash">rustf-cli db diff-schema &lt;SCHEMA_FILE&gt; [--connection &lt;NAME&gt;]
+</code></pre>
+</li>
+<li>
+<p><strong><code>export-data</code></strong> - Export table data</p>
+<pre><code class="language-bash">rustf-cli db export-data &lt;TABLE_NAME&gt; [--format json|csv] [--limit &lt;N&gt;] [-o &lt;FILE&gt;]
+</code></pre>
+</li>
+<li>
+<p><strong><code>generate-schema</code></strong> - Generate YAML schemas from database</p>
+<pre><code class="language-bash">rustf-cli db generate-schema [-o &lt;DIR&gt;] [--force] [--tables &lt;TABLE1,TABLE2&gt;]
+# ⚠️ --force creates backups in .rustf/backups/schemas/
+</code></pre>
+</li>
+<li>
+<p><strong><code>list-tables</code></strong> - List all database tables</p>
+<pre><code class="language-bash">rustf-cli db list-tables [--metadata] [--format table|json]
+</code></pre>
+</li>
+<li>
+<p><strong><code>test-connection</code></strong> - Test database connectivity</p>
+<pre><code class="language-bash">rustf-cli db test-connection [--connection &lt;NAME&gt;]
+</code></pre>
+</li>
+</ul>
+<a class="header" href="advanced/cli.html#3-export---export-project-analysis" id="3-export---export-project-analysis"><h3>3. <code>export</code> - Export Project Analysis</h3></a>
+<p>Export project analysis in various formats.</p>
+<pre><code class="language-bash">rustf-cli export [-f &lt;FORMAT&gt;] [--include-code] [-o &lt;FILE&gt;]
+# FORMAT: json (default), yaml, markdown
+</code></pre>
+<a class="header" href="advanced/cli.html#4-new---create-new-components" id="4-new---create-new-components"><h3>4. <code>new</code> - Create New Components</h3></a>
+<p>Generate new RustF components with proper structure.</p>
+<pre><code class="language-bash">rustf-cli new &lt;SUBCOMMAND&gt;
+</code></pre>
+<p><strong>Subcommands:</strong></p>
+<ul>
+<li>
+<p><strong><code>controller</code></strong> - Generate controller(s)</p>
+<pre><code class="language-bash">rustf-cli new controller -n &lt;NAMES&gt; [--crud] [--routes]
+# Example: rustf-cli new controller -n &quot;UserController,PostController&quot; --crud
+</code></pre>
+</li>
+<li>
+<p><strong><code>event</code></strong> - Generate event handler</p>
+<pre><code class="language-bash">rustf-cli new event -n &lt;NAME&gt; [--lifecycle] [--custom]
+</code></pre>
+</li>
+<li>
+<p><strong><code>middleware</code></strong> - Generate middleware component</p>
+<pre><code class="language-bash">rustf-cli new middleware -n &lt;NAME&gt; [--auth] [--logging] [-p &lt;PRIORITY&gt;]
+
+Options:
+  -n, --name &lt;NAME&gt;        # Middleware name (required)
+  --auth                   # Include authentication example with protected paths
+  --logging                # Include request/response logging example
+  -p, --priority &lt;PRIORITY&gt; # Execution priority (default: 0)
+                          # Negative = runs early, Positive = runs late
+
+Examples:
+  # Basic middleware
+  rustf-cli new middleware -n rate-limit
+  
+  # Auth middleware with early execution
+  rustf-cli new middleware -n auth --auth --priority=-50
+  
+  # Logging middleware (runs very early)
+  rustf-cli new middleware -n request-logger --logging --priority=-100
+</code></pre>
+</li>
+<li>
+<p><strong><code>module</code></strong> - Generate service/module</p>
+<pre><code class="language-bash">rustf-cli new module -n &lt;NAME&gt; [--shared] [--with-methods]
+</code></pre>
+</li>
+<li>
+<p><strong><code>project</code></strong> - Create new RustF project</p>
+<pre><code class="language-bash">rustf-cli new project &lt;PROJECT_NAME&gt; [--path &lt;DIR&gt;] [--force]
+# ⚠️ --force creates backup of existing project in .rustf/backups/project/
+</code></pre>
+</li>
+</ul>
+<a class="header" href="advanced/cli.html#5-perf---performance-analysis" id="5-perf---performance-analysis"><h3>5. <code>perf</code> - Performance Analysis</h3></a>
+<p>Analyze application performance characteristics.</p>
+<pre><code class="language-bash">rustf-cli perf &lt;SUBCOMMAND&gt;
+</code></pre>
+<p><strong>Subcommands:</strong></p>
+<ul>
+<li>
+<p><strong><code>benchmark</code></strong> - Run performance benchmarks</p>
+<pre><code class="language-bash">rustf-cli perf benchmark [--iterations &lt;N&gt;]
+</code></pre>
+</li>
+<li>
+<p><strong><code>cache-stats</code></strong> - Display cache statistics</p>
+<pre><code class="language-bash">rustf-cli perf cache-stats
+</code></pre>
+</li>
+<li>
+<p><strong><code>stream</code></strong> - Streaming performance analysis</p>
+<pre><code class="language-bash">rustf-cli perf stream [--memory-limit &lt;MB&gt;] [--chunk-size &lt;KB&gt;]
+</code></pre>
+</li>
+</ul>
+<a class="header" href="advanced/cli.html#6-query---query-specific-items" id="6-query---query-specific-items"><h3>6. <code>query</code> - Query Specific Items</h3></a>
+<p>Query specific components or metadata.</p>
+<pre><code class="language-bash">rustf-cli query &lt;ITEM_TYPE&gt; &lt;ITEM_NAME&gt; [-f &lt;FORMAT&gt;]
+# ITEM_TYPE: controller, handler, middleware, model, model-metadata, route, view
+</code></pre>
+<p><strong>Example:</strong></p>
+<pre><code class="language-bash">rustf-cli query model-metadata User --format json
+# Returns field hints, validation rules, and type information
+</code></pre>
+<a class="header" href="advanced/cli.html#7-schema---schema-management" id="7-schema---schema-management"><h3>7. <code>schema</code> - Schema Management</h3></a>
+<p>Manage YAML schemas and generate code.</p>
+<pre><code class="language-bash">rustf-cli schema &lt;SUBCOMMAND&gt;
+</code></pre>
+<p><strong>Subcommands:</strong></p>
+<ul>
+<li>
+<p><strong><code>analyze</code></strong> - Analyze schema structure</p>
+<pre><code class="language-bash">rustf-cli schema analyze [-s &lt;SCHEMA_PATH&gt;]
+</code></pre>
+</li>
+<li>
+<p><strong><code>check-consistency</code></strong> - Verify schema/code consistency</p>
+<pre><code class="language-bash">rustf-cli schema check-consistency
+</code></pre>
+</li>
+<li>
+<p><strong><code>generate</code></strong> - Generate code from schemas</p>
+<pre><code class="language-bash">rustf-cli schema generate &lt;TARGET&gt; [--schema-path &lt;DIR&gt;] [-o &lt;DIR&gt;] [--force]
+# TARGET: models, migrations, postgres, mysql, sqlite
+# ⚠️ --force creates backups in .rustf/backups/models/
+</code></pre>
+</li>
+<li>
+<p><strong><code>validate</code></strong> - Validate schema files</p>
+<pre><code class="language-bash">rustf-cli schema validate [-p &lt;SCHEMA_PATH&gt;]
+</code></pre>
+</li>
+<li>
+<p><strong><code>watch</code></strong> - Auto-regenerate on schema changes</p>
+<pre><code class="language-bash">rustf-cli schema watch [-s &lt;SCHEMA_PATH&gt;] [-o &lt;OUTPUT&gt;]
+</code></pre>
+</li>
+</ul>
+<a class="header" href="advanced/cli.html#8-serve---mcp-server-management" id="8-serve---mcp-server-management"><h3>8. <code>serve</code> - MCP Server Management</h3></a>
+<p>Start MCP server for AI agent integration.</p>
+<pre><code class="language-bash">rustf-cli serve &lt;SUBCOMMAND&gt;
+</code></pre>
+<p><strong>Subcommands:</strong></p>
+<ul>
+<li>
+<p><strong><code>start</code></strong> - Start MCP server</p>
+<pre><code class="language-bash">rustf-cli serve start [OPTIONS]
+
+Options:
+  --allow-writes       # Enable write operations (default: false - READ-ONLY)
+  --auto-port         # Find available port automatically
+  --bind &lt;ADDRESS&gt;    # Bind address (default: 127.0.0.1)
+  -n, --name &lt;NAME&gt;   # Instance name for multiple servers
+  --port &lt;PORT&gt;       # Server port (default: 3000)
+  -w, --watch         # Enable file watching
+  --websocket         # Enable WebSocket support
+</code></pre>
+</li>
+<li>
+<p><strong><code>list</code></strong> - List running MCP servers</p>
+<pre><code class="language-bash">rustf-cli serve list
+</code></pre>
+</li>
+<li>
+<p><strong><code>stop</code></strong> - Stop MCP server</p>
+<pre><code class="language-bash">rustf-cli serve stop &lt;PORT&gt;
+</code></pre>
+</li>
+</ul>
+<a class="header" href="advanced/cli.html#9-validate---project-validation" id="9-validate---project-validation"><h3>9. <code>validate</code> - Project Validation</h3></a>
+<p>Validate project structure and conventions.</p>
+<pre><code class="language-bash">rustf-cli validate [--fix] [-w, --watch]
+# --fix: Auto-fix issues where possible
+# --watch: Continuous validation mode
+</code></pre>
+<a class="header" href="advanced/cli.html#ai-agent-integration-mcp-server" id="ai-agent-integration-mcp-server"><h2>AI Agent Integration (MCP Server)</h2></a>
+<p>The MCP server enables AI agents to interact with your RustF project safely.</p>
+<a class="header" href="advanced/cli.html#starting-the-server" id="starting-the-server"><h3>Starting the Server</h3></a>
+<p><strong>Safe Remote Access (Read-Only - Default):</strong></p>
+<pre><code class="language-bash"># Start read-only server for remote access
+rustf-cli serve start --bind 0.0.0.0 --port 8080
+
+🔒 Starting MCP Server in READ-ONLY mode (safe for remote)
+   Available: analyze, query, validate, db list/describe
+   Blocked: generate, new, fix, migrate
+</code></pre>
+<p><strong>Local Development (With Write Access):</strong></p>
+<pre><code class="language-bash"># Enable writes for local development only
+rustf-cli serve start --allow-writes
+
+🔓 Starting MCP Server with WRITE operations enabled
+   Available: All CLI commands including generate, new, fix
+</code></pre>
+<a class="header" href="advanced/cli.html#mcp-protocol-usage" id="mcp-protocol-usage"><h3>MCP Protocol Usage</h3></a>
+<p>The server exposes a single <code>rustf_cli_execute</code> endpoint that wraps all CLI commands:</p>
+<pre><code class="language-json">// Request format
+{
+  &quot;method&quot;: &quot;rustf_cli_execute&quot;,
+  &quot;params&quot;: {
+    &quot;command&quot;: &quot;analyze&quot;,
+    &quot;subcommand&quot;: &quot;project&quot;,
+    &quot;args&quot;: [&quot;--format&quot;, &quot;json&quot;]
+  }
+}
+
+// Response format
+{
+  &quot;status&quot;: &quot;success&quot;,
+  &quot;data&quot;: { /* command output */ },
+  &quot;metadata&quot;: {
+    &quot;command_executed&quot;: &quot;rustf-cli analyze project --format json&quot;,
+    &quot;execution_time_ms&quot;: 145,
+    &quot;read_only_mode&quot;: true,
+    &quot;command_type&quot;: &quot;read_only&quot;
+  }
+}
+</code></pre>
+<a class="header" href="advanced/cli.html#safety-features" id="safety-features"><h3>Safety Features</h3></a>
+<ol>
+<li><strong>Read-Only by Default</strong>: Server starts in read-only mode unless explicitly enabled</li>
+<li><strong>Public Interface Warning</strong>: 5-second delay when enabling writes on public interfaces</li>
+<li><strong>Command Classification</strong>: Automatic blocking of write operations in read-only mode</li>
+<li><strong>Audit Logging</strong>: All blocked write attempts are logged</li>
+</ol>
+<a class="header" href="advanced/cli.html#backup-system" id="backup-system"><h2>Backup System</h2></a>
+<p>The CLI automatically creates backups when using <code>--force</code> flags to prevent data loss.</p>
+<a class="header" href="advanced/cli.html#how-it-works" id="how-it-works"><h3>How It Works</h3></a>
+<p>When you use <code>--force</code> with commands that overwrite files:</p>
+<ol>
+<li><strong>Automatic Backup</strong>: Creates timestamped backup in <code>.rustf/backups/</code></li>
+<li><strong>Organized Storage</strong>: Backups organized by type (models, schemas, project)</li>
+<li><strong>Manual Restore</strong>: Intentionally manual to ensure conscious restoration</li>
+</ol>
+<a class="header" href="advanced/cli.html#backup-locations" id="backup-locations"><h3>Backup Locations</h3></a>
+<pre><code>.rustf/
+└── backups/
+    ├── models/
+    │   └── 2024-01-15T10-30-00Z/
+    ├── schemas/
+    │   └── 2024-01-15T11-00-00Z/
+    └── project/
+        └── 2024-01-15T12-00-00Z/
+</code></pre>
+<a class="header" href="advanced/cli.html#managing-backups" id="managing-backups"><h3>Managing Backups</h3></a>
+<pre><code class="language-bash"># List all backups
+rustf-cli analyze backups
+
+# Manual restoration (intentionally not automated)
+cp -r .rustf/backups/models/2024-01-15T10-30-00Z/* src/models/
+</code></pre>
+<a class="header" href="advanced/cli.html#common-workflows" id="common-workflows"><h2>Common Workflows</h2></a>
+<a class="header" href="advanced/cli.html#setting-up-a-new-project" id="setting-up-a-new-project"><h3>Setting Up a New Project</h3></a>
+<pre><code class="language-bash"># 1. Create new project
+rustf-cli new project my-app
+
+# 2. Configure database in config.toml or .env
+export DATABASE_URL=&quot;postgresql://user:pass@localhost/myapp&quot;
+
+# 3. Generate schemas from existing database
+rustf-cli db generate-schema -o schemas
+
+# 4. Generate models from schemas
+rustf-cli schema generate models -o src/models
+
+# 5. Create essential middleware
+rustf-cli new middleware -n auth --auth --priority=-50
+rustf-cli new middleware -n request-logger --logging --priority=-100
+
+# 6. Start development server
+cargo run
+</code></pre>
+<a class="header" href="advanced/cli.html#analyzing-an-existing-project" id="analyzing-an-existing-project"><h3>Analyzing an Existing Project</h3></a>
+<pre><code class="language-bash"># 1. Quick discovery
+rustf-cli analyze discover
+
+# 2. Detailed project analysis
+rustf-cli analyze project --detailed --format json
+
+# 3. Check for issues
+rustf-cli validate
+
+# 4. Analyze routes for conflicts
+rustf-cli analyze routes --conflicts-only
+</code></pre>
+<a class="header" href="advanced/cli.html#database-first-development" id="database-first-development"><h3>Database-First Development</h3></a>
+<pre><code class="language-bash"># 1. Test connection
+rustf-cli db test-connection
+
+# 2. List tables
+rustf-cli db list-tables --metadata
+
+# 3. Generate schemas from database
+rustf-cli db generate-schema --force
+
+# 4. Generate models
+rustf-cli schema generate models --force
+
+# 5. Verify consistency
+rustf-cli schema check-consistency
+</code></pre>
+<a class="header" href="advanced/cli.html#creating-middleware-components" id="creating-middleware-components"><h3>Creating Middleware Components</h3></a>
+<pre><code class="language-bash"># 1. Generate authentication middleware
+rustf-cli new middleware -n auth --auth --priority=-50
+
+# 2. Generate logging middleware
+rustf-cli new middleware -n request-logger --logging --priority=-100
+
+# 3. Generate rate limiting middleware
+rustf-cli new middleware -n rate-limit --priority=-75
+
+# 4. Generate custom security headers middleware
+rustf-cli new middleware -n security-headers --priority=100
+
+# Note: Priority determines execution order:
+# - Negative values run early (e.g., logging, auth)
+# - Positive values run late (e.g., response modification)
+# - Zero is default (normal priority)
+</code></pre>
+<a class="header" href="advanced/cli.html#ai-agent-development" id="ai-agent-development"><h3>AI Agent Development</h3></a>
+<pre><code class="language-bash"># For remote project analysis (safe)
+rustf-cli serve start --bind 0.0.0.0
+
+# For local AI-assisted development
+rustf-cli serve start --allow-writes --watch
+
+# AI agent can then connect and execute commands:
+# - Analyze project structure
+# - Query specific components
+# - Generate new code (if writes enabled)
+# - Validate changes
+</code></pre>
+<a class="header" href="advanced/cli.html#output-formats" id="output-formats"><h2>Output Formats</h2></a>
+<p>Most commands support multiple output formats:</p>
+<ul>
+<li><strong>table</strong> (default) - Human-readable tables</li>
+<li><strong>json</strong> - Machine-readable JSON</li>
+<li><strong>yaml</strong> - YAML format</li>
+<li><strong>markdown</strong> - Documentation-ready markdown</li>
+</ul>
+<p>Example:</p>
+<pre><code class="language-bash">rustf-cli analyze project --format json &gt; analysis.json
+rustf-cli db list-tables --format yaml
+</code></pre>
+<a class="header" href="advanced/cli.html#environment-variables" id="environment-variables"><h2>Environment Variables</h2></a>
+<p>The CLI respects these environment variables:</p>
+<pre><code class="language-bash">DATABASE_URL           # Database connection string
+RUST_LOG              # Logging level (error, warn, info, debug, trace)
+RUSTF_AUTH_TOKEN      # Authentication token for MCP server
+</code></pre>
+<a class="header" href="advanced/cli.html#troubleshooting" id="troubleshooting"><h2>Troubleshooting</h2></a>
+<a class="header" href="advanced/cli.html#common-issues" id="common-issues"><h3>Common Issues</h3></a>
+<ol>
+<li>
+<p><strong>Database Connection Failed</strong></p>
+<ul>
+<li>Check DATABASE_URL is set correctly</li>
+<li>Verify database is running</li>
+<li>Check network connectivity</li>
+</ul>
+</li>
+<li>
+<p><strong>Schema Generation Errors</strong></p>
+<ul>
+<li>Ensure schemas directory exists</li>
+<li>Check file permissions</li>
+<li>Validate YAML syntax</li>
+</ul>
+</li>
+<li>
+<p><strong>MCP Server Port In Use</strong></p>
+<ul>
+<li>Use <code>--auto-port</code> to find available port</li>
+<li>Check with <code>rustf-cli serve list</code></li>
+<li>Stop existing server with <code>rustf-cli serve stop &lt;PORT&gt;</code></li>
+</ul>
+</li>
+<li>
+<p><strong>Backup Recovery</strong></p>
+<ul>
+<li>Backups are in <code>.rustf/backups/</code></li>
+<li>Use standard file copy commands</li>
+<li>Check <code>.rustf/README.md</code> for instructions</li>
+</ul>
+</li>
+</ol>
+<a class="header" href="advanced/cli.html#debug-mode" id="debug-mode"><h3>Debug Mode</h3></a>
+<p>Enable verbose output for debugging:</p>
+<pre><code class="language-bash">RUST_LOG=debug rustf-cli -v analyze project
+</code></pre>
+<a class="header" href="advanced/cli.html#best-practices" id="best-practices"><h2>Best Practices</h2></a>
+<ol>
+<li><strong>Always Use Backups</strong>: When using <code>--force</code>, check <code>.rustf/backups/</code> afterward</li>
+<li><strong>Read-Only for Remote</strong>: Never use <code>--allow-writes</code> on public interfaces</li>
+<li><strong>Validate Often</strong>: Run <code>rustf-cli validate</code> before commits</li>
+<li><strong>Schema-First</strong>: Keep schemas in version control</li>
+<li><strong>Use Watch Mode</strong>: <code>rustf-cli schema watch</code> for auto-regeneration</li>
+</ol>
+<a class="header" href="advanced/cli.html#version-history" id="version-history"><h2>Version History</h2></a>
+<ul>
+<li><strong>v0.1.0</strong> - Initial release with core functionality</li>
+<li><strong>v0.2.0</strong> - Added MCP server and backup system</li>
+<li><strong>v0.3.0</strong> - Component generation and improved safety features</li>
+<li><strong>v0.3.1</strong> - Added middleware generation to <code>new</code> command with auth/logging templates</li>
+</ul>
+<a class="header" href="advanced/cli.html#license" id="license"><h2>License</h2></a>
+<p>Part of the RustF framework. See LICENSE file for details.</p>
+<hr />
+<a class="header" href="advanced/cli.html#related-topics" id="related-topics"><h2>Related Topics</h2></a>
+<ul>
+<li><a href="../getting-started/README.md">Getting Started</a> - Framework overview and quick start</li>
+<li><a href="../guides/database.md">Database Integration</a> - Database tools and model generation</li>
+<li><a href="events.md">Event System</a> - Event system documentation</li>
+<li><a href="../guides/schemas.md">Schemas &amp; Definitions</a> - Schema-driven development</li>
+</ul>
+
+                </div>
+
+                <!-- Mobile navigation buttons -->
+                
+                    <a rel="prev" href="advanced/modules.html" class="mobile-nav-chapters previous" title="Previous chapter">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                
+
+                
+                    <a rel="next" href="api-reference/README.html" class="mobile-nav-chapters next" title="Next chapter">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+                
+
+            </div>
+
+            
+                <a href="advanced/modules.html" class="nav-chapters previous" title="You can navigate through the chapters using the arrow keys">
+                    <i class="fa fa-angle-left"></i>
+                </a>
+            
+
+            
+                <a href="api-reference/README.html" class="nav-chapters next" title="You can navigate through the chapters using the arrow keys">
+                    <i class="fa fa-angle-right"></i>
+                </a>
+            
+
+        </div>
+
+
+        <!-- Local fallback for Font Awesome -->
+        <script>
+            if ($(".fa").css("font-family") !== "FontAwesome") {
+                $('<link rel="stylesheet" type="text/css" href="_FontAwesome/css/font-awesome.css">').prependTo('head');
+            }
+        </script>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        
+
+        
+
+        
+
+        
+
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS script -->
+        
+
+    </body>
+</html>

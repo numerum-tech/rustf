@@ -1,0 +1,1580 @@
+<!DOCTYPE HTML>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Modules - RustF Framework Documentation</title>
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="Complete guide to the RustF MVC web framework for Rust">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <base href="../">
+
+        <link rel="stylesheet" href="book.css">
+        <link href="https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800" rel="stylesheet" type="text/css">
+        <link href="https://fonts.googleapis.com/css?family=Source+Code+Pro:500" rel="stylesheet" type="text/css">
+
+        <link rel="shortcut icon" href="favicon.png">
+
+        <!-- Font Awesome -->
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
+
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme -->
+        
+
+        
+
+        <!-- Fetch Clipboard.js from CDN but have a local fallback -->
+        <script src="https://cdn.jsdelivr.net/clipboard.js/1.6.1/clipboard.min.js"></script>
+        <script>
+            if (typeof Clipboard == 'undefined') {
+                document.write(unescape("%3Cscript src='clipboard.min.js'%3E%3C/script%3E"));
+            }
+        </script>
+
+        <!-- Fetch JQuery from CDN but have a local fallback -->
+        <script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+        <script>
+            if (typeof jQuery == 'undefined') {
+                document.write(unescape("%3Cscript src='jquery.js'%3E%3C/script%3E"));
+            }
+        </script>
+
+        <!-- Fetch store.js from local - TODO add CDN when 2.x.x is available on cdnjs -->
+        <script src="store.js"></script>
+
+    </head>
+    <body class="light">
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme = store.get('mdbook-theme');
+            if (theme === null || theme === undefined) { theme = 'light'; }
+            $('body').removeClass().addClass(theme);
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var sidebar = store.get('mdbook-sidebar');
+            if (sidebar === "hidden") { $("html").addClass("sidebar-hidden") }
+            else if (sidebar === "visible") { $("html").addClass("sidebar-visible") }
+        </script>
+
+        <div id="sidebar" class="sidebar">
+            <ul class="chapter"><li class="affix"><a href="README.html">Introduction</a></li><li><a href="getting-started/README.html"><strong>1.</strong> Quick Start</a></li><li><a href="getting-started/installation.html"><strong>2.</strong> Installation</a></li><li><a href="getting-started/hello-world.html"><strong>3.</strong> Hello World</a></li><li><a href="getting-started/project-structure.html"><strong>4.</strong> Project Structure</a></li><li><a href="guides/controllers.html"><strong>5.</strong> Controllers &amp; Routing</a></li><li><a href="guides/views.html"><strong>6.</strong> Views &amp; Templates</a></li><li><a href="guides/middleware.html"><strong>7.</strong> Middleware</a></li><li><a href="guides/sessions.html"><strong>8.</strong> Sessions</a></li><li><a href="guides/database.html"><strong>9.</strong> Database Integration</a></li><li><a href="guides/configuration.html"><strong>10.</strong> Configuration</a></li><li><a href="guides/security.html"><strong>11.</strong> Security</a></li><li><a href="guides/error-handling.html"><strong>12.</strong> Error Handling</a></li><li><a href="guides/schemas.html"><strong>13.</strong> Schemas &amp; Definitions</a></li><li><a href="advanced/README.html"><strong>14.</strong> Overview</a></li><li><a href="advanced/performance.html"><strong>15.</strong> Performance Optimization</a></li><li><a href="advanced/workers.html"><strong>16.</strong> Workers</a></li><li><a href="advanced/events.html"><strong>17.</strong> Events</a></li><li><a href="advanced/modules.html" class="active"><strong>18.</strong> Modules</a></li><li><a href="advanced/cli.html"><strong>19.</strong> CLI Tool</a></li><li><a href="api-reference/README.html"><strong>20.</strong> Overview</a></li><li><a href="api-reference/context.html"><strong>21.</strong> Context API</a></li><li><a href="api-reference/models.html"><strong>22.</strong> Model API</a></li><li><a href="api-reference/routing.html"><strong>23.</strong> Routing API</a></li><li><a href="api-reference/utilities.html"><strong>24.</strong> Utilities</a></li><li><a href="examples/README.html"><strong>25.</strong> Overview</a></li><li><a href="examples/rest-api.html"><strong>26.</strong> Building a REST API</a></li><li><a href="examples/authentication.html"><strong>27.</strong> Authentication</a></li><li><a href="examples/real-world-app.html"><strong>28.</strong> Real-World Application</a></li><li><a href="deployment/production.html"><strong>29.</strong> Production Deployment</a></li><li><a href="deployment/docker.html"><strong>30.</strong> Docker</a></li></ul>
+        </div>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page" tabindex="-1">
+                
+                <div id="menu-bar" class="menu-bar">
+                    <div class="left-buttons">
+                        <i id="sidebar-toggle" class="fa fa-bars" title="Toggle sidebar"></i>
+                        <i id="theme-toggle" class="fa fa-paint-brush" title="Change theme"></i>
+                    </div>
+
+                    <h1 class="menu-title">RustF Framework Documentation</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html">
+                            <i id="print-button" class="fa fa-print" title="Print this book"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <div id="content" class="content">
+                    <a class="header" href="advanced/modules.html#rustf-module-system-user-guide" id="rustf-module-system-user-guide"><h1>RustF Module System User Guide</h1></a>
+<p><strong>Complete documentation based on actual framework implementation</strong></p>
+<a class="header" href="advanced/modules.html#overview" id="overview"><h2>Overview</h2></a>
+<p>RustF provides a comprehensive module system for organizing business logic, services, and reusable components. The system combines standard Rust module patterns with an optional <code>SharedModule</code> trait and a Total.js-style global MODULE accessor for singleton services. Modules follow clean architecture principles, separating business logic from HTTP request handling.</p>
+<a class="header" href="advanced/modules.html#key-concepts" id="key-concepts"><h3>Key Concepts</h3></a>
+<ul>
+<li><strong>Standard Rust Modules</strong> - Uses regular Rust module system with <code>use</code> statements for direct instantiation</li>
+<li><strong>Global MODULE System</strong> - Total.js-style singleton access via <code>MODULE::get_typed::&lt;T&gt;()</code> for shared services</li>
+<li><strong>Auto-Discovery</strong> - Automatic module scanning with <code>auto_modules!()</code> macro at compile time</li>
+<li><strong>SharedModule Trait</strong> - Optional trait for lifecycle management and type-safe registration</li>
+<li><strong>Business Logic Separation</strong> - Controllers handle HTTP, modules handle business logic</li>
+<li><strong>Flexible Access Patterns</strong> - Choose between direct instantiation or singleton access based on needs</li>
+</ul>
+<a class="header" href="advanced/modules.html#module-organization" id="module-organization"><h2>Module Organization</h2></a>
+<a class="header" href="advanced/modules.html#directory-structure" id="directory-structure"><h3>Directory Structure</h3></a>
+<pre><code>src/
+├── modules/
+│   ├── user_service.rs      # User business logic
+│   ├── email_service.rs     # Email operations
+│   ├── payment_service.rs   # Payment processing
+│   └── validation_utils.rs  # Utility functions
+├── controllers/             # HTTP handlers
+├── models/                  # Data models
+└── _modules.rs             # Auto-generated (DO NOT EDIT)
+</code></pre>
+<a class="header" href="advanced/modules.html#module-types" id="module-types"><h3>Module Types</h3></a>
+<p>The framework recognizes four types of modules:</p>
+<ol>
+<li><strong>Services</strong> - Stateful business logic with side effects (database operations, external API calls)</li>
+<li><strong>Utilities</strong> - Stateless pure functions for data transformation and validation</li>
+<li><strong>Helpers</strong> - Template and view helper functions</li>
+<li><strong>Traits</strong> - Custom trait definitions and interfaces</li>
+</ol>
+<a class="header" href="advanced/modules.html#global-module-system-new" id="global-module-system-new"><h2>Global MODULE System (New)</h2></a>
+<p>RustF provides a Total.js-style global MODULE system for singleton access to shared services:</p>
+<a class="header" href="advanced/modules.html#overview-1" id="overview-1"><h3>Overview</h3></a>
+<p>The MODULE system enables global access to registered modules without passing them through Context or using dependency injection. This is ideal for stateful services that should have a single instance across the entire application.</p>
+<a class="header" href="advanced/modules.html#basic-usage" id="basic-usage"><h3>Basic Usage</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Access modules globally anywhere in your application
+let email = MODULE::get_typed::&lt;EmailService&gt;()?;
+let cache = MODULE::get_typed::&lt;CacheService&gt;()?;
+
+// Check if a module is registered
+if MODULE::exists::&lt;EmailService&gt;() {
+    let email = MODULE::get_typed::&lt;EmailService&gt;()?;
+    email.send_notification(&quot;user@example.com&quot;).await?;
+}
+
+// Name-based access for dynamic scenarios
+if let Some(service) = MODULE::get(&quot;EmailService&quot;) {
+    // Use the service dynamically
+}
+
+// List all registered modules (useful for debugging)
+let modules = MODULE::list();
+for (name, module_type) in modules {
+    println!(&quot;Module: {} ({})&quot;, name, module_type);
+}
+#}</code></pre></pre>
+<a class="header" href="advanced/modules.html#when-to-use-module-registration" id="when-to-use-module-registration"><h3>When to Use MODULE Registration</h3></a>
+<p><strong>Good candidates for MODULE (singleton pattern):</strong></p>
+<ul>
+<li><strong>Database Connection Pools</strong> - Expensive to create, should be shared</li>
+<li><strong>Cache Services</strong> - In-memory caches, Redis connections</li>
+<li><strong>Email/SMS Services</strong> - Configured once, used everywhere</li>
+<li><strong>WebSocket Managers</strong> - Track all active connections</li>
+<li><strong>Rate Limiters</strong> - Shared request counters</li>
+<li><strong>Background Job Queues</strong> - Single task scheduler</li>
+<li><strong>Metrics Collectors</strong> - Application-wide statistics</li>
+</ul>
+<p><strong>Use direct instantiation for:</strong></p>
+<ul>
+<li><strong>Stateless Utilities</strong> - Pure functions, no shared state</li>
+<li><strong>Request-Specific Services</strong> - Need new instance per request</li>
+<li><strong>Simple Validators</strong> - Lightweight, no configuration</li>
+<li><strong>View Helpers</strong> - Template formatting functions</li>
+</ul>
+<a class="header" href="advanced/modules.html#registering-modules-for-global-access" id="registering-modules-for-global-access"><h3>Registering Modules for Global Access</h3></a>
+<p>To enable MODULE access, register your modules during app initialization:</p>
+<pre><pre class="playpen"><code class="language-rust">// src/main.rs
+use rustf::prelude::*;
+
+#[tokio::main]
+async fn main() -&gt; Result&lt;()&gt; {
+    let app = RustF::new()
+        .controllers(auto_controllers!())
+        
+        // Option 1: Auto-discovery (requires install() function in each module)
+        .modules_from(auto_modules!())
+        
+        // Option 2: Manual registration for specific modules
+        .modules_from(|registry| {
+            use crate::modules::{
+                email_service::EmailService,
+                cache_service::CacheService,
+                database_pool::DatabasePool,
+            };
+            
+            // These become singletons accessible via MODULE
+            registry.register(EmailService::new());
+            registry.register(CacheService::new());
+            registry.register(DatabasePool::new());
+        })
+        
+        .start().await
+}
+</code></pre></pre>
+<a class="header" href="advanced/modules.html#usage-patterns-comparison" id="usage-patterns-comparison"><h3>Usage Patterns Comparison</h3></a>
+<a class="header" href="advanced/modules.html#pattern-1-direct-instantiation-simple-stateless" id="pattern-1-direct-instantiation-simple-stateless"><h4>Pattern 1: Direct Instantiation (Simple, Stateless)</h4></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Best for stateless utilities and simple services
+use crate::modules::validation_utils::ValidationUtils;
+
+async fn handler(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    // Create new instance when needed
+    let validator = ValidationUtils::new();
+    
+    if !validator.is_valid_email(&quot;user@example.com&quot;) {
+        return ctx.throw400(Some(&quot;Invalid email&quot;));
+    }
+    
+    ctx.json(json!({&quot;status&quot;: &quot;valid&quot;}))
+}
+#}</code></pre></pre>
+<a class="header" href="advanced/modules.html#pattern-2-global-module-access-singleton-stateful" id="pattern-2-global-module-access-singleton-stateful"><h4>Pattern 2: Global MODULE Access (Singleton, Stateful)</h4></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Best for shared resources and configured services
+async fn handler(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    // Access singleton instance
+    let email_service = MODULE::get_typed::&lt;EmailService&gt;()?;
+    let cache = MODULE::get_typed::&lt;CacheService&gt;()?;
+    
+    // Check cache first
+    if let Some(cached) = cache.get(&quot;user:123&quot;).await {
+        return ctx.json(cached);
+    }
+    
+    // Send email using shared service
+    email_service.send_welcome(&quot;user@example.com&quot;).await?;
+    
+    ctx.json(json!({&quot;status&quot;: &quot;sent&quot;}))
+}
+#}</code></pre></pre>
+<a class="header" href="advanced/modules.html#pattern-3-hybrid-approach-best-of-both" id="pattern-3-hybrid-approach-best-of-both"><h4>Pattern 3: Hybrid Approach (Best of Both)</h4></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use crate::modules::{user_service, validation_utils};
+
+async fn handler(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    // Stateless utility - direct instantiation
+    let validator = validation_utils::ValidationUtils::new();
+    
+    // Stateful service - could use MODULE if registered
+    let email = if MODULE::exists::&lt;EmailService&gt;() {
+        // Use singleton if available
+        MODULE::get_typed::&lt;EmailService&gt;()?
+    } else {
+        // Fall back to direct instantiation
+        &amp;email_service::EmailService::new()
+    };
+    
+    // Business logic...
+    email.send_notification(&quot;user@example.com&quot;).await?;
+    
+    ctx.json(json!({&quot;status&quot;: &quot;processed&quot;}))
+}
+#}</code></pre></pre>
+<a class="header" href="advanced/modules.html#creating-modules" id="creating-modules"><h2>Creating Modules</h2></a>
+<a class="header" href="advanced/modules.html#basic-module-structure" id="basic-module-structure"><h3>Basic Module Structure</h3></a>
+<p>Every module is a standard Rust module with an optional <code>install()</code> function for auto-discovery:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// src/modules/user_service.rs
+use rustf::prelude::*;
+
+#[derive(Debug)]
+pub struct UserService {
+    name: String,
+}
+
+impl UserService {
+    pub fn new() -&gt; Self {
+        Self {
+            name: &quot;UserService&quot;.to_string(),
+        }
+    }
+    
+    /// Register a new user with business logic validation
+    pub async fn register_user(&amp;self, email: &amp;str, password: &amp;str, profile: Value) -&gt; Result&lt;Value&gt; {
+        // Input validation
+        if email.is_empty() || !email.contains('@') {
+            return Err(Error::validation(&quot;Invalid email format&quot;));
+        }
+        
+        if password.len() &lt; 8 {
+            return Err(Error::validation(&quot;Password must be at least 8 characters&quot;));
+        }
+        
+        // Business logic implementation
+        let user = json!({
+            &quot;user_id&quot;: 1,
+            &quot;email&quot;: email,
+            &quot;created_at&quot;: chrono::Utc::now(),
+            &quot;is_verified&quot;: false
+        });
+        
+        Ok(user)
+    }
+}
+
+// Required for auto-discovery
+pub fn install() -&gt; UserService {
+    UserService::new()
+}
+#}</code></pre></pre>
+<a class="header" href="advanced/modules.html#sharedmodule-implementation-optional" id="sharedmodule-implementation-optional"><h3>SharedModule Implementation (Optional)</h3></a>
+<p>For advanced lifecycle management, implement the <code>SharedModule</code> trait:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use rustf::prelude::*;
+use async_trait::async_trait;
+
+#[derive(Debug)]
+pub struct EmailService {
+    templates: HashMap&lt;String, String&gt;,
+}
+
+impl EmailService {
+    pub fn new() -&gt; Self {
+        let mut templates = HashMap::new();
+        templates.insert(&quot;welcome&quot;.to_string(), 
+            &quot;Welcome {{name}}! Please verify: {{link}}&quot;.to_string());
+        
+        Self { templates }
+    }
+    
+    pub async fn send_verification_email(&amp;self, email: &amp;str, name: &amp;str, token: &amp;str) -&gt; Result&lt;Value&gt; {
+        let template = self.templates.get(&quot;welcome&quot;).unwrap();
+        let rendered = template
+            .replace(&quot;{{name}}&quot;, name)
+            .replace(&quot;{{link}}&quot;, &amp;format!(&quot;https://app.com/verify?token={}&quot;, token));
+            
+        // In production: integrate with email provider
+        log::info!(&quot;Sending verification email to {}: {}&quot;, email, rendered);
+        
+        Ok(json!({
+            &quot;email&quot;: email,
+            &quot;status&quot;: &quot;sent&quot;,
+            &quot;message_id&quot;: uuid::Uuid::new_v4()
+        }))
+    }
+}
+
+#[async_trait]
+impl SharedModule for EmailService {
+    fn name(&amp;self) -&gt; &amp;'static str {
+        &quot;EmailService&quot;
+    }
+    
+    fn module_type(&amp;self) -&gt; SharedModuleType {
+        SharedModuleType::Service
+    }
+    
+    fn as_any(&amp;self) -&gt; &amp;dyn std::any::Any {
+        self
+    }
+    
+    async fn initialize(&amp;self) -&gt; Result&lt;()&gt; {
+        log::info!(&quot;EmailService initialized with {} templates&quot;, self.templates.len());
+        Ok(())
+    }
+}
+
+pub fn install() -&gt; EmailService {
+    EmailService::new()
+}
+#}</code></pre></pre>
+<a class="header" href="advanced/modules.html#utility-modules" id="utility-modules"><h3>Utility Modules</h3></a>
+<p>For stateless utilities, use the convenience macro:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// src/modules/validation_utils.rs
+use rustf::prelude::*;
+
+pub struct ValidationUtils;
+
+impl ValidationUtils {
+    /// Validate email format
+    pub fn is_valid_email(email: &amp;str) -&gt; bool {
+        email.contains('@') &amp;&amp; email.len() &gt; 5
+    }
+    
+    /// Validate password strength
+    pub fn is_strong_password(password: &amp;str) -&gt; bool {
+        password.len() &gt;= 8 
+            &amp;&amp; password.chars().any(|c| c.is_uppercase())
+            &amp;&amp; password.chars().any(|c| c.is_lowercase())
+            &amp;&amp; password.chars().any(|c| c.is_numeric())
+    }
+    
+    /// Sanitize user input
+    pub fn sanitize_input(input: &amp;str) -&gt; String {
+        input.trim()
+            .replace(&quot;&lt;&quot;, &quot;&amp;lt;&quot;)
+            .replace(&quot;&gt;&quot;, &quot;&amp;gt;&quot;)
+            .replace(&quot;&amp;&quot;, &quot;&amp;amp;&quot;)
+    }
+}
+
+// Use convenience macro for simple implementation
+impl_shared_util!(ValidationUtils);
+
+pub fn install() -&gt; ValidationUtils {
+    ValidationUtils
+}
+#}</code></pre></pre>
+<a class="header" href="advanced/modules.html#module-discovery-and-registration" id="module-discovery-and-registration"><h2>Module Discovery and Registration</h2></a>
+<a class="header" href="advanced/modules.html#auto-discovery-with-auto_modules" id="auto-discovery-with-auto_modules"><h3>Auto-Discovery with <code>auto_modules!()</code></h3></a>
+<p>The framework automatically discovers modules at compile time and optionally enables global MODULE access:</p>
+<pre><pre class="playpen"><code class="language-rust">// src/main.rs
+use rustf::prelude::*;
+
+#[tokio::main]
+async fn main() -&gt; Result&lt;()&gt; {
+    let app = RustF::new()
+        .controllers(auto_controllers!())
+        .models(auto_models!())
+        .modules_from(auto_modules!())  // Enables global MODULE access
+        .start().await
+}
+</code></pre></pre>
+<p><strong>What happens during registration:</strong></p>
+<ol>
+<li><code>auto_modules!()</code> scans <code>src/modules/</code> directory at compile time</li>
+<li>Each module's <code>install()</code> function is called to create an instance</li>
+<li>Modules implementing <code>SharedModule</code> are registered in SharedRegistry</li>
+<li><code>MODULE::init()</code> is called during app startup, enabling global access</li>
+<li>Registered modules become singletons accessible via <code>MODULE::get_typed::&lt;T&gt;()</code></li>
+</ol>
+<a class="header" href="advanced/modules.html#manual-module-access" id="manual-module-access"><h3>Manual Module Access</h3></a>
+<p><strong>Recommended Pattern</strong>: Use standard Rust module system for accessing business logic:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// src/controllers/auth.rs
+use rustf::prelude::*;
+use crate::modules::{user_service, email_service};
+
+pub fn install() -&gt; Vec&lt;Route&gt; {
+    routes![
+        POST &quot;/register&quot; =&gt; register_user,
+        POST &quot;/login&quot; =&gt; login_user,
+    ]
+}
+
+async fn register_user(ctx: Context) -&gt; Result&lt;Response&gt; {
+    let form_data = ctx.body_form()?;
+    let email = form_data.get(&quot;email&quot;).unwrap_or(&amp;String::new());
+    let password = form_data.get(&quot;password&quot;).unwrap_or(&amp;String::new());
+    
+    // Access modules using standard Rust module system
+    let user_svc = user_service::UserService::new();
+    let email_svc = email_service::EmailService::new();
+    
+    // Business logic handled by modules
+    match user_svc.register_user(email, password, json!({})).await {
+        Ok(user) =&gt; {
+            // Send verification email
+            let _ = email_svc.send_verification_email(
+                email, 
+                &quot;New User&quot;, 
+                &quot;verification_token_123&quot;
+            ).await;
+            
+            ctx.flash_success(&quot;Registration successful! Check your email.&quot;);
+            ctx.redirect(&quot;/login&quot;)
+        }
+        Err(e) =&gt; {
+            ctx.flash_error(&amp;format!(&quot;Registration failed: {}&quot;, e));
+            ctx.redirect(&quot;/register&quot;)
+        }
+    }
+}
+#}</code></pre></pre>
+<a class="header" href="advanced/modules.html#sharedregistry-pattern-automatic" id="sharedregistry-pattern-automatic"><h3>SharedRegistry Pattern (Automatic)</h3></a>
+<p>The SharedRegistry is integrated with the RustF app and handles initialization automatically:</p>
+<pre><pre class="playpen"><code class="language-rust">// src/main.rs
+use rustf::prelude::*;
+
+#[rustf::auto_discover]
+#[tokio::main]
+async fn main() -&gt; Result&lt;()&gt; {
+    let app = RustF::new()
+        .controllers(auto_controllers!())
+        .models(auto_models!())
+        .modules_from(auto_modules!())  // Registers and initializes modules
+        .start().await  // Calls initialize_all() automatically
+}
+</code></pre></pre>
+<p><strong>What happens automatically:</strong></p>
+<ol>
+<li><code>auto_modules!()</code> scans <code>src/modules/</code> and calls each module's <code>install()</code> function</li>
+<li>Modules implementing <code>SharedModule</code> trait are registered with the SharedRegistry</li>
+<li><code>app.start()</code> calls <code>initialize_all()</code> on all registered modules</li>
+<li>Modules are available throughout the application lifecycle</li>
+</ol>
+<a class="header" href="advanced/modules.html#using-modules-in-controllers" id="using-modules-in-controllers"><h2>Using Modules in Controllers</h2></a>
+<a class="header" href="advanced/modules.html#pattern-1-direct-instantiation-simple" id="pattern-1-direct-instantiation-simple"><h3>Pattern 1: Direct Instantiation (Simple)</h3></a>
+<p>Controllers create module instances directly for clear, simple code:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// src/controllers/users.rs
+use rustf::prelude::*;
+use crate::modules::{user_service, validation_utils};
+
+async fn create_user(ctx: Context) -&gt; Result&lt;Response&gt; {
+    let form_data = ctx.body_form()?;
+    let email = form_data.get(&quot;email&quot;).unwrap_or(&amp;String::new());
+    let password = form_data.get(&quot;password&quot;).unwrap_or(&amp;String::new());
+    
+    // Use validation utilities
+    if !validation_utils::ValidationUtils::is_valid_email(email) {
+        ctx.flash_error(&quot;Invalid email format&quot;);
+        return ctx.redirect(&quot;/users/new&quot;);
+    }
+    
+    if !validation_utils::ValidationUtils::is_strong_password(password) {
+        ctx.flash_error(&quot;Password must be at least 8 characters with mixed case and numbers&quot;);
+        return ctx.redirect(&quot;/users/new&quot;);
+    }
+    
+    // Use business service
+    let user_svc = user_service::UserService::new();
+    match user_svc.register_user(email, password, json!({})).await {
+        Ok(user) =&gt; {
+            ctx.flash_success(&quot;User created successfully!&quot;);
+            ctx.redirect(&quot;/users&quot;)
+        }
+        Err(e) =&gt; {
+            ctx.flash_error(&amp;format!(&quot;Failed to create user: {}&quot;, e));
+            ctx.redirect(&quot;/users/new&quot;)
+        }
+    }
+}
+#}</code></pre></pre>
+<a class="header" href="advanced/modules.html#pattern-2-global-module-access-singleton" id="pattern-2-global-module-access-singleton"><h3>Pattern 2: Global MODULE Access (Singleton)</h3></a>
+<p>Use MODULE for shared services that should have one instance:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// src/controllers/api.rs
+use rustf::prelude::*;
+
+async fn process_order(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    // Access singleton services via MODULE
+    let cache = MODULE::get_typed::&lt;CacheService&gt;()?;
+    let email = MODULE::get_typed::&lt;EmailService&gt;()?;
+    let payment = MODULE::get_typed::&lt;PaymentService&gt;()?;
+    
+    let order_data: Value = ctx.body_json()?;
+    let order_id = order_data[&quot;id&quot;].as_str().unwrap_or(&quot;&quot;);
+    
+    // Check cache for duplicate order
+    if cache.exists(&amp;format!(&quot;order:{}&quot;, order_id)).await {
+        return ctx.throw400(Some(&quot;Duplicate order&quot;));
+    }
+    
+    // Process payment using singleton service
+    let payment_result = payment.process(
+        order_data[&quot;amount&quot;].as_u64().unwrap_or(0),
+        order_data[&quot;token&quot;].as_str().unwrap_or(&quot;&quot;)
+    ).await?;
+    
+    // Send confirmation email
+    email.send_order_confirmation(
+        order_data[&quot;email&quot;].as_str().unwrap_or(&quot;&quot;),
+        order_id
+    ).await?;
+    
+    // Cache the order
+    cache.set(&amp;format!(&quot;order:{}&quot;, order_id), &amp;order_data, 3600).await?;
+    
+    ctx.json(json!({
+        &quot;status&quot;: &quot;processed&quot;,
+        &quot;payment_id&quot;: payment_result.id
+    }))
+}
+#}</code></pre></pre>
+<a class="header" href="advanced/modules.html#pattern-3-dependency-injection-pattern" id="pattern-3-dependency-injection-pattern"><h3>Pattern 3: Dependency Injection Pattern</h3></a>
+<p>For applications requiring shared state, pass dependencies explicitly:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// src/controllers/api.rs
+use rustf::prelude::*;
+use crate::modules::user_service::UserService;
+
+// Service container approach
+pub struct ApiServices {
+    user_service: UserService,
+    // other services...
+}
+
+impl ApiServices {
+    pub fn new() -&gt; Self {
+        Self {
+            user_service: UserService::new(),
+        }
+    }
+}
+
+async fn api_create_user(ctx: Context) -&gt; Result&lt;Response&gt; {
+    let services = ApiServices::new();
+    let request_data: Value = ctx.body_json()?;
+    
+    let email = request_data[&quot;email&quot;].as_str().unwrap_or(&quot;&quot;);
+    let password = request_data[&quot;password&quot;].as_str().unwrap_or(&quot;&quot;);
+    
+    match services.user_service.register_user(email, password, json!({})).await {
+        Ok(user) =&gt; ctx.json(json!({
+            &quot;success&quot;: true,
+            &quot;user&quot;: user
+        })),
+        Err(e) =&gt; ctx.json(json!({
+            &quot;success&quot;: false,
+            &quot;error&quot;: e.to_string()
+        }))
+    }
+}
+#}</code></pre></pre>
+<a class="header" href="advanced/modules.html#module-patterns-and-best-practices" id="module-patterns-and-best-practices"><h2>Module Patterns and Best Practices</h2></a>
+<a class="header" href="advanced/modules.html#1-service-pattern-stateful-business-logic" id="1-service-pattern-stateful-business-logic"><h3>1. Service Pattern (Stateful Business Logic)</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// src/modules/order_service.rs
+use rustf::prelude::*;
+
+#[derive(Debug)]
+pub struct OrderService {
+    config: OrderConfig,
+}
+
+#[derive(Debug)]
+pub struct OrderConfig {
+    pub max_items: usize,
+    pub tax_rate: f64,
+}
+
+impl OrderService {
+    pub fn new() -&gt; Self {
+        Self {
+            config: OrderConfig {
+                max_items: 100,
+                tax_rate: 0.08,
+            },
+        }
+    }
+    
+    pub async fn create_order(&amp;self, user_id: i64, items: Vec&lt;OrderItem&gt;) -&gt; Result&lt;Order&gt; {
+        // Business validation
+        if items.len() &gt; self.config.max_items {
+            return Err(Error::validation(&quot;Too many items in order&quot;));
+        }
+        
+        // Calculate totals
+        let subtotal: f64 = items.iter().map(|item| item.price * item.quantity as f64).sum();
+        let tax = subtotal * self.config.tax_rate;
+        let total = subtotal + tax;
+        
+        // Create order (in real app: save to database)
+        let order = Order {
+            id: 1,
+            user_id,
+            items,
+            subtotal,
+            tax,
+            total,
+            status: OrderStatus::Pending,
+            created_at: chrono::Utc::now(),
+        };
+        
+        log::info!(&quot;Created order {} for user {} (total: ${:.2})&quot;, order.id, user_id, total);
+        Ok(order)
+    }
+    
+    pub async fn calculate_shipping(&amp;self, order: &amp;Order, address: &amp;Address) -&gt; Result&lt;f64&gt; {
+        // Shipping calculation logic
+        let base_rate = 5.99;
+        let weight_factor = order.items.len() as f64 * 0.5;
+        Ok(base_rate + weight_factor)
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct Order {
+    pub id: i64,
+    pub user_id: i64,
+    pub items: Vec&lt;OrderItem&gt;,
+    pub subtotal: f64,
+    pub tax: f64,
+    pub total: f64,
+    pub status: OrderStatus,
+    pub created_at: chrono::DateTime&lt;chrono::Utc&gt;,
+}
+
+pub fn install() -&gt; OrderService {
+    OrderService::new()
+}
+#}</code></pre></pre>
+<a class="header" href="advanced/modules.html#2-utility-pattern-stateless-functions" id="2-utility-pattern-stateless-functions"><h3>2. Utility Pattern (Stateless Functions)</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// src/modules/text_utils.rs
+use rustf::prelude::*;
+
+pub struct TextUtils;
+
+impl TextUtils {
+    /// Convert text to URL-friendly slug
+    pub fn slugify(text: &amp;str) -&gt; String {
+        text.to_lowercase()
+            .chars()
+            .map(|c| if c.is_alphanumeric() { c } else { '-' })
+            .collect::&lt;String&gt;()
+            .split('-')
+            .filter(|s| !s.is_empty())
+            .collect::&lt;Vec&lt;&amp;str&gt;&gt;()
+            .join(&quot;-&quot;)
+    }
+    
+    /// Truncate text with ellipsis
+    pub fn truncate(text: &amp;str, max_length: usize) -&gt; String {
+        if text.len() &lt;= max_length {
+            text.to_string()
+        } else {
+            format!(&quot;{}...&quot;, &amp;text[..max_length - 3])
+        }
+    }
+    
+    /// Extract mentions from text (@username)
+    pub fn extract_mentions(text: &amp;str) -&gt; Vec&lt;String&gt; {
+        let re = regex::Regex::new(r&quot;@(\w+)&quot;).unwrap();
+        re.captures_iter(text)
+            .map(|cap| cap[1].to_string())
+            .collect()
+    }
+    
+    /// Generate random string
+    pub fn random_string(length: usize) -&gt; String {
+        use rand::Rng;
+        const CHARSET: &amp;[u8] = b&quot;abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789&quot;;
+        let mut rng = rand::thread_rng();
+        (0..length)
+            .map(|_| {
+                let idx = rng.gen_range(0..CHARSET.len());
+                CHARSET[idx] as char
+            })
+            .collect()
+    }
+}
+
+impl_shared_util!(TextUtils);
+
+pub fn install() -&gt; TextUtils {
+    TextUtils
+}
+#}</code></pre></pre>
+<a class="header" href="advanced/modules.html#3-helper-pattern-view-helpers" id="3-helper-pattern-view-helpers"><h3>3. Helper Pattern (View Helpers)</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// src/modules/view_helpers.rs
+use rustf::prelude::*;
+
+pub struct ViewHelpers;
+
+impl ViewHelpers {
+    /// Format currency for display
+    pub fn format_currency(amount: f64, currency: &amp;str) -&gt; String {
+        match currency {
+            &quot;USD&quot; =&gt; format!(&quot;${:.2}&quot;, amount),
+            &quot;EUR&quot; =&gt; format!(&quot;€{:.2}&quot;, amount),
+            &quot;GBP&quot; =&gt; format!(&quot;£{:.2}&quot;, amount),
+            _ =&gt; format!(&quot;{:.2} {}&quot;, amount, currency),
+        }
+    }
+    
+    /// Format relative time (e.g., &quot;2 hours ago&quot;)
+    pub fn time_ago(datetime: &amp;chrono::DateTime&lt;chrono::Utc&gt;) -&gt; String {
+        let now = chrono::Utc::now();
+        let duration = now.signed_duration_since(*datetime);
+        
+        if duration.num_days() &gt; 7 {
+            datetime.format(&quot;%Y-%m-%d&quot;).to_string()
+        } else if duration.num_days() &gt; 0 {
+            format!(&quot;{} days ago&quot;, duration.num_days())
+        } else if duration.num_hours() &gt; 0 {
+            format!(&quot;{} hours ago&quot;, duration.num_hours())
+        } else if duration.num_minutes() &gt; 0 {
+            format!(&quot;{} minutes ago&quot;, duration.num_minutes())
+        } else {
+            &quot;Just now&quot;.to_string()
+        }
+    }
+    
+    /// Generate avatar URL from email
+    pub fn gravatar_url(email: &amp;str, size: u32) -&gt; String {
+        let hash = md5::compute(email.trim().to_lowercase().as_bytes());
+        format!(&quot;https://www.gravatar.com/avatar/{:x}?s={}&amp;d=identicon&quot;, hash, size)
+    }
+    
+    /// Pluralize words based on count
+    pub fn pluralize(word: &amp;str, count: usize) -&gt; String {
+        if count == 1 {
+            word.to_string()
+        } else if word.ends_with('y') {
+            format!(&quot;{}ies&quot;, &amp;word[..word.len()-1])
+        } else if word.ends_with(&amp;['s', 'x', 'z']) || word.ends_with(&quot;ch&quot;) || word.ends_with(&quot;sh&quot;) {
+            format!(&quot;{}es&quot;, word)
+        } else {
+            format!(&quot;{}s&quot;, word)
+        }
+    }
+}
+
+impl_shared_helper!(ViewHelpers);
+
+pub fn install() -&gt; ViewHelpers {
+    ViewHelpers
+}
+#}</code></pre></pre>
+<a class="header" href="advanced/modules.html#advanced-features" id="advanced-features"><h2>Advanced Features</h2></a>
+<a class="header" href="advanced/modules.html#module-lifecycle-management" id="module-lifecycle-management"><h3>Module Lifecycle Management</h3></a>
+<p>For modules requiring initialization and cleanup:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// src/modules/cache_service.rs
+use rustf::prelude::*;
+
+#[derive(Debug)]
+pub struct CacheService {
+    redis_client: Option&lt;redis::Client&gt;,
+    memory_cache: HashMap&lt;String, CacheEntry&gt;,
+}
+
+#[derive(Debug, Clone)]
+struct CacheEntry {
+    value: String,
+    expires_at: chrono::DateTime&lt;chrono::Utc&gt;,
+}
+
+impl CacheService {
+    pub fn new() -&gt; Self {
+        Self {
+            redis_client: None,
+            memory_cache: HashMap::new(),
+        }
+    }
+    
+    pub async fn get(&amp;self, key: &amp;str) -&gt; Option&lt;String&gt; {
+        // Try memory cache first
+        if let Some(entry) = self.memory_cache.get(key) {
+            if entry.expires_at &gt; chrono::Utc::now() {
+                return Some(entry.value.clone());
+            }
+        }
+        
+        // Fall back to Redis if available
+        None // Simplified for example
+    }
+    
+    pub async fn set(&amp;mut self, key: &amp;str, value: &amp;str, ttl_seconds: u64) -&gt; Result&lt;()&gt; {
+        let expires_at = chrono::Utc::now() + chrono::Duration::seconds(ttl_seconds as i64);
+        self.memory_cache.insert(key.to_string(), CacheEntry {
+            value: value.to_string(),
+            expires_at,
+        });
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl SharedModule for CacheService {
+    fn name(&amp;self) -&gt; &amp;'static str {
+        &quot;CacheService&quot;
+    }
+    
+    fn module_type(&amp;self) -&gt; SharedModuleType {
+        SharedModuleType::Service
+    }
+    
+    fn as_any(&amp;self) -&gt; &amp;dyn std::any::Any {
+        self
+    }
+    
+    async fn initialize(&amp;self) -&gt; Result&lt;()&gt; {
+        log::info!(&quot;CacheService initializing...&quot;);
+        
+        // Initialize Redis connection
+        if let Ok(redis_url) = std::env::var(&quot;REDIS_URL&quot;) {
+            match redis::Client::open(redis_url) {
+                Ok(_client) =&gt; log::info!(&quot;Redis cache client initialized&quot;),
+                Err(e) =&gt; log::warn!(&quot;Failed to initialize Redis: {}&quot;, e),
+            }
+        }
+        
+        log::info!(&quot;CacheService initialized successfully&quot;);
+        Ok(())
+    }
+    
+    async fn shutdown(&amp;self) -&gt; Result&lt;()&gt; {
+        log::info!(&quot;CacheService shutting down...&quot;);
+        // Cleanup operations would go here
+        Ok(())
+    }
+}
+
+pub fn install() -&gt; CacheService {
+    CacheService::new()
+}
+#}</code></pre></pre>
+<a class="header" href="advanced/modules.html#cross-module-dependencies" id="cross-module-dependencies"><h3>Cross-Module Dependencies</h3></a>
+<p>Modules can depend on each other using standard Rust patterns:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// src/modules/notification_service.rs
+use rustf::prelude::*;
+use super::email_service::EmailService;
+
+#[derive(Debug)]
+pub struct NotificationService {
+    email_service: EmailService,
+}
+
+impl NotificationService {
+    pub fn new() -&gt; Self {
+        Self {
+            email_service: EmailService::new(),
+        }
+    }
+    
+    pub async fn send_welcome_notification(&amp;self, user_email: &amp;str, user_name: &amp;str) -&gt; Result&lt;()&gt; {
+        // Send email notification
+        self.email_service.send_verification_email(user_email, user_name, &quot;welcome_token&quot;).await?;
+        
+        // Could also send push notification, SMS, etc.
+        log::info!(&quot;Welcome notification sent to {}&quot;, user_email);
+        Ok(())
+    }
+    
+    pub async fn send_order_confirmation(&amp;self, user_email: &amp;str, order_id: i64) -&gt; Result&lt;()&gt; {
+        // Complex notification logic using email service
+        let subject = format!(&quot;Order #{} confirmed&quot;, order_id);
+        // Implementation details...
+        Ok(())
+    }
+}
+
+pub fn install() -&gt; NotificationService {
+    NotificationService::new()
+}
+#}</code></pre></pre>
+<a class="header" href="advanced/modules.html#testing-modules" id="testing-modules"><h2>Testing Modules</h2></a>
+<a class="header" href="advanced/modules.html#unit-testing-services" id="unit-testing-services"><h3>Unit Testing Services</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// src/modules/user_service.rs
+#[cfg(test)]
+mod tests {
+    use super::*;
+    
+    #[tokio::test]
+    async fn test_register_user_valid() {
+        let service = UserService::new();
+        let result = service.register_user(
+            &quot;test@example.com&quot;, 
+            &quot;password123&quot;, 
+            json!({})
+        ).await;
+        
+        assert!(result.is_ok());
+        let user = result.unwrap();
+        assert_eq!(user[&quot;email&quot;], &quot;test@example.com&quot;);
+        assert_eq!(user[&quot;is_verified&quot;], false);
+    }
+    
+    #[tokio::test]
+    async fn test_register_user_invalid_email() {
+        let service = UserService::new();
+        let result = service.register_user(
+            &quot;invalid-email&quot;, 
+            &quot;password123&quot;, 
+            json!({})
+        ).await;
+        
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains(&quot;Invalid email format&quot;));
+    }
+    
+    #[tokio::test]
+    async fn test_register_user_weak_password() {
+        let service = UserService::new();
+        let result = service.register_user(
+            &quot;test@example.com&quot;, 
+            &quot;123&quot;, 
+            json!({})
+        ).await;
+        
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains(&quot;at least 8 characters&quot;));
+    }
+}
+#}</code></pre></pre>
+<a class="header" href="advanced/modules.html#integration-testing" id="integration-testing"><h3>Integration Testing</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// tests/integration/module_tests.rs
+use rustf::prelude::*;
+use your_app::modules::{user_service, email_service};
+
+#[tokio::test]
+async fn test_user_registration_flow() {
+    // Setup
+    let user_svc = user_service::UserService::new();
+    let email_svc = email_service::EmailService::new();
+    
+    // Test user registration
+    let user_result = user_svc.register_user(
+        &quot;integration@test.com&quot;,
+        &quot;TestPassword123&quot;,
+        json!({&quot;first_name&quot;: &quot;Test&quot;, &quot;last_name&quot;: &quot;User&quot;})
+    ).await;
+    
+    assert!(user_result.is_ok());
+    let user = user_result.unwrap();
+    
+    // Test email notification
+    let email_result = email_svc.send_verification_email(
+        &quot;integration@test.com&quot;,
+        &quot;Test&quot;,
+        &quot;test_token_123&quot;
+    ).await;
+    
+    assert!(email_result.is_ok());
+    let email_response = email_result.unwrap();
+    assert_eq!(email_response[&quot;email&quot;][&quot;status&quot;], &quot;sent&quot;);
+}
+#}</code></pre></pre>
+<a class="header" href="advanced/modules.html#configuration" id="configuration"><h2>Configuration</h2></a>
+<a class="header" href="advanced/modules.html#environment-based-module-configuration" id="environment-based-module-configuration"><h3>Environment-Based Module Configuration</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// src/modules/payment_service.rs
+use rustf::prelude::*;
+
+#[derive(Debug)]
+pub struct PaymentService {
+    stripe_key: Option&lt;String&gt;,
+    sandbox_mode: bool,
+}
+
+impl PaymentService {
+    pub fn new() -&gt; Self {
+        let stripe_key = std::env::var(&quot;STRIPE_SECRET_KEY&quot;).ok();
+        let sandbox_mode = std::env::var(&quot;PAYMENT_SANDBOX&quot;)
+            .unwrap_or_else(|_| &quot;false&quot;.to_string())
+            .parse()
+            .unwrap_or(false);
+            
+        Self {
+            stripe_key,
+            sandbox_mode,
+        }
+    }
+    
+    pub async fn process_payment(&amp;self, amount: u64, token: &amp;str) -&gt; Result&lt;PaymentResult&gt; {
+        if self.sandbox_mode {
+            log::info!(&quot;SANDBOX: Processing payment of ${} with token {}&quot;, amount, token);
+            return Ok(PaymentResult {
+                id: &quot;sandbox_payment_123&quot;.to_string(),
+                status: PaymentStatus::Succeeded,
+                amount,
+            });
+        }
+        
+        // Real payment processing logic
+        match &amp;self.stripe_key {
+            Some(key) =&gt; {
+                // Use Stripe API
+                log::info!(&quot;Processing real payment with Stripe&quot;);
+                // Implementation...
+                Ok(PaymentResult {
+                    id: &quot;real_payment_456&quot;.to_string(),
+                    status: PaymentStatus::Succeeded,
+                    amount,
+                })
+            }
+            None =&gt; {
+                Err(Error::configuration(&quot;STRIPE_SECRET_KEY not configured&quot;))
+            }
+        }
+    }
+}
+
+pub fn install() -&gt; PaymentService {
+    PaymentService::new()
+}
+#}</code></pre></pre>
+<a class="header" href="advanced/modules.html#module-documentation-patterns" id="module-documentation-patterns"><h2>Module Documentation Patterns</h2></a>
+<a class="header" href="advanced/modules.html#self-documenting-modules" id="self-documenting-modules"><h3>Self-Documenting Modules</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// src/modules/analytics_service.rs
+//! Analytics Service Module
+//! 
+//! Provides comprehensive analytics tracking and reporting functionality.
+//! 
+//! ## Features
+//! - Event tracking with custom properties
+//! - User behavior analytics
+//! - Performance metrics collection
+//! - A/B testing support
+//! 
+//! ## Usage
+//! ```rust
+//! use crate::modules::analytics_service::AnalyticsService;
+//! 
+//! let analytics = AnalyticsService::new();
+//! analytics.track_event(&quot;user_signup&quot;, json!({&quot;source&quot;: &quot;web&quot;})).await?;
+//! ```
+
+use rustf::prelude::*;
+
+/// Analytics service for tracking user events and system metrics
+/// 
+/// The AnalyticsService provides methods for tracking various types of events:
+/// - User actions (clicks, page views, form submissions)
+/// - System events (errors, performance metrics)  
+/// - Custom business events (purchases, subscriptions)
+#[derive(Debug)]
+pub struct AnalyticsService {
+    /// Whether analytics is enabled (can be disabled for testing)
+    enabled: bool,
+    /// Buffer for batching events before sending
+    event_buffer: Vec&lt;AnalyticsEvent&gt;,
+}
+
+#[derive(Debug, Serialize)]
+pub struct AnalyticsEvent {
+    pub event_name: String,
+    pub properties: Value,
+    pub user_id: Option&lt;String&gt;,
+    pub session_id: Option&lt;String&gt;,
+    pub timestamp: chrono::DateTime&lt;chrono::Utc&gt;,
+}
+
+impl AnalyticsService {
+    /// Create new analytics service
+    /// 
+    /// # Example
+    /// ```rust
+    /// let analytics = AnalyticsService::new();
+    /// ```
+    pub fn new() -&gt; Self {
+        let enabled = std::env::var(&quot;ANALYTICS_ENABLED&quot;)
+            .unwrap_or_else(|_| &quot;true&quot;.to_string())
+            .parse()
+            .unwrap_or(true);
+            
+        Self {
+            enabled,
+            event_buffer: Vec::new(),
+        }
+    }
+    
+    /// Track a user event with optional properties
+    /// 
+    /// # Arguments
+    /// * `event_name` - Name of the event (e.g., &quot;page_view&quot;, &quot;button_click&quot;)
+    /// * `properties` - Additional event data as JSON
+    /// 
+    /// # Example
+    /// ```rust
+    /// analytics.track_event(&quot;user_signup&quot;, json!({
+    ///     &quot;source&quot;: &quot;web&quot;,
+    ///     &quot;plan&quot;: &quot;premium&quot;
+    /// })).await?;
+    /// ```
+    pub async fn track_event(&amp;mut self, event_name: &amp;str, properties: Value) -&gt; Result&lt;()&gt; {
+        if !self.enabled {
+            return Ok(());
+        }
+        
+        let event = AnalyticsEvent {
+            event_name: event_name.to_string(),
+            properties,
+            user_id: None, // Would be set from context in real implementation
+            session_id: None,
+            timestamp: chrono::Utc::now(),
+        };
+        
+        self.event_buffer.push(event);
+        
+        // Flush buffer if it gets too large
+        if self.event_buffer.len() &gt;= 100 {
+            self.flush_events().await?;
+        }
+        
+        Ok(())
+    }
+    
+    /// Flush buffered events to analytics provider
+    async fn flush_events(&amp;mut self) -&gt; Result&lt;()&gt; {
+        if self.event_buffer.is_empty() {
+            return Ok(());
+        }
+        
+        log::info!(&quot;Flushing {} analytics events&quot;, self.event_buffer.len());
+        
+        // In real implementation: send to analytics provider
+        // Google Analytics, Mixpanel, Segment, etc.
+        
+        self.event_buffer.clear();
+        Ok(())
+    }
+}
+
+pub fn install() -&gt; AnalyticsService {
+    AnalyticsService::new()
+}
+#}</code></pre></pre>
+<a class="header" href="advanced/modules.html#error-handling-in-modules" id="error-handling-in-modules"><h2>Error Handling in Modules</h2></a>
+<a class="header" href="advanced/modules.html#consistent-error-patterns" id="consistent-error-patterns"><h3>Consistent Error Patterns</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// src/modules/file_service.rs
+use rustf::prelude::*;
+use std::path::PathBuf;
+
+#[derive(Debug)]
+pub struct FileService {
+    upload_path: PathBuf,
+    max_file_size: usize,
+}
+
+impl FileService {
+    pub fn new() -&gt; Self {
+        let upload_path = std::env::var(&quot;UPLOAD_PATH&quot;)
+            .unwrap_or_else(|_| &quot;uploads&quot;.to_string())
+            .into();
+            
+        let max_file_size = std::env::var(&quot;MAX_FILE_SIZE&quot;)
+            .unwrap_or_else(|_| &quot;10485760&quot;.to_string()) // 10MB default
+            .parse()
+            .unwrap_or(10485760);
+            
+        Self {
+            upload_path,
+            max_file_size,
+        }
+    }
+    
+    pub async fn save_upload(&amp;self, file_data: &amp;[u8], filename: &amp;str) -&gt; Result&lt;FileUploadResult&gt; {
+        // Validation
+        if file_data.is_empty() {
+            return Err(Error::validation(&quot;File cannot be empty&quot;));
+        }
+        
+        if file_data.len() &gt; self.max_file_size {
+            return Err(Error::validation(&amp;format!(
+                &quot;File size {} exceeds maximum allowed size {}&quot;, 
+                file_data.len(), 
+                self.max_file_size
+            )));
+        }
+        
+        // Security: validate filename
+        if filename.contains(&quot;..&quot;) || filename.contains(&quot;/&quot;) || filename.contains(&quot;\\&quot;) {
+            return Err(Error::security(&quot;Invalid filename&quot;));
+        }
+        
+        // Generate unique filename
+        let unique_filename = format!(&quot;{}_{}&quot;, 
+            uuid::Uuid::new_v4(), 
+            filename
+        );
+        
+        let file_path = self.upload_path.join(&amp;unique_filename);
+        
+        // Ensure upload directory exists
+        if let Some(parent) = file_path.parent() {
+            std::fs::create_dir_all(parent)
+                .map_err(|e| Error::filesystem(&amp;format!(&quot;Failed to create upload directory: {}&quot;, e)))?;
+        }
+        
+        // Save file
+        std::fs::write(&amp;file_path, file_data)
+            .map_err(|e| Error::filesystem(&amp;format!(&quot;Failed to save file: {}&quot;, e)))?;
+        
+        log::info!(&quot;File saved: {} ({} bytes)&quot;, unique_filename, file_data.len());
+        
+        Ok(FileUploadResult {
+            filename: unique_filename,
+            path: file_path.to_string_lossy().to_string(),
+            size: file_data.len(),
+            mime_type: self.detect_mime_type(filename),
+        })
+    }
+    
+    fn detect_mime_type(&amp;self, filename: &amp;str) -&gt; String {
+        match filename.split('.').last() {
+            Some(&quot;jpg&quot;) | Some(&quot;jpeg&quot;) =&gt; &quot;image/jpeg&quot;.to_string(),
+            Some(&quot;png&quot;) =&gt; &quot;image/png&quot;.to_string(),
+            Some(&quot;gif&quot;) =&gt; &quot;image/gif&quot;.to_string(),
+            Some(&quot;pdf&quot;) =&gt; &quot;application/pdf&quot;.to_string(),
+            Some(&quot;txt&quot;) =&gt; &quot;text/plain&quot;.to_string(),
+            _ =&gt; &quot;application/octet-stream&quot;.to_string(),
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct FileUploadResult {
+    pub filename: String,
+    pub path: String,
+    pub size: usize,
+    pub mime_type: String,
+}
+
+pub fn install() -&gt; FileService {
+    FileService::new()
+}
+#}</code></pre></pre>
+<a class="header" href="advanced/modules.html#best-practices-summary" id="best-practices-summary"><h2>Best Practices Summary</h2></a>
+<a class="header" href="advanced/modules.html#1-module-design-principles" id="1-module-design-principles"><h3>1. Module Design Principles</h3></a>
+<ul>
+<li><strong>Single Responsibility</strong> - Each module handles one domain of business logic</li>
+<li><strong>Clear Interfaces</strong> - Public methods are well-documented and consistent</li>
+<li><strong>Error Handling</strong> - Use Result<T> for operations that can fail</li>
+<li><strong>Configuration</strong> - Use environment variables for runtime configuration</li>
+<li><strong>Logging</strong> - Include appropriate logging for debugging and monitoring</li>
+</ul>
+<a class="header" href="advanced/modules.html#2-code-organization" id="2-code-organization"><h3>2. Code Organization</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// ✅ Good: Clear module structure
+// src/modules/
+//   ├── user_service.rs        # User domain logic
+//   ├── order_service.rs       # Order processing
+//   ├── payment_service.rs     # Payment handling
+//   ├── email_service.rs       # Email operations
+//   └── validation_utils.rs    # Shared utilities
+
+// ❌ Bad: Mixed concerns
+// src/modules/
+//   └── everything_service.rs  # Handles users, orders, payments, etc.
+#}</code></pre></pre>
+<a class="header" href="advanced/modules.html#3-dependencies-and-coupling" id="3-dependencies-and-coupling"><h3>3. Dependencies and Coupling</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// ✅ Good: Explicit dependencies
+use crate::modules::email_service::EmailService;
+
+pub struct UserService {
+    email_service: EmailService,
+}
+
+// ❌ Bad: Hidden global state
+pub struct UserService;
+
+impl UserService {
+    pub async fn register_user(&amp;self, email: &amp;str) -&gt; Result&lt;User&gt; {
+        // Hidden dependency on global email service
+        GLOBAL_EMAIL_SERVICE.send_welcome(email).await?;
+    }
+}
+#}</code></pre></pre>
+<a class="header" href="advanced/modules.html#4-testing-strategy" id="4-testing-strategy"><h3>4. Testing Strategy</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// ✅ Good: Testable design
+impl PaymentService {
+    pub fn new_for_testing() -&gt; Self {
+        Self {
+            stripe_key: None,
+            sandbox_mode: true, // Always sandbox for tests
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    
+    #[tokio::test]
+    async fn test_payment_processing() {
+        let service = PaymentService::new_for_testing();
+        // Test implementation
+    }
+}
+#}</code></pre></pre>
+<a class="header" href="advanced/modules.html#migration-and-compatibility" id="migration-and-compatibility"><h2>Migration and Compatibility</h2></a>
+<a class="header" href="advanced/modules.html#from-older-module-systems" id="from-older-module-systems"><h3>From Older Module Systems</h3></a>
+<p>If migrating from other Rust web frameworks:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Actix Web style -&gt; RustF style
+// Old:
+// web::Data&lt;EmailService&gt;
+
+// New:
+use crate::modules::email_service::EmailService;
+let email_service = EmailService::new();
+#}</code></pre></pre>
+<a class="header" href="advanced/modules.html#framework-agnostic-modules" id="framework-agnostic-modules"><h3>Framework Agnostic Modules</h3></a>
+<p>Keep business logic independent of RustF specifics:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// ✅ Good: Framework-independent core logic
+impl UserService {
+    pub async fn validate_and_create_user(&amp;self, email: &amp;str, password: &amp;str) -&gt; Result&lt;User&gt; {
+        // Core business logic - no RustF dependencies
+        // Can be used in CLI tools, tests, other frameworks
+    }
+}
+
+// ❌ Bad: Tightly coupled to RustF
+impl UserService {
+    pub async fn create_user(&amp;self, ctx: &amp;Context) -&gt; Result&lt;Response&gt; {
+        // Mixing business logic with HTTP concerns
+    }
+}
+#}</code></pre></pre>
+<a class="header" href="advanced/modules.html#framework-integration-status" id="framework-integration-status"><h2>Framework Integration Status</h2></a>
+<p>Based on the current RustF implementation:</p>
+<p>✅ <strong>SharedModule Trait</strong> - Complete implementation in <code>src/shared.rs</code><br />
+✅ <strong>SharedRegistry</strong> - Full registry with lifecycle management<br />
+✅ <strong>Module Types</strong> - Service, Util, Helper, Trait categorization<br />
+✅ <strong>Auto-discovery macro</strong> - <code>auto_modules!()</code> in rustf-macros<br />
+✅ <strong>Standard Rust modules</strong> - Normal <code>use</code> statement access<br />
+✅ <strong>Lifecycle management</strong> - Initialize/shutdown methods<br />
+✅ <strong>App Integration</strong> - SharedRegistry integrated with RustF app builder pattern<br />
+✅ <strong>CLI Support</strong> - <code>rustf-cli new</code> creates <code>src/modules/</code> directory with README<br />
+✅ <strong>Global MODULE System</strong> - Total.js-style singleton access via <code>MODULE::get_typed::&lt;T&gt;()</code><br />
+✅ <strong>Type-Safe Access</strong> - Compile-time type checking for module access<br />
+✅ <strong>MODULE Initialization</strong> - Automatic during app startup via <code>MODULE::init()</code><br />
+✅ <strong>Dynamic Module Discovery</strong> - <code>MODULE::list()</code> and <code>MODULE::exists()</code> methods</p>
+<a class="header" href="advanced/modules.html#usage-recommendations" id="usage-recommendations"><h2>Usage Recommendations</h2></a>
+<p><strong>For most applications:</strong></p>
+<ol>
+<li>Use <code>.modules_from(auto_modules!())</code> in your app setup to enable MODULE system</li>
+<li>Create services as structs with <code>new()</code> constructors and <code>install()</code> functions</li>
+<li>For stateless utilities: Use direct instantiation with <code>use</code> statements</li>
+<li>For stateful services: Register and access via <code>MODULE::get_typed::&lt;T&gt;()</code></li>
+</ol>
+<p><strong>Choosing between direct instantiation and MODULE:</strong></p>
+<ol>
+<li>
+<p><strong>Use MODULE for:</strong></p>
+<ul>
+<li>Database connection pools</li>
+<li>Cache services (Redis, in-memory)</li>
+<li>Configured services (email, SMS, payment)</li>
+<li>Services with expensive initialization</li>
+<li>Resources that should be shared application-wide</li>
+</ul>
+</li>
+<li>
+<p><strong>Use direct instantiation for:</strong></p>
+<ul>
+<li>Stateless utility functions</li>
+<li>Request-specific services</li>
+<li>Simple validators and formatters</li>
+<li>Services that don't need configuration</li>
+</ul>
+</li>
+</ol>
+<p><strong>For simple modules that don't need lifecycle management:</strong></p>
+<ol>
+<li>Create basic structs with static methods</li>
+<li>Use <code>impl_shared_util!()</code> macro for utilities</li>
+<li>Access directly via standard Rust module imports</li>
+</ol>
+<p><strong>For complex services requiring singleton behavior:</strong></p>
+<ol>
+<li>Implement <code>SharedModule</code> trait with <code>initialize()</code> and <code>shutdown()</code> methods</li>
+<li>Register with <code>.modules_from()</code> to enable MODULE access</li>
+<li>Access via <code>MODULE::get_typed::&lt;T&gt;()</code> throughout the application</li>
+<li>Services are automatically initialized during app startup</li>
+</ol>
+<p>The module system now provides full integration with the framework while maintaining flexibility for both simple and complex use cases, with clean separation of concerns between HTTP handling (controllers) and business logic (modules).</p>
+<a class="header" href="advanced/modules.html#summary" id="summary"><h2>Summary</h2></a>
+<p>RustF's module system provides:</p>
+<p>✅ <strong>Clean Architecture</strong> - Separation of business logic from HTTP concerns<br />
+✅ <strong>Standard Rust Patterns</strong> - Uses familiar module system and traits<br />
+✅ <strong>Auto-Discovery</strong> - Compile-time scanning of module directories<br />
+✅ <strong>Type Safety</strong> - Compile-time validation of module interfaces<br />
+✅ <strong>Lifecycle Management</strong> - Optional initialize/shutdown methods<br />
+✅ <strong>Global MODULE System</strong> - Total.js-style singleton access for shared services<br />
+✅ <strong>Flexible Access Patterns</strong> - Support for both direct instantiation and singleton access<br />
+✅ <strong>Testing Support</strong> - Easy to unit test individual modules<br />
+✅ <strong>Resource Efficiency</strong> - Singleton pattern for expensive resources</p>
+<p>The system strikes a balance between simplicity and power, offering multiple patterns:</p>
+<ul>
+<li><strong>Direct instantiation</strong> for simple, stateless utilities</li>
+<li><strong>Global MODULE access</strong> for shared, stateful services</li>
+<li><strong>Hybrid approaches</strong> for maximum flexibility</li>
+</ul>
+<p>This allows developers to organize business logic effectively while maintaining clean architecture principles that make applications maintainable, testable, and resource-efficient.</p>
+
+                </div>
+
+                <!-- Mobile navigation buttons -->
+                
+                    <a rel="prev" href="advanced/events.html" class="mobile-nav-chapters previous" title="Previous chapter">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                
+
+                
+                    <a rel="next" href="advanced/cli.html" class="mobile-nav-chapters next" title="Next chapter">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+                
+
+            </div>
+
+            
+                <a href="advanced/events.html" class="nav-chapters previous" title="You can navigate through the chapters using the arrow keys">
+                    <i class="fa fa-angle-left"></i>
+                </a>
+            
+
+            
+                <a href="advanced/cli.html" class="nav-chapters next" title="You can navigate through the chapters using the arrow keys">
+                    <i class="fa fa-angle-right"></i>
+                </a>
+            
+
+        </div>
+
+
+        <!-- Local fallback for Font Awesome -->
+        <script>
+            if ($(".fa").css("font-family") !== "FontAwesome") {
+                $('<link rel="stylesheet" type="text/css" href="_FontAwesome/css/font-awesome.css">').prependTo('head');
+            }
+        </script>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        
+
+        
+
+        
+
+        
+
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS script -->
+        
+
+    </body>
+</html>

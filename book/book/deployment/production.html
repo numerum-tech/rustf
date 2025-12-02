@@ -1,0 +1,397 @@
+<!DOCTYPE HTML>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Production Deployment - RustF Framework Documentation</title>
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="Complete guide to the RustF MVC web framework for Rust">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <base href="../">
+
+        <link rel="stylesheet" href="book.css">
+        <link href="https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800" rel="stylesheet" type="text/css">
+        <link href="https://fonts.googleapis.com/css?family=Source+Code+Pro:500" rel="stylesheet" type="text/css">
+
+        <link rel="shortcut icon" href="favicon.png">
+
+        <!-- Font Awesome -->
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
+
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme -->
+        
+
+        
+
+        <!-- Fetch Clipboard.js from CDN but have a local fallback -->
+        <script src="https://cdn.jsdelivr.net/clipboard.js/1.6.1/clipboard.min.js"></script>
+        <script>
+            if (typeof Clipboard == 'undefined') {
+                document.write(unescape("%3Cscript src='clipboard.min.js'%3E%3C/script%3E"));
+            }
+        </script>
+
+        <!-- Fetch JQuery from CDN but have a local fallback -->
+        <script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+        <script>
+            if (typeof jQuery == 'undefined') {
+                document.write(unescape("%3Cscript src='jquery.js'%3E%3C/script%3E"));
+            }
+        </script>
+
+        <!-- Fetch store.js from local - TODO add CDN when 2.x.x is available on cdnjs -->
+        <script src="store.js"></script>
+
+    </head>
+    <body class="light">
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme = store.get('mdbook-theme');
+            if (theme === null || theme === undefined) { theme = 'light'; }
+            $('body').removeClass().addClass(theme);
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var sidebar = store.get('mdbook-sidebar');
+            if (sidebar === "hidden") { $("html").addClass("sidebar-hidden") }
+            else if (sidebar === "visible") { $("html").addClass("sidebar-visible") }
+        </script>
+
+        <div id="sidebar" class="sidebar">
+            <ul class="chapter"><li class="affix"><a href="README.html">Introduction</a></li><li><a href="getting-started/README.html"><strong>1.</strong> Quick Start</a></li><li><a href="getting-started/installation.html"><strong>2.</strong> Installation</a></li><li><a href="getting-started/hello-world.html"><strong>3.</strong> Hello World</a></li><li><a href="getting-started/project-structure.html"><strong>4.</strong> Project Structure</a></li><li><a href="guides/controllers.html"><strong>5.</strong> Controllers &amp; Routing</a></li><li><a href="guides/views.html"><strong>6.</strong> Views &amp; Templates</a></li><li><a href="guides/middleware.html"><strong>7.</strong> Middleware</a></li><li><a href="guides/sessions.html"><strong>8.</strong> Sessions</a></li><li><a href="guides/database.html"><strong>9.</strong> Database Integration</a></li><li><a href="guides/configuration.html"><strong>10.</strong> Configuration</a></li><li><a href="guides/security.html"><strong>11.</strong> Security</a></li><li><a href="guides/error-handling.html"><strong>12.</strong> Error Handling</a></li><li><a href="guides/schemas.html"><strong>13.</strong> Schemas &amp; Definitions</a></li><li><a href="advanced/README.html"><strong>14.</strong> Overview</a></li><li><a href="advanced/performance.html"><strong>15.</strong> Performance Optimization</a></li><li><a href="advanced/workers.html"><strong>16.</strong> Workers</a></li><li><a href="advanced/events.html"><strong>17.</strong> Events</a></li><li><a href="advanced/modules.html"><strong>18.</strong> Modules</a></li><li><a href="advanced/cli.html"><strong>19.</strong> CLI Tool</a></li><li><a href="api-reference/README.html"><strong>20.</strong> Overview</a></li><li><a href="api-reference/context.html"><strong>21.</strong> Context API</a></li><li><a href="api-reference/models.html"><strong>22.</strong> Model API</a></li><li><a href="api-reference/routing.html"><strong>23.</strong> Routing API</a></li><li><a href="api-reference/utilities.html"><strong>24.</strong> Utilities</a></li><li><a href="examples/README.html"><strong>25.</strong> Overview</a></li><li><a href="examples/rest-api.html"><strong>26.</strong> Building a REST API</a></li><li><a href="examples/authentication.html"><strong>27.</strong> Authentication</a></li><li><a href="examples/real-world-app.html"><strong>28.</strong> Real-World Application</a></li><li><a href="deployment/production.html" class="active"><strong>29.</strong> Production Deployment</a></li><li><a href="deployment/docker.html"><strong>30.</strong> Docker</a></li></ul>
+        </div>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page" tabindex="-1">
+                
+                <div id="menu-bar" class="menu-bar">
+                    <div class="left-buttons">
+                        <i id="sidebar-toggle" class="fa fa-bars" title="Toggle sidebar"></i>
+                        <i id="theme-toggle" class="fa fa-paint-brush" title="Change theme"></i>
+                    </div>
+
+                    <h1 class="menu-title">RustF Framework Documentation</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html">
+                            <i id="print-button" class="fa fa-print" title="Print this book"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <div id="content" class="content">
+                    <a class="header" href="deployment/production.html#production-deployment" id="production-deployment"><h1>Production Deployment</h1></a>
+<p>This guide covers deploying RustF applications to production environments.</p>
+<a class="header" href="deployment/production.html#prerequisites" id="prerequisites"><h2>Prerequisites</h2></a>
+<ul>
+<li>Rust 1.70+ installed</li>
+<li>Production-ready database</li>
+<li>Reverse proxy (nginx, Caddy, etc.)</li>
+<li>SSL certificate (Let's Encrypt recommended)</li>
+</ul>
+<a class="header" href="deployment/production.html#build-for-production" id="build-for-production"><h2>Build for Production</h2></a>
+<a class="header" href="deployment/production.html#release-build" id="release-build"><h3>Release Build</h3></a>
+<pre><code class="language-bash"># Build optimized release binary
+cargo build --release
+
+# Binary will be in target/release/your-app-name
+</code></pre>
+<a class="header" href="deployment/production.html#build-flags" id="build-flags"><h3>Build Flags</h3></a>
+<p>For maximum optimization:</p>
+<pre><code class="language-bash">RUSTFLAGS=&quot;-C target-cpu=native&quot; cargo build --release
+</code></pre>
+<a class="header" href="deployment/production.html#configuration" id="configuration"><h2>Configuration</h2></a>
+<a class="header" href="deployment/production.html#production-config" id="production-config"><h3>Production Config</h3></a>
+<p>Create <code>config.prod.toml</code>:</p>
+<pre><code class="language-toml">environment = &quot;production&quot;
+
+[server]
+host = &quot;0.0.0.0&quot;
+port = 8080
+timeout = 30
+
+[database]
+url = &quot;postgresql://user:pass@localhost/dbname&quot;
+pool_size = 20
+
+[session]
+timeout = 7200
+secure = true
+http_only = true
+cookie_name = &quot;app_session&quot;
+
+[views]
+cache_enabled = true
+directory = &quot;views&quot;
+
+[logging]
+level = &quot;warn&quot;
+output = &quot;file&quot;
+file_path = &quot;/var/log/app/error.log&quot;
+</code></pre>
+<a class="header" href="deployment/production.html#environment-variables" id="environment-variables"><h3>Environment Variables</h3></a>
+<p>Set environment variables:</p>
+<pre><code class="language-bash">export RUSTF_ENV=production
+export DATABASE_URL=postgresql://user:pass@localhost/dbname
+export SECRET_KEY=your-secret-key-here
+</code></pre>
+<a class="header" href="deployment/production.html#systemd-service" id="systemd-service"><h2>Systemd Service</h2></a>
+<p>Create <code>/etc/systemd/system/rustf-app.service</code>:</p>
+<pre><code class="language-ini">[Unit]
+Description=RustF Application
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+WorkingDirectory=/opt/rustf-app
+ExecStart=/opt/rustf-app/target/release/rustf-app
+Restart=always
+RestartSec=10
+Environment=&quot;RUSTF_ENV=production&quot;
+Environment=&quot;RUST_LOG=warn&quot;
+
+[Install]
+WantedBy=multi-user.target
+</code></pre>
+<p>Enable and start:</p>
+<pre><code class="language-bash">sudo systemctl enable rustf-app
+sudo systemctl start rustf-app
+sudo systemctl status rustf-app
+</code></pre>
+<a class="header" href="deployment/production.html#nginx-configuration" id="nginx-configuration"><h2>Nginx Configuration</h2></a>
+<a class="header" href="deployment/production.html#reverse-proxy-setup" id="reverse-proxy-setup"><h3>Reverse Proxy Setup</h3></a>
+<p>Create <code>/etc/nginx/sites-available/rustf-app</code>:</p>
+<pre><code class="language-nginx">server {
+    listen 80;
+    server_name your-domain.com;
+    
+    # Redirect to HTTPS
+    return 301 https://$server_name$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name your-domain.com;
+    
+    ssl_certificate /etc/letsencrypt/live/your-domain.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/your-domain.com/privkey.pem;
+    
+    # Security headers
+    add_header X-Frame-Options &quot;SAMEORIGIN&quot; always;
+    add_header X-Content-Type-Options &quot;nosniff&quot; always;
+    add_header X-XSS-Protection &quot;1; mode=block&quot; always;
+    
+    # Proxy to RustF app
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+    }
+    
+    # Static files
+    location /static/ {
+        alias /opt/rustf-app/public/;
+        expires 30d;
+        add_header Cache-Control &quot;public, immutable&quot;;
+    }
+}
+</code></pre>
+<p>Enable site:</p>
+<pre><code class="language-bash">sudo ln -s /etc/nginx/sites-available/rustf-app /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl reload nginx
+</code></pre>
+<a class="header" href="deployment/production.html#database-setup" id="database-setup"><h2>Database Setup</h2></a>
+<a class="header" href="deployment/production.html#run-migrations" id="run-migrations"><h3>Run Migrations</h3></a>
+<pre><code class="language-bash"># In production
+rustf-cli migrate up
+</code></pre>
+<a class="header" href="deployment/production.html#backup-strategy" id="backup-strategy"><h3>Backup Strategy</h3></a>
+<p>Set up regular database backups:</p>
+<pre><code class="language-bash"># PostgreSQL
+pg_dump -U user dbname &gt; backup_$(date +%Y%m%d).sql
+
+# SQLite
+cp db.sqlite backup_$(date +%Y%m%d).sqlite
+</code></pre>
+<a class="header" href="deployment/production.html#monitoring" id="monitoring"><h2>Monitoring</h2></a>
+<a class="header" href="deployment/production.html#log-management" id="log-management"><h3>Log Management</h3></a>
+<ul>
+<li>Use structured logging</li>
+<li>Set up log rotation</li>
+<li>Monitor error logs</li>
+<li>Use log aggregation (ELK, Loki, etc.)</li>
+</ul>
+<a class="header" href="deployment/production.html#health-checks" id="health-checks"><h3>Health Checks</h3></a>
+<p>Add health check endpoint:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+async fn health(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    // Check database connection
+    let db_ok = check_database().is_ok();
+    
+    ctx.json(json!({
+        &quot;status&quot;: if db_ok { &quot;healthy&quot; } else { &quot;unhealthy&quot; },
+        &quot;database&quot;: if db_ok { &quot;connected&quot; } else { &quot;disconnected&quot; },
+        &quot;timestamp&quot;: chrono::Utc::now().to_rfc3339()
+    }))
+}
+#}</code></pre></pre>
+<a class="header" href="deployment/production.html#metrics" id="metrics"><h3>Metrics</h3></a>
+<p>Consider adding:</p>
+<ul>
+<li>Request rate</li>
+<li>Response times</li>
+<li>Error rates</li>
+<li>Database connection pool status</li>
+</ul>
+<a class="header" href="deployment/production.html#security-checklist" id="security-checklist"><h2>Security Checklist</h2></a>
+<ul>
+<li>[ ] Use HTTPS (SSL/TLS)</li>
+<li>[ ] Set secure session cookies</li>
+<li>[ ] Enable CSRF protection</li>
+<li>[ ] Set security headers</li>
+<li>[ ] Use environment variables for secrets</li>
+<li>[ ] Keep dependencies updated</li>
+<li>[ ] Use strong database passwords</li>
+<li>[ ] Enable rate limiting</li>
+<li>[ ] Set up firewall rules</li>
+<li>[ ] Regular security audits</li>
+</ul>
+<a class="header" href="deployment/production.html#performance-optimization" id="performance-optimization"><h2>Performance Optimization</h2></a>
+<a class="header" href="deployment/production.html#enable-view-caching" id="enable-view-caching"><h3>Enable View Caching</h3></a>
+<pre><code class="language-toml">[views]
+cache_enabled = true
+</code></pre>
+<a class="header" href="deployment/production.html#database-connection-pooling" id="database-connection-pooling"><h3>Database Connection Pooling</h3></a>
+<pre><code class="language-toml">[database]
+pool_size = 20
+max_connections = 50
+</code></pre>
+<a class="header" href="deployment/production.html#static-file-serving" id="static-file-serving"><h3>Static File Serving</h3></a>
+<p>Serve static files via nginx/CDN, not the application.</p>
+<a class="header" href="deployment/production.html#enable-compression" id="enable-compression"><h3>Enable Compression</h3></a>
+<p>Configure nginx gzip:</p>
+<pre><code class="language-nginx">gzip on;
+gzip_types text/plain text/css application/json application/javascript;
+</code></pre>
+<a class="header" href="deployment/production.html#scaling" id="scaling"><h2>Scaling</h2></a>
+<a class="header" href="deployment/production.html#horizontal-scaling" id="horizontal-scaling"><h3>Horizontal Scaling</h3></a>
+<ul>
+<li>Use load balancer (nginx, HAProxy)</li>
+<li>Use shared session storage (Redis)</li>
+<li>Use shared database</li>
+<li>Use CDN for static assets</li>
+</ul>
+<a class="header" href="deployment/production.html#vertical-scaling" id="vertical-scaling"><h3>Vertical Scaling</h3></a>
+<ul>
+<li>Increase server resources</li>
+<li>Optimize database queries</li>
+<li>Use connection pooling</li>
+<li>Enable caching</li>
+</ul>
+<a class="header" href="deployment/production.html#troubleshooting" id="troubleshooting"><h2>Troubleshooting</h2></a>
+<a class="header" href="deployment/production.html#check-logs" id="check-logs"><h3>Check Logs</h3></a>
+<pre><code class="language-bash"># Application logs
+sudo journalctl -u rustf-app -f
+
+# Nginx logs
+sudo tail -f /var/log/nginx/error.log
+</code></pre>
+<a class="header" href="deployment/production.html#common-issues" id="common-issues"><h3>Common Issues</h3></a>
+<p><strong>Issue: Application won't start</strong></p>
+<ul>
+<li>Check systemd service status</li>
+<li>Verify configuration file</li>
+<li>Check database connection</li>
+</ul>
+<p><strong>Issue: 502 Bad Gateway</strong></p>
+<ul>
+<li>Check if app is running</li>
+<li>Verify port configuration</li>
+<li>Check firewall rules</li>
+</ul>
+<p><strong>Issue: Database connection errors</strong></p>
+<ul>
+<li>Verify database URL</li>
+<li>Check database is running</li>
+<li>Verify credentials</li>
+</ul>
+<a class="header" href="deployment/production.html#next-steps" id="next-steps"><h2>Next Steps</h2></a>
+<ul>
+<li>Set up CI/CD pipeline</li>
+<li>Configure monitoring alerts</li>
+<li>Set up automated backups</li>
+<li>Plan for disaster recovery</li>
+</ul>
+
+                </div>
+
+                <!-- Mobile navigation buttons -->
+                
+                    <a rel="prev" href="examples/real-world-app.html" class="mobile-nav-chapters previous" title="Previous chapter">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                
+
+                
+                    <a rel="next" href="deployment/docker.html" class="mobile-nav-chapters next" title="Next chapter">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+                
+
+            </div>
+
+            
+                <a href="examples/real-world-app.html" class="nav-chapters previous" title="You can navigate through the chapters using the arrow keys">
+                    <i class="fa fa-angle-left"></i>
+                </a>
+            
+
+            
+                <a href="deployment/docker.html" class="nav-chapters next" title="You can navigate through the chapters using the arrow keys">
+                    <i class="fa fa-angle-right"></i>
+                </a>
+            
+
+        </div>
+
+
+        <!-- Local fallback for Font Awesome -->
+        <script>
+            if ($(".fa").css("font-family") !== "FontAwesome") {
+                $('<link rel="stylesheet" type="text/css" href="_FontAwesome/css/font-awesome.css">').prependTo('head');
+            }
+        </script>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        
+
+        
+
+        
+
+        
+
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS script -->
+        
+
+    </body>
+</html>

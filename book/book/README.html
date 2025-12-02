@@ -1,0 +1,227 @@
+<!DOCTYPE HTML>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Introduction - RustF Framework Documentation</title>
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="Complete guide to the RustF MVC web framework for Rust">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <base href="">
+
+        <link rel="stylesheet" href="book.css">
+        <link href="https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800" rel="stylesheet" type="text/css">
+        <link href="https://fonts.googleapis.com/css?family=Source+Code+Pro:500" rel="stylesheet" type="text/css">
+
+        <link rel="shortcut icon" href="favicon.png">
+
+        <!-- Font Awesome -->
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
+
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme -->
+        
+
+        
+
+        <!-- Fetch Clipboard.js from CDN but have a local fallback -->
+        <script src="https://cdn.jsdelivr.net/clipboard.js/1.6.1/clipboard.min.js"></script>
+        <script>
+            if (typeof Clipboard == 'undefined') {
+                document.write(unescape("%3Cscript src='clipboard.min.js'%3E%3C/script%3E"));
+            }
+        </script>
+
+        <!-- Fetch JQuery from CDN but have a local fallback -->
+        <script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+        <script>
+            if (typeof jQuery == 'undefined') {
+                document.write(unescape("%3Cscript src='jquery.js'%3E%3C/script%3E"));
+            }
+        </script>
+
+        <!-- Fetch store.js from local - TODO add CDN when 2.x.x is available on cdnjs -->
+        <script src="store.js"></script>
+
+    </head>
+    <body class="light">
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme = store.get('mdbook-theme');
+            if (theme === null || theme === undefined) { theme = 'light'; }
+            $('body').removeClass().addClass(theme);
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var sidebar = store.get('mdbook-sidebar');
+            if (sidebar === "hidden") { $("html").addClass("sidebar-hidden") }
+            else if (sidebar === "visible") { $("html").addClass("sidebar-visible") }
+        </script>
+
+        <div id="sidebar" class="sidebar">
+            <ul class="chapter"><li class="affix"><a href="README.html" class="active">Introduction</a></li><li><a href="getting-started/README.html"><strong>1.</strong> Quick Start</a></li><li><a href="getting-started/installation.html"><strong>2.</strong> Installation</a></li><li><a href="getting-started/hello-world.html"><strong>3.</strong> Hello World</a></li><li><a href="getting-started/project-structure.html"><strong>4.</strong> Project Structure</a></li><li><a href="guides/controllers.html"><strong>5.</strong> Controllers &amp; Routing</a></li><li><a href="guides/views.html"><strong>6.</strong> Views &amp; Templates</a></li><li><a href="guides/middleware.html"><strong>7.</strong> Middleware</a></li><li><a href="guides/sessions.html"><strong>8.</strong> Sessions</a></li><li><a href="guides/database.html"><strong>9.</strong> Database Integration</a></li><li><a href="guides/configuration.html"><strong>10.</strong> Configuration</a></li><li><a href="guides/security.html"><strong>11.</strong> Security</a></li><li><a href="guides/error-handling.html"><strong>12.</strong> Error Handling</a></li><li><a href="guides/schemas.html"><strong>13.</strong> Schemas &amp; Definitions</a></li><li><a href="advanced/README.html"><strong>14.</strong> Overview</a></li><li><a href="advanced/performance.html"><strong>15.</strong> Performance Optimization</a></li><li><a href="advanced/workers.html"><strong>16.</strong> Workers</a></li><li><a href="advanced/events.html"><strong>17.</strong> Events</a></li><li><a href="advanced/modules.html"><strong>18.</strong> Modules</a></li><li><a href="advanced/cli.html"><strong>19.</strong> CLI Tool</a></li><li><a href="api-reference/README.html"><strong>20.</strong> Overview</a></li><li><a href="api-reference/context.html"><strong>21.</strong> Context API</a></li><li><a href="api-reference/models.html"><strong>22.</strong> Model API</a></li><li><a href="api-reference/routing.html"><strong>23.</strong> Routing API</a></li><li><a href="api-reference/utilities.html"><strong>24.</strong> Utilities</a></li><li><a href="examples/README.html"><strong>25.</strong> Overview</a></li><li><a href="examples/rest-api.html"><strong>26.</strong> Building a REST API</a></li><li><a href="examples/authentication.html"><strong>27.</strong> Authentication</a></li><li><a href="examples/real-world-app.html"><strong>28.</strong> Real-World Application</a></li><li><a href="deployment/production.html"><strong>29.</strong> Production Deployment</a></li><li><a href="deployment/docker.html"><strong>30.</strong> Docker</a></li></ul>
+        </div>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page" tabindex="-1">
+                
+                <div id="menu-bar" class="menu-bar">
+                    <div class="left-buttons">
+                        <i id="sidebar-toggle" class="fa fa-bars" title="Toggle sidebar"></i>
+                        <i id="theme-toggle" class="fa fa-paint-brush" title="Change theme"></i>
+                    </div>
+
+                    <h1 class="menu-title">RustF Framework Documentation</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html">
+                            <i id="print-button" class="fa fa-print" title="Print this book"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <div id="content" class="content">
+                    <a class="header" href="README.html#rustf-framework-documentation" id="rustf-framework-documentation"><h1>RustF Framework Documentation</h1></a>
+<div align="center">
+<p>🤖 <strong>AI-Agent Optimized</strong> | 🚀 <strong>Production Ready</strong> | 🛡️ <strong>Enterprise Security</strong> | ⚡ <strong>High Performance</strong></p>
+</div>
+<a class="header" href="README.html#welcome-to-rustf" id="welcome-to-rustf"><h2>Welcome to RustF</h2></a>
+<p>RustF is a convention-based MVC web framework for Rust, inspired by <a href="https://www.totaljs.com/">Total.js</a> v4. Designed to be equally intuitive for human developers and AI coding assistants, with auto-discovery, predictable patterns, comprehensive documentation, enterprise-grade security, and optimized performance.</p>
+<a class="header" href="README.html#what-is-rustf" id="what-is-rustf"><h3>What is RustF?</h3></a>
+<p>RustF provides a complete web development stack for Rust applications:</p>
+<ul>
+<li><strong>Convention Over Configuration</strong> - Sensible defaults reduce boilerplate</li>
+<li><strong>AI-Friendly Development</strong> - Predictable patterns and comprehensive documentation</li>
+<li><strong>Total.js Inspiration</strong> - Familiar patterns for web developers</li>
+<li><strong>Type Safety</strong> - Compile-time validation throughout the stack</li>
+<li><strong>Auto-Discovery</strong> - Automatic component registration at build time</li>
+<li><strong>Schema-Driven</strong> - YAML schemas drive model generation and database tools</li>
+</ul>
+<a class="header" href="README.html#key-features" id="key-features"><h3>Key Features</h3></a>
+<p>✅ <strong>Auto-Discovery System</strong> - Automatic registration of controllers, models, middleware<br />
+✅ <strong>Convention-Based Architecture</strong> - Predictable project structure and patterns<br />
+✅ <strong>Comprehensive CLI Tools</strong> - Project scaffolding, schema management, database tools<br />
+✅ <strong>Template Engine</strong> - Total.js-style template system with layouts and partials<br />
+✅ <strong>Advanced Session Management</strong> - Memory, Redis, and database storage backends<br />
+✅ <strong>Built-in Security Features</strong> - CORS, CSRF protection, secure headers<br />
+✅ <strong>Database Tools</strong> - Multi-database query builder with schema management<br />
+✅ <strong>Performance Optimized</strong> - Request pooling, caching, and memory safety</p>
+<a class="header" href="README.html#quick-start" id="quick-start"><h2>Quick Start</h2></a>
+<p>Get started with RustF in just 3 commands:</p>
+<pre><code class="language-bash"># Using the CLI tool (recommended)
+rustf-cli new project my-app
+cd my-app
+cargo run
+</code></pre>
+<p>Visit <a href="getting-started/README.md">Getting Started</a> for detailed installation and setup instructions.</p>
+<a class="header" href="README.html#documentation-structure" id="documentation-structure"><h2>Documentation Structure</h2></a>
+<p>This documentation is organized to help you learn RustF at your own pace:</p>
+<a class="header" href="README.html#-a-hrefgetting-startedreadmemdgetting-starteda" id="-a-hrefgetting-startedreadmemdgetting-starteda"><h3>🚀 <a href="getting-started/README.md">Getting Started</a></h3></a>
+<p>Perfect for beginners. Learn how to install RustF, create your first application, and understand the project structure.</p>
+<a class="header" href="README.html#-a-hrefguidescontrollersmdcore-guidesa" id="-a-hrefguidescontrollersmdcore-guidesa"><h3>📖 <a href="guides/controllers.md">Core Guides</a></h3></a>
+<p>Essential framework concepts: controllers, views, middleware, sessions, databases, and more.</p>
+<a class="header" href="README.html#-a-hrefadvancedperformancemdadvanced-topicsa" id="-a-hrefadvancedperformancemdadvanced-topicsa"><h3>🔧 <a href="advanced/performance.md">Advanced Topics</a></h3></a>
+<p>For experienced developers: performance optimization, workers, events, and advanced patterns.</p>
+<a class="header" href="README.html#-a-hrefapi-referencecontextmdapi-referencea" id="-a-hrefapi-referencecontextmdapi-referencea"><h3>📚 <a href="api-reference/context.md">API Reference</a></h3></a>
+<p>Complete API documentation for all framework components.</p>
+<a class="header" href="README.html#-a-hrefexamplesrest-apimdexamples--tutorialsa" id="-a-hrefexamplesrest-apimdexamples--tutorialsa"><h3>💡 <a href="examples/rest-api.md">Examples &amp; Tutorials</a></h3></a>
+<p>Step-by-step tutorials for building real-world applications.</p>
+<a class="header" href="README.html#-a-hrefdeploymentproductionmddeploymenta" id="-a-hrefdeploymentproductionmddeploymenta"><h3>🚢 <a href="deployment/production.md">Deployment</a></h3></a>
+<p>Production deployment guides, Docker setup, and performance tuning.</p>
+<a class="header" href="README.html#who-is-this-documentation-for" id="who-is-this-documentation-for"><h2>Who is This Documentation For?</h2></a>
+<a class="header" href="README.html#beginners" id="beginners"><h3>Beginners</h3></a>
+<ul>
+<li>Start with <a href="getting-started/README.md">Getting Started</a></li>
+<li>Follow the <a href="getting-started/hello-world.md">Hello World</a> tutorial</li>
+<li>Read through <a href="guides/controllers.md">Core Guides</a> step by step</li>
+<li>Check out <a href="examples/rest-api.md">Examples</a> for practical applications</li>
+</ul>
+<a class="header" href="README.html#experienced-developers" id="experienced-developers"><h3>Experienced Developers</h3></a>
+<ul>
+<li>Jump to <a href="guides/controllers.md">Core Guides</a> for framework concepts</li>
+<li>Explore <a href="advanced/performance.md">Advanced Topics</a> for optimization</li>
+<li>Reference <a href="api-reference/context.md">API Reference</a> for detailed APIs</li>
+<li>Review <a href="deployment/production.md">Deployment</a> for production setup</li>
+</ul>
+<a class="header" href="README.html#ai-coding-assistants" id="ai-coding-assistants"><h3>AI Coding Assistants</h3></a>
+<ul>
+<li>Structured documentation with clear patterns</li>
+<li>Comprehensive API references</li>
+<li>Predictable conventions</li>
+<li>Code examples throughout</li>
+</ul>
+<a class="header" href="README.html#framework-philosophy" id="framework-philosophy"><h2>Framework Philosophy</h2></a>
+<p>RustF follows these core principles:</p>
+<ol>
+<li><strong>Convention Over Configuration</strong> - Sensible defaults mean less code</li>
+<li><strong>Type Safety First</strong> - Compile-time validation prevents runtime errors</li>
+<li><strong>AI-Friendly</strong> - Predictable patterns make it easy for AI assistants to help</li>
+<li><strong>Performance by Default</strong> - Optimized for speed and efficiency</li>
+<li><strong>Security Built-In</strong> - Enterprise-grade security features included</li>
+</ol>
+<a class="header" href="README.html#community--support" id="community--support"><h2>Community &amp; Support</h2></a>
+<ul>
+<li><strong>GitHub</strong>: <a href="https://github.com/numerum-tech/rustf">github.com/numerum-tech/rustf</a></li>
+<li><strong>Issues</strong>: Report bugs and request features</li>
+<li><strong>Discussions</strong>: Ask questions and share ideas</li>
+</ul>
+<a class="header" href="README.html#contributing" id="contributing"><h2>Contributing</h2></a>
+<p>We welcome contributions! The framework was developed with AI collaboration and we actively seek feedback from the Rust community to improve code quality, safety, and performance.</p>
+<a class="header" href="README.html#license" id="license"><h2>License</h2></a>
+<p>RustF is dual-licensed under MIT and Apache 2.0 licenses.</p>
+<hr />
+<p><strong>Ready to get started?</strong> Head to <a href="getting-started/README.md">Getting Started</a> to begin your RustF journey!</p>
+
+                </div>
+
+                <!-- Mobile navigation buttons -->
+                
+
+                
+                    <a rel="next" href="getting-started/README.html" class="mobile-nav-chapters next" title="Next chapter">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+                
+
+            </div>
+
+            
+
+            
+                <a href="getting-started/README.html" class="nav-chapters next" title="You can navigate through the chapters using the arrow keys">
+                    <i class="fa fa-angle-right"></i>
+                </a>
+            
+
+        </div>
+
+
+        <!-- Local fallback for Font Awesome -->
+        <script>
+            if ($(".fa").css("font-family") !== "FontAwesome") {
+                $('<link rel="stylesheet" type="text/css" href="_FontAwesome/css/font-awesome.css">').prependTo('head');
+            }
+        </script>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        
+
+        
+
+        
+
+        
+
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS script -->
+        
+
+    </body>
+</html>

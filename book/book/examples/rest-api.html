@@ -1,0 +1,418 @@
+<!DOCTYPE HTML>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Building a REST API - RustF Framework Documentation</title>
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="Complete guide to the RustF MVC web framework for Rust">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <base href="../">
+
+        <link rel="stylesheet" href="book.css">
+        <link href="https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800" rel="stylesheet" type="text/css">
+        <link href="https://fonts.googleapis.com/css?family=Source+Code+Pro:500" rel="stylesheet" type="text/css">
+
+        <link rel="shortcut icon" href="favicon.png">
+
+        <!-- Font Awesome -->
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
+
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme -->
+        
+
+        
+
+        <!-- Fetch Clipboard.js from CDN but have a local fallback -->
+        <script src="https://cdn.jsdelivr.net/clipboard.js/1.6.1/clipboard.min.js"></script>
+        <script>
+            if (typeof Clipboard == 'undefined') {
+                document.write(unescape("%3Cscript src='clipboard.min.js'%3E%3C/script%3E"));
+            }
+        </script>
+
+        <!-- Fetch JQuery from CDN but have a local fallback -->
+        <script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+        <script>
+            if (typeof jQuery == 'undefined') {
+                document.write(unescape("%3Cscript src='jquery.js'%3E%3C/script%3E"));
+            }
+        </script>
+
+        <!-- Fetch store.js from local - TODO add CDN when 2.x.x is available on cdnjs -->
+        <script src="store.js"></script>
+
+    </head>
+    <body class="light">
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme = store.get('mdbook-theme');
+            if (theme === null || theme === undefined) { theme = 'light'; }
+            $('body').removeClass().addClass(theme);
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var sidebar = store.get('mdbook-sidebar');
+            if (sidebar === "hidden") { $("html").addClass("sidebar-hidden") }
+            else if (sidebar === "visible") { $("html").addClass("sidebar-visible") }
+        </script>
+
+        <div id="sidebar" class="sidebar">
+            <ul class="chapter"><li class="affix"><a href="README.html">Introduction</a></li><li><a href="getting-started/README.html"><strong>1.</strong> Quick Start</a></li><li><a href="getting-started/installation.html"><strong>2.</strong> Installation</a></li><li><a href="getting-started/hello-world.html"><strong>3.</strong> Hello World</a></li><li><a href="getting-started/project-structure.html"><strong>4.</strong> Project Structure</a></li><li><a href="guides/controllers.html"><strong>5.</strong> Controllers &amp; Routing</a></li><li><a href="guides/views.html"><strong>6.</strong> Views &amp; Templates</a></li><li><a href="guides/middleware.html"><strong>7.</strong> Middleware</a></li><li><a href="guides/sessions.html"><strong>8.</strong> Sessions</a></li><li><a href="guides/database.html"><strong>9.</strong> Database Integration</a></li><li><a href="guides/configuration.html"><strong>10.</strong> Configuration</a></li><li><a href="guides/security.html"><strong>11.</strong> Security</a></li><li><a href="guides/error-handling.html"><strong>12.</strong> Error Handling</a></li><li><a href="guides/schemas.html"><strong>13.</strong> Schemas &amp; Definitions</a></li><li><a href="advanced/README.html"><strong>14.</strong> Overview</a></li><li><a href="advanced/performance.html"><strong>15.</strong> Performance Optimization</a></li><li><a href="advanced/workers.html"><strong>16.</strong> Workers</a></li><li><a href="advanced/events.html"><strong>17.</strong> Events</a></li><li><a href="advanced/modules.html"><strong>18.</strong> Modules</a></li><li><a href="advanced/cli.html"><strong>19.</strong> CLI Tool</a></li><li><a href="api-reference/README.html"><strong>20.</strong> Overview</a></li><li><a href="api-reference/context.html"><strong>21.</strong> Context API</a></li><li><a href="api-reference/models.html"><strong>22.</strong> Model API</a></li><li><a href="api-reference/routing.html"><strong>23.</strong> Routing API</a></li><li><a href="api-reference/utilities.html"><strong>24.</strong> Utilities</a></li><li><a href="examples/README.html"><strong>25.</strong> Overview</a></li><li><a href="examples/rest-api.html" class="active"><strong>26.</strong> Building a REST API</a></li><li><a href="examples/authentication.html"><strong>27.</strong> Authentication</a></li><li><a href="examples/real-world-app.html"><strong>28.</strong> Real-World Application</a></li><li><a href="deployment/production.html"><strong>29.</strong> Production Deployment</a></li><li><a href="deployment/docker.html"><strong>30.</strong> Docker</a></li></ul>
+        </div>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page" tabindex="-1">
+                
+                <div id="menu-bar" class="menu-bar">
+                    <div class="left-buttons">
+                        <i id="sidebar-toggle" class="fa fa-bars" title="Toggle sidebar"></i>
+                        <i id="theme-toggle" class="fa fa-paint-brush" title="Change theme"></i>
+                    </div>
+
+                    <h1 class="menu-title">RustF Framework Documentation</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html">
+                            <i id="print-button" class="fa fa-print" title="Print this book"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <div id="content" class="content">
+                    <a class="header" href="examples/rest-api.html#building-a-rest-api" id="building-a-rest-api"><h1>Building a REST API</h1></a>
+<p>This tutorial shows you how to build a complete REST API with RustF, including CRUD operations, validation, and error handling.</p>
+<a class="header" href="examples/rest-api.html#overview" id="overview"><h2>Overview</h2></a>
+<p>We'll build a REST API for managing blog posts with the following endpoints:</p>
+<ul>
+<li><code>GET /api/posts</code> - List all posts</li>
+<li><code>GET /api/posts/{id}</code> - Get a specific post</li>
+<li><code>POST /api/posts</code> - Create a new post</li>
+<li><code>PUT /api/posts/{id}</code> - Update a post</li>
+<li><code>DELETE /api/posts/{id}</code> - Delete a post</li>
+</ul>
+<a class="header" href="examples/rest-api.html#project-setup" id="project-setup"><h2>Project Setup</h2></a>
+<a class="header" href="examples/rest-api.html#1-create-controller" id="1-create-controller"><h3>1. Create Controller</h3></a>
+<p>Create <code>src/controllers/api/posts.rs</code>:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use rustf::prelude::*;
+use serde::{Deserialize, Serialize};
+
+pub fn install() -&gt; Vec&lt;Route&gt; {
+    routes![
+        GET    &quot;/api/posts&quot;       =&gt; list_posts,
+        GET    &quot;/api/posts/{id}&quot;   =&gt; get_post,
+        POST   &quot;/api/posts&quot;       =&gt; create_post,
+        PUT    &quot;/api/posts/{id}&quot;   =&gt; update_post,
+        DELETE &quot;/api/posts/{id}&quot;   =&gt; delete_post,
+    ]
+}
+#}</code></pre></pre>
+<a class="header" href="examples/rest-api.html#2-define-data-structures" id="2-define-data-structures"><h3>2. Define Data Structures</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+#[derive(Serialize, Deserialize, Clone)]
+struct Post {
+    id: Option&lt;i32&gt;,
+    title: String,
+    content: String,
+    author: String,
+    published: bool,
+    created_at: Option&lt;String&gt;,
+}
+
+#[derive(Deserialize)]
+struct CreatePostRequest {
+    title: String,
+    content: String,
+    author: String,
+    published: Option&lt;bool&gt;,
+}
+
+#[derive(Deserialize)]
+struct UpdatePostRequest {
+    title: Option&lt;String&gt;,
+    content: Option&lt;String&gt;,
+    author: Option&lt;String&gt;,
+    published: Option&lt;bool&gt;,
+}
+#}</code></pre></pre>
+<a class="header" href="examples/rest-api.html#implementation" id="implementation"><h2>Implementation</h2></a>
+<a class="header" href="examples/rest-api.html#list-posts" id="list-posts"><h3>List Posts</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+async fn list_posts(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    // Parse pagination parameters
+    let page = ctx.int_query_or(&quot;page&quot;, 1);
+    let limit = ctx.int_query_or(&quot;limit&quot;, 10);
+    let offset = (page - 1) * limit;
+    
+    // In a real app, fetch from database
+    let posts = vec![
+        Post {
+            id: Some(1),
+            title: &quot;First Post&quot;.to_string(),
+            content: &quot;Content here&quot;.to_string(),
+            author: &quot;Alice&quot;.to_string(),
+            published: true,
+            created_at: Some(&quot;2024-01-01T00:00:00Z&quot;.to_string()),
+        },
+        // ... more posts
+    ];
+    
+    ctx.json(json!({
+        &quot;posts&quot;: posts,
+        &quot;pagination&quot;: {
+            &quot;page&quot;: page,
+            &quot;limit&quot;: limit,
+            &quot;total&quot;: posts.len(),
+            &quot;total_pages&quot;: (posts.len() as f64 / limit as f64).ceil() as i32
+        }
+    }))
+}
+#}</code></pre></pre>
+<a class="header" href="examples/rest-api.html#get-single-post" id="get-single-post"><h3>Get Single Post</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+async fn get_post(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    let post_id = ctx.int_param(&quot;id&quot;)?;
+    
+    // In a real app, fetch from database
+    if post_id == 1 {
+        let post = Post {
+            id: Some(1),
+            title: &quot;First Post&quot;.to_string(),
+            content: &quot;Content here&quot;.to_string(),
+            author: &quot;Alice&quot;.to_string(),
+            published: true,
+            created_at: Some(&quot;2024-01-01T00:00:00Z&quot;.to_string()),
+        };
+        
+        ctx.json(json!({
+            &quot;success&quot;: true,
+            &quot;post&quot;: post
+        }))
+    } else {
+        ctx.throw404(Some(&quot;Post not found&quot;))
+    }
+}
+#}</code></pre></pre>
+<a class="header" href="examples/rest-api.html#create-post" id="create-post"><h3>Create Post</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+async fn create_post(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    let request: CreatePostRequest = ctx.body_json()?;
+    
+    // Validation
+    if request.title.trim().is_empty() {
+        return ctx.throw400(Some(&quot;Title is required&quot;));
+    }
+    
+    if request.content.trim().is_empty() {
+        return ctx.throw400(Some(&quot;Content is required&quot;));
+    }
+    
+    if request.author.trim().is_empty() {
+        return ctx.throw400(Some(&quot;Author is required&quot;));
+    }
+    
+    // In a real app, save to database
+    let post = Post {
+        id: Some(2), // Generated by database
+        title: request.title,
+        content: request.content,
+        author: request.author,
+        published: request.published.unwrap_or(false),
+        created_at: Some(chrono::Utc::now().to_rfc3339()),
+    };
+    
+    ctx.status(hyper::StatusCode::CREATED);
+    ctx.json(json!({
+        &quot;success&quot;: true,
+        &quot;message&quot;: &quot;Post created successfully&quot;,
+        &quot;post&quot;: post
+    }))
+}
+#}</code></pre></pre>
+<a class="header" href="examples/rest-api.html#update-post" id="update-post"><h3>Update Post</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+async fn update_post(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    let post_id = ctx.int_param(&quot;id&quot;)?;
+    let request: UpdatePostRequest = ctx.body_json()?;
+    
+    // In a real app, fetch and update in database
+    if post_id == 1 {
+        let mut post = Post {
+            id: Some(1),
+            title: &quot;First Post&quot;.to_string(),
+            content: &quot;Content here&quot;.to_string(),
+            author: &quot;Alice&quot;.to_string(),
+            published: true,
+            created_at: Some(&quot;2024-01-01T00:00:00Z&quot;.to_string()),
+        };
+        
+        // Apply updates
+        if let Some(title) = request.title {
+            post.title = title;
+        }
+        if let Some(content) = request.content {
+            post.content = content;
+        }
+        if let Some(author) = request.author {
+            post.author = author;
+        }
+        if let Some(published) = request.published {
+            post.published = published;
+        }
+        
+        ctx.json(json!({
+            &quot;success&quot;: true,
+            &quot;message&quot;: &quot;Post updated successfully&quot;,
+            &quot;post&quot;: post
+        }))
+    } else {
+        ctx.throw404(Some(&quot;Post not found&quot;))
+    }
+}
+#}</code></pre></pre>
+<a class="header" href="examples/rest-api.html#delete-post" id="delete-post"><h3>Delete Post</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+async fn delete_post(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    let post_id = ctx.int_param(&quot;id&quot;)?;
+    
+    // In a real app, delete from database
+    if post_id == 1 {
+        ctx.json(json!({
+            &quot;success&quot;: true,
+            &quot;message&quot;: &quot;Post deleted successfully&quot;,
+            &quot;deleted_id&quot;: post_id
+        }))
+    } else {
+        ctx.throw404(Some(&quot;Post not found&quot;))
+    }
+}
+#}</code></pre></pre>
+<a class="header" href="examples/rest-api.html#testing-the-api" id="testing-the-api"><h2>Testing the API</h2></a>
+<a class="header" href="examples/rest-api.html#using-curl" id="using-curl"><h3>Using curl</h3></a>
+<pre><code class="language-bash"># List posts
+curl http://localhost:8000/api/posts
+
+# Get single post
+curl http://localhost:8000/api/posts/1
+
+# Create post
+curl -X POST http://localhost:8000/api/posts \
+  -H &quot;Content-Type: application/json&quot; \
+  -d '{
+    &quot;title&quot;: &quot;New Post&quot;,
+    &quot;content&quot;: &quot;Post content&quot;,
+    &quot;author&quot;: &quot;Bob&quot;,
+    &quot;published&quot;: true
+  }'
+
+# Update post
+curl -X PUT http://localhost:8000/api/posts/1 \
+  -H &quot;Content-Type: application/json&quot; \
+  -d '{
+    &quot;title&quot;: &quot;Updated Title&quot;
+  }'
+
+# Delete post
+curl -X DELETE http://localhost:8000/api/posts/1
+</code></pre>
+<a class="header" href="examples/rest-api.html#error-handling" id="error-handling"><h2>Error Handling</h2></a>
+<p>The API returns appropriate HTTP status codes:</p>
+<ul>
+<li><code>200 OK</code> - Success</li>
+<li><code>201 Created</code> - Resource created</li>
+<li><code>400 Bad Request</code> - Validation error</li>
+<li><code>404 Not Found</code> - Resource not found</li>
+<li><code>500 Internal Server Error</code> - Server error</li>
+</ul>
+<p>Error responses follow this format:</p>
+<pre><code class="language-json">{
+  &quot;error&quot;: &quot;Error message here&quot;
+}
+</code></pre>
+<a class="header" href="examples/rest-api.html#next-steps" id="next-steps"><h2>Next Steps</h2></a>
+<ul>
+<li>Add database integration - See <a href="../guides/database.md">Database Guide</a></li>
+<li>Add authentication - See <a href="authentication.md">Authentication Example</a></li>
+<li>Add middleware - See <a href="../guides/middleware.md">Middleware Guide</a></li>
+<li>Add input validation middleware</li>
+<li>Add rate limiting</li>
+<li>Add API versioning</li>
+</ul>
+
+                </div>
+
+                <!-- Mobile navigation buttons -->
+                
+                    <a rel="prev" href="examples/README.html" class="mobile-nav-chapters previous" title="Previous chapter">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                
+
+                
+                    <a rel="next" href="examples/authentication.html" class="mobile-nav-chapters next" title="Next chapter">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+                
+
+            </div>
+
+            
+                <a href="examples/README.html" class="nav-chapters previous" title="You can navigate through the chapters using the arrow keys">
+                    <i class="fa fa-angle-left"></i>
+                </a>
+            
+
+            
+                <a href="examples/authentication.html" class="nav-chapters next" title="You can navigate through the chapters using the arrow keys">
+                    <i class="fa fa-angle-right"></i>
+                </a>
+            
+
+        </div>
+
+
+        <!-- Local fallback for Font Awesome -->
+        <script>
+            if ($(".fa").css("font-family") !== "FontAwesome") {
+                $('<link rel="stylesheet" type="text/css" href="_FontAwesome/css/font-awesome.css">').prependTo('head');
+            }
+        </script>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        
+
+        
+
+        
+
+        
+
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS script -->
+        
+
+    </body>
+</html>

@@ -1,0 +1,2112 @@
+<!DOCTYPE HTML>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Database Integration - RustF Framework Documentation</title>
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="Complete guide to the RustF MVC web framework for Rust">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <base href="../">
+
+        <link rel="stylesheet" href="book.css">
+        <link href="https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800" rel="stylesheet" type="text/css">
+        <link href="https://fonts.googleapis.com/css?family=Source+Code+Pro:500" rel="stylesheet" type="text/css">
+
+        <link rel="shortcut icon" href="favicon.png">
+
+        <!-- Font Awesome -->
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
+
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme -->
+        
+
+        
+
+        <!-- Fetch Clipboard.js from CDN but have a local fallback -->
+        <script src="https://cdn.jsdelivr.net/clipboard.js/1.6.1/clipboard.min.js"></script>
+        <script>
+            if (typeof Clipboard == 'undefined') {
+                document.write(unescape("%3Cscript src='clipboard.min.js'%3E%3C/script%3E"));
+            }
+        </script>
+
+        <!-- Fetch JQuery from CDN but have a local fallback -->
+        <script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+        <script>
+            if (typeof jQuery == 'undefined') {
+                document.write(unescape("%3Cscript src='jquery.js'%3E%3C/script%3E"));
+            }
+        </script>
+
+        <!-- Fetch store.js from local - TODO add CDN when 2.x.x is available on cdnjs -->
+        <script src="store.js"></script>
+
+    </head>
+    <body class="light">
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme = store.get('mdbook-theme');
+            if (theme === null || theme === undefined) { theme = 'light'; }
+            $('body').removeClass().addClass(theme);
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var sidebar = store.get('mdbook-sidebar');
+            if (sidebar === "hidden") { $("html").addClass("sidebar-hidden") }
+            else if (sidebar === "visible") { $("html").addClass("sidebar-visible") }
+        </script>
+
+        <div id="sidebar" class="sidebar">
+            <ul class="chapter"><li class="affix"><a href="README.html">Introduction</a></li><li><a href="getting-started/README.html"><strong>1.</strong> Quick Start</a></li><li><a href="getting-started/installation.html"><strong>2.</strong> Installation</a></li><li><a href="getting-started/hello-world.html"><strong>3.</strong> Hello World</a></li><li><a href="getting-started/project-structure.html"><strong>4.</strong> Project Structure</a></li><li><a href="guides/controllers.html"><strong>5.</strong> Controllers &amp; Routing</a></li><li><a href="guides/views.html"><strong>6.</strong> Views &amp; Templates</a></li><li><a href="guides/middleware.html"><strong>7.</strong> Middleware</a></li><li><a href="guides/sessions.html"><strong>8.</strong> Sessions</a></li><li><a href="guides/database.html" class="active"><strong>9.</strong> Database Integration</a></li><li><a href="guides/configuration.html"><strong>10.</strong> Configuration</a></li><li><a href="guides/security.html"><strong>11.</strong> Security</a></li><li><a href="guides/error-handling.html"><strong>12.</strong> Error Handling</a></li><li><a href="guides/schemas.html"><strong>13.</strong> Schemas &amp; Definitions</a></li><li><a href="advanced/README.html"><strong>14.</strong> Overview</a></li><li><a href="advanced/performance.html"><strong>15.</strong> Performance Optimization</a></li><li><a href="advanced/workers.html"><strong>16.</strong> Workers</a></li><li><a href="advanced/events.html"><strong>17.</strong> Events</a></li><li><a href="advanced/modules.html"><strong>18.</strong> Modules</a></li><li><a href="advanced/cli.html"><strong>19.</strong> CLI Tool</a></li><li><a href="api-reference/README.html"><strong>20.</strong> Overview</a></li><li><a href="api-reference/context.html"><strong>21.</strong> Context API</a></li><li><a href="api-reference/models.html"><strong>22.</strong> Model API</a></li><li><a href="api-reference/routing.html"><strong>23.</strong> Routing API</a></li><li><a href="api-reference/utilities.html"><strong>24.</strong> Utilities</a></li><li><a href="examples/README.html"><strong>25.</strong> Overview</a></li><li><a href="examples/rest-api.html"><strong>26.</strong> Building a REST API</a></li><li><a href="examples/authentication.html"><strong>27.</strong> Authentication</a></li><li><a href="examples/real-world-app.html"><strong>28.</strong> Real-World Application</a></li><li><a href="deployment/production.html"><strong>29.</strong> Production Deployment</a></li><li><a href="deployment/docker.html"><strong>30.</strong> Docker</a></li></ul>
+        </div>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page" tabindex="-1">
+                
+                <div id="menu-bar" class="menu-bar">
+                    <div class="left-buttons">
+                        <i id="sidebar-toggle" class="fa fa-bars" title="Toggle sidebar"></i>
+                        <i id="theme-toggle" class="fa fa-paint-brush" title="Change theme"></i>
+                    </div>
+
+                    <h1 class="menu-title">RustF Framework Documentation</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html">
+                            <i id="print-button" class="fa fa-print" title="Print this book"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <div id="content" class="content">
+                    <a class="header" href="guides/database.html#rustf-database--model-layer-documentation" id="rustf-database--model-layer-documentation"><h1>RustF Database &amp; Model Layer Documentation</h1></a>
+<a class="header" href="guides/database.html#overview" id="overview"><h2>Overview</h2></a>
+<p>RustF provides a modern, ergonomic database layer with:</p>
+<ul>
+<li><strong>Transparent database access</strong> - No need to pass database connections around</li>
+<li><strong>Multi-database support</strong> - PostgreSQL, MySQL/MariaDB, SQLite</li>
+<li><strong>Type-safe query builders</strong> - Compile-time query validation</li>
+<li><strong>Laravel-style model queries</strong> - Chainable, intuitive API</li>
+<li><strong>Schema-driven development</strong> - YAML schemas generate type-safe models</li>
+<li><strong>Smart change tracking</strong> - Only update modified fields</li>
+</ul>
+<a class="header" href="guides/database.html#quick-start" id="quick-start"><h2>Quick Start</h2></a>
+<a class="header" href="guides/database.html#basic-usage" id="basic-usage"><h3>Basic Usage</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use rustf::prelude::*;
+
+// Find a user by ID
+let user = Users::find(123).await?;
+
+// Count all active users
+let active_count = Users::query()?
+    .where_eq(&quot;is_active&quot;, true)
+    .count()
+    .await?;
+
+// Get paginated results
+let users = Users::paginate(1, 20).await?;
+
+// Delete a record
+if let Some(user) = Users::find(456).await? {
+    user.delete().await?;
+}
+#}</code></pre></pre>
+<a class="header" href="guides/database.html#database-configuration" id="database-configuration"><h2>Database Configuration</h2></a>
+<a class="header" href="guides/database.html#initial-setup" id="initial-setup"><h3>Initial Setup</h3></a>
+<p>Configure your database in <code>config.toml</code>:</p>
+<pre><code class="language-toml">[database]
+url = &quot;postgresql://user:password@localhost/mydb&quot;  # or mysql:// or sqlite://
+max_connections = 10
+timeout = 30
+</code></pre>
+<p>The database connection is automatically initialized when your app starts. No manual setup required!</p>
+<a class="header" href="guides/database.html#global-database-access" id="global-database-access"><h3>Global Database Access</h3></a>
+<p>RustF uses a global <code>DB</code> singleton that's initialized once at startup:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use rustf::database::DB;
+
+// Check if database is initialized
+if DB::is_initialized() {
+    // Database is ready
+}
+
+// Get the backend type
+let backend = DB::backend(); // Some(DatabaseBackend::Postgres)
+#}</code></pre></pre>
+<a class="header" href="guides/database.html#model-system" id="model-system"><h2>Model System</h2></a>
+<a class="header" href="guides/database.html#generated-models" id="generated-models"><h3>Generated Models</h3></a>
+<p>Models are generated from YAML schemas using the RustF CLI. Each model consists of:</p>
+<ol>
+<li><strong>Base model</strong> (<code>base/*.inc.rs</code>) - Auto-generated, never edit</li>
+<li><strong>Wrapper model</strong> (<code>*.rs</code>) - Your business logic, safe to edit</li>
+</ol>
+<a class="header" href="guides/database.html#creating-a-schema" id="creating-a-schema"><h3>Creating a Schema</h3></a>
+<p>Create a YAML schema in <code>schemas/users.yaml</code>:</p>
+<pre><code class="language-yaml">table: users
+description: User accounts for the application
+fields:
+  - name: id
+    type: integer
+    primary_key: true
+    auto_increment: true
+    
+  - name: email
+    type: string
+    max_length: 255
+    nullable: false
+    unique: true
+    description: User's email address
+    
+  - name: username
+    type: string
+    max_length: 100
+    nullable: false
+    
+  - name: is_active
+    type: boolean
+    default: true
+    
+  - name: created_at
+    type: datetime
+    nullable: true
+    
+  - name: status
+    type: enum
+    values: [&quot;active&quot;, &quot;inactive&quot;, &quot;pending&quot;]
+    default: &quot;pending&quot;
+    description: Account status
+    
+  - name: role
+    type: enum  
+    values: [&quot;admin&quot;, &quot;user&quot;, &quot;moderator&quot;]
+    nullable: false
+    default: &quot;user&quot;
+    description: User role in the system
+    
+  - name: updated_at
+    type: datetime
+    nullable: true
+
+indexes:
+  - columns: [email]
+    unique: true
+  - columns: [username]
+    unique: true
+</code></pre>
+<a class="header" href="guides/database.html#generating-models" id="generating-models"><h3>Generating Models</h3></a>
+<pre><code class="language-bash"># Generate models from schemas
+rustf-cli schema generate models
+
+# Force regeneration (backs up existing files)
+rustf-cli schema generate models --force
+</code></pre>
+<p>This creates:</p>
+<ul>
+<li><code>src/models/base/users.inc.rs</code> - Generated base model</li>
+<li><code>src/models/users.rs</code> - Wrapper for your business logic (if doesn't exist)</li>
+</ul>
+<a class="header" href="guides/database.html#crud-operations" id="crud-operations"><h2>CRUD Operations</h2></a>
+<a class="header" href="guides/database.html#finding-records" id="finding-records"><h3>Finding Records</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Find by ID - returns Option&lt;Model&gt;
+let user = Users::find(123).await?;
+
+// Find first record
+let first_user = Users::first().await?;
+
+// Find all records (use with caution!)
+let all_users = Users::all().await?;
+
+// Find with conditions
+let active_users = Users::query()?
+    .where_eq(&quot;is_active&quot;, true)
+    .get()
+    .await?;
+#}</code></pre></pre>
+<a class="header" href="guides/database.html#creating-records" id="creating-records"><h3>Creating Records</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Using the builder pattern (recommended)
+let new_user = Users::builder()
+    .email(&quot;user@example.com&quot;)
+    .username(&quot;johndoe&quot;)
+    .is_active(true)
+    .save()  // Saves directly to database
+    .await?;
+
+// Manual creation (for complex cases)
+let user = Users {
+    id: 0,  // Will be set by database
+    email: &quot;user@example.com&quot;.to_string(),
+    username: &quot;johndoe&quot;.to_string(),
+    is_active: true,
+    created_at: Some(Utc::now()),
+    updated_at: None,
+    // ... other fields
+};
+// Then save using your custom method
+#}</code></pre></pre>
+<a class="header" href="guides/database.html#updating-records" id="updating-records"><h3>Updating Records</h3></a>
+<p>Models track changes automatically - only modified fields are updated:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Find and update
+let mut user = Users::find(123).await?.unwrap();
+
+// Setters automatically track changes
+user.set_email(&quot;newemail@example.com&quot;);
+user.set_is_active(false);
+
+// Only updates email and is_active fields
+user.update().await?;
+
+// Check if there are changes
+if user.has_changes() {
+    println!(&quot;User has unsaved changes&quot;);
+}
+#}</code></pre></pre>
+<a class="header" href="guides/database.html#deleting-records" id="deleting-records"><h3>Deleting Records</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Delete by finding first
+if let Some(user) = Users::find(123).await? {
+    user.delete().await?;
+}
+
+// Delete with query
+let deleted_count = Users::query()?
+    .where_eq(&quot;is_active&quot;, false)
+    .where_lt(&quot;last_login&quot;, &quot;2024-01-01&quot;)
+    .delete()
+    .await?;
+#}</code></pre></pre>
+<a class="header" href="guides/database.html#query-builder" id="query-builder"><h2>Query Builder</h2></a>
+<a class="header" href="guides/database.html#basic-queries" id="basic-queries"><h3>Basic Queries</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Simple equality check
+let users = Users::query()?
+    .where_eq(&quot;role&quot;, &quot;admin&quot;)
+    .get()
+    .await?;
+
+// Multiple conditions (AND)
+let active_admins = Users::query()?
+    .where_eq(&quot;role&quot;, &quot;admin&quot;)
+    .where_eq(&quot;is_active&quot;, true)
+    .where_not_null(&quot;email_verified&quot;)
+    .get()
+    .await?;
+
+// OR conditions
+let users = Users::query()?
+    .where_eq(&quot;role&quot;, &quot;admin&quot;)
+    .or_where_eq(&quot;role&quot;, &quot;moderator&quot;)
+    .get()
+    .await?;
+#}</code></pre></pre>
+<a class="header" href="guides/database.html#available-query-methods" id="available-query-methods"><h3>Available Query Methods</h3></a>
+<a class="header" href="guides/database.html#where-conditions" id="where-conditions"><h4>WHERE Conditions</h4></a>
+<ul>
+<li><code>where_eq(column, value)</code> - Equal to</li>
+<li><code>where_ne(column, value)</code> - Not equal to</li>
+<li><code>where_gt(column, value)</code> - Greater than</li>
+<li><code>where_lt(column, value)</code> - Less than</li>
+<li><code>where_gte(column, value)</code> - Greater than or equal</li>
+<li><code>where_lte(column, value)</code> - Less than or equal</li>
+<li><code>where_like(column, pattern)</code> - LIKE pattern matching</li>
+<li><code>where_not_like(column, pattern)</code> - NOT LIKE</li>
+<li><code>where_in(column, vec![values])</code> - IN list</li>
+<li><code>where_not_in(column, vec![values])</code> - NOT IN</li>
+<li><code>where_between(column, start, end)</code> - BETWEEN range</li>
+<li><code>where_null(column)</code> - IS NULL</li>
+<li><code>where_not_null(column)</code> - IS NOT NULL</li>
+</ul>
+<a class="header" href="guides/database.html#or-conditions" id="or-conditions"><h4>OR Conditions</h4></a>
+<p>All WHERE methods have <code>or_where_*</code> variants:</p>
+<ul>
+<li><code>or_where_eq(column, value)</code></li>
+<li><code>or_where_gt(column, value)</code></li>
+<li><code>or_where_null(column)</code></li>
+<li>etc.</li>
+</ul>
+<a class="header" href="guides/database.html#modifiers" id="modifiers"><h4>Modifiers</h4></a>
+<ul>
+<li><code>order_by(column, OrderDirection::Asc/Desc)</code></li>
+<li><code>limit(n)</code></li>
+<li><code>offset(n)</code></li>
+<li><code>paginate(page, per_page)</code></li>
+</ul>
+<a class="header" href="guides/database.html#field-selection" id="field-selection"><h4>Field Selection</h4></a>
+<ul>
+<li><code>select(&amp;[columns])</code> - Select specific fields instead of SELECT *</li>
+<li><code>select_raw(&amp;[expressions])</code> - Select with SQL expressions and aggregations</li>
+<li><code>alias(&quot;name&quot;)</code> - Set a table alias for complex queries</li>
+</ul>
+<a class="header" href="guides/database.html#grouping" id="grouping"><h4>Grouping</h4></a>
+<ul>
+<li><code>group_by(&amp;[columns])</code> - Group results by specified columns</li>
+</ul>
+<a class="header" href="guides/database.html#execution-methods" id="execution-methods"><h4>Execution Methods</h4></a>
+<ul>
+<li><code>get()</code> - Get all matching records as model instances</li>
+<li><code>get_raw()</code> - Get results as JSON (useful for aggregations and JOINs)</li>
+<li><code>first()</code> - Get first record</li>
+<li><code>count()</code> - Count matching records</li>
+<li><code>exists()</code> - Check if any records exist</li>
+<li><code>delete()</code> - Delete matching records</li>
+</ul>
+<a class="header" href="guides/database.html#complex-queries" id="complex-queries"><h3>Complex Queries</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Pagination with conditions
+let users = Users::query()?
+    .where_eq(&quot;is_active&quot;, true)
+    .where_like(&quot;email&quot;, &quot;%@company.com&quot;)
+    .order_by(&quot;created_at&quot;, OrderDirection::Desc)
+    .paginate(2, 20)  // Page 2, 20 per page
+    .get()
+    .await?;
+
+// Count with conditions
+let admin_count = Users::query()?
+    .where_eq(&quot;role&quot;, &quot;admin&quot;)
+    .where_not_null(&quot;verified_at&quot;)
+    .count()
+    .await?;
+
+// Check existence
+let has_admins = Users::query()?
+    .where_eq(&quot;role&quot;, &quot;admin&quot;)
+    .exists()
+    .await?;
+
+// Complex date queries
+let recent_users = Users::query()?
+    .where_gt(&quot;created_at&quot;, &quot;2024-01-01&quot;)
+    .where_between(&quot;age&quot;, 18, 65)
+    .where_in(&quot;status&quot;, vec![&quot;active&quot;, &quot;pending&quot;])
+    .order_by(&quot;created_at&quot;, OrderDirection::Desc)
+    .limit(100)
+    .get()
+    .await?;
+#}</code></pre></pre>
+<a class="header" href="guides/database.html#reusable-query-filters-modelfilter" id="reusable-query-filters-modelfilter"><h2>Reusable Query Filters (ModelFilter)</h2></a>
+<p>ModelFilter allows you to build reusable query conditions that can be applied to multiple queries. This is especially useful for common filtering patterns across your application.</p>
+<a class="header" href="guides/database.html#basic-usage-1" id="basic-usage-1"><h3>Basic Usage</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use rustf::models::ModelFilter;
+
+// Create a reusable filter
+let active_users = ModelFilter::new()
+    .where_eq(&quot;is_active&quot;, true)
+    .where_not_null(&quot;verified_at&quot;);
+
+// Apply the same filter to different queries
+let count = Users::query()?
+    .apply_filter(&amp;active_users)
+    .count()
+    .await?;
+
+let users = Users::query()?
+    .apply_filter(&amp;active_users)
+    .order_by(&quot;created_at&quot;, OrderDirection::Desc)
+    .limit(10)
+    .get()
+    .await?;
+#}</code></pre></pre>
+<a class="header" href="guides/database.html#conditional-filter-building" id="conditional-filter-building"><h3>Conditional Filter Building</h3></a>
+<p>ModelFilter supports conditional building by reassigning the filter variable:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Start with an empty filter
+let mut filter = ModelFilter::new();
+
+// Always apply base conditions
+filter = filter.where_eq(&quot;is_active&quot;, true);
+
+// Conditionally add filters based on user input
+if let Some(search) = ctx.query(&quot;search&quot;) {
+    filter = filter.where_like(&quot;name&quot;, &amp;format!(&quot;%{}%&quot;, search));
+}
+
+if let Some(role) = ctx.query(&quot;role&quot;) {
+    filter = filter.where_eq(&quot;role&quot;, role);
+}
+
+if let Some(min_age) = ctx.query(&quot;min_age&quot;) {
+    filter = filter.where_gte(&quot;age&quot;, min_age.parse::&lt;i32&gt;()?);
+}
+
+// Use the conditionally built filter
+let results = Users::query()?
+    .apply_filter(&amp;filter)
+    .get()
+    .await?;
+#}</code></pre></pre>
+<a class="header" href="guides/database.html#combining-filters" id="combining-filters"><h3>Combining Filters</h3></a>
+<p>You can combine multiple filters using the <code>and()</code> method:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Create base filters
+let active_filter = ModelFilter::new()
+    .where_eq(&quot;is_active&quot;, true);
+
+let verified_filter = ModelFilter::new()
+    .where_not_null(&quot;email_verified_at&quot;)
+    .where_not_null(&quot;phone_verified_at&quot;);
+
+// Combine filters
+let combined = active_filter.and(verified_filter);
+
+// Use combined filter
+let users = Users::query()?
+    .apply_filter(&amp;combined)
+    .get()
+    .await?;
+#}</code></pre></pre>
+<a class="header" href="guides/database.html#common-filter-patterns" id="common-filter-patterns"><h3>Common Filter Patterns</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Pagination filter with search
+let mut filter = ModelFilter::new();
+if let Some(search) = search_term {
+    filter = filter.where_like(&quot;name&quot;, &amp;format!(&quot;%{}%&quot;, search));
+    // Note: OR conditions not yet supported, use multiple queries if needed
+}
+filter = filter.where_eq(&quot;is_active&quot;, true);
+
+// Date range filter
+let date_filter = ModelFilter::new()
+    .where_gte(&quot;created_at&quot;, start_date)
+    .where_lte(&quot;created_at&quot;, end_date);
+
+// Complex status filter
+let status_filter = ModelFilter::new()
+    .where_in(&quot;status&quot;, vec![&quot;active&quot;, &quot;pending&quot;, &quot;verified&quot;])
+    .where_not_null(&quot;approved_at&quot;);
+
+// Null checks filter
+let complete_profile = ModelFilter::new()
+    .where_not_null(&quot;email&quot;)
+    .where_not_null(&quot;phone&quot;)
+    .where_not_null(&quot;address&quot;);
+#}</code></pre></pre>
+<a class="header" href="guides/database.html#reusable-application-filters" id="reusable-application-filters"><h3>Reusable Application Filters</h3></a>
+<p>Create application-wide filters as functions:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// In your models or a filters module
+impl Users {
+    pub fn active_filter() -&gt; ModelFilter {
+        ModelFilter::new()
+            .where_eq(&quot;is_active&quot;, true)
+            .where_not_null(&quot;email_verified_at&quot;)
+    }
+    
+    pub fn admin_filter() -&gt; ModelFilter {
+        ModelFilter::new()
+            .where_eq(&quot;role&quot;, &quot;admin&quot;)
+            .where_eq(&quot;is_active&quot;, true)
+    }
+}
+
+// Usage
+let admins = Users::query()?
+    .apply_filter(&amp;Users::admin_filter())
+    .get()
+    .await?;
+#}</code></pre></pre>
+<a class="header" href="guides/database.html#advanced-query-features" id="advanced-query-features"><h2>Advanced Query Features</h2></a>
+<a class="header" href="guides/database.html#selecting-specific-fields" id="selecting-specific-fields"><h3>Selecting Specific Fields</h3></a>
+<p>Instead of fetching all columns with SELECT *, you can specify exactly which fields you need:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Select specific fields only
+let users = Users::query()?
+    .select(&amp;[&quot;id&quot;, &quot;name&quot;, &quot;email&quot;])
+    .where_eq(&quot;is_active&quot;, true)
+    .get()
+    .await?;
+
+// With table prefixes (useful for JOINs)
+let results = Posts::query()?
+    .alias(&quot;p&quot;)
+    .select(&amp;[&quot;p.id&quot;, &quot;p.title&quot;, &quot;u.name as author_name&quot;])
+    .join(&quot;users AS u&quot;, &quot;u.id = p.user_id&quot;)
+    .get_raw()
+    .await?;
+
+// Raw SQL expressions for aggregations
+let stats = Users::query()?
+    .select_raw(&amp;[
+        &quot;department&quot;,
+        &quot;COUNT(*) as user_count&quot;,
+        &quot;AVG(salary) as avg_salary&quot;
+    ])
+    .group_by(&amp;[&quot;department&quot;])
+    .get_raw()
+    .await?;
+#}</code></pre></pre>
+<a class="header" href="guides/database.html#table-aliasing" id="table-aliasing"><h3>Table Aliasing</h3></a>
+<p>Use <code>alias()</code> to set a table alias, essential for self-joins and improving query readability:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Simple aliasing
+let users = Users::query()?
+    .alias(&quot;u&quot;)
+    .select(&amp;[&quot;u.id&quot;, &quot;u.name&quot;, &quot;u.email&quot;])
+    .where_eq(&quot;u.is_active&quot;, true)
+    .get()
+    .await?;
+
+// Self-join for hierarchical data (employee-manager)
+let employees = Users::query()?
+    .alias(&quot;emp&quot;)
+    .select(&amp;[
+        &quot;emp.id as employee_id&quot;,
+        &quot;emp.name as employee_name&quot;,
+        &quot;mgr.id as manager_id&quot;,
+        &quot;mgr.name as manager_name&quot;
+    ])
+    .left_join(&quot;users AS mgr&quot;, &quot;mgr.id = emp.manager_id&quot;)
+    .get_raw()
+    .await?;
+#}</code></pre></pre>
+<a class="header" href="guides/database.html#advanced-join-queries" id="advanced-join-queries"><h3>Advanced JOIN Queries</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Simple JOIN
+let posts_with_authors = Posts::query()?
+    .join(&quot;users&quot;, &quot;users.id = posts.user_id&quot;)
+    .where_eq(&quot;users.is_active&quot;, true)
+    .get()
+    .await?;
+
+// LEFT JOIN with aliases to avoid column conflicts
+let posts = Posts::query()?
+    .alias(&quot;p&quot;)
+    .select(&amp;[
+        &quot;p.id as post_id&quot;,
+        &quot;p.title&quot;,
+        &quot;p.created_at as post_date&quot;,
+        &quot;u.id as user_id&quot;,
+        &quot;u.name as author_name&quot;,
+        &quot;COUNT(c.id) as comment_count&quot;
+    ])
+    .join(&quot;users AS u&quot;, &quot;u.id = p.user_id&quot;)
+    .left_join(&quot;comments AS c&quot;, &quot;c.post_id = p.id&quot;)
+    .where_eq(&quot;p.is_published&quot;, true)
+    .group_by(&amp;[&quot;p.id&quot;, &quot;p.title&quot;, &quot;p.created_at&quot;, &quot;u.id&quot;, &quot;u.name&quot;])
+    .get_raw()
+    .await?;
+#}</code></pre></pre>
+<a class="header" href="guides/database.html#handling-column-name-conflicts-in-joins" id="handling-column-name-conflicts-in-joins"><h4>Handling Column Name Conflicts in JOINs</h4></a>
+<p>When joining tables with identical column names (like <code>id</code>, <code>created_at</code>), always use column aliases:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// ❌ BAD: Ambiguous column names
+let results = Posts::query()?
+    .join(&quot;users&quot;, &quot;users.id = posts.user_id&quot;)
+    .get_raw()
+    .await?;
+// Which 'id' is which? posts.id or users.id?
+
+// ✅ GOOD: Clear column aliases
+let results = Posts::query()?
+    .alias(&quot;p&quot;)
+    .select(&amp;[
+        &quot;p.id as post_id&quot;,
+        &quot;p.created_at as post_date&quot;,
+        &quot;u.id as user_id&quot;,
+        &quot;u.created_at as user_joined&quot;
+    ])
+    .join(&quot;users AS u&quot;, &quot;u.id = p.user_id&quot;)
+    .get_raw()
+    .await?;
+#}</code></pre></pre>
+<a class="header" href="guides/database.html#group-by-and-aggregations" id="group-by-and-aggregations"><h3>GROUP BY and Aggregations</h3></a>
+<p>Perform aggregate queries using <code>group_by()</code> with <code>select_raw()</code>:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Department statistics
+let dept_stats = Users::query()?
+    .alias(&quot;u&quot;)
+    .select_raw(&amp;[
+        &quot;u.department&quot;,
+        &quot;COUNT(*) as total_users&quot;,
+        &quot;AVG(u.salary) as avg_salary&quot;,
+        &quot;MAX(u.salary) as max_salary&quot;,
+        &quot;MIN(u.salary) as min_salary&quot;
+    ])
+    .where_eq(&quot;u.is_active&quot;, true)
+    .group_by(&amp;[&quot;u.department&quot;])
+    .order_by(&quot;total_users&quot;, OrderDirection::Desc)
+    .get_raw()
+    .await?;
+
+// Posts per user with filtering
+let user_post_counts = Users::query()?
+    .alias(&quot;u&quot;)
+    .select_raw(&amp;[
+        &quot;u.id&quot;,
+        &quot;u.name&quot;,
+        &quot;COUNT(p.id) as post_count&quot;,
+        &quot;MAX(p.created_at) as latest_post&quot;
+    ])
+    .left_join(&quot;posts AS p&quot;, &quot;p.user_id = u.id AND p.is_published = true&quot;)
+    .group_by(&amp;[&quot;u.id&quot;, &quot;u.name&quot;])
+    .order_by(&quot;post_count&quot;, OrderDirection::Desc)
+    .limit(10)
+    .get_raw()
+    .await?;
+#}</code></pre></pre>
+<a class="header" href="guides/database.html#working-with-raw-query-results" id="working-with-raw-query-results"><h3>Working with Raw Query Results</h3></a>
+<p>The <code>get_raw()</code> method returns <code>Vec&lt;serde_json::Value&gt;</code> for flexible result handling:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Execute raw query
+let results = Users::query()?
+    .alias(&quot;u&quot;)
+    .select_raw(&amp;[
+        &quot;u.department&quot;,
+        &quot;COUNT(*) as count&quot;,
+        &quot;AVG(u.salary) as avg_salary&quot;
+    ])
+    .group_by(&amp;[&quot;u.department&quot;])
+    .get_raw()
+    .await?;
+
+// Loop over results
+for row in &amp;results {
+    let dept = row[&quot;department&quot;].as_str().unwrap_or(&quot;Unknown&quot;);
+    let count = row[&quot;count&quot;].as_i64().unwrap_or(0);
+    let avg = row[&quot;avg_salary&quot;].as_f64().unwrap_or(0.0);
+    
+    println!(&quot;Department: {} - {} users, avg salary: ${:.2}&quot;, dept, count, avg);
+}
+
+// Transform for view consumption
+let view_data = results.iter().map(|row| {
+    json!({
+        &quot;department&quot;: row[&quot;department&quot;],
+        &quot;userCount&quot;: row[&quot;count&quot;],
+        &quot;avgSalary&quot;: format!(&quot;${:.2}&quot;, row[&quot;avg_salary&quot;].as_f64().unwrap_or(0.0))
+    })
+}).collect::&lt;Vec&lt;_&gt;&gt;();
+
+// Pass to controller view
+ctx.view(&quot;departments&quot;, json!({
+    &quot;stats&quot;: view_data,
+    &quot;total&quot;: results.len()
+}))
+#}</code></pre></pre>
+<a class="header" href="guides/database.html#combining-filters-with-complex-queries" id="combining-filters-with-complex-queries"><h3>Combining Filters with Complex Queries</h3></a>
+<p>ModelFilter works seamlessly with all the new query features:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Create reusable filter
+let active_filter = ModelFilter::new()
+    .where_eq(&quot;u.is_active&quot;, true)
+    .where_not_null(&quot;u.verified_at&quot;);
+
+// Use with SELECT and JOIN
+let users = Users::query()?
+    .alias(&quot;u&quot;)
+    .select(&amp;[&quot;u.id&quot;, &quot;u.name&quot;, &quot;COUNT(p.id) as posts&quot;])
+    .apply_filter(&amp;active_filter)
+    .left_join(&quot;posts AS p&quot;, &quot;p.user_id = u.id&quot;)
+    .group_by(&amp;[&quot;u.id&quot;, &quot;u.name&quot;])
+    .get_raw()
+    .await?;
+#}</code></pre></pre>
+<a class="header" href="guides/database.html#working-with-models" id="working-with-models"><h2>Working with Models</h2></a>
+<a class="header" href="guides/database.html#field-access" id="field-access"><h3>Field Access</h3></a>
+<p>Generated models provide getters and setters:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+let user = Users::find(123).await?.unwrap();
+
+// Getters
+let email = user.email();        // &amp;str for String fields
+let id = user.id();              // i32/i64 for ID
+let active = user.is_active();   // bool
+let status = user.status();      // Option&lt;&amp;str&gt; for enum
+let created = user.created_at(); // Option&lt;DateTime&lt;Utc&gt;&gt;
+
+// Setters (track changes automatically)
+let mut user = user;
+user.set_email(&quot;new@example.com&quot;);
+user.set_is_active(false);
+
+// Enum setters - PostgreSQL type casting is automatic
+user.set_status(Some(Users::STATUS_ACTIVE));  // Uses constant
+user.set_role(&quot;admin&quot;);  // Direct string also works
+
+// Check what changed
+if user.is_changed(&quot;email&quot;) {
+    println!(&quot;Email was modified&quot;);
+}
+
+let changed_fields = user.changed_fields(); // Vec&lt;String&gt;
+#}</code></pre></pre>
+<a class="header" href="guides/database.html#working-with-null-values" id="working-with-null-values"><h3>Working with NULL Values</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Setting NULL values
+user.set_email_verified(None);  // Sets to NULL
+user.set_email_verified(Some(Utc::now()));  // Sets value
+
+// Checking for NULL
+let users = Users::query()?
+    .where_null(&quot;email_verified&quot;)
+    .get()
+    .await?;
+#}</code></pre></pre>
+<a class="header" href="guides/database.html#working-with-enums" id="working-with-enums"><h3>Working with Enums</h3></a>
+<p>RustF provides intelligent enum handling with automatic PostgreSQL type casting:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Enum constants are generated for each enum field
+user.set_status(Some(Users::STATUS_ACTIVE));      // &quot;active&quot;
+user.set_role(Users::ROLE_ADMIN);                 // &quot;admin&quot;
+
+// PostgreSQL setters automatically handle type casting
+// The setter adds ::enum_type_name suffix when needed
+user.set_status(Some(&quot;active&quot;));  // Becomes &quot;active::status_enum&quot; for PostgreSQL
+
+// For query builders, use field-specific converter methods
+let active_users = Users::query()?
+    .where_eq(&quot;status&quot;, Users::as_status_enum(&quot;active&quot;))
+    .get()
+    .await?;
+
+// Converter methods handle database-specific requirements:
+// PostgreSQL: Returns &quot;active::status_enum&quot; 
+// MySQL/SQLite: Returns &quot;active&quot; (pass-through)
+let admins = Users::query()?
+    .where_eq(&quot;role&quot;, Users::as_role_enum(&quot;admin&quot;))
+    .where_eq(&quot;status&quot;, Users::as_status_enum(&quot;active&quot;))
+    .get()
+    .await?;
+#}</code></pre></pre>
+<a class="header" href="guides/database.html#enum-constants" id="enum-constants"><h4>Enum Constants</h4></a>
+<p>Generated models include constants for all enum values:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Generated constants in your model
+pub const STATUS_ACTIVE: &amp;'static str = &quot;active&quot;;
+pub const STATUS_INACTIVE: &amp;'static str = &quot;inactive&quot;;
+pub const STATUS_PENDING: &amp;'static str = &quot;pending&quot;;
+
+pub const ROLE_ADMIN: &amp;'static str = &quot;admin&quot;;
+pub const ROLE_USER: &amp;'static str = &quot;user&quot;;
+pub const ROLE_MODERATOR: &amp;'static str = &quot;moderator&quot;;
+#}</code></pre></pre>
+<a class="header" href="guides/database.html#enum-converter-methods" id="enum-converter-methods"><h4>Enum Converter Methods</h4></a>
+<p>Each enum field gets a converter method for query builder compatibility:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Generated converter methods
+pub fn as_status_enum(value: &amp;str) -&gt; String {
+    // PostgreSQL: Adds type suffix
+    // MySQL/SQLite: Pass-through
+}
+
+pub fn as_role_enum(value: &amp;str) -&gt; String {
+    // Database-specific handling
+}
+#}</code></pre></pre>
+<a class="header" href="guides/database.html#custom-business-logic" id="custom-business-logic"><h3>Custom Business Logic</h3></a>
+<p>Add your methods to the wrapper model:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// src/models/users.rs
+impl Users {
+    // Custom finder
+    pub async fn find_by_email(email: &amp;str) -&gt; Result&lt;Option&lt;Self&gt;&gt; {
+        Self::query()?
+            .where_eq(&quot;email&quot;, email)
+            .first()
+            .await
+    }
+    
+    // Business logic
+    pub async fn verify_email(&amp;mut self) -&gt; Result&lt;()&gt; {
+        self.set_email_verified(Some(Utc::now()));
+        self.set_is_active(true);
+        self.update().await
+    }
+    
+    // Complex queries
+    pub async fn find_inactive_users(days: i64) -&gt; Result&lt;Vec&lt;Self&gt;&gt; {
+        let cutoff = Utc::now() - Duration::days(days);
+        Self::query()?
+            .where_eq(&quot;is_active&quot;, false)
+            .where_lt(&quot;last_login&quot;, cutoff.to_rfc3339())
+            .get()
+            .await
+    }
+}
+#}</code></pre></pre>
+<a class="header" href="guides/database.html#type-safety" id="type-safety"><h2>Type Safety</h2></a>
+<a class="header" href="guides/database.html#using-type-constants" id="using-type-constants"><h3>Using Type Constants</h3></a>
+<p>Instead of magic strings, use generated type constants:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// ❌ Avoid
+let users = Users::query()?.where_eq(&quot;email&quot;, email).get().await?;
+
+// ✅ Prefer (compile-time checked)
+let users = Users::query()?
+    .where_eq(Users::columns::EMAIL, email)
+    .get()
+    .await?;
+
+// For enums, use converter methods in queries
+// ❌ Avoid - Won't work correctly with PostgreSQL
+let users = Users::query()?
+    .where_eq(&quot;status&quot;, &quot;active&quot;)
+    .get()
+    .await?;
+
+// ✅ Correct - Handles database-specific enum types
+let users = Users::query()?
+    .where_eq(&quot;status&quot;, Users::as_status_enum(&quot;active&quot;))
+    .get()
+    .await?;
+#}</code></pre></pre>
+<a class="header" href="guides/database.html#sqlvalue-conversions" id="sqlvalue-conversions"><h3>SqlValue Conversions</h3></a>
+<p>The query builder accepts many types through <code>Into&lt;SqlValue&gt;</code>:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// All of these work
+query.where_eq(&quot;age&quot;, 25);           // i32
+query.where_eq(&quot;age&quot;, 25i64);        // i64
+query.where_eq(&quot;name&quot;, &quot;John&quot;);      // &amp;str
+query.where_eq(&quot;name&quot;, String::from(&quot;John&quot;)); // String
+query.where_eq(&quot;name&quot;, &amp;name);       // &amp;String (reference)
+query.where_eq(&quot;active&quot;, true);      // bool
+query.where_eq(&quot;created&quot;, Utc::now()); // DateTime
+query.where_eq(&quot;data&quot;, json!({&quot;key&quot;: &quot;value&quot;})); // JSON
+#}</code></pre></pre>
+<a class="header" href="guides/database.html#counting-and-aggregation" id="counting-and-aggregation"><h2>Counting and Aggregation</h2></a>
+<a class="header" href="guides/database.html#count-operations" id="count-operations"><h3>Count Operations</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Count all records
+let total = Users::count().await?;
+
+// Count with conditions
+let active_count = Users::query()?
+    .where_eq(&quot;is_active&quot;, true)
+    .count()
+    .await?;
+
+// Count by group (using raw SQL for now)
+// Future: Add group_by support
+#}</code></pre></pre>
+<a class="header" href="guides/database.html#existence-checks" id="existence-checks"><h3>Existence Checks</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Check if any users exist
+let has_users = Users::query()?.exists().await?;
+
+// Check with conditions
+let has_admins = Users::query()?
+    .where_eq(&quot;role&quot;, &quot;admin&quot;)
+    .exists()
+    .await?;
+#}</code></pre></pre>
+<a class="header" href="guides/database.html#pagination" id="pagination"><h2>Pagination</h2></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Simple pagination
+let page = 2;
+let per_page = 20;
+let users = Users::paginate(page, per_page).await?;
+
+// Pagination with conditions
+let active_users = Users::query()?
+    .where_eq(&quot;is_active&quot;, true)
+    .order_by(&quot;created_at&quot;, OrderDirection::Desc)
+    .paginate(page, per_page)
+    .get()
+    .await?;
+
+// Manual limit/offset
+let users = Users::query()?
+    .limit(20)
+    .offset(40)  // Skip first 40
+    .get()
+    .await?;
+#}</code></pre></pre>
+<a class="header" href="guides/database.html#error-handling" id="error-handling"><h2>Error Handling</h2></a>
+<p>All database operations return <code>Result&lt;T&gt;</code>:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use rustf::Result;
+
+async fn get_user(id: i32) -&gt; Result&lt;Users&gt; {
+    match Users::find(id).await? {
+        Some(user) =&gt; Ok(user),
+        None =&gt; Err(rustf::Error::NotFound(format!(&quot;User {} not found&quot;, id))),
+    }
+}
+
+// Handle different cases
+match Users::find(id).await {
+    Ok(Some(user)) =&gt; {
+        // User found
+    },
+    Ok(None) =&gt; {
+        // User not found
+    },
+    Err(e) =&gt; {
+        // Database error
+        log::error!(&quot;Database error: {}&quot;, e);
+    }
+}
+#}</code></pre></pre>
+<a class="header" href="guides/database.html#best-practices" id="best-practices"><h2>Best Practices</h2></a>
+<a class="header" href="guides/database.html#1-use-query-builder-over-raw-sql" id="1-use-query-builder-over-raw-sql"><h3>1. Use Query Builder Over Raw SQL</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// ✅ Good - Type-safe, database-agnostic
+let users = Users::query()?
+    .where_eq(&quot;is_active&quot;, true)
+    .get()
+    .await?;
+
+// ❌ Avoid - Database-specific, prone to SQL injection
+let users = DB::execute_raw(&quot;SELECT * FROM users WHERE is_active = 1&quot;).await?;
+#}</code></pre></pre>
+<a class="header" href="guides/database.html#2-always-check-option-returns" id="2-always-check-option-returns"><h3>2. Always Check Option Returns</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// ✅ Good - Handle None case
+if let Some(user) = Users::find(id).await? {
+    // Work with user
+} else {
+    // Handle not found
+}
+
+// ❌ Bad - Will panic on None
+let user = Users::find(id).await?.unwrap();
+#}</code></pre></pre>
+<a class="header" href="guides/database.html#3-use-transactions-for-multiple-operations" id="3-use-transactions-for-multiple-operations"><h3>3. Use Transactions for Multiple Operations</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Future: Transaction support planned
+// For now, ensure operations are idempotent
+#}</code></pre></pre>
+<a class="header" href="guides/database.html#4-leverage-change-tracking" id="4-leverage-change-tracking"><h3>4. Leverage Change Tracking</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// ✅ Good - Only updates changed fields
+let mut user = Users::find(id).await?.unwrap();
+user.set_email(&quot;new@example.com&quot;);
+user.update().await?;  // Only updates email
+
+// ❌ Less efficient - Updates all fields
+// (Would update everything if using a different ORM)
+#}</code></pre></pre>
+<a class="header" href="guides/database.html#5-use-builder-pattern-for-creation" id="5-use-builder-pattern-for-creation"><h3>5. Use Builder Pattern for Creation</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// ✅ Good - Clear, validated
+let user = Users::builder()
+    .email(&quot;user@example.com&quot;)
+    .username(&quot;johndoe&quot;)
+    .status(Some(Users::STATUS_ACTIVE))  // Use enum constants
+    .role(Users::ROLE_USER)
+    .save()
+    .await?;
+
+// ❌ More verbose - Manual struct creation
+let user = Users { /* all fields */ };
+#}</code></pre></pre>
+<a class="header" href="guides/database.html#6-use-enum-converter-methods-in-queries" id="6-use-enum-converter-methods-in-queries"><h3>6. Use Enum Converter Methods in Queries</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// ✅ Good - Works across all databases
+let active_admins = Users::query()?
+    .where_eq(&quot;status&quot;, Users::as_status_enum(&quot;active&quot;))
+    .where_eq(&quot;role&quot;, Users::as_role_enum(&quot;admin&quot;))
+    .get()
+    .await?;
+
+// ❌ Bad - May fail with PostgreSQL enums
+let active_admins = Users::query()?
+    .where_eq(&quot;status&quot;, &quot;active&quot;)  // Missing type suffix for PostgreSQL
+    .where_eq(&quot;role&quot;, &quot;admin&quot;)
+    .get()
+    .await?;
+
+// ✅ Good - Using constants with converter
+let pending = Users::query()?
+    .where_eq(&quot;status&quot;, Users::as_status_enum(Users::STATUS_PENDING))
+    .get()
+    .await?;
+#}</code></pre></pre>
+<a class="header" href="guides/database.html#configuration-access" id="configuration-access"><h2>Configuration Access</h2></a>
+<p>Use the global <code>CONF</code> for configuration values:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use rustf::CONF;
+
+// Get database URL
+let db_url = CONF::get_string(&quot;database.url&quot;);
+
+// Get with default
+let max_conn = CONF::get_or(&quot;database.max_connections&quot;, 10);
+
+// Check feature flags
+if CONF::get_bool(&quot;features.advanced_search&quot;).unwrap_or(false) {
+    // Advanced search enabled
+}
+#}</code></pre></pre>
+<a class="header" href="guides/database.html#performance-tips" id="performance-tips"><h2>Performance Tips</h2></a>
+<ol>
+<li>
+<p><strong>Use <code>exists()</code> instead of <code>count() &gt; 0</code></strong></p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// ✅ Faster
+let has_users = Users::query()?.exists().await?;
+
+// ❌ Slower
+let has_users = Users::query()?.count().await? &gt; 0;
+#}</code></pre></pre>
+</li>
+<li>
+<p><strong>Select only needed columns</strong></p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// ✅ Good - Only fetch what you need
+let users = Users::query()?
+    .select(&amp;[&quot;id&quot;, &quot;name&quot;, &quot;email&quot;])
+    .where_eq(&quot;is_active&quot;, true)
+    .get()
+    .await?;
+
+// ❌ Avoid - Fetches all columns
+let users = Users::query()?
+    .where_eq(&quot;is_active&quot;, true)
+    .get()
+    .await?;
+#}</code></pre></pre>
+</li>
+<li>
+<p><strong>Use pagination for large datasets</strong></p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// ✅ Good
+let users = Users::paginate(1, 100).await?;
+
+// ❌ Bad for large tables
+let all_users = Users::all().await?;
+#}</code></pre></pre>
+</li>
+<li>
+<p><strong>Batch operations when possible</strong></p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Future: Bulk insert/update support
+#}</code></pre></pre>
+</li>
+</ol>
+<a class="header" href="guides/database.html#debugging" id="debugging"><h2>Debugging</h2></a>
+<a class="header" href="guides/database.html#enable-sql-logging" id="enable-sql-logging"><h3>Enable SQL Logging</h3></a>
+<pre><code class="language-toml"># In config.toml
+[logging]
+level = &quot;debug&quot;  # Shows SQL queries
+</code></pre>
+<a class="header" href="guides/database.html#inspect-generated-sql" id="inspect-generated-sql"><h3>Inspect Generated SQL</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Get the SQL without executing
+let (sql, params) = Users::query()?
+    .where_eq(&quot;email&quot;, &quot;test@example.com&quot;)
+    .to_sql()?;
+    
+println!(&quot;SQL: {}&quot;, sql);
+println!(&quot;Params: {:?}&quot;, params);
+#}</code></pre></pre>
+<a class="header" href="guides/database.html#multi-database-support" id="multi-database-support"><h2>Multi-Database Support</h2></a>
+<p>RustF automatically handles dialect differences:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// This works on PostgreSQL, MySQL, and SQLite
+let users = Users::query()?
+    .where_like(&quot;email&quot;, &quot;%@example.com&quot;)
+    .limit(10)
+    .get()
+    .await?;
+
+// Behind the scenes:
+// PostgreSQL: &quot;email LIKE $1 LIMIT 10&quot;
+// MySQL: &quot;email LIKE ? LIMIT 10&quot;  
+// SQLite: &quot;email LIKE ? LIMIT 10&quot;
+#}</code></pre></pre>
+<a class="header" href="guides/database.html#limitations--future-features" id="limitations--future-features"><h2>Limitations &amp; Future Features</h2></a>
+<a class="header" href="guides/database.html#current-limitations" id="current-limitations"><h3>Current Limitations</h3></a>
+<ul>
+<li>No transaction support yet</li>
+<li>No raw SQL bindings (only MySQL has execute_raw)</li>
+<li>No HAVING clause support (GROUP BY is supported)</li>
+<li>Limited aggregate function helpers (use select_raw() for now)</li>
+</ul>
+<a class="header" href="guides/database.html#coming-soon" id="coming-soon"><h3>Coming Soon</h3></a>
+<ul>
+<li>Transaction support</li>
+<li>Migrations integration</li>
+<li>Bulk insert/update</li>
+<li>Query caching</li>
+<li>Connection retry logic</li>
+</ul>
+<a class="header" href="guides/database.html#summary" id="summary"><h2>Summary</h2></a>
+<p>RustF's database layer provides:</p>
+<ul>
+<li><strong>Zero boilerplate</strong> - No connection passing</li>
+<li><strong>Type safety</strong> - Compile-time query validation</li>
+<li><strong>Smart updates</strong> - Change tracking built-in</li>
+<li><strong>Multi-database</strong> - Write once, run anywhere</li>
+<li><strong>Developer friendly</strong> - Intuitive API inspired by Laravel</li>
+</ul>
+<p>Start with schemas, generate models, and enjoy a modern database experience in Rust!# 🗄️ RustF Multi-Database Query Builder</p>
+<p>A type-safe, AI-friendly SQL query builder for Rust that supports PostgreSQL, MySQL, MariaDB, and SQLite with a unified API. Part of the RustF web framework ecosystem.</p>
+<blockquote>
+<p>📖 <strong>Complete Guide:</strong> For comprehensive documentation including model generation, CLI tools, and AI agent guidelines, see the <a href="../advanced/cli.md">CLI Tool Guide</a> and <a href="schemas.md">Schemas Guide</a></p>
+</blockquote>
+<a class="header" href="guides/database.html#-features" id="-features"><h2>🌟 Features</h2></a>
+<ul>
+<li>🚀 <strong>Type-safe query building</strong> with compile-time validation</li>
+<li>🔄 <strong>Multi-database support</strong> (PostgreSQL, MySQL, MariaDB, SQLite)</li>
+<li>🤖 <strong>AI-friendly design</strong> with predictable method names and clear error messages</li>
+<li>📝 <strong>Automatic SQL dialect handling</strong> for cross-database compatibility</li>
+<li>🛡️ <strong>SQL injection protection</strong> through parameterized queries</li>
+<li>📊 <strong>Schema builder</strong> with database-specific type mapping</li>
+<li>🔍 <strong>Comprehensive WHERE clauses</strong> including LIKE, IN, BETWEEN, NULL checks</li>
+<li>🔗 <strong>All JOIN types</strong> (INNER, LEFT, RIGHT, FULL, CROSS)</li>
+<li>📄 <strong>Built-in pagination</strong> and aggregation helpers</li>
+<li>⚡ <strong>Zero-cost abstractions</strong> leveraging Rust's type system</li>
+<li>🏗️ <strong>Framework integration</strong> with RustF model system and CLI tools</li>
+</ul>
+<a class="header" href="guides/database.html#table-of-contents" id="table-of-contents"><h2>Table of Contents</h2></a>
+<ul>
+<li><a href="guides/database.html#installation">Installation</a></li>
+<li><a href="guides/database.html#quick-start">Quick Start</a></li>
+<li><a href="guides/database.html#database-connection">Database Connection</a></li>
+<li><a href="guides/database.html#query-building">Query Building</a>
+<ul>
+<li><a href="guides/database.html#basic-queries">Basic Queries</a></li>
+<li><a href="guides/database.html#where-conditions">WHERE Conditions</a></li>
+<li><a href="guides/database.html#join-operations">JOIN Operations</a></li>
+<li><a href="guides/database.html#aggregations">Aggregations</a></li>
+<li><a href="guides/database.html#ordering-and-limiting">Ordering and Limiting</a></li>
+</ul>
+</li>
+<li><a href="guides/database.html#schema-builder">Schema Builder</a></li>
+<li><a href="guides/database.html#error-handling">Error Handling</a></li>
+<li><a href="guides/database.html#database-specific-features">Database-Specific Features</a></li>
+<li><a href="guides/database.html#examples">Examples</a></li>
+<li><a href="guides/database.html#api-reference">API Reference</a></li>
+</ul>
+<a class="header" href="guides/database.html#installation" id="installation"><h2>Installation</h2></a>
+<p>Add this to your <code>Cargo.toml</code>:</p>
+<pre><code class="language-toml">[dependencies]
+query-builder = &quot;0.1.0&quot;
+sqlx = { version = &quot;0.8&quot;, features = [&quot;postgres&quot;, &quot;mysql&quot;, &quot;sqlite&quot;, &quot;runtime-tokio-rustls&quot;, &quot;uuid&quot;, &quot;chrono&quot;, &quot;rust_decimal&quot;] }
+tokio = { version = &quot;1&quot;, features = [&quot;full&quot;] }
+thiserror = &quot;1.0&quot;
+serde = { version = &quot;1.0&quot;, features = [&quot;derive&quot;] }
+serde_json = &quot;1.0&quot;
+async-trait = &quot;0.1&quot;
+</code></pre>
+<a class="header" href="guides/database.html#-quick-start" id="-quick-start"><h2>⚡ Quick Start</h2></a>
+<a class="header" href="guides/database.html#1-using-with-rustf-models-recommended" id="1-using-with-rustf-models-recommended"><h3>1. Using with RustF Models (Recommended)</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use rustf::models::Users;
+
+// Simple model operations
+let user = Users::find(123).await?;
+let admins = Users::where_eq(&quot;role&quot;, &quot;admin&quot;).await?;
+
+// Model-scoped query builder
+let active_users = Users::query()?
+    .where_eq(&quot;is_active&quot;, true)
+    .where_gt(&quot;age&quot;, 18)
+    .where_like(&quot;email&quot;, &quot;%@gmail.com&quot;)
+    .order_by(&quot;created_at&quot;, OrderDirection::Desc)
+    .limit(10)
+    .get()
+    .await?;
+#}</code></pre></pre>
+<a class="header" href="guides/database.html#2-direct-query-builder-usage" id="2-direct-query-builder-usage"><h3>2. Direct Query Builder Usage</h3></a>
+<pre><pre class="playpen"><code class="language-rust">use rustf::models::{AnyDatabase, QueryBuilder, OrderDirection};
+
+#[tokio::main] 
+async fn main() -&gt; Result&lt;(), Box&lt;dyn std::error::Error&gt;&gt; {
+    // Connect to any supported database
+    let db = AnyDatabase::connect(&quot;postgresql://localhost/myapp&quot;).await?;
+    
+    // Build and execute a query
+    let (sql, params) = db.query()
+        .from(&quot;users&quot;)
+        .where_gt(&quot;age&quot;, 18)
+        .where_like(&quot;email&quot;, &quot;%@gmail.com&quot;)
+        .order_by(&quot;created_at&quot;, OrderDirection::Desc)
+        .limit(10)
+        .build()?;
+    
+    println!(&quot;Generated SQL: {}&quot;, sql);
+    println!(&quot;Parameters: {:?}&quot;, params);
+    
+    Ok(())
+}
+</code></pre></pre>
+<a class="header" href="guides/database.html#3-generate-models-from-schema" id="3-generate-models-from-schema"><h3>3. Generate Models from Schema</h3></a>
+<pre><code class="language-bash"># Create schema file
+cat &gt; schemas/users.yaml &lt;&lt; EOF
+name: users
+table: users
+fields:
+  id: { type: integer, primary_key: true, auto_increment: true }
+  name: { type: string, max_length: 100, required: true }
+  email: { type: string, max_length: 255, unique: true, required: true }
+  created_at: { type: timestamp, default: now }
+EOF
+
+# Generate models
+rustf-cli schema generate models --schema-path schemas --output src/models
+</code></pre>
+<a class="header" href="guides/database.html#database-connection" id="database-connection"><h2>Database Connection</h2></a>
+<p>The library automatically detects the database type from the connection URL:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// PostgreSQL
+let pg_db = AnyDatabase::connect(&quot;postgresql://user:pass@localhost/dbname&quot;).await?;
+
+// MySQL
+let mysql_db = AnyDatabase::connect(&quot;mysql://user:pass@localhost/dbname&quot;).await?;
+
+// SQLite
+let sqlite_db = AnyDatabase::connect(&quot;sqlite://path/to/database.db&quot;).await?;
+
+// In-memory SQLite
+let memory_db = AnyDatabase::connect(&quot;sqlite::memory:&quot;).await?;
+#}</code></pre></pre>
+<a class="header" href="guides/database.html#query-building" id="query-building"><h2>Query Building</h2></a>
+<a class="header" href="guides/database.html#basic-queries-1" id="basic-queries-1"><h3>Basic Queries</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Select all columns
+let query = db.query()
+    .from(&quot;users&quot;)
+    .build()?;
+// SELECT * FROM &quot;users&quot; (PostgreSQL)
+// SELECT * FROM `users` (MySQL)
+
+// Select specific columns
+let query = db.query()
+    .select(vec![&quot;id&quot;, &quot;name&quot;, &quot;email&quot;])
+    .from(&quot;users&quot;)
+    .build()?;
+// SELECT id, name, email FROM &quot;users&quot;
+
+// Count query
+let count = db.query()
+    .from(&quot;users&quot;)
+    .count()
+    .build()?;
+// SELECT COUNT(*) FROM &quot;users&quot;
+#}</code></pre></pre>
+<a class="header" href="guides/database.html#where-conditions-1" id="where-conditions-1"><h3>WHERE Conditions</h3></a>
+<p>The library provides a comprehensive set of WHERE operations:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Basic comparisons
+query.where_eq(&quot;status&quot;, &quot;active&quot;)      // WHERE status = ?
+query.where_ne(&quot;status&quot;, &quot;deleted&quot;)     // WHERE status &lt;&gt; ?
+query.where_gt(&quot;age&quot;, 18)               // WHERE age &gt; ?
+query.where_gte(&quot;age&quot;, 18)              // WHERE age &gt;= ?
+query.where_lt(&quot;price&quot;, 100)            // WHERE price &lt; ?
+query.where_lte(&quot;price&quot;, 100)           // WHERE price &lt;= ?
+
+// Pattern matching
+query.where_like(&quot;email&quot;, &quot;%@gmail.com&quot;)     // WHERE email LIKE ?
+query.where_not_like(&quot;email&quot;, &quot;%spam%&quot;)      // WHERE email NOT LIKE ?
+
+// IN clauses
+query.where_in(&quot;status&quot;, vec![&quot;active&quot;, &quot;pending&quot;])      // WHERE status IN (?, ?)
+query.where_not_in(&quot;role&quot;, vec![&quot;admin&quot;, &quot;super&quot;])       // WHERE role NOT IN (?, ?)
+
+// NULL checks
+query.where_null(&quot;deleted_at&quot;)          // WHERE deleted_at IS NULL
+query.where_not_null(&quot;verified_at&quot;)     // WHERE verified_at IS NOT NULL
+
+// Range queries
+query.where_between(&quot;age&quot;, 18, 65)      // WHERE age BETWEEN ? AND ?
+
+// OR conditions
+query.where_eq(&quot;status&quot;, &quot;active&quot;)
+     .or_where_eq(&quot;role&quot;, &quot;admin&quot;)      // WHERE status = ? OR role = ?
+
+// Raw SQL conditions
+query.where_raw(&quot;(status = 'active' OR created_at &gt; NOW() - INTERVAL '1 day')&quot;)
+#}</code></pre></pre>
+<a class="header" href="guides/database.html#combining-conditions" id="combining-conditions"><h3>Combining Conditions</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+let users = db.query()
+    .from(&quot;users&quot;)
+    .where_eq(&quot;active&quot;, true)
+    .where_gte(&quot;age&quot;, 18)
+    .where_like(&quot;email&quot;, &quot;%@%&quot;)
+    .where_not_null(&quot;verified_at&quot;)
+    .build()?;
+// WHERE active = ? AND age &gt;= ? AND email LIKE ? AND verified_at IS NOT NULL
+#}</code></pre></pre>
+<a class="header" href="guides/database.html#join-operations" id="join-operations"><h3>JOIN Operations</h3></a>
+<p>All standard SQL joins are supported:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// INNER JOIN
+query.join(&quot;posts&quot;, &quot;posts.user_id = users.id&quot;)
+
+// LEFT JOIN
+query.left_join(&quot;posts&quot;, &quot;posts.user_id = users.id&quot;)
+
+// RIGHT JOIN (not supported in SQLite)
+query.right_join(&quot;posts&quot;, &quot;posts.user_id = users.id&quot;)?
+
+// FULL JOIN (not supported in MySQL/MariaDB)
+query.full_join(&quot;posts&quot;, &quot;posts.user_id = users.id&quot;)?
+
+// CROSS JOIN
+query.cross_join(&quot;categories&quot;)
+
+// Complex join example
+let results = db.query()
+    .select(vec![&quot;u.name&quot;, &quot;u.email&quot;, &quot;COUNT(p.id) as post_count&quot;])
+    .from(&quot;users u&quot;)
+    .left_join(&quot;posts p&quot;, &quot;p.user_id = u.id&quot;)
+    .where_eq(&quot;u.active&quot;, true)
+    .group_by(vec![&quot;u.id&quot;, &quot;u.name&quot;, &quot;u.email&quot;])
+    .having(&quot;COUNT(p.id)&quot;, &quot;&gt;&quot;, 5)
+    .order_by(&quot;post_count&quot;, OrderDirection::Desc)
+    .build()?;
+#}</code></pre></pre>
+<a class="header" href="guides/database.html#aggregations" id="aggregations"><h3>Aggregations</h3></a>
+<p>Built-in aggregation helpers:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Simple count
+let count = db.query()
+    .from(&quot;users&quot;)
+    .count()
+    .where_eq(&quot;active&quot;, true)
+    .build()?;
+
+// Count specific column
+let count = db.query()
+    .from(&quot;orders&quot;)
+    .count_column(&quot;DISTINCT user_id&quot;)
+    .build()?;
+
+// Multiple aggregations
+let stats = db.query()
+    .from(&quot;orders&quot;)
+    .aggregate(vec![
+        (&quot;COUNT&quot;, &quot;*&quot;),
+        (&quot;SUM&quot;, &quot;total&quot;),
+        (&quot;AVG&quot;, &quot;total&quot;),
+        (&quot;MAX&quot;, &quot;total&quot;),
+        (&quot;MIN&quot;, &quot;total&quot;)
+    ])
+    .where_gte(&quot;created_at&quot;, &quot;2024-01-01&quot;)
+    .group_by(vec![&quot;product_id&quot;])
+    .build()?;
+#}</code></pre></pre>
+<a class="header" href="guides/database.html#ordering-and-limiting" id="ordering-and-limiting"><h3>Ordering and Limiting</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Simple ordering
+query.order_by(&quot;created_at&quot;, OrderDirection::Desc)
+
+// Multiple order by
+query.order_by_multiple(vec![
+    (&quot;status&quot;, OrderDirection::Asc),
+    (&quot;created_at&quot;, OrderDirection::Desc)
+])
+
+// Limiting results
+query.limit(10)
+query.offset(20)
+
+// Pagination helper
+query.paginate(2, 20)  // Page 2, 20 items per page
+// Automatically calculates: LIMIT 20 OFFSET 20
+#}</code></pre></pre>
+<a class="header" href="guides/database.html#schema-builder" id="schema-builder"><h2>Schema Builder</h2></a>
+<p>Create database tables with automatic type mapping:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use query_builder::{SchemaBuilder, DatabaseBackend};
+
+let schema = SchemaBuilder::new(DatabaseBackend::Postgres);
+
+let sql = schema.create_table(&quot;users&quot;)
+    .id()                                    // SERIAL PRIMARY KEY
+    .string(&quot;email&quot;, Some(255))
+        .not_null()
+        .unique()                           // VARCHAR(255) NOT NULL UNIQUE
+    .string(&quot;name&quot;, Some(100))              // VARCHAR(100)
+    .boolean(&quot;active&quot;)
+        .default(&quot;TRUE&quot;)                    // BOOLEAN DEFAULT TRUE
+    .timestamp(&quot;created_at&quot;)
+        .default(&quot;CURRENT_TIMESTAMP&quot;)       // TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    .build();
+
+// Different databases get appropriate types:
+// PostgreSQL: SERIAL, VARCHAR, BOOLEAN, TIMESTAMP WITH TIME ZONE
+// MySQL: INT AUTO_INCREMENT, VARCHAR, TINYINT(1), DATETIME
+// SQLite: INTEGER PRIMARY KEY AUTOINCREMENT, TEXT, INTEGER, TEXT
+#}</code></pre></pre>
+<a class="header" href="guides/database.html#available-column-types" id="available-column-types"><h3>Available Column Types</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+.id()                           // Auto-incrementing primary key
+.uuid(&quot;column_name&quot;)            // UUID (or equivalent)
+.string(&quot;column_name&quot;, Some(255))  // Variable-length string
+.boolean(&quot;column_name&quot;)         // Boolean type
+.timestamp(&quot;column_name&quot;)       // Timestamp/datetime
+.integer(&quot;column_name&quot;)         // Integer
+.float(&quot;column_name&quot;)           // Floating point
+.text(&quot;column_name&quot;)            // Long text
+#}</code></pre></pre>
+<a class="header" href="guides/database.html#column-modifiers" id="column-modifiers"><h3>Column Modifiers</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+.not_null()                     // NOT NULL constraint
+.unique()                       // UNIQUE constraint
+.default(&quot;value&quot;)               // DEFAULT value
+.primary_key()                  // PRIMARY KEY constraint
+#}</code></pre></pre>
+<a class="header" href="guides/database.html#error-handling-1" id="error-handling-1"><h2>Error Handling</h2></a>
+<p>The library provides AI-friendly error messages:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+match result {
+    Err(QueryError::MissingClause { clause }) =&gt; {
+        // &quot;Missing required clause: from. Add .from() to your query.&quot;
+    },
+    Err(QueryError::UnsupportedFeature { backend, feature }) =&gt; {
+        // &quot;Feature not supported in PostgreSQL: RIGHT JOIN&quot;
+    },
+    Err(QueryError::InvalidColumn { column, available }) =&gt; {
+        // &quot;Invalid column name: 'usr_name'. Available columns: ['id', 'name', 'email']&quot;
+    },
+    _ =&gt; {}
+}
+#}</code></pre></pre>
+<a class="header" href="guides/database.html#database-specific-features" id="database-specific-features"><h2>Database-Specific Features</h2></a>
+<p>The library automatically handles database differences:</p>
+<a class="header" href="guides/database.html#placeholders" id="placeholders"><h3>Placeholders</h3></a>
+<ul>
+<li>PostgreSQL: <code>$1, $2, $3</code></li>
+<li>MySQL/SQLite: <code>?, ?, ?</code></li>
+</ul>
+<a class="header" href="guides/database.html#identifier-quoting" id="identifier-quoting"><h3>Identifier Quoting</h3></a>
+<ul>
+<li>PostgreSQL/SQLite: <code>&quot;column_name&quot;</code></li>
+<li>MySQL/MariaDB: <code>`column_name`</code></li>
+</ul>
+<a class="header" href="guides/database.html#returning-clause" id="returning-clause"><h3>RETURNING Clause</h3></a>
+<ul>
+<li>Supported: PostgreSQL, SQLite</li>
+<li>Not supported: MySQL/MariaDB</li>
+</ul>
+<a class="header" href="guides/database.html#boolean-types" id="boolean-types"><h3>Boolean Types</h3></a>
+<ul>
+<li>PostgreSQL: <code>BOOLEAN</code></li>
+<li>MySQL/MariaDB: <code>TINYINT(1)</code></li>
+<li>SQLite: <code>INTEGER</code></li>
+</ul>
+<a class="header" href="guides/database.html#examples" id="examples"><h2>Examples</h2></a>
+<a class="header" href="guides/database.html#example-1-user-authentication-query" id="example-1-user-authentication-query"><h3>Example 1: User Authentication Query</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+let user = db.query()
+    .select(vec![&quot;id&quot;, &quot;email&quot;, &quot;password_hash&quot;, &quot;role&quot;])
+    .from(&quot;users&quot;)
+    .where_eq(&quot;email&quot;, email)
+    .where_eq(&quot;active&quot;, true)
+    .where_null(&quot;deleted_at&quot;)
+    .build()?;
+#}</code></pre></pre>
+<a class="header" href="guides/database.html#example-2-search-with-pagination" id="example-2-search-with-pagination"><h3>Example 2: Search with Pagination</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+let search_term = &quot;%rust%&quot;;
+let page = 2;
+
+let posts = db.query()
+    .select(vec![&quot;id&quot;, &quot;title&quot;, &quot;content&quot;, &quot;author_id&quot;, &quot;created_at&quot;])
+    .from(&quot;posts&quot;)
+    .where_like(&quot;title&quot;, &amp;search_term)
+    .or_where_like(&quot;content&quot;, &amp;search_term)
+    .where_eq(&quot;published&quot;, true)
+    .order_by(&quot;created_at&quot;, OrderDirection::Desc)
+    .paginate(page, 20)
+    .build()?;
+#}</code></pre></pre>
+<a class="header" href="guides/database.html#example-3-dashboard-statistics" id="example-3-dashboard-statistics"><h3>Example 3: Dashboard Statistics</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+let stats = db.query()
+    .from(&quot;orders&quot;)
+    .aggregate(vec![
+        (&quot;COUNT&quot;, &quot;*&quot;),
+        (&quot;SUM&quot;, &quot;total_amount&quot;),
+        (&quot;AVG&quot;, &quot;total_amount&quot;)
+    ])
+    .where_between(&quot;created_at&quot;, start_date, end_date)
+    .where_eq(&quot;status&quot;, &quot;completed&quot;)
+    .group_by(vec![&quot;DATE(created_at)&quot;])
+    .order_by(&quot;DATE(created_at)&quot;, OrderDirection::Asc)
+    .build()?;
+#}</code></pre></pre>
+<a class="header" href="guides/database.html#example-4-complex-report-query" id="example-4-complex-report-query"><h3>Example 4: Complex Report Query</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+let report = db.query()
+    .select(vec![
+        &quot;c.name as category&quot;,
+        &quot;p.name as product&quot;,
+        &quot;SUM(oi.quantity) as total_sold&quot;,
+        &quot;SUM(oi.quantity * oi.price) as revenue&quot;
+    ])
+    .from(&quot;order_items oi&quot;)
+    .join(&quot;orders o&quot;, &quot;o.id = oi.order_id&quot;)
+    .join(&quot;products p&quot;, &quot;p.id = oi.product_id&quot;)
+    .join(&quot;categories c&quot;, &quot;c.id = p.category_id&quot;)
+    .where_eq(&quot;o.status&quot;, &quot;completed&quot;)
+    .where_between(&quot;o.created_at&quot;, &quot;2024-01-01&quot;, &quot;2024-12-31&quot;)
+    .group_by(vec![&quot;c.id&quot;, &quot;c.name&quot;, &quot;p.id&quot;, &quot;p.name&quot;])
+    .having(&quot;SUM(oi.quantity)&quot;, &quot;&gt;&quot;, 100)
+    .order_by(&quot;revenue&quot;, OrderDirection::Desc)
+    .limit(50)
+    .build()?;
+#}</code></pre></pre>
+<a class="header" href="guides/database.html#api-reference" id="api-reference"><h2>API Reference</h2></a>
+<a class="header" href="guides/database.html#querybuilder-methods" id="querybuilder-methods"><h3>QueryBuilder Methods</h3></a>
+<table><thead><tr><th> Method </th><th> Description </th><th> Example </th></tr></thead><tbody>
+<tr><td> <code>select(columns)</code> </td><td> Select specific columns </td><td> <code>.select(vec![&quot;id&quot;, &quot;name&quot;])</code> </td></tr>
+<tr><td> <code>from(table)</code> </td><td> Specify table </td><td> <code>.from(&quot;users&quot;)</code> </td></tr>
+<tr><td> <code>where_*</code> </td><td> WHERE conditions </td><td> <code>.where_eq(&quot;status&quot;, &quot;active&quot;)</code> </td></tr>
+<tr><td> <code>or_where_*</code> </td><td> OR WHERE conditions </td><td> <code>.or_where_eq(&quot;role&quot;, &quot;admin&quot;)</code> </td></tr>
+<tr><td> <code>join(table, on)</code> </td><td> INNER JOIN </td><td> <code>.join(&quot;posts&quot;, &quot;posts.user_id = users.id&quot;)</code> </td></tr>
+<tr><td> <code>left_join(table, on)</code> </td><td> LEFT JOIN </td><td> <code>.left_join(&quot;posts&quot;, &quot;posts.user_id = users.id&quot;)</code> </td></tr>
+<tr><td> <code>group_by(columns)</code> </td><td> GROUP BY </td><td> <code>.group_by(vec![&quot;user_id&quot;])</code> </td></tr>
+<tr><td> <code>having(col, op, val)</code> </td><td> HAVING clause </td><td> <code>.having(&quot;COUNT(*)&quot;, &quot;&gt;&quot;, 5)</code> </td></tr>
+<tr><td> <code>order_by(col, dir)</code> </td><td> ORDER BY </td><td> <code>.order_by(&quot;created_at&quot;, OrderDirection::Desc)</code> </td></tr>
+<tr><td> <code>limit(n)</code> </td><td> LIMIT results </td><td> <code>.limit(10)</code> </td></tr>
+<tr><td> <code>offset(n)</code> </td><td> OFFSET results </td><td> <code>.offset(20)</code> </td></tr>
+<tr><td> <code>distinct()</code> </td><td> SELECT DISTINCT </td><td> <code>.distinct()</code> </td></tr>
+<tr><td> <code>count()</code> </td><td> COUNT(*) </td><td> <code>.count()</code> </td></tr>
+<tr><td> <code>paginate(page, per_page)</code> </td><td> Pagination helper </td><td> <code>.paginate(2, 20)</code> </td></tr>
+</tbody></table>
+<a class="header" href="guides/database.html#where-condition-methods" id="where-condition-methods"><h3>WHERE Condition Methods</h3></a>
+<table><thead><tr><th> Method </th><th> SQL Equivalent </th></tr></thead><tbody>
+<tr><td> <code>where_eq(col, val)</code> </td><td> <code>WHERE col = val</code> </td></tr>
+<tr><td> <code>where_ne(col, val)</code> </td><td> <code>WHERE col &lt;&gt; val</code> </td></tr>
+<tr><td> <code>where_gt(col, val)</code> </td><td> <code>WHERE col &gt; val</code> </td></tr>
+<tr><td> <code>where_gte(col, val)</code> </td><td> <code>WHERE col &gt;= val</code> </td></tr>
+<tr><td> <code>where_lt(col, val)</code> </td><td> <code>WHERE col &lt; val</code> </td></tr>
+<tr><td> <code>where_lte(col, val)</code> </td><td> <code>WHERE col &lt;= val</code> </td></tr>
+<tr><td> <code>where_like(col, pattern)</code> </td><td> <code>WHERE col LIKE pattern</code> </td></tr>
+<tr><td> <code>where_not_like(col, pattern)</code> </td><td> <code>WHERE col NOT LIKE pattern</code> </td></tr>
+<tr><td> <code>where_in(col, values)</code> </td><td> <code>WHERE col IN (values)</code> </td></tr>
+<tr><td> <code>where_not_in(col, values)</code> </td><td> <code>WHERE col NOT IN (values)</code> </td></tr>
+<tr><td> <code>where_between(col, start, end)</code> </td><td> <code>WHERE col BETWEEN start AND end</code> </td></tr>
+<tr><td> <code>where_null(col)</code> </td><td> <code>WHERE col IS NULL</code> </td></tr>
+<tr><td> <code>where_not_null(col)</code> </td><td> <code>WHERE col IS NOT NULL</code> </td></tr>
+</tbody></table>
+<a class="header" href="guides/database.html#best-practices-1" id="best-practices-1"><h2>Best Practices</h2></a>
+<ol>
+<li>
+<p><strong>Use parameterized queries</strong>: The library automatically parameterizes all values to prevent SQL injection.</p>
+</li>
+<li>
+<p><strong>Check feature support</strong>: Some features like RIGHT JOIN (SQLite) or FULL JOIN (MySQL) aren't universally supported. The library returns clear errors for unsupported features.</p>
+</li>
+<li>
+<p><strong>Use type-safe values</strong>: Pass proper Rust types that implement <code>Into&lt;SqlValue&gt;</code>.</p>
+</li>
+<li>
+<p><strong>Handle errors appropriately</strong>: Use the detailed error types to provide meaningful feedback to users.</p>
+</li>
+<li>
+<p><strong>Leverage the schema builder</strong>: Use it to ensure consistent table structures across different databases.</p>
+</li>
+</ol>
+<a class="header" href="guides/database.html#-ai-agent-guidelines" id="-ai-agent-guidelines"><h2>🤖 AI Agent Guidelines</h2></a>
+<p>When working with the RustF query builder:</p>
+<p><strong>✅ Recommended:</strong></p>
+<ul>
+<li>Use model-scoped queries (<code>Users::query()</code>) for type safety</li>
+<li>Use type constants (<code>UsersBase::Types::email</code>) instead of hardcoding types</li>
+<li>Handle database-specific features gracefully with error checking</li>
+<li>Use the unified <code>AnyDatabase</code> API for cross-database compatibility</li>
+</ul>
+<p><strong>❌ Avoid:</strong></p>
+<ul>
+<li>Hardcoding SQL strings when the query builder can generate them</li>
+<li>Ignoring database feature limitations (RIGHT JOIN in SQLite, etc.)</li>
+<li>Using raw parameters instead of type-safe SqlValue conversion</li>
+</ul>
+<p><strong>Example AI-Friendly Error Handling:</strong></p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+match query.right_join(&quot;posts&quot;, &quot;posts.user_id = users.id&quot;) {
+    Ok(q) =&gt; q,
+    Err(QueryError::UnsupportedFeature { backend, feature }) =&gt; {
+        // Fallback to LEFT JOIN for compatibility
+        query.left_join(&quot;posts&quot;, &quot;posts.user_id = users.id&quot;)?
+    }
+}
+#}</code></pre></pre>
+<a class="header" href="guides/database.html#-related-documentation" id="-related-documentation"><h2>🔗 Related Documentation</h2></a>
+<ul>
+<li><strong><a href="../advanced/cli.md">CLI Tool Guide</a></strong> - Database tools and code generation</li>
+<li><strong><a href="schemas.md">Schemas Guide</a></strong> - Schema-driven development</li>
+<li><strong><a href="../../docs/MODEL_GENERATION.md">Model Generation Guide</a></strong> - Schema-driven development</li>
+<li><strong><a href="../../docs/CLI_REFERENCE.md">RustF CLI Reference</a></strong> - Database and schema commands</li>
+<li><strong><a href="../../docs/MULTI_DATABASE.md">Multi-Database Best Practices</a></strong> - Cross-database compatibility</li>
+</ul>
+<a class="header" href="guides/database.html#-contributing" id="-contributing"><h2>🤝 Contributing</h2></a>
+<p>Contributions are welcome! Please feel free to submit a Pull Request.</p>
+<a class="header" href="guides/database.html#development-setup" id="development-setup"><h3>Development Setup</h3></a>
+<pre><code class="language-bash"># Clone the repository
+git clone https://github.com/rustf/rustf.git
+cd rustf
+
+# Run tests
+cargo test
+
+# Test with different databases
+docker-compose up -d postgres mysql
+cargo test --features=&quot;postgres,mysql,sqlite&quot;
+</code></pre>
+<a class="header" href="guides/database.html#-license" id="-license"><h2>📄 License</h2></a>
+<a class="header" href="guides/database.html#this-project-is-licensed-under-the-mit-license---see-the-license-file-for-details" id="this-project-is-licensed-under-the-mit-license---see-the-license-file-for-details"><h2>This project is licensed under the MIT License - see the LICENSE file for details.</h2></a>
+<a class="header" href="guides/database.html#pagination-helper-guide" id="pagination-helper-guide"><h1>Pagination Helper Guide</h1></a>
+<p>RustF provides a built-in pagination helper through the <code>U::paginate()</code> function that makes it easy to implement pagination in your web applications.</p>
+<a class="header" href="guides/database.html#overview-1" id="overview-1"><h2>Overview</h2></a>
+<p>The pagination helper creates a complete pagination object with:</p>
+<ul>
+<li>Page navigation (first, last, previous, next)</li>
+<li>Page number ranges</li>
+<li>URL generation with customizable patterns</li>
+<li>Template-friendly JSON output</li>
+</ul>
+<a class="header" href="guides/database.html#basic-usage-2" id="basic-usage-2"><h2>Basic Usage</h2></a>
+<a class="header" href="guides/database.html#in-controllers" id="in-controllers"><h3>In Controllers</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use rustf::prelude::*;
+
+async fn list_users(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    // Parse page from query parameters
+    let page = ctx.query(&quot;page&quot;)
+        .and_then(|p| p.parse::&lt;u32&gt;().ok())
+        .unwrap_or(1);
+    
+    let per_page = 20;
+    
+    // Get total count from database
+    let total_users = Users::count().await?;
+    
+    // Fetch paginated data
+    let users = Users::paginate(page, per_page).await?;
+    
+    // Create pagination object
+    let pagination = U::paginate(
+        total_users,           // Total items
+        page,                  // Current page (1-based)
+        per_page,              // Items per page
+        &quot;/users?page={0}&quot;      // URL pattern with {0} placeholder
+    );
+    
+    // Pass to view
+    ctx.view(&quot;users/list&quot;, json!({
+        &quot;users&quot;: users,
+        &quot;pagination&quot;: pagination.to_json()
+    }))
+}
+#}</code></pre></pre>
+<a class="header" href="guides/database.html#in-templates-totaljs-syntax" id="in-templates-totaljs-syntax"><h3>In Templates (Total.js Syntax)</h3></a>
+<pre><code class="language-html">&lt;!-- Basic pagination controls --&gt;
+&lt;div class=&quot;pagination&quot;&gt;
+    @{if pagination.isPrev}
+        &lt;a href=&quot;@{pagination.prev.url}&quot;&gt;Previous&lt;/a&gt;
+    @{fi}
+    
+    @{foreach page in pagination.range}
+        @{if page.selected}
+            &lt;span class=&quot;current&quot;&gt;@{page.page}&lt;/span&gt;
+        @{else}
+            &lt;a href=&quot;@{page.url}&quot;&gt;@{page.page}&lt;/a&gt;
+        @{fi}
+    @{end}
+    
+    @{if pagination.isNext}
+        &lt;a href=&quot;@{pagination.next.url}&quot;&gt;Next&lt;/a&gt;
+    @{fi}
+&lt;/div&gt;
+</code></pre>
+<a class="header" href="guides/database.html#complete-navigation-example" id="complete-navigation-example"><h3>Complete Navigation Example</h3></a>
+<pre><code class="language-html">&lt;!-- Full pagination with first/last links --&gt;
+&lt;div class=&quot;pagination&quot;&gt;
+    &lt;!-- First &amp; Previous --&gt;
+    @{if !pagination.isFirst}
+        &lt;a href=&quot;@{pagination.first.url}&quot;&gt;« First&lt;/a&gt;
+    @{fi}
+    
+    @{if pagination.isPrev}
+        &lt;a href=&quot;@{pagination.prev.url}&quot;&gt;‹ Previous&lt;/a&gt;
+    @{else}
+        &lt;span class=&quot;disabled&quot;&gt;‹ Previous&lt;/span&gt;
+    @{fi}
+    
+    &lt;!-- Page Numbers --&gt;
+    @{foreach page in pagination.range}
+        @{if page.selected}
+            &lt;span class=&quot;current&quot;&gt;@{page.page}&lt;/span&gt;
+        @{else}
+            &lt;a href=&quot;@{page.url}&quot;&gt;@{page.page}&lt;/a&gt;
+        @{fi}
+    @{end}
+    
+    &lt;!-- Next &amp; Last --&gt;
+    @{if pagination.isNext}
+        &lt;a href=&quot;@{pagination.next.url}&quot;&gt;Next ›&lt;/a&gt;
+    @{else}
+        &lt;span class=&quot;disabled&quot;&gt;Next ›&lt;/span&gt;
+    @{fi}
+    
+    @{if !pagination.isLast}
+        &lt;a href=&quot;@{pagination.last.url}&quot;&gt;Last »&lt;/a&gt;
+    @{fi}
+&lt;/div&gt;
+
+&lt;!-- Page info --&gt;
+&lt;p&gt;Page @{pagination.page} of @{pagination.count} 
+   (@{pagination.items} total items)&lt;/p&gt;
+</code></pre>
+<a class="header" href="guides/database.html#pagination-object-structure" id="pagination-object-structure"><h2>Pagination Object Structure</h2></a>
+<p>The <code>pagination.to_json()</code> method returns:</p>
+<pre><code class="language-json">{
+  &quot;items&quot;: 157,        // Total number of items
+  &quot;page&quot;: 5,           // Current page
+  &quot;count&quot;: 16,         // Total pages
+  &quot;per_page&quot;: 10,      // Items per page
+  &quot;isFirst&quot;: false,    // Is first page?
+  &quot;isLast&quot;: false,     // Is last page?
+  &quot;isPrev&quot;: true,      // Has previous page?
+  &quot;isNext&quot;: true,      // Has next page?
+  &quot;first&quot;: {
+    &quot;url&quot;: &quot;/users?page=1&quot;
+  },
+  &quot;last&quot;: {
+    &quot;url&quot;: &quot;/users?page=16&quot;
+  },
+  &quot;prev&quot;: {
+    &quot;url&quot;: &quot;/users?page=4&quot;
+  },
+  &quot;next&quot;: {
+    &quot;url&quot;: &quot;/users?page=6&quot;
+  },
+  &quot;range&quot;: [           // Page numbers for display
+    {
+      &quot;page&quot;: 3,
+      &quot;url&quot;: &quot;/users?page=3&quot;,
+      &quot;selected&quot;: false
+    },
+    {
+      &quot;page&quot;: 4,
+      &quot;url&quot;: &quot;/users?page=4&quot;,
+      &quot;selected&quot;: false
+    },
+    {
+      &quot;page&quot;: 5,
+      &quot;url&quot;: &quot;/users?page=5&quot;,
+      &quot;selected&quot;: true
+    },
+    // ... up to 7 pages by default
+  ]
+}
+</code></pre>
+<a class="header" href="guides/database.html#advanced-usage" id="advanced-usage"><h2>Advanced Usage</h2></a>
+<a class="header" href="guides/database.html#custom-url-patterns" id="custom-url-patterns"><h3>Custom URL Patterns</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Simple query parameter
+let pagination = U::paginate(total, page, 20, &quot;/posts?page={0}&quot;);
+
+// With multiple parameters
+let pagination = U::paginate(total, page, 20, &quot;/posts?category=tech&amp;page={0}&quot;);
+
+// Path-based pagination
+let pagination = U::paginate(total, page, 20, &quot;/posts/page/{0}&quot;);
+
+// With hash fragments
+let pagination = U::paginate(total, page, 20, &quot;/posts?page={0}#results&quot;);
+#}</code></pre></pre>
+<a class="header" href="guides/database.html#pagination-with-filters" id="pagination-with-filters"><h3>Pagination with Filters</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+async fn search_posts(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    let page = ctx.query(&quot;page&quot;)
+        .and_then(|p| p.parse::&lt;u32&gt;().ok())
+        .unwrap_or(1);
+    let search = ctx.query(&quot;q&quot;).unwrap_or(&quot;&quot;);
+    let category = ctx.query(&quot;category&quot;).unwrap_or(&quot;all&quot;);
+    
+    // Build query with filters
+    let total = Posts::query()?
+        .where_like(&quot;title&quot;, &amp;format!(&quot;%{}%&quot;, search))
+        .where_eq(&quot;category&quot;, category)
+        .count()
+        .await?;
+    
+    let posts = Posts::query()?
+        .where_like(&quot;title&quot;, &amp;format!(&quot;%{}%&quot;, search))
+        .where_eq(&quot;category&quot;, category)
+        .paginate(page, 20)
+        .get()
+        .await?;
+    
+    // Include filters in URL pattern
+    let url_pattern = format!(
+        &quot;/search?q={}&amp;category={}&amp;page={{0}}&quot;, 
+        U::encode(search),
+        U::encode(category)
+    );
+    
+    let pagination = U::paginate(total, page, 20, &amp;url_pattern);
+    
+    ctx.view(&quot;search-results&quot;, json!({
+        &quot;posts&quot;: posts,
+        &quot;pagination&quot;: pagination.to_json(),
+        &quot;search&quot;: search,
+        &quot;category&quot;: category
+    }))
+}
+#}</code></pre></pre>
+<a class="header" href="guides/database.html#styling-example" id="styling-example"><h2>Styling Example</h2></a>
+<pre><code class="language-css">.pagination {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin: 20px 0;
+}
+
+.pagination a,
+.pagination span {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    text-decoration: none;
+}
+
+.pagination a:hover {
+    background: #007bff;
+    color: white;
+}
+
+.pagination .current {
+    background: #007bff;
+    color: white;
+    font-weight: bold;
+}
+
+.pagination .disabled {
+    color: #999;
+    cursor: not-allowed;
+}
+</code></pre>
+<a class="header" href="guides/database.html#api-reference-1" id="api-reference-1"><h2>API Reference</h2></a>
+<a class="header" href="guides/database.html#upaginate" id="upaginate"><h3>U::paginate()</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+pub fn paginate(
+    total: i64,           // Total number of items
+    page: u32,            // Current page (1-based)
+    per_page: u32,        // Items per page
+    url_pattern: &amp;str     // URL pattern with {0} placeholder
+) -&gt; Pagination
+#}</code></pre></pre>
+<a class="header" href="guides/database.html#pagination-methods" id="pagination-methods"><h3>Pagination Methods</h3></a>
+<ul>
+<li><code>to_json()</code> - Convert to JSON for template use</li>
+<li><code>is_first()</code> - Check if on first page</li>
+<li><code>is_last()</code> - Check if on last page</li>
+<li><code>has_prev()</code> - Check if previous page exists</li>
+<li><code>has_next()</code> - Check if next page exists</li>
+<li><code>first_url()</code> - Get URL for first page</li>
+<li><code>last_url()</code> - Get URL for last page</li>
+<li><code>prev_url()</code> - Get URL for previous page</li>
+<li><code>next_url()</code> - Get URL for next page</li>
+<li><code>range(max_items)</code> - Get page number range for display</li>
+</ul>
+<a class="header" href="guides/database.html#best-practices-2" id="best-practices-2"><h2>Best Practices</h2></a>
+<ol>
+<li><strong>Always validate page numbers</strong> - Ensure page is within valid range</li>
+<li><strong>Use reasonable per_page limits</strong> - Typically 10-100 items</li>
+<li><strong>Cache total counts</strong> - For large datasets, consider caching counts</li>
+<li><strong>Include page info</strong> - Show &quot;Page X of Y&quot; for better UX</li>
+<li><strong>Provide direct navigation</strong> - Include first/last links for long lists</li>
+<li><strong>Make it accessible</strong> - Use proper ARIA labels and semantic HTML</li>
+<li><strong>Handle edge cases</strong> - Empty results, single page, invalid page numbers</li>
+</ol>
+<a class="header" href="guides/database.html#example-complete-implementation" id="example-complete-implementation"><h2>Example: Complete Implementation</h2></a>
+<p>See <code>/rustf-example/src/controllers/pagination_demo.rs</code> and <code>/rustf-example/views/pagination-demo.html</code> for a complete working example.</p>
+
+                </div>
+
+                <!-- Mobile navigation buttons -->
+                
+                    <a rel="prev" href="guides/sessions.html" class="mobile-nav-chapters previous" title="Previous chapter">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                
+
+                
+                    <a rel="next" href="guides/configuration.html" class="mobile-nav-chapters next" title="Next chapter">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+                
+
+            </div>
+
+            
+                <a href="guides/sessions.html" class="nav-chapters previous" title="You can navigate through the chapters using the arrow keys">
+                    <i class="fa fa-angle-left"></i>
+                </a>
+            
+
+            
+                <a href="guides/configuration.html" class="nav-chapters next" title="You can navigate through the chapters using the arrow keys">
+                    <i class="fa fa-angle-right"></i>
+                </a>
+            
+
+        </div>
+
+
+        <!-- Local fallback for Font Awesome -->
+        <script>
+            if ($(".fa").css("font-family") !== "FontAwesome") {
+                $('<link rel="stylesheet" type="text/css" href="_FontAwesome/css/font-awesome.css">').prependTo('head');
+            }
+        </script>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        
+
+        
+
+        
+
+        
+
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS script -->
+        
+
+    </body>
+</html>

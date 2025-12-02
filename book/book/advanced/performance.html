@@ -1,0 +1,368 @@
+<!DOCTYPE HTML>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Performance Optimization - RustF Framework Documentation</title>
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="Complete guide to the RustF MVC web framework for Rust">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <base href="../">
+
+        <link rel="stylesheet" href="book.css">
+        <link href="https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800" rel="stylesheet" type="text/css">
+        <link href="https://fonts.googleapis.com/css?family=Source+Code+Pro:500" rel="stylesheet" type="text/css">
+
+        <link rel="shortcut icon" href="favicon.png">
+
+        <!-- Font Awesome -->
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
+
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme -->
+        
+
+        
+
+        <!-- Fetch Clipboard.js from CDN but have a local fallback -->
+        <script src="https://cdn.jsdelivr.net/clipboard.js/1.6.1/clipboard.min.js"></script>
+        <script>
+            if (typeof Clipboard == 'undefined') {
+                document.write(unescape("%3Cscript src='clipboard.min.js'%3E%3C/script%3E"));
+            }
+        </script>
+
+        <!-- Fetch JQuery from CDN but have a local fallback -->
+        <script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+        <script>
+            if (typeof jQuery == 'undefined') {
+                document.write(unescape("%3Cscript src='jquery.js'%3E%3C/script%3E"));
+            }
+        </script>
+
+        <!-- Fetch store.js from local - TODO add CDN when 2.x.x is available on cdnjs -->
+        <script src="store.js"></script>
+
+    </head>
+    <body class="light">
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme = store.get('mdbook-theme');
+            if (theme === null || theme === undefined) { theme = 'light'; }
+            $('body').removeClass().addClass(theme);
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var sidebar = store.get('mdbook-sidebar');
+            if (sidebar === "hidden") { $("html").addClass("sidebar-hidden") }
+            else if (sidebar === "visible") { $("html").addClass("sidebar-visible") }
+        </script>
+
+        <div id="sidebar" class="sidebar">
+            <ul class="chapter"><li class="affix"><a href="README.html">Introduction</a></li><li><a href="getting-started/README.html"><strong>1.</strong> Quick Start</a></li><li><a href="getting-started/installation.html"><strong>2.</strong> Installation</a></li><li><a href="getting-started/hello-world.html"><strong>3.</strong> Hello World</a></li><li><a href="getting-started/project-structure.html"><strong>4.</strong> Project Structure</a></li><li><a href="guides/controllers.html"><strong>5.</strong> Controllers &amp; Routing</a></li><li><a href="guides/views.html"><strong>6.</strong> Views &amp; Templates</a></li><li><a href="guides/middleware.html"><strong>7.</strong> Middleware</a></li><li><a href="guides/sessions.html"><strong>8.</strong> Sessions</a></li><li><a href="guides/database.html"><strong>9.</strong> Database Integration</a></li><li><a href="guides/configuration.html"><strong>10.</strong> Configuration</a></li><li><a href="guides/security.html"><strong>11.</strong> Security</a></li><li><a href="guides/error-handling.html"><strong>12.</strong> Error Handling</a></li><li><a href="guides/schemas.html"><strong>13.</strong> Schemas &amp; Definitions</a></li><li><a href="advanced/README.html"><strong>14.</strong> Overview</a></li><li><a href="advanced/performance.html" class="active"><strong>15.</strong> Performance Optimization</a></li><li><a href="advanced/workers.html"><strong>16.</strong> Workers</a></li><li><a href="advanced/events.html"><strong>17.</strong> Events</a></li><li><a href="advanced/modules.html"><strong>18.</strong> Modules</a></li><li><a href="advanced/cli.html"><strong>19.</strong> CLI Tool</a></li><li><a href="api-reference/README.html"><strong>20.</strong> Overview</a></li><li><a href="api-reference/context.html"><strong>21.</strong> Context API</a></li><li><a href="api-reference/models.html"><strong>22.</strong> Model API</a></li><li><a href="api-reference/routing.html"><strong>23.</strong> Routing API</a></li><li><a href="api-reference/utilities.html"><strong>24.</strong> Utilities</a></li><li><a href="examples/README.html"><strong>25.</strong> Overview</a></li><li><a href="examples/rest-api.html"><strong>26.</strong> Building a REST API</a></li><li><a href="examples/authentication.html"><strong>27.</strong> Authentication</a></li><li><a href="examples/real-world-app.html"><strong>28.</strong> Real-World Application</a></li><li><a href="deployment/production.html"><strong>29.</strong> Production Deployment</a></li><li><a href="deployment/docker.html"><strong>30.</strong> Docker</a></li></ul>
+        </div>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page" tabindex="-1">
+                
+                <div id="menu-bar" class="menu-bar">
+                    <div class="left-buttons">
+                        <i id="sidebar-toggle" class="fa fa-bars" title="Toggle sidebar"></i>
+                        <i id="theme-toggle" class="fa fa-paint-brush" title="Change theme"></i>
+                    </div>
+
+                    <h1 class="menu-title">RustF Framework Documentation</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html">
+                            <i id="print-button" class="fa fa-print" title="Print this book"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <div id="content" class="content">
+                    <a class="header" href="advanced/performance.html#performance-optimization" id="performance-optimization"><h1>Performance Optimization</h1></a>
+<p>This guide covers performance optimization techniques for RustF applications.</p>
+<a class="header" href="advanced/performance.html#overview" id="overview"><h2>Overview</h2></a>
+<p>RustF is designed for performance, but there are several strategies to optimize your application further.</p>
+<a class="header" href="advanced/performance.html#view-caching" id="view-caching"><h2>View Caching</h2></a>
+<a class="header" href="advanced/performance.html#enable-view-caching" id="enable-view-caching"><h3>Enable View Caching</h3></a>
+<p>In production, enable view caching:</p>
+<pre><code class="language-toml">[views]
+cache_enabled = true
+</code></pre>
+<p>This caches compiled templates to avoid recompilation on every request.</p>
+<a class="header" href="advanced/performance.html#database-optimization" id="database-optimization"><h2>Database Optimization</h2></a>
+<a class="header" href="advanced/performance.html#connection-pooling" id="connection-pooling"><h3>Connection Pooling</h3></a>
+<p>Configure appropriate pool size:</p>
+<pre><code class="language-toml">[database]
+pool_size = 20
+max_connections = 50
+</code></pre>
+<a class="header" href="advanced/performance.html#query-optimization" id="query-optimization"><h3>Query Optimization</h3></a>
+<ul>
+<li>Use indexes on frequently queried columns</li>
+<li>Avoid N+1 queries</li>
+<li>Use pagination for large datasets</li>
+<li>Cache frequently accessed data</li>
+</ul>
+<a class="header" href="advanced/performance.html#example-optimized-query" id="example-optimized-query"><h3>Example: Optimized Query</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Bad: N+1 queries
+for post in posts {
+    let author = get_author(post.author_id)?; // Query per post
+}
+
+// Good: Single query with join
+let posts_with_authors = Posts::query()
+    .join(&quot;users&quot;, &quot;posts.author_id&quot;, &quot;users.id&quot;)
+    .select(&quot;posts.*, users.name as author_name&quot;)
+    .find()?;
+#}</code></pre></pre>
+<a class="header" href="advanced/performance.html#session-storage" id="session-storage"><h2>Session Storage</h2></a>
+<a class="header" href="advanced/performance.html#use-redis-for-sessions" id="use-redis-for-sessions"><h3>Use Redis for Sessions</h3></a>
+<p>For better performance and scalability:</p>
+<pre><code class="language-toml">[session]
+storage = &quot;redis&quot;
+redis_url = &quot;redis://localhost:6379&quot;
+</code></pre>
+<p>Benefits:</p>
+<ul>
+<li>Faster than database storage</li>
+<li>Shared across multiple instances</li>
+<li>Automatic expiration</li>
+</ul>
+<a class="header" href="advanced/performance.html#static-file-serving" id="static-file-serving"><h2>Static File Serving</h2></a>
+<a class="header" href="advanced/performance.html#serve-via-nginxcdn" id="serve-via-nginxcdn"><h3>Serve via Nginx/CDN</h3></a>
+<p>Don't serve static files through the application:</p>
+<pre><code class="language-nginx"># Nginx configuration
+location /static/ {
+    alias /path/to/public/;
+    expires 30d;
+    add_header Cache-Control &quot;public, immutable&quot;;
+}
+</code></pre>
+<a class="header" href="advanced/performance.html#response-compression" id="response-compression"><h2>Response Compression</h2></a>
+<a class="header" href="advanced/performance.html#enable-gzip" id="enable-gzip"><h3>Enable Gzip</h3></a>
+<p>Configure nginx for compression:</p>
+<pre><code class="language-nginx">gzip on;
+gzip_types text/plain text/css application/json application/javascript;
+gzip_min_length 1000;
+</code></pre>
+<a class="header" href="advanced/performance.html#caching-strategies" id="caching-strategies"><h2>Caching Strategies</h2></a>
+<a class="header" href="advanced/performance.html#application-level-caching" id="application-level-caching"><h3>Application-Level Caching</h3></a>
+<p>Use in-memory caching for frequently accessed data:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use std::sync::Arc;
+use std::sync::RwLock;
+use std::collections::HashMap;
+
+static CACHE: LazyLock&lt;Arc&lt;RwLock&lt;HashMap&lt;String, Value&gt;&gt;&gt;&gt; = 
+    LazyLock::new(|| Arc::new(RwLock::new(HashMap::new())));
+
+fn get_cached_data(key: &amp;str) -&gt; Option&lt;Value&gt; {
+    CACHE.read().unwrap().get(key).cloned()
+}
+
+fn set_cached_data(key: String, value: Value) {
+    CACHE.write().unwrap().insert(key, value);
+}
+#}</code></pre></pre>
+<a class="header" href="advanced/performance.html#http-caching" id="http-caching"><h3>HTTP Caching</h3></a>
+<p>Set appropriate cache headers:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+ctx.add_header(&quot;Cache-Control&quot;, &quot;public, max-age=3600&quot;);
+#}</code></pre></pre>
+<a class="header" href="advanced/performance.html#request-pooling" id="request-pooling"><h2>Request Pooling</h2></a>
+<p>RustF includes request pooling for high-performance scenarios:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use rustf::pool::global_request_pool;
+
+// Get pooled request
+let pooled_req = global_request_pool().get().await?;
+
+// Use pooled request
+// ... process request ...
+
+// Return to pool (automatic)
+#}</code></pre></pre>
+<a class="header" href="advanced/performance.html#async-operations" id="async-operations"><h2>Async Operations</h2></a>
+<a class="header" href="advanced/performance.html#use-async-for-io" id="use-async-for-io"><h3>Use Async for I/O</h3></a>
+<p>Always use async for database and network operations:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Good: Async database query
+let users = db.query_async(&quot;SELECT * FROM users&quot;).await?;
+
+// Bad: Blocking operation
+let users = db.query(&quot;SELECT * FROM users&quot;)?; // Blocks thread
+#}</code></pre></pre>
+<a class="header" href="advanced/performance.html#memory-management" id="memory-management"><h2>Memory Management</h2></a>
+<a class="header" href="advanced/performance.html#avoid-unnecessary-cloning" id="avoid-unnecessary-cloning"><h3>Avoid Unnecessary Cloning</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Bad: Unnecessary clone
+let data = expensive_data.clone();
+process(data);
+
+// Good: Use reference
+process(&amp;expensive_data);
+#}</code></pre></pre>
+<a class="header" href="advanced/performance.html#use-string-capacity-hints" id="use-string-capacity-hints"><h3>Use String Capacity Hints</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Pre-allocate string capacity
+let mut output = String::with_capacity(estimated_size);
+#}</code></pre></pre>
+<a class="header" href="advanced/performance.html#profiling" id="profiling"><h2>Profiling</h2></a>
+<a class="header" href="advanced/performance.html#use-cargo-instruments" id="use-cargo-instruments"><h3>Use Cargo Instruments</h3></a>
+<pre><code class="language-bash">cargo install cargo-instruments
+cargo instruments --template time
+</code></pre>
+<a class="header" href="advanced/performance.html#benchmark-critical-paths" id="benchmark-critical-paths"><h3>Benchmark Critical Paths</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+#[cfg(test)]
+mod benches {
+    use super::*;
+    use criterion::{black_box, criterion_group, criterion_main, Criterion};
+
+    fn bench_query(c: &amp;mut Criterion) {
+        c.bench_function(&quot;query_users&quot;, |b| {
+            b.iter(|| {
+                black_box(Users::find_all().unwrap());
+            });
+        });
+    }
+
+    criterion_group!(benches, bench_query);
+    criterion_main!(benches);
+}
+#}</code></pre></pre>
+<a class="header" href="advanced/performance.html#monitoring" id="monitoring"><h2>Monitoring</h2></a>
+<a class="header" href="advanced/performance.html#track-performance-metrics" id="track-performance-metrics"><h3>Track Performance Metrics</h3></a>
+<ul>
+<li>Request latency</li>
+<li>Database query time</li>
+<li>Memory usage</li>
+<li>CPU usage</li>
+<li>Error rates</li>
+</ul>
+<a class="header" href="advanced/performance.html#use-apm-tools" id="use-apm-tools"><h3>Use APM Tools</h3></a>
+<p>Consider integrating:</p>
+<ul>
+<li>Prometheus for metrics</li>
+<li>Grafana for visualization</li>
+<li>Sentry for error tracking</li>
+</ul>
+<a class="header" href="advanced/performance.html#best-practices" id="best-practices"><h2>Best Practices</h2></a>
+<ol>
+<li><strong>Enable view caching</strong> in production</li>
+<li><strong>Use connection pooling</strong> for databases</li>
+<li><strong>Serve static files</strong> via nginx/CDN</li>
+<li><strong>Enable compression</strong> (gzip)</li>
+<li><strong>Use Redis</strong> for sessions in multi-instance deployments</li>
+<li><strong>Optimize database queries</strong> (indexes, avoid N+1)</li>
+<li><strong>Cache frequently accessed data</strong></li>
+<li><strong>Profile and benchmark</strong> critical paths</li>
+<li><strong>Monitor performance</strong> in production</li>
+<li><strong>Use async</strong> for all I/O operations</li>
+</ol>
+<a class="header" href="advanced/performance.html#example-optimized-handler" id="example-optimized-handler"><h2>Example: Optimized Handler</h2></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+async fn optimized_handler(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    // Use cached data if available
+    if let Some(cached) = get_cached_data(&quot;recent_posts&quot;) {
+        return ctx.json(cached);
+    }
+    
+    // Optimized query with join
+    let posts = Posts::query()
+        .join(&quot;users&quot;, &quot;posts.author_id&quot;, &quot;users.id&quot;)
+        .where_eq(&quot;published&quot;, true)
+        .order_by(&quot;created_at&quot;, OrderDirection::Desc)
+        .limit(10)
+        .find()?;
+    
+    // Cache result
+    set_cached_data(&quot;recent_posts&quot;.to_string(), json!(posts));
+    
+    ctx.json(json!(posts))
+}
+#}</code></pre></pre>
+
+                </div>
+
+                <!-- Mobile navigation buttons -->
+                
+                    <a rel="prev" href="advanced/README.html" class="mobile-nav-chapters previous" title="Previous chapter">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                
+
+                
+                    <a rel="next" href="advanced/workers.html" class="mobile-nav-chapters next" title="Next chapter">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+                
+
+            </div>
+
+            
+                <a href="advanced/README.html" class="nav-chapters previous" title="You can navigate through the chapters using the arrow keys">
+                    <i class="fa fa-angle-left"></i>
+                </a>
+            
+
+            
+                <a href="advanced/workers.html" class="nav-chapters next" title="You can navigate through the chapters using the arrow keys">
+                    <i class="fa fa-angle-right"></i>
+                </a>
+            
+
+        </div>
+
+
+        <!-- Local fallback for Font Awesome -->
+        <script>
+            if ($(".fa").css("font-family") !== "FontAwesome") {
+                $('<link rel="stylesheet" type="text/css" href="_FontAwesome/css/font-awesome.css">').prependTo('head');
+            }
+        </script>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        
+
+        
+
+        
+
+        
+
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS script -->
+        
+
+    </body>
+</html>

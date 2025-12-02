@@ -1,0 +1,897 @@
+<!DOCTYPE HTML>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Error Handling - RustF Framework Documentation</title>
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="Complete guide to the RustF MVC web framework for Rust">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <base href="../">
+
+        <link rel="stylesheet" href="book.css">
+        <link href="https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800" rel="stylesheet" type="text/css">
+        <link href="https://fonts.googleapis.com/css?family=Source+Code+Pro:500" rel="stylesheet" type="text/css">
+
+        <link rel="shortcut icon" href="favicon.png">
+
+        <!-- Font Awesome -->
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
+
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme -->
+        
+
+        
+
+        <!-- Fetch Clipboard.js from CDN but have a local fallback -->
+        <script src="https://cdn.jsdelivr.net/clipboard.js/1.6.1/clipboard.min.js"></script>
+        <script>
+            if (typeof Clipboard == 'undefined') {
+                document.write(unescape("%3Cscript src='clipboard.min.js'%3E%3C/script%3E"));
+            }
+        </script>
+
+        <!-- Fetch JQuery from CDN but have a local fallback -->
+        <script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+        <script>
+            if (typeof jQuery == 'undefined') {
+                document.write(unescape("%3Cscript src='jquery.js'%3E%3C/script%3E"));
+            }
+        </script>
+
+        <!-- Fetch store.js from local - TODO add CDN when 2.x.x is available on cdnjs -->
+        <script src="store.js"></script>
+
+    </head>
+    <body class="light">
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme = store.get('mdbook-theme');
+            if (theme === null || theme === undefined) { theme = 'light'; }
+            $('body').removeClass().addClass(theme);
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var sidebar = store.get('mdbook-sidebar');
+            if (sidebar === "hidden") { $("html").addClass("sidebar-hidden") }
+            else if (sidebar === "visible") { $("html").addClass("sidebar-visible") }
+        </script>
+
+        <div id="sidebar" class="sidebar">
+            <ul class="chapter"><li class="affix"><a href="README.html">Introduction</a></li><li><a href="getting-started/README.html"><strong>1.</strong> Quick Start</a></li><li><a href="getting-started/installation.html"><strong>2.</strong> Installation</a></li><li><a href="getting-started/hello-world.html"><strong>3.</strong> Hello World</a></li><li><a href="getting-started/project-structure.html"><strong>4.</strong> Project Structure</a></li><li><a href="guides/controllers.html"><strong>5.</strong> Controllers &amp; Routing</a></li><li><a href="guides/views.html"><strong>6.</strong> Views &amp; Templates</a></li><li><a href="guides/middleware.html"><strong>7.</strong> Middleware</a></li><li><a href="guides/sessions.html"><strong>8.</strong> Sessions</a></li><li><a href="guides/database.html"><strong>9.</strong> Database Integration</a></li><li><a href="guides/configuration.html"><strong>10.</strong> Configuration</a></li><li><a href="guides/security.html"><strong>11.</strong> Security</a></li><li><a href="guides/error-handling.html" class="active"><strong>12.</strong> Error Handling</a></li><li><a href="guides/schemas.html"><strong>13.</strong> Schemas &amp; Definitions</a></li><li><a href="advanced/README.html"><strong>14.</strong> Overview</a></li><li><a href="advanced/performance.html"><strong>15.</strong> Performance Optimization</a></li><li><a href="advanced/workers.html"><strong>16.</strong> Workers</a></li><li><a href="advanced/events.html"><strong>17.</strong> Events</a></li><li><a href="advanced/modules.html"><strong>18.</strong> Modules</a></li><li><a href="advanced/cli.html"><strong>19.</strong> CLI Tool</a></li><li><a href="api-reference/README.html"><strong>20.</strong> Overview</a></li><li><a href="api-reference/context.html"><strong>21.</strong> Context API</a></li><li><a href="api-reference/models.html"><strong>22.</strong> Model API</a></li><li><a href="api-reference/routing.html"><strong>23.</strong> Routing API</a></li><li><a href="api-reference/utilities.html"><strong>24.</strong> Utilities</a></li><li><a href="examples/README.html"><strong>25.</strong> Overview</a></li><li><a href="examples/rest-api.html"><strong>26.</strong> Building a REST API</a></li><li><a href="examples/authentication.html"><strong>27.</strong> Authentication</a></li><li><a href="examples/real-world-app.html"><strong>28.</strong> Real-World Application</a></li><li><a href="deployment/production.html"><strong>29.</strong> Production Deployment</a></li><li><a href="deployment/docker.html"><strong>30.</strong> Docker</a></li></ul>
+        </div>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page" tabindex="-1">
+                
+                <div id="menu-bar" class="menu-bar">
+                    <div class="left-buttons">
+                        <i id="sidebar-toggle" class="fa fa-bars" title="Toggle sidebar"></i>
+                        <i id="theme-toggle" class="fa fa-paint-brush" title="Change theme"></i>
+                    </div>
+
+                    <h1 class="menu-title">RustF Framework Documentation</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html">
+                            <i id="print-button" class="fa fa-print" title="Print this book"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <div id="content" class="content">
+                    <a class="header" href="guides/error-handling.html#rustf-error-system-documentation" id="rustf-error-system-documentation"><h1>RustF Error System Documentation</h1></a>
+<a class="header" href="guides/error-handling.html#overview" id="overview"><h2>Overview</h2></a>
+<p>RustF provides a comprehensive, production-ready error handling system designed for building robust web applications. The error system emphasizes safety, observability, and developer experience while providing enterprise-grade features like retry logic, error chaining, and circuit breakers.</p>
+<a class="header" href="guides/error-handling.html#core-principles" id="core-principles"><h3>Core Principles</h3></a>
+<ul>
+<li><strong>Type Safety</strong>: Strongly typed errors with exhaustive pattern matching</li>
+<li><strong>Production Safety</strong>: Sanitized error messages, no sensitive data leakage</li>
+<li><strong>Observability</strong>: Rich context and structured logging for debugging</li>
+<li><strong>Resilience</strong>: Built-in retry logic and circuit breaker patterns</li>
+<li><strong>Developer Experience</strong>: Clear error messages and intuitive APIs</li>
+</ul>
+<a class="header" href="guides/error-handling.html#error-types" id="error-types"><h2>Error Types</h2></a>
+<a class="header" href="guides/error-handling.html#main-error-enum" id="main-error-enum"><h3>Main Error Enum</h3></a>
+<p>The <code>rustf::error::Error</code> enum provides comprehensive error variants for all common scenarios:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use rustf::error::Error;
+#}</code></pre></pre>
+<a class="header" href="guides/error-handling.html#core-error-variants" id="core-error-variants"><h3>Core Error Variants</h3></a>
+<a class="header" href="guides/error-handling.html#http-and-network-errors" id="http-and-network-errors"><h4>HTTP and Network Errors</h4></a>
+<ul>
+<li><code>Http(hyper::Error)</code> - HTTP protocol errors</li>
+<li><code>Network(String)</code> - Network connectivity issues</li>
+<li><code>Timeout(String)</code> - Request timeout errors</li>
+<li><code>ExternalService { service, message }</code> - External API failures</li>
+</ul>
+<a class="header" href="guides/error-handling.html#data-processing-errors" id="data-processing-errors"><h4>Data Processing Errors</h4></a>
+<ul>
+<li><code>Json(serde_json::Error)</code> - JSON serialization/deserialization</li>
+<li><code>Validation(String)</code> - Data validation failures</li>
+<li><code>InvalidInput(String)</code> - User input errors</li>
+<li><code>Template(String)</code> - Template rendering errors</li>
+</ul>
+<a class="header" href="guides/error-handling.html#database-errors" id="database-errors"><h4>Database Errors</h4></a>
+<ul>
+<li><code>DatabaseConnection(String)</code> - Connection pool issues</li>
+<li><code>DatabaseQuery(String)</code> - SQL query errors</li>
+<li><code>DatabaseTransaction(String)</code> - Transaction failures</li>
+<li><code>DatabaseMigration(String)</code> - Migration errors</li>
+<li><code>DatabasePool(String)</code> - Connection pool exhaustion</li>
+</ul>
+<a class="header" href="guides/error-handling.html#authentication--authorization" id="authentication--authorization"><h4>Authentication &amp; Authorization</h4></a>
+<ul>
+<li><code>Authentication(String)</code> - Authentication failures (401)</li>
+<li><code>Authorization(String)</code> - Permission denied (403)</li>
+<li><code>RateLimit(String)</code> - Rate limiting (429)</li>
+<li><code>Session(String)</code> - Session management errors</li>
+</ul>
+<a class="header" href="guides/error-handling.html#application-errors" id="application-errors"><h4>Application Errors</h4></a>
+<ul>
+<li><code>RouteNotFound(String)</code> - Route not found (404)</li>
+<li><code>ModelNotFound(String)</code> - Model/resource not found (404)</li>
+<li><code>Internal(String)</code> - Internal server errors (500)</li>
+<li><code>Io(std::io::Error)</code> - File system I/O errors</li>
+</ul>
+<a class="header" href="guides/error-handling.html#special-errors" id="special-errors"><h4>Special Errors</h4></a>
+<ul>
+<li><code>WithContext { message, source }</code> - Error with context chain</li>
+<li><code>Redis(redis::RedisError)</code> - Redis errors (feature-gated)</li>
+<li><code>RedisPool(String)</code> - Redis connection pool errors</li>
+</ul>
+<a class="header" href="guides/error-handling.html#error-creation-and-handling" id="error-creation-and-handling"><h2>Error Creation and Handling</h2></a>
+<a class="header" href="guides/error-handling.html#creating-errors" id="creating-errors"><h3>Creating Errors</h3></a>
+<p>RustF provides convenient constructors for all error types:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Database errors
+Error::database_connection(&quot;Failed to connect to PostgreSQL&quot;)
+Error::database_query(&quot;Invalid SQL syntax near 'FORM'&quot;)
+Error::database_transaction(&quot;Transaction rolled back&quot;)
+
+// Authentication errors
+Error::authentication(&quot;Invalid credentials&quot;)
+Error::authorization(&quot;Insufficient permissions for this resource&quot;)
+Error::rate_limit(&quot;API rate limit exceeded: 100 requests per minute&quot;)
+
+// External service errors
+Error::external_service(&quot;payment_gateway&quot;, &quot;Service temporarily unavailable&quot;)
+Error::timeout(&quot;Request timed out after 30 seconds&quot;)
+
+// Validation errors
+Error::validation(&quot;Email address is invalid&quot;)
+Error::invalid_input(&quot;Age must be a positive number&quot;)
+#}</code></pre></pre>
+<a class="header" href="guides/error-handling.html#error-propagation" id="error-propagation"><h3>Error Propagation</h3></a>
+<p>Use the <code>?</code> operator for clean error propagation:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+async fn process_user_registration(data: UserData) -&gt; Result&lt;User&gt; {
+    // Validate input
+    validate_email(&amp;data.email)?;
+    validate_password(&amp;data.password)?;
+    
+    // Check for existing user
+    if User::exists_by_email(&amp;data.email).await? {
+        return Err(Error::validation(&quot;Email already registered&quot;));
+    }
+    
+    // Create user in database
+    let user = User::create(data).await?;
+    
+    // Send welcome email
+    email_service::send_welcome(&amp;user).await
+        .map_err(|e| Error::external_service(&quot;email&quot;, e.to_string()))?;
+    
+    Ok(user)
+}
+#}</code></pre></pre>
+<a class="header" href="guides/error-handling.html#error-properties" id="error-properties"><h3>Error Properties</h3></a>
+<p>Each error has useful properties:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+let error = Error::authentication(&quot;Invalid token&quot;);
+
+// Get machine-readable error code
+assert_eq!(error.error_code(), &quot;E_AUTH&quot;);
+
+// Get appropriate HTTP status code
+assert_eq!(error.status_code(), 401);
+
+// Check if error is retryable
+assert!(!error.is_retryable());
+#}</code></pre></pre>
+<a class="header" href="guides/error-handling.html#error-context-and-chaining" id="error-context-and-chaining"><h2>Error Context and Chaining</h2></a>
+<a class="header" href="guides/error-handling.html#adding-context-to-errors" id="adding-context-to-errors"><h3>Adding Context to Errors</h3></a>
+<p>Use the <code>ErrorContext</code> trait to add contextual information:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use rustf::error::ErrorContext;
+
+async fn fetch_user_profile(id: u64) -&gt; Result&lt;Profile&gt; {
+    let user = fetch_user_from_db(id).await
+        .context(&quot;Failed to fetch user from database&quot;)?;
+    
+    let profile = build_profile(user).await
+        .context(format!(&quot;Failed to build profile for user {}&quot;, id))?;
+    
+    Ok(profile)
+}
+
+// With lazy evaluation
+result.with_context(|| format!(&quot;Operation failed at {}&quot;, timestamp))
+#}</code></pre></pre>
+<a class="header" href="guides/error-handling.html#error-chains" id="error-chains"><h3>Error Chains</h3></a>
+<p>Build and inspect error chains for better debugging:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use rustf::error::ErrorChain;
+
+// When an error occurs with context
+let error = database_operation()
+    .context(&quot;Failed to update user&quot;)
+    .context(&quot;Cannot complete profile update&quot;)
+    .unwrap_err();
+
+// Inspect the error chain
+let chain = ErrorChain::new(&amp;error);
+
+// Get all messages in the chain
+for message in chain.chain() {
+    println!(&quot;- {}&quot;, message);
+}
+
+// Get the root cause
+let root = chain.root_cause();
+println!(&quot;Root cause: {}&quot;, root);
+
+// Format for logging
+log::error!(&quot;{}&quot;, chain.format_for_log());
+#}</code></pre></pre>
+<a class="header" href="guides/error-handling.html#option-to-error-conversion" id="option-to-error-conversion"><h3>Option to Error Conversion</h3></a>
+<p>Convert <code>Option</code> to <code>Error</code> with context:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use rustf::error::OptionExt;
+
+let value = some_option
+    .context(&quot;Expected value to be present&quot;)?;
+
+// With lazy evaluation
+let config = config_value
+    .with_context(|| format!(&quot;Missing config key: {}&quot;, key))?;
+#}</code></pre></pre>
+<a class="header" href="guides/error-handling.html#retry-logic" id="retry-logic"><h2>Retry Logic</h2></a>
+<a class="header" href="guides/error-handling.html#retry-policies" id="retry-policies"><h3>Retry Policies</h3></a>
+<p>RustF provides configurable retry policies for handling transient failures:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use rustf::error::{RetryPolicy, with_retry};
+
+// Exponential backoff (recommended for network operations)
+let policy = RetryPolicy::exponential(3);  // 3 attempts with exponential backoff
+
+// Fixed delay
+let policy = RetryPolicy::fixed(5, Duration::from_secs(1));  // 5 attempts, 1 second apart
+
+// Linear backoff
+let policy = RetryPolicy::linear(4, Duration::from_millis(500));  // Linear increase
+
+// Custom configuration
+let policy = RetryPolicy {
+    max_attempts: 3,
+    initial_delay: Duration::from_millis(100),
+    max_delay: Duration::from_secs(30),
+    backoff_multiplier: 2.0,
+    jitter: true,  // Add randomization to prevent thundering herd
+};
+#}</code></pre></pre>
+<a class="header" href="guides/error-handling.html#using-retry-logic" id="using-retry-logic"><h3>Using Retry Logic</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Simple retry with policy
+let result = with_retry(policy, || async {
+    fetch_from_external_api().await
+}).await?;
+
+// Using RetryBuilder for fluent configuration
+use rustf::error::RetryBuilder;
+
+let data = RetryBuilder::new()
+    .max_attempts(3)
+    .initial_delay(Duration::from_millis(100))
+    .backoff_multiplier(2.0)
+    .jitter(true)
+    .execute(|| async {
+        unstable_network_call().await
+    })
+    .await?;
+#}</code></pre></pre>
+<a class="header" href="guides/error-handling.html#retryable-errors" id="retryable-errors"><h3>Retryable Errors</h3></a>
+<p>Only certain errors are automatically retried:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// These errors are retryable by default:
+Error::Network(_)            // Network issues
+Error::DatabaseConnection(_) // Connection failures
+Error::Timeout(_)           // Timeouts
+Error::ExternalService(..)  // External service failures
+Error::DatabasePool(_)      // Pool exhaustion
+
+// These are NOT retryable:
+Error::Validation(_)        // Input validation
+Error::Authentication(_)    // Auth failures
+Error::Authorization(_)     // Permission denied
+#}</code></pre></pre>
+<a class="header" href="guides/error-handling.html#circuit-breaker-pattern" id="circuit-breaker-pattern"><h3>Circuit Breaker Pattern</h3></a>
+<p>Prevent cascading failures with circuit breakers:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use rustf::error::retry::CircuitBreaker;
+
+// Create a circuit breaker
+let breaker = CircuitBreaker::new(
+    5,                          // Open after 5 failures
+    2,                          // Close after 2 successes
+    Duration::from_secs(30),    // Timeout before half-open
+    3,                          // Max calls in half-open state
+);
+
+// Use the circuit breaker
+let result = breaker.execute(|| async {
+    call_unreliable_service().await
+}).await;
+
+// Circuit states:
+// - Closed: Normal operation
+// - Open: Rejecting calls (after threshold failures)
+// - Half-Open: Testing with limited calls
+#}</code></pre></pre>
+<a class="header" href="guides/error-handling.html#error-pages-and-responses" id="error-pages-and-responses"><h2>Error Pages and Responses</h2></a>
+<a class="header" href="guides/error-handling.html#html-error-pages" id="html-error-pages"><h3>HTML Error Pages</h3></a>
+<p>RustF provides beautiful, customizable error pages:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use rustf::error::ErrorPages;
+
+let error_pages = ErrorPages::new(view_engine, config);
+
+// Render error page
+let response = error_pages.render_error_page(
+    404,                    // Status code
+    Some(&amp;error),          // Error object
+    Some(&quot;req-123&quot;),       // Request ID
+)?;
+
+// Custom error templates in views/errors/
+// - views/errors/404.html
+// - views/errors/500.html
+// - views/errors/generic.html
+#}</code></pre></pre>
+<a class="header" href="guides/error-handling.html#json-error-responses" id="json-error-responses"><h3>JSON Error Responses</h3></a>
+<p>For API endpoints, return structured JSON errors:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Automatic based on Accept header
+let response = error_pages.create_error_response(
+    status_code,
+    Some(&amp;error),
+    Some(request_id),
+    request.header(&quot;Accept&quot;),
+)?;
+
+// Force JSON response
+let json_response = error_pages.create_json_error_response(
+    400,
+    Some(&amp;error),
+    Some(&quot;api-request-123&quot;),
+)?;
+
+// Response format:
+{
+    &quot;error&quot;: true,
+    &quot;status&quot;: 400,
+    &quot;code&quot;: &quot;E_VALIDATION&quot;,
+    &quot;message&quot;: &quot;User-friendly error message&quot;,
+    &quot;request_id&quot;: &quot;api-request-123&quot;,
+    &quot;timestamp&quot;: &quot;2024-01-20T10:30:00Z&quot;,
+    &quot;details&quot;: {  // Only in development mode
+        &quot;error_message&quot;: &quot;Detailed error&quot;,
+        &quot;error_type&quot;: &quot;Validation Error&quot;
+    }
+}
+#}</code></pre></pre>
+<a class="header" href="guides/error-handling.html#development-vs-production" id="development-vs-production"><h3>Development vs Production</h3></a>
+<p>Error responses adapt based on environment:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Development mode (debug builds or RUSTF_ENV=development)
+- Full error messages with context
+- Stack traces included
+- Detailed error information
+- Source file locations
+
+// Production mode
+- Sanitized, user-friendly messages
+- No stack traces or sensitive data
+- Generic error messages for internal errors
+- Request IDs for support correlation
+#}</code></pre></pre>
+<a class="header" href="guides/error-handling.html#error-logging" id="error-logging"><h2>Error Logging</h2></a>
+<a class="header" href="guides/error-handling.html#structured-logging" id="structured-logging"><h3>Structured Logging</h3></a>
+<p>RustF provides comprehensive error logging:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use rustf::error::{ErrorLogger, LogLevel, LogConfig};
+
+// Configure logging
+let config = LogConfig {
+    level: LogLevel::Info,
+    output: LogOutput::Both(&quot;/var/log/rustf.log&quot;),
+    include_stack_trace: false,  // Only in development
+    include_request_context: true,
+    max_file_size: Some(10 * 1024 * 1024),  // 10MB
+    max_files: Some(5),  // Keep 5 rotated files
+};
+
+// Initialize logger
+let logger = ErrorLogger::new(config, app_config);
+
+// Log errors with context
+logger.log_error(
+    LogLevel::Error,
+    &amp;error,
+    Some(&amp;request),
+    Some(&quot;req-123&quot;),
+    Some(additional_data),
+);
+#}</code></pre></pre>
+<a class="header" href="guides/error-handling.html#log-levels" id="log-levels"><h3>Log Levels</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+LogLevel::Debug     // Detailed debugging information
+LogLevel::Info      // Informational messages
+LogLevel::Warn      // Warning conditions
+LogLevel::Error     // Error conditions
+LogLevel::Critical  // Critical failures requiring immediate attention
+#}</code></pre></pre>
+<a class="header" href="guides/error-handling.html#request-context-in-logs" id="request-context-in-logs"><h3>Request Context in Logs</h3></a>
+<p>Automatically captured request information:</p>
+<pre><code class="language-json">{
+    &quot;timestamp&quot;: &quot;2024-01-20T10:30:00Z&quot;,
+    &quot;level&quot;: &quot;ERROR&quot;,
+    &quot;message&quot;: &quot;Database connection failed&quot;,
+    &quot;error_type&quot;: &quot;DatabaseConnection&quot;,
+    &quot;request_id&quot;: &quot;req-123&quot;,
+    &quot;request_context&quot;: {
+        &quot;method&quot;: &quot;POST&quot;,
+        &quot;uri&quot;: &quot;/api/users&quot;,
+        &quot;client_ip&quot;: &quot;192.168.1.100&quot;,
+        &quot;user_agent&quot;: &quot;Mozilla/5.0...&quot;
+    },
+    &quot;stack_trace&quot;: &quot;...&quot;  // Only in development
+}
+</code></pre>
+<a class="header" href="guides/error-handling.html#sensitive-data-protection" id="sensitive-data-protection"><h3>Sensitive Data Protection</h3></a>
+<p>Automatic sanitization of sensitive information:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// These are automatically redacted in logs:
+- Passwords in URLs and headers
+- API keys and tokens
+- Authorization headers
+- Cookie headers
+- Credit card numbers
+- Social security numbers
+#}</code></pre></pre>
+<a class="header" href="guides/error-handling.html#health-checks" id="health-checks"><h2>Health Checks</h2></a>
+<p>Built-in health check endpoint:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use rustf::error::HealthCheck;
+
+let health_check = HealthCheck::new(config);
+let result = health_check.check_health().await;
+
+// Health check response:
+{
+    &quot;status&quot;: &quot;healthy&quot;,
+    &quot;timestamp&quot;: &quot;2024-01-20T10:30:00Z&quot;,
+    &quot;version&quot;: &quot;1.0.0&quot;,
+    &quot;checks&quot;: {
+        &quot;database&quot;: {
+            &quot;status&quot;: &quot;healthy&quot;,
+            &quot;message&quot;: &quot;Connection successful&quot;
+        },
+        &quot;memory&quot;: {
+            &quot;status&quot;: &quot;healthy&quot;,
+            &quot;message&quot;: &quot;Memory usage within limits&quot;
+        }
+    }
+}
+#}</code></pre></pre>
+<a class="header" href="guides/error-handling.html#best-practices" id="best-practices"><h2>Best Practices</h2></a>
+<a class="header" href="guides/error-handling.html#1-never-use-unwrap-in-production" id="1-never-use-unwrap-in-production"><h3>1. Never Use <code>unwrap()</code> in Production</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// ❌ Bad - Can panic
+let value = some_option.unwrap();
+
+// ✅ Good - Proper error handling
+let value = some_option
+    .ok_or_else(|| Error::invalid_input(&quot;Value is required&quot;))?;
+#}</code></pre></pre>
+<a class="header" href="guides/error-handling.html#2-add-context-to-errors" id="2-add-context-to-errors"><h3>2. Add Context to Errors</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// ❌ Bad - No context
+database_query().await?;
+
+// ✅ Good - With context
+database_query().await
+    .context(&quot;Failed to fetch user permissions&quot;)?;
+#}</code></pre></pre>
+<a class="header" href="guides/error-handling.html#3-use-specific-error-types" id="3-use-specific-error-types"><h3>3. Use Specific Error Types</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// ❌ Bad - Generic error
+Error::internal(&quot;Something went wrong&quot;)
+
+// ✅ Good - Specific error
+Error::database_query(&quot;Failed to execute SELECT query: connection timeout&quot;)
+#}</code></pre></pre>
+<a class="header" href="guides/error-handling.html#4-handle-errors-at-the-right-level" id="4-handle-errors-at-the-right-level"><h3>4. Handle Errors at the Right Level</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// ❌ Bad - Swallowing errors
+let _ = send_email().await;
+
+// ✅ Good - Proper handling
+if let Err(e) = send_email().await {
+    log::warn!(&quot;Failed to send email: {}&quot;, e);
+    // Continue - email is not critical
+}
+#}</code></pre></pre>
+<a class="header" href="guides/error-handling.html#5-test-error-conditions" id="5-test-error-conditions"><h3>5. Test Error Conditions</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+#[test]
+fn test_validation_error() {
+    let result = validate_email(&quot;invalid&quot;);
+    assert!(result.is_err());
+    
+    let error = result.unwrap_err();
+    assert_eq!(error.status_code(), 400);
+    assert_eq!(error.error_code(), &quot;E_VALIDATION&quot;);
+}
+#}</code></pre></pre>
+<a class="header" href="guides/error-handling.html#examples" id="examples"><h2>Examples</h2></a>
+<a class="header" href="guides/error-handling.html#complete-request-handler-with-error-handling" id="complete-request-handler-with-error-handling"><h3>Complete Request Handler with Error Handling</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+async fn create_order(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    // Parse and validate input
+    let order_data: OrderData = ctx.json()
+        .await
+        .context(&quot;Failed to parse order data&quot;)?;
+    
+    order_data.validate()
+        .map_err(|e| Error::validation(e))?;
+    
+    // Check authentication
+    let user = ctx.get_user()
+        .ok_or_else(|| Error::authentication(&quot;Login required&quot;))?;
+    
+    // Check authorization
+    if !user.can_create_orders() {
+        return Err(Error::authorization(&quot;Insufficient permissions&quot;));
+    }
+    
+    // Retry external payment service
+    let payment_result = RetryBuilder::new()
+        .max_attempts(3)
+        .exponential_backoff()
+        .execute(|| async {
+            payment_service::process(&amp;order_data).await
+                .map_err(|e| Error::external_service(&quot;payment&quot;, e.to_string()))
+        })
+        .await
+        .context(&quot;Payment processing failed&quot;)?;
+    
+    // Create order in database
+    let order = Order::create(order_data, payment_result)
+        .await
+        .context(&quot;Failed to create order&quot;)?;
+    
+    // Return success response
+    ctx.json(json!({
+        &quot;success&quot;: true,
+        &quot;order_id&quot;: order.id,
+        &quot;status&quot;: order.status,
+    }))
+}
+#}</code></pre></pre>
+<a class="header" href="guides/error-handling.html#middleware-error-handling" id="middleware-error-handling"><h3>Middleware Error Handling</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+pub async fn error_handling_middleware(
+    ctx: &amp;mut Context,
+    next: Next&lt;'_&gt;,
+) -&gt; Result&lt;()&gt; {
+    let request_id = uuid::Uuid::new_v4().to_string();
+    ctx.set_header(&quot;X-Request-ID&quot;, &amp;request_id);
+    
+    match next.run(ctx).await {
+        Ok(()) =&gt; Ok(()),
+        Err(error) =&gt; {
+            // Log the error
+            log_error(&amp;error, Some(&amp;ctx.request), Some(&amp;request_id));
+            
+            // Create error response based on Accept header
+            let accept = ctx.header(&quot;Accept&quot;);
+            if accept.map_or(false, |h| h.contains(&quot;application/json&quot;)) {
+                ctx.json(json!({
+                    &quot;error&quot;: true,
+                    &quot;code&quot;: error.error_code(),
+                    &quot;message&quot;: error.to_string(),
+                    &quot;request_id&quot;: request_id,
+                }))
+            } else {
+                let error_pages = ctx.error_pages();
+                let response = error_pages.render_error_page(
+                    error.status_code(),
+                    Some(&amp;error),
+                    Some(&amp;request_id),
+                )?;
+                ctx.set_response(response);
+                Ok(())
+            }
+        }
+    }
+}
+#}</code></pre></pre>
+<a class="header" href="guides/error-handling.html#database-operation-with-retry" id="database-operation-with-retry"><h3>Database Operation with Retry</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+async fn get_user_with_retry(id: u64) -&gt; Result&lt;User&gt; {
+    RetryBuilder::new()
+        .max_attempts(3)
+        .initial_delay(Duration::from_millis(100))
+        .execute(|| async {
+            User::find(id)
+                .await
+                .map_err(|e| Error::database_query(format!(&quot;Failed to fetch user {}: {}&quot;, id, e)))?
+                .ok_or_else(|| Error::model_not_found(format!(&quot;User {} not found&quot;, id)))
+        })
+        .await
+        .context(format!(&quot;Failed to retrieve user {}&quot;, id))
+}
+#}</code></pre></pre>
+<a class="header" href="guides/error-handling.html#configuration" id="configuration"><h2>Configuration</h2></a>
+<a class="header" href="guides/error-handling.html#environment-variables" id="environment-variables"><h3>Environment Variables</h3></a>
+<pre><code class="language-bash"># Logging configuration
+RUSTF_LOG_LEVEL=info                    # debug, info, warn, error, critical
+RUSTF_LOG_OUTPUT=both:/var/log/rustf.log  # console, file:&lt;path&gt;, both:&lt;path&gt;, none
+RUSTF_LOG_STACK_TRACE=false             # Include stack traces
+RUSTF_LOG_REQUEST_CONTEXT=true          # Include request context
+
+# Error page configuration
+RUSTF_ENV=production                    # development or production
+RUSTF_ERROR_VERBOSE=false              # Verbose error messages in production
+</code></pre>
+<a class="header" href="guides/error-handling.html#configuration-file" id="configuration-file"><h3>Configuration File</h3></a>
+<pre><code class="language-toml">[error]
+# Error page templates directory
+template_dir = &quot;views/errors&quot;
+
+# Default error messages
+default_404 = &quot;The page you're looking for could not be found&quot;
+default_500 = &quot;An internal error occurred. Please try again later&quot;
+
+[logging]
+level = &quot;info&quot;
+output = &quot;file:/var/log/rustf/app.log&quot;
+max_file_size = 10485760  # 10MB
+max_files = 5
+include_stack_trace = false
+include_request_context = true
+
+[retry]
+default_max_attempts = 3
+default_initial_delay_ms = 100
+default_max_delay_ms = 30000
+default_backoff_multiplier = 2.0
+</code></pre>
+<a class="header" href="guides/error-handling.html#performance-considerations" id="performance-considerations"><h2>Performance Considerations</h2></a>
+<a class="header" href="guides/error-handling.html#error-creation-cost" id="error-creation-cost"><h3>Error Creation Cost</h3></a>
+<ul>
+<li>Use static strings for fixed messages: <code>Error::validation(&quot;Invalid email&quot;)</code></li>
+<li>Defer formatting until needed: <code>Error::internal(format!(...))</code> only when necessary</li>
+<li>Consider caching error messages for hot paths</li>
+</ul>
+<a class="header" href="guides/error-handling.html#retry-overhead" id="retry-overhead"><h3>Retry Overhead</h3></a>
+<ul>
+<li>Use circuit breakers to prevent cascading failures</li>
+<li>Configure reasonable timeouts and max attempts</li>
+<li>Add jitter to prevent thundering herd</li>
+</ul>
+<a class="header" href="guides/error-handling.html#logging-performance" id="logging-performance"><h3>Logging Performance</h3></a>
+<ul>
+<li>Use appropriate log levels (don't log everything as ERROR)</li>
+<li>Configure log rotation to prevent disk space issues</li>
+<li>Consider async logging for high-throughput applications</li>
+</ul>
+<a class="header" href="guides/error-handling.html#testing" id="testing"><h2>Testing</h2></a>
+<a class="header" href="guides/error-handling.html#testing-error-conditions" id="testing-error-conditions"><h3>Testing Error Conditions</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rustf::error::{Error, ErrorContext};
+    
+    #[test]
+    fn test_error_chain() {
+        let error = database_operation()
+            .context(&quot;Failed in service&quot;)
+            .context(&quot;Failed in controller&quot;)
+            .unwrap_err();
+        
+        let chain = ErrorChain::new(&amp;error);
+        assert_eq!(chain.chain().len(), 3);
+    }
+    
+    #[tokio::test]
+    async fn test_retry_logic() {
+        let mut attempts = 0;
+        
+        let result = with_retry(RetryPolicy::fixed(3, Duration::from_millis(10)), || async {
+            attempts += 1;
+            if attempts &lt; 3 {
+                Err(Error::network(&quot;Temporary failure&quot;))
+            } else {
+                Ok(&quot;Success&quot;)
+            }
+        }).await;
+        
+        assert!(result.is_ok());
+        assert_eq!(attempts, 3);
+    }
+}
+#}</code></pre></pre>
+<a class="header" href="guides/error-handling.html#migration-guide" id="migration-guide"><h2>Migration Guide</h2></a>
+<a class="header" href="guides/error-handling.html#from-simple-errors-to-rustf-errors" id="from-simple-errors-to-rustf-errors"><h3>From Simple Errors to RustF Errors</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Before
+fn process() -&gt; Result&lt;Data, Box&lt;dyn std::error::Error&gt;&gt; {
+    let data = fetch_data()?;
+    Ok(data)
+}
+
+// After
+fn process() -&gt; rustf::error::Result&lt;Data&gt; {
+    let data = fetch_data()
+        .map_err(|e| Error::internal(e.to_string()))
+        .context(&quot;Failed to fetch data&quot;)?;
+    Ok(data)
+}
+#}</code></pre></pre>
+<a class="header" href="guides/error-handling.html#adding-retry-logic-to-existing-code" id="adding-retry-logic-to-existing-code"><h3>Adding Retry Logic to Existing Code</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Before
+let result = unreliable_operation().await?;
+
+// After
+let result = RetryBuilder::new()
+    .max_attempts(3)
+    .execute(|| unreliable_operation())
+    .await?;
+#}</code></pre></pre>
+<a class="header" href="guides/error-handling.html#conclusion" id="conclusion"><h2>Conclusion</h2></a>
+<p>RustF's error system provides a comprehensive, production-ready solution for error handling in web applications. By following the patterns and best practices outlined in this guide, you can build robust, maintainable applications with excellent error handling and observability.</p>
+<p>Key takeaways:</p>
+<ul>
+<li>Use specific error types for clarity</li>
+<li>Add context to errors for better debugging</li>
+<li>Implement retry logic for transient failures</li>
+<li>Configure appropriate logging and monitoring</li>
+<li>Never expose sensitive information in error messages</li>
+<li>Test error conditions thoroughly</li>
+</ul>
+<p>For more information, see the <a href="https://docs.rs/rustf">API documentation</a> or the <a href="https://github.com/rustf/examples">examples</a> repository.</p>
+
+                </div>
+
+                <!-- Mobile navigation buttons -->
+                
+                    <a rel="prev" href="guides/security.html" class="mobile-nav-chapters previous" title="Previous chapter">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                
+
+                
+                    <a rel="next" href="guides/schemas.html" class="mobile-nav-chapters next" title="Next chapter">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+                
+
+            </div>
+
+            
+                <a href="guides/security.html" class="nav-chapters previous" title="You can navigate through the chapters using the arrow keys">
+                    <i class="fa fa-angle-left"></i>
+                </a>
+            
+
+            
+                <a href="guides/schemas.html" class="nav-chapters next" title="You can navigate through the chapters using the arrow keys">
+                    <i class="fa fa-angle-right"></i>
+                </a>
+            
+
+        </div>
+
+
+        <!-- Local fallback for Font Awesome -->
+        <script>
+            if ($(".fa").css("font-family") !== "FontAwesome") {
+                $('<link rel="stylesheet" type="text/css" href="_FontAwesome/css/font-awesome.css">').prependTo('head');
+            }
+        </script>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        
+
+        
+
+        
+
+        
+
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS script -->
+        
+
+    </body>
+</html>

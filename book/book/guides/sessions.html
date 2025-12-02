@@ -1,0 +1,1800 @@
+<!DOCTYPE HTML>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Sessions - RustF Framework Documentation</title>
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="Complete guide to the RustF MVC web framework for Rust">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <base href="../">
+
+        <link rel="stylesheet" href="book.css">
+        <link href="https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800" rel="stylesheet" type="text/css">
+        <link href="https://fonts.googleapis.com/css?family=Source+Code+Pro:500" rel="stylesheet" type="text/css">
+
+        <link rel="shortcut icon" href="favicon.png">
+
+        <!-- Font Awesome -->
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
+
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme -->
+        
+
+        
+
+        <!-- Fetch Clipboard.js from CDN but have a local fallback -->
+        <script src="https://cdn.jsdelivr.net/clipboard.js/1.6.1/clipboard.min.js"></script>
+        <script>
+            if (typeof Clipboard == 'undefined') {
+                document.write(unescape("%3Cscript src='clipboard.min.js'%3E%3C/script%3E"));
+            }
+        </script>
+
+        <!-- Fetch JQuery from CDN but have a local fallback -->
+        <script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+        <script>
+            if (typeof jQuery == 'undefined') {
+                document.write(unescape("%3Cscript src='jquery.js'%3E%3C/script%3E"));
+            }
+        </script>
+
+        <!-- Fetch store.js from local - TODO add CDN when 2.x.x is available on cdnjs -->
+        <script src="store.js"></script>
+
+    </head>
+    <body class="light">
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme = store.get('mdbook-theme');
+            if (theme === null || theme === undefined) { theme = 'light'; }
+            $('body').removeClass().addClass(theme);
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var sidebar = store.get('mdbook-sidebar');
+            if (sidebar === "hidden") { $("html").addClass("sidebar-hidden") }
+            else if (sidebar === "visible") { $("html").addClass("sidebar-visible") }
+        </script>
+
+        <div id="sidebar" class="sidebar">
+            <ul class="chapter"><li class="affix"><a href="README.html">Introduction</a></li><li><a href="getting-started/README.html"><strong>1.</strong> Quick Start</a></li><li><a href="getting-started/installation.html"><strong>2.</strong> Installation</a></li><li><a href="getting-started/hello-world.html"><strong>3.</strong> Hello World</a></li><li><a href="getting-started/project-structure.html"><strong>4.</strong> Project Structure</a></li><li><a href="guides/controllers.html"><strong>5.</strong> Controllers &amp; Routing</a></li><li><a href="guides/views.html"><strong>6.</strong> Views &amp; Templates</a></li><li><a href="guides/middleware.html"><strong>7.</strong> Middleware</a></li><li><a href="guides/sessions.html" class="active"><strong>8.</strong> Sessions</a></li><li><a href="guides/database.html"><strong>9.</strong> Database Integration</a></li><li><a href="guides/configuration.html"><strong>10.</strong> Configuration</a></li><li><a href="guides/security.html"><strong>11.</strong> Security</a></li><li><a href="guides/error-handling.html"><strong>12.</strong> Error Handling</a></li><li><a href="guides/schemas.html"><strong>13.</strong> Schemas &amp; Definitions</a></li><li><a href="advanced/README.html"><strong>14.</strong> Overview</a></li><li><a href="advanced/performance.html"><strong>15.</strong> Performance Optimization</a></li><li><a href="advanced/workers.html"><strong>16.</strong> Workers</a></li><li><a href="advanced/events.html"><strong>17.</strong> Events</a></li><li><a href="advanced/modules.html"><strong>18.</strong> Modules</a></li><li><a href="advanced/cli.html"><strong>19.</strong> CLI Tool</a></li><li><a href="api-reference/README.html"><strong>20.</strong> Overview</a></li><li><a href="api-reference/context.html"><strong>21.</strong> Context API</a></li><li><a href="api-reference/models.html"><strong>22.</strong> Model API</a></li><li><a href="api-reference/routing.html"><strong>23.</strong> Routing API</a></li><li><a href="api-reference/utilities.html"><strong>24.</strong> Utilities</a></li><li><a href="examples/README.html"><strong>25.</strong> Overview</a></li><li><a href="examples/rest-api.html"><strong>26.</strong> Building a REST API</a></li><li><a href="examples/authentication.html"><strong>27.</strong> Authentication</a></li><li><a href="examples/real-world-app.html"><strong>28.</strong> Real-World Application</a></li><li><a href="deployment/production.html"><strong>29.</strong> Production Deployment</a></li><li><a href="deployment/docker.html"><strong>30.</strong> Docker</a></li></ul>
+        </div>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page" tabindex="-1">
+                
+                <div id="menu-bar" class="menu-bar">
+                    <div class="left-buttons">
+                        <i id="sidebar-toggle" class="fa fa-bars" title="Toggle sidebar"></i>
+                        <i id="theme-toggle" class="fa fa-paint-brush" title="Change theme"></i>
+                    </div>
+
+                    <h1 class="menu-title">RustF Framework Documentation</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html">
+                            <i id="print-button" class="fa fa-print" title="Print this book"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <div id="content" class="content">
+                    <a class="header" href="guides/sessions.html#rustf-session-system-documentation" id="rustf-session-system-documentation"><h1>RustF Session System Documentation</h1></a>
+<a class="header" href="guides/sessions.html#overview" id="overview"><h2>Overview</h2></a>
+<p>RustF provides a comprehensive session management system with support for multiple storage backends, flash messages, and thread-safe concurrent access. The session system is designed to handle both persistent data and temporary flash messages with automatic expiration and cleanup.</p>
+<blockquote>
+<p><strong>New in 2025</strong>: Custom session storage can now be implemented via the <a href="schemas.md">Definitions System</a>, providing a simpler, convention-based approach. See <a href="guides/sessions.html#custom-session-storage-via-definitions-system-recommended">Custom Session Storage via Definitions</a> for details.</p>
+</blockquote>
+<a class="header" href="guides/sessions.html#core-components" id="core-components"><h2>Core Components</h2></a>
+<a class="header" href="guides/sessions.html#session-data-structure" id="session-data-structure"><h3>Session Data Structure</h3></a>
+<p>The <code>Session</code> struct provides lock-free concurrent access using <code>DashMap</code>:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+pub struct Session {
+    id: String,
+    data: Arc&lt;DashMap&lt;String, Value&gt;&gt;,       // Persistent session data
+    flash: Arc&lt;DashMap&lt;String, Value&gt;&gt;,      // Flash messages (consumed when read)
+}
+#}</code></pre></pre>
+<a class="header" href="guides/sessions.html#session-storage-backends" id="session-storage-backends"><h3>Session Storage Backends</h3></a>
+<p>RustF supports multiple storage backends through the <code>SessionStorage</code> trait:</p>
+<ul>
+<li><strong>Memory Storage</strong> - Fast in-memory storage with automatic cleanup (implemented, default)</li>
+<li><strong>Redis Storage</strong> - Persistent storage with connection pooling (implemented, built-in)</li>
+<li><strong>Database Storage</strong> - Planned but not yet implemented (configuration exists)</li>
+</ul>
+<a class="header" href="guides/sessions.html#basic-session-usage" id="basic-session-usage"><h2>Basic Session Usage</h2></a>
+<a class="header" href="guides/sessions.html#accessing-session-in-controllers" id="accessing-session-in-controllers"><h3>Accessing Session in Controllers</h3></a>
+<p>Sessions are available through the <code>Context</code> object in controllers:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use rustf::prelude::*;
+
+async fn login(ctx: Context) -&gt; Result&lt;Response&gt; {
+    // Set session data
+    ctx.session_set(&quot;user_id&quot;, 123)?;
+    ctx.session_set(&quot;username&quot;, &quot;john_doe&quot;)?;
+
+    // Get session data
+    let user_id: Option&lt;i32&gt; = ctx.session_get(&quot;user_id&quot;);
+    let username: Option&lt;String&gt; = ctx.session_get(&quot;username&quot;);
+
+    ctx.json(json!({
+        &quot;message&quot;: &quot;Login successful&quot;,
+        &quot;user_id&quot;: user_id,
+        &quot;username&quot;: username
+    }))
+}
+
+async fn logout(ctx: Context) -&gt; Result&lt;Response&gt; {
+    // Clear all session data but keep session active for tracking
+    ctx.session_clear();
+
+    // Alternative: completely destroy the session
+    // ctx.session_destroy();
+
+    ctx.flash_success(&quot;You have been logged out successfully&quot;);
+    ctx.redirect(&quot;/login&quot;)
+}
+#}</code></pre></pre>
+<a class="header" href="guides/sessions.html#session-data-types" id="session-data-types"><h3>Session Data Types</h3></a>
+<p>Sessions support any serializable data type:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Basic types
+ctx.session_set(&quot;counter&quot;, 42)?;
+ctx.session_set(&quot;is_admin&quot;, true)?;
+ctx.session_set(&quot;email&quot;, &quot;user@example.com&quot;)?;
+
+// Complex types
+let user_data = json!({
+    &quot;id&quot;: 123,
+    &quot;roles&quot;: [&quot;user&quot;, &quot;moderator&quot;],
+    &quot;preferences&quot;: {
+        &quot;theme&quot;: &quot;dark&quot;,
+        &quot;language&quot;: &quot;en&quot;
+    }
+});
+ctx.session_set(&quot;user&quot;, user_data)?;
+
+// Custom structs (must implement Serialize/Deserialize)
+#[derive(Serialize, Deserialize)]
+struct UserProfile {
+    id: i32,
+    name: String,
+    preferences: HashMap&lt;String, String&gt;,
+}
+
+let profile = UserProfile { /* ... */ };
+ctx.session_set(&quot;profile&quot;, profile)?;
+#}</code></pre></pre>
+<a class="header" href="guides/sessions.html#flash-messages" id="flash-messages"><h2>Flash Messages</h2></a>
+<p>Flash messages are temporary messages that are consumed when read, perfect for displaying one-time notifications.</p>
+<a class="header" href="guides/sessions.html#setting-flash-messages" id="setting-flash-messages"><h3>Setting Flash Messages</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Convenience methods for common message types
+ctx.flash_success(&quot;Account created successfully!&quot;);
+ctx.flash_error(&quot;Invalid credentials&quot;);
+ctx.flash_info(&quot;Please verify your email&quot;);
+
+// Custom flash messages
+ctx.flash_set(&quot;warning&quot;, &quot;Your session will expire soon&quot;)?;
+ctx.flash_set(&quot;custom_data&quot;, json!({&quot;type&quot;: &quot;notification&quot;, &quot;data&quot;: 123}))?;
+#}</code></pre></pre>
+<a class="header" href="guides/sessions.html#reading-flash-messages" id="reading-flash-messages"><h3>Reading Flash Messages</h3></a>
+<p>Flash messages are automatically consumed when read:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Get specific flash message (consumes it)
+let error_msg: Option&lt;String&gt; = ctx.flash_get(&quot;error&quot;);
+let success_msg: Option&lt;String&gt; = ctx.flash_get(&quot;success&quot;);
+
+// Get all flash messages at once (consumes all)
+let all_flash: HashMap&lt;String, Value&gt; = ctx.flash_get_all();
+#}</code></pre></pre>
+<a class="header" href="guides/sessions.html#flash-messages-in-views" id="flash-messages-in-views"><h3>Flash Messages in Views</h3></a>
+<p>Flash messages are automatically included in view contexts:</p>
+<pre><code class="language-html">&lt;!-- views/layouts/default.html --&gt;
+&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+    &lt;title&gt;My App&lt;/title&gt;
+&lt;/head&gt;
+&lt;body&gt;
+    &lt;!-- Flash messages are available in 'flash' variable --&gt;
+    @{if flash.success}
+        &lt;div class=&quot;alert alert-success&quot;&gt;@{flash.success}&lt;/div&gt;
+    @{fi}
+
+    @{if flash.erro}
+        &lt;div class=&quot;alert alert-error&quot;&gt;@{flash.error}&lt;/div&gt;
+    @{fi}
+
+    @{if flash.info}
+        &lt;div class=&quot;alert alert-info&quot;&gt;@{flash.info}&lt;/div&gt;
+    @{fi}
+
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre>
+<a class="header" href="guides/sessions.html#session-configuration" id="session-configuration"><h2>Session Configuration</h2></a>
+<a class="header" href="guides/sessions.html#default-memory-storage" id="default-memory-storage"><h3>Default Memory Storage</h3></a>
+<p>The default session store uses in-memory storage with automatic cleanup:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Default configuration (30 minutes timeout, 5 minutes cleanup interval)
+let app = RustF::new(); // Uses MemorySessionStorage by default
+#}</code></pre></pre>
+<a class="header" href="guides/sessions.html#custom-memory-storage" id="custom-memory-storage"><h3>Custom Memory Storage</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use rustf::session::storage::MemorySessionStorage;
+use std::time::Duration;
+
+// Custom timeout settings
+let storage = MemorySessionStorage::with_timeout(
+    Duration::from_secs(60 * 60),    // 1 hour session timeout
+    Duration::from_secs(10 * 60)     // 10 minutes cleanup interval
+);
+
+let session_store = SessionStore::with_storage(Arc::new(storage));
+#}</code></pre></pre>
+<a class="header" href="guides/sessions.html#redis-storage" id="redis-storage"><h3>Redis Storage</h3></a>
+<p>For production environments, use Redis for persistent session storage:</p>
+<pre><pre class="playpen"><code class="language-rust">use rustf::session::redis::RedisSessionStorage;
+
+#[tokio::main]
+async fn main() -&gt; Result&lt;()&gt; {
+    // Default Redis connection (redis://localhost:6379)
+    let redis_storage = RedisSessionStorage::new().await?;
+
+    // Custom Redis configuration
+    let redis_storage = RedisSessionStorage::from_url(
+        &quot;redis://localhost:6379&quot;,
+        &quot;myapp:session:&quot;,  // Key prefix
+        20                 // Pool size
+    ).await?;
+
+    let session_store = SessionStore::with_storage(Arc::new(redis_storage));
+
+    // Configure app with Redis sessions
+    let app = RustF::new()
+        .with_session_store(session_store)
+        .controllers(auto_controllers!());
+
+    app.serve(None).await
+}
+</code></pre></pre>
+<a class="header" href="guides/sessions.html#session-lifecycle-management" id="session-lifecycle-management"><h2>Session Lifecycle Management</h2></a>
+<a class="header" href="guides/sessions.html#standard-session-methods" id="standard-session-methods"><h3>Standard Session Methods</h3></a>
+<p>RustF provides industry-standard session lifecycle methods:</p>
+<table><thead><tr><th> Method </th><th> Purpose </th><th> Scope </th><th> When to Use </th></tr></thead><tbody>
+<tr><td> <code>clear()</code> </td><td> Remove all data, keep session active </td><td> Memory only </td><td> Partial logout, data reset </td></tr>
+<tr><td> <code>flush()</code> </td><td> Alias for <code>clear()</code> </td><td> Memory only </td><td> Laravel compatibility </td></tr>
+<tr><td> <code>destroy()</code> </td><td> Mark for destruction, clear data </td><td> Memory only </td><td> Local cleanup </td></tr>
+<tr><td> <code>regenerate_id()</code> </td><td> New ID, keep data </td><td> Memory only </td><td> Security after login </td></tr>
+</tbody></table>
+<a class="header" href="guides/sessions.html#sessionstore-methods-with-storage" id="sessionstore-methods-with-storage"><h3>SessionStore Methods (with Storage)</h3></a>
+<table><thead><tr><th> Method </th><th> Purpose </th><th> Scope </th><th> When to Use </th></tr></thead><tbody>
+<tr><td> <code>destroy_session()</code> </td><td> Complete removal </td><td> Memory + Storage </td><td> Full logout, security breach </td></tr>
+<tr><td> <code>regenerate_session_id()</code> </td><td> New ID + storage update </td><td> Memory + Storage </td><td> Session fixation protection </td></tr>
+<tr><td> <code>clear_session()</code> </td><td> Clear data, keep in storage </td><td> Memory + Storage </td><td> Reset user data </td></tr>
+</tbody></table>
+<a class="header" href="guides/sessions.html#usage-examples" id="usage-examples"><h3>Usage Examples</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Partial logout - clear data but keep session for analytics
+ctx.session_clear();
+
+// Complete logout - remove session entirely
+// (requires access to SessionStore)
+session_store.destroy_session(&amp;session_id).await?;
+
+// Security after login - regenerate ID to prevent fixation
+session.regenerate_id();
+
+// Or with storage backend update
+if let Some(new_session) = session_store.regenerate_session_id(&amp;old_id).await? {
+    // Session ID changed, update any client-side references
+    log::info!(&quot;New session ID: {}&quot;, new_session.id());
+}
+#}</code></pre></pre>
+<a class="header" href="guides/sessions.html#session-security" id="session-security"><h2>Session Security</h2></a>
+<a class="header" href="guides/sessions.html#session-id-generation" id="session-id-generation"><h3>Session ID Generation</h3></a>
+<p>Session IDs are cryptographically secure 32-character alphanumeric strings:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Automatically generated for each new session
+let session_id = storage.generate_id(); // e.g., &quot;a7b8c9d0e1f2g3h4i5j6k7l8m9n0o1p2&quot;
+#}</code></pre></pre>
+<a class="header" href="guides/sessions.html#session-expiration" id="session-expiration"><h3>Session Expiration</h3></a>
+<p>Sessions automatically expire based on last access time:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Configure session timeout
+let storage = MemorySessionStorage::with_timeout(
+    Duration::from_secs(30 * 60), // 30 minutes of inactivity
+    Duration::from_secs(5 * 60)   // Cleanup every 5 minutes
+);
+#}</code></pre></pre>
+<a class="header" href="guides/sessions.html#session-cleanup" id="session-cleanup"><h3>Session Cleanup</h3></a>
+<p>Both storage backends handle automatic cleanup:</p>
+<ul>
+<li><strong>Memory Storage</strong>: Background task removes expired sessions</li>
+<li><strong>Redis Storage</strong>: Redis TTL automatically expires sessions</li>
+</ul>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Manual cleanup (returns number of sessions cleaned)
+let cleaned_count = session_store.cleanup_expired().await?;
+log::info!(&quot;Cleaned up {} expired sessions&quot;, cleaned_count);
+#}</code></pre></pre>
+<a class="header" href="guides/sessions.html#custom-session-storage-via-definitions-system-recommended" id="custom-session-storage-via-definitions-system-recommended"><h2>Custom Session Storage via Definitions System (Recommended)</h2></a>
+<p>RustF now provides a modern, convention-based approach to implementing custom session storage through the Definitions System. This is the <strong>recommended method</strong> for adding database or custom storage backends.</p>
+<a class="header" href="guides/sessions.html#quick-setup-with-definitions" id="quick-setup-with-definitions"><h3>Quick Setup with Definitions</h3></a>
+<a class="header" href="guides/sessions.html#step-1-create-session-storage-definition" id="step-1-create-session-storage-definition"><h4>Step 1: Create Session Storage Definition</h4></a>
+<p>Create <code>src/definitions/session_storage.rs</code>:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use rustf::definitions::Definitions;
+use rustf::session::{SessionStorage, SessionData, StorageStats};
+use rustf::config::SessionConfig;
+use rustf::error::Result;
+use async_trait::async_trait;
+use sqlx::PgPool;
+use std::sync::Arc;
+use std::time::Duration;
+
+/// Install function called by auto-discovery
+/// This MUST be present in every definitions file
+pub fn install(defs: &amp;mut Definitions) {
+    log::info!(&quot;Installing custom session storage from definitions&quot;);
+    defs.set_session_storage_factory(create_session_storage);
+}
+
+/// Factory function that creates our custom session storage
+/// This is called by the framework when initializing sessions
+fn create_session_storage(
+    config: &amp;SessionConfig
+) -&gt; Result&lt;Arc&lt;dyn SessionStorage&gt;&gt; {
+    // Get database URL from environment or config
+    let database_url = std::env::var(&quot;DATABASE_URL&quot;)
+        .unwrap_or_else(|_| &quot;postgresql://localhost/myapp&quot;.to_string());
+
+    // Create your custom storage
+    let storage = PostgresSessionStorage::new(&amp;database_url)?;
+    Ok(Arc::new(storage))
+}
+
+// Your SessionStorage implementation (see detailed example below)
+pub struct PostgresSessionStorage {
+    pool: PgPool,
+}
+
+// ... implement SessionStorage trait (see complete example in previous section)
+#}</code></pre></pre>
+<a class="header" href="guides/sessions.html#step-2-use-auto-discovery" id="step-2-use-auto-discovery"><h4>Step 2: Use Auto-Discovery</h4></a>
+<p>In your <code>main.rs</code>:</p>
+<pre><pre class="playpen"><code class="language-rust">#[rustf::auto_discover]
+#[tokio::main]
+async fn main() -&gt; rustf::Result&lt;()&gt; {
+    let app = RustF::new()
+        .definitions_from(auto_definitions!())  // Automatically finds session_storage.rs
+        .controllers(auto_controllers!());
+
+    // Your custom session storage is now active!
+    app.start().await
+}
+</code></pre></pre>
+<p>That's it! Your custom session storage is automatically discovered and integrated.</p>
+<p><strong>Important</strong>: The <code>install()</code> function is mandatory - it's how the auto-discovery system knows what to register.</p>
+<a class="header" href="guides/sessions.html#benefits-of-the-definitions-approach" id="benefits-of-the-definitions-approach"><h3>Benefits of the Definitions Approach</h3></a>
+<ol>
+<li><strong>Zero Configuration</strong> - Just create the file in the right place</li>
+<li><strong>Auto-Discovery</strong> - No manual registration needed</li>
+<li><strong>Convention-Based</strong> - Follow the pattern, it just works</li>
+<li><strong>Type-Safe</strong> - Compile-time checking of your implementation</li>
+<li><strong>Testable</strong> - Easy to unit test in isolation</li>
+</ol>
+<a class="header" href="guides/sessions.html#complete-example-postgresql-storage-via-definitions" id="complete-example-postgresql-storage-via-definitions"><h3>Complete Example: PostgreSQL Storage via Definitions</h3></a>
+<p>Here's a complete, production-ready implementation using the definitions system:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// src/definitions/session_storage.rs
+use rustf::definitions::Definitions;
+use rustf::session::{SessionStorage, SessionData, StorageStats};
+use rustf::config::SessionConfig;
+use rustf::error::Result;
+use async_trait::async_trait;
+use sqlx::{PgPool, postgres::PgPoolOptions};
+use std::sync::Arc;
+use std::time::Duration;
+use std::collections::HashMap;
+use serde_json;
+
+/// Install function called by auto-discovery - REQUIRED!
+pub fn install(defs: &amp;mut Definitions) {
+    log::info!(&quot;Installing PostgreSQL session storage from definitions&quot;);
+    defs.set_session_storage_factory(create_session_storage);
+}
+
+/// Factory function for session storage
+fn create_session_storage(
+    config: &amp;SessionConfig
+) -&gt; Result&lt;Arc&lt;dyn SessionStorage&gt;&gt; {
+    // Configuration can come from multiple sources
+    let database_url = std::env::var(&quot;DATABASE_URL&quot;)
+        .or_else(|_| std::env::var(&quot;SESSION_DATABASE_URL&quot;))
+        .unwrap_or_else(|_| &quot;postgresql://localhost/myapp&quot;.to_string());
+
+    // Create storage with configuration
+    let storage = PostgresSessionStorage::new(
+        &amp;database_url,
+        config.idle_timeout.as_secs(),
+        config.cookie_name.clone()
+    )?;
+
+    Ok(Arc::new(storage))
+}
+
+pub struct PostgresSessionStorage {
+    pool: PgPool,
+    default_ttl_seconds: u64,
+    table_name: String,
+}
+
+impl PostgresSessionStorage {
+    pub fn new(
+        database_url: &amp;str,
+        default_ttl_seconds: u64,
+        cookie_name: String
+    ) -&gt; Result&lt;Self&gt; {
+        // Create connection pool synchronously for the factory
+        let pool = futures::executor::block_on(async {
+            PgPoolOptions::new()
+                .max_connections(5)
+                .connect(database_url)
+                .await
+        }).map_err(|e| rustf::error::Error::internal(
+            format!(&quot;Failed to connect to database: {}&quot;, e)
+        ))?;
+
+        // Create sessions table
+        futures::executor::block_on(async {
+            sqlx::query(&amp;format!(
+                &quot;CREATE TABLE IF NOT EXISTS sessions_{} (
+                    id VARCHAR(64) PRIMARY KEY,
+                    data JSONB NOT NULL,
+                    expires_at TIMESTAMP NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    ip_address INET,
+                    user_agent TEXT
+                )&quot;,
+                sanitize_table_name(&amp;cookie_name)
+            ))
+            .execute(&amp;pool)
+            .await
+        }).map_err(|e| rustf::error::Error::internal(
+            format!(&quot;Failed to create sessions table: {}&quot;, e)
+        ))?;
+
+        // Create indexes for performance
+        futures::executor::block_on(async {
+            sqlx::query(&amp;format!(
+                &quot;CREATE INDEX IF NOT EXISTS idx_sessions_{}_expires
+                 ON sessions_{} (expires_at)&quot;,
+                sanitize_table_name(&amp;cookie_name),
+                sanitize_table_name(&amp;cookie_name)
+            ))
+            .execute(&amp;pool)
+            .await
+        }).ok(); // Index creation failure is non-fatal
+
+        Ok(Self {
+            pool,
+            default_ttl_seconds,
+            table_name: format!(&quot;sessions_{}&quot;, sanitize_table_name(&amp;cookie_name)),
+        })
+    }
+}
+
+#[async_trait]
+impl SessionStorage for PostgresSessionStorage {
+    async fn get(&amp;self, session_id: &amp;str) -&gt; Result&lt;Option&lt;SessionData&gt;&gt; {
+        let query = format!(
+            &quot;SELECT data FROM {}
+             WHERE id = $1 AND expires_at &gt; NOW()&quot;,
+            self.table_name
+        );
+
+        let row = sqlx::query(&amp;query)
+            .bind(session_id)
+            .fetch_optional(&amp;self.pool)
+            .await
+            .map_err(|e| rustf::error::Error::internal(
+                format!(&quot;Failed to get session: {}&quot;, e)
+            ))?;
+
+        match row {
+            Some(row) =&gt; {
+                let data: serde_json::Value = row.try_get(&quot;data&quot;)
+                    .map_err(|e| rustf::error::Error::internal(
+                        format!(&quot;Failed to deserialize session: {}&quot;, e)
+                    ))?;
+
+                let mut session_data: SessionData = serde_json::from_value(data)
+                    .map_err(|e| rustf::error::Error::internal(
+                        format!(&quot;Invalid session data format: {}&quot;, e)
+                    ))?;
+
+                // Update last accessed time
+                session_data.touch();
+
+                // Update in database (fire and forget for performance)
+                let update_query = format!(
+                    &quot;UPDATE {} SET updated_at = NOW() WHERE id = $1&quot;,
+                    self.table_name
+                );
+
+                let _ = sqlx::query(&amp;update_query)
+                    .bind(session_id)
+                    .execute(&amp;self.pool)
+                    .await;
+
+                Ok(Some(session_data))
+            }
+            None =&gt; Ok(None)
+        }
+    }
+
+    async fn set(
+        &amp;self,
+        session_id: &amp;str,
+        data: &amp;SessionData,
+        ttl: Duration
+    ) -&gt; Result&lt;()&gt; {
+        let expires_at = chrono::Utc::now() +
+            chrono::Duration::seconds(ttl.as_secs() as i64);
+
+        let json_data = serde_json::to_value(data)
+            .map_err(|e| rustf::error::Error::internal(
+                format!(&quot;Failed to serialize session: {}&quot;, e)
+            ))?;
+
+        let query = format!(
+            &quot;INSERT INTO {} (id, data, expires_at, updated_at)
+             VALUES ($1, $2, $3, NOW())
+             ON CONFLICT (id) DO UPDATE
+             SET data = $2, expires_at = $3, updated_at = NOW()&quot;,
+            self.table_name
+        );
+
+        sqlx::query(&amp;query)
+            .bind(session_id)
+            .bind(json_data)
+            .bind(expires_at)
+            .execute(&amp;self.pool)
+            .await
+            .map_err(|e| rustf::error::Error::internal(
+                format!(&quot;Failed to save session: {}&quot;, e)
+            ))?;
+
+        Ok(())
+    }
+
+    async fn delete(&amp;self, session_id: &amp;str) -&gt; Result&lt;()&gt; {
+        let query = format!(
+            &quot;DELETE FROM {} WHERE id = $1&quot;,
+            self.table_name
+        );
+
+        sqlx::query(&amp;query)
+            .bind(session_id)
+            .execute(&amp;self.pool)
+            .await
+            .map_err(|e| rustf::error::Error::internal(
+                format!(&quot;Failed to delete session: {}&quot;, e)
+            ))?;
+
+        Ok(())
+    }
+
+    async fn exists(&amp;self, session_id: &amp;str) -&gt; Result&lt;bool&gt; {
+        let query = format!(
+            &quot;SELECT 1 FROM {}
+             WHERE id = $1 AND expires_at &gt; NOW()
+             LIMIT 1&quot;,
+            self.table_name
+        );
+
+        let exists = sqlx::query(&amp;query)
+            .bind(session_id)
+            .fetch_optional(&amp;self.pool)
+            .await
+            .map_err(|e| rustf::error::Error::internal(
+                format!(&quot;Failed to check session existence: {}&quot;, e)
+            ))?
+            .is_some();
+
+        Ok(exists)
+    }
+
+    async fn cleanup_expired(&amp;self) -&gt; Result&lt;usize&gt; {
+        let query = format!(
+            &quot;DELETE FROM {} WHERE expires_at &lt;= NOW()&quot;,
+            self.table_name
+        );
+
+        let result = sqlx::query(&amp;query)
+            .execute(&amp;self.pool)
+            .await
+            .map_err(|e| rustf::error::Error::internal(
+                format!(&quot;Failed to cleanup sessions: {}&quot;, e)
+            ))?;
+
+        Ok(result.rows_affected() as usize)
+    }
+
+    fn backend_name(&amp;self) -&gt; &amp;'static str {
+        &quot;postgresql-definitions&quot;
+    }
+
+    async fn stats(&amp;self) -&gt; Result&lt;StorageStats&gt; {
+        let total_query = format!(
+            &quot;SELECT COUNT(*) as count FROM {}&quot;,
+            self.table_name
+        );
+
+        let active_query = format!(
+            &quot;SELECT COUNT(*) as count FROM {} WHERE expires_at &gt; NOW()&quot;,
+            self.table_name
+        );
+
+        let total: i64 = sqlx::query(&amp;total_query)
+            .fetch_one(&amp;self.pool)
+            .await
+            .and_then(|row| row.try_get(&quot;count&quot;))
+            .unwrap_or(0);
+
+        let active: i64 = sqlx::query(&amp;active_query)
+            .fetch_one(&amp;self.pool)
+            .await
+            .and_then(|row| row.try_get(&quot;count&quot;))
+            .unwrap_or(0);
+
+        Ok(StorageStats {
+            total_sessions: total as usize,
+            active_sessions: active as usize,
+            expired_sessions: (total - active) as usize,
+            backend_metrics: HashMap::new(),
+        })
+    }
+}
+
+fn sanitize_table_name(name: &amp;str) -&gt; String {
+    name.chars()
+        .filter(|c| c.is_alphanumeric() || *c == '_')
+        .collect::&lt;String&gt;()
+        .to_lowercase()
+}
+#}</code></pre></pre>
+<p><strong>Key Points:</strong></p>
+<ul>
+<li>The <code>install(defs: &amp;mut Definitions)</code> function is mandatory for auto-discovery</li>
+<li>The factory function (<code>create_session_storage</code>) should be private since it's registered via <code>install()</code></li>
+<li>The factory receives <code>&amp;SessionConfig</code> from <code>rustf::config::SessionConfig</code>, not the session manager's config</li>
+</ul>
+<a class="header" href="guides/sessions.html#how-it-works" id="how-it-works"><h3>How It Works</h3></a>
+<ol>
+<li><strong>Auto-Discovery</strong>: The <code>auto_definitions!()</code> macro finds <code>session_storage.rs</code> with an <code>install()</code> function</li>
+<li><strong>Registration</strong>: The <code>install()</code> function is called and registers your factory via <code>defs.set_session_storage_factory()</code></li>
+<li><strong>Factory Pattern</strong>: When sessions are initialized, RustF calls your registered factory function</li>
+<li><strong>Integration</strong>: Your storage replaces the default memory storage automatically</li>
+<li><strong>Configuration</strong>: The factory receives <code>SessionConfig</code> for customization</li>
+</ol>
+<a class="header" href="guides/sessions.html#when-to-use-definitions-vs-manual-integration" id="when-to-use-definitions-vs-manual-integration"><h3>When to Use Definitions vs Manual Integration</h3></a>
+<p><strong>Use Definitions (Recommended) When:</strong></p>
+<ul>
+<li>You want the simplest setup</li>
+<li>Following conventions is acceptable</li>
+<li>You're building a standard application</li>
+<li>You want auto-discovery benefits</li>
+</ul>
+<p><strong>Use Manual Integration When:</strong></p>
+<ul>
+<li>You need complex initialization logic</li>
+<li>You want full control over the storage lifecycle</li>
+<li>You're building a library or framework</li>
+<li>You have special requirements that don't fit the convention</li>
+</ul>
+<p>For more details on the Definitions System, see <a href="schemas.md">Schemas &amp; Definitions</a>.</p>
+<a class="header" href="guides/sessions.html#advanced-usage" id="advanced-usage"><h2>Advanced Usage</h2></a>
+<a class="header" href="guides/sessions.html#session-management-methods" id="session-management-methods"><h3>Session Management Methods</h3></a>
+<p>RustF provides comprehensive session management methods:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+async fn session_management(ctx: Context) -&gt; Result&lt;Response&gt; {
+    let session = &amp;ctx.session;
+
+    // Basic session operations
+    session.set(&quot;user_id&quot;, 123)?;
+    let user_id: Option&lt;i32&gt; = session.get(&quot;user_id&quot;);
+    let removed_value = session.remove(&quot;temp_data&quot;);
+
+    // Session lifecycle management
+    session.clear();        // Clear all data but keep session active
+    session.flush();        // Alias for clear() (Laravel compatibility)
+    session.destroy();      // Mark session for destruction
+
+    // Session information
+    let session_id = session.id();
+    let is_empty = session.is_empty();
+    let data_count = session.data_count();
+    let flash_count = session.flash_count();
+
+    ctx.json(json!({
+        &quot;session_id&quot;: session_id,
+        &quot;is_empty&quot;: is_empty,
+        &quot;data_entries&quot;: data_count,
+        &quot;flash_messages&quot;: flash_count
+    }))
+}
+
+// Security: Session ID regeneration for fixation protection
+async fn regenerate_session(ctx: Context) -&gt; Result&lt;Response&gt; {
+    // Get mutable reference to session
+    let session = &amp;mut ctx.session;
+
+    // Regenerate session ID while keeping all data
+    session.regenerate_id();
+
+    ctx.flash_info(&quot;Session ID regenerated for security&quot;);
+    ctx.json(json!({&quot;new_session_id&quot;: session.id()}))
+}
+
+// Context convenience methods
+async fn context_session_methods(ctx: Context) -&gt; Result&lt;Response&gt; {
+    // Convenience methods available on Context
+    ctx.session_set(&quot;key&quot;, &quot;value&quot;)?;
+    let value: Option&lt;String&gt; = ctx.session_get(&quot;key&quot;);
+    ctx.session_clear();     // Clear all session data
+    ctx.session_flush();     // Alias for clear
+    ctx.session_destroy();   // Mark for destruction
+
+    ctx.json(json!({&quot;status&quot;: &quot;ok&quot;}))
+}
+#}</code></pre></pre>
+<a class="header" href="guides/sessions.html#session-store-operations" id="session-store-operations"><h3>Session Store Operations</h3></a>
+<p>Perform operations on the session store itself:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use rustf::session::{SessionStore, SessionData};
+
+async fn session_store_management(session_store: &amp;SessionStore) -&gt; Result&lt;()&gt; {
+    let session_id = &quot;user_123_session&quot;;
+
+    // Basic session store operations
+    let exists = session_store.exists(session_id).await?;
+    let session_opt = session_store.get(session_id).await?;
+
+    // Complete session destruction (removes from storage)
+    session_store.destroy_session(session_id).await?;
+
+    // Regenerate session ID with storage backend updates
+    if let Some(new_session) = session_store.regenerate_session_id(session_id).await? {
+        log::info!(&quot;Session regenerated: {}&quot;, new_session.id());
+    }
+
+    // Clear session data but keep it in storage
+    session_store.clear_session(session_id).await?;
+
+    // Storage statistics and monitoring
+    let stats = session_store.stats().await?;
+    log::info!(&quot;Total sessions: {}, Active: {}&quot;,
+               stats.total_sessions,
+               stats.active_sessions);
+
+    let backend = session_store.backend_name();
+    log::info!(&quot;Using {} storage backend&quot;, backend);
+
+    Ok(())
+}
+#}</code></pre></pre>
+<a class="header" href="guides/sessions.html#custom-storage-backend-manual-approach" id="custom-storage-backend-manual-approach"><h3>Custom Storage Backend (Manual Approach)</h3></a>
+<blockquote>
+<p><strong>Note</strong>: The Definitions System approach (described above) is now the recommended way to implement custom session storage. The manual approach below is still supported for advanced use cases requiring full control.</p>
+</blockquote>
+<a class="header" href="guides/sessions.html#understanding-sessiondata-structure" id="understanding-sessiondata-structure"><h4>Understanding SessionData Structure</h4></a>
+<p>Before implementing custom storage, understand the <code>SessionData</code> structure:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use serde::{Serialize, Deserialize};
+use serde_json::Value;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SessionData {
+    /// Session data as JSON object
+    pub data: Value,
+    /// Flash messages as JSON object
+    pub flash: Value,
+    /// Security fingerprint containing IP and user agent info
+    pub fingerprint: Option&lt;SessionFingerprint&gt;,
+    /// Session creation timestamp (Unix seconds)
+    pub created_at: u64,
+    /// Last accessed timestamp (Unix seconds)
+    pub last_accessed: u64,
+    /// Absolute timeout timestamp (Unix seconds)
+    pub absolute_timeout: u64,
+    /// Current privilege level (for security escalation tracking)
+    pub privilege_level: u32,
+}
+
+impl SessionData {
+    /// Update last accessed time to current timestamp
+    pub fn touch(&amp;mut self) {
+        self.last_accessed = unix_timestamp();
+    }
+
+    /// Check if session has expired based on dual timeout
+    pub fn is_expired(&amp;self, idle_timeout_secs: u64) -&gt; bool {
+        let now = unix_timestamp();
+
+        // Check absolute timeout
+        if now &gt; self.absolute_timeout {
+            return true;
+        }
+
+        // Check idle timeout
+        (now - self.last_accessed) &gt; idle_timeout_secs
+    }
+}
+#}</code></pre></pre>
+<a class="header" href="guides/sessions.html#understanding-sessionfingerprint-structure" id="understanding-sessionfingerprint-structure"><h4>Understanding SessionFingerprint Structure</h4></a>
+<p>The <code>SessionFingerprint</code> structure captures client information for session security validation:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use serde::{Serialize, Deserialize};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SessionFingerprint {
+    /// IP prefix for soft validation (first 3 octets for IPv4, first 3 segments for IPv6)
+    pub ip_prefix: String,
+    /// Hashed user agent for privacy (stored as u64 hash, not plaintext)
+    pub user_agent_hash: u64,
+    /// Original creation IP address for audit logging
+    pub created_ip: String,
+    /// Creation timestamp (Unix seconds)
+    pub created_at: u64,
+}
+
+impl SessionFingerprint {
+    /// Create fingerprint from request (called automatically by session middleware)
+    pub fn from_request(request: &amp;Request) -&gt; Self {
+        let created_at = unix_timestamp();
+        let created_ip = request.client_ip();  // Supports X-Forwarded-For and X-Real-IP
+        let ip_prefix = Self::extract_ip_prefix(&amp;created_ip);
+        let user_agent_hash = Self::hash_user_agent(request.user_agent());
+
+        Self {
+            ip_prefix,
+            user_agent_hash,
+            created_ip,
+            created_at,
+        }
+    }
+
+    /// Validate fingerprint against request based on FingerprintMode
+    pub fn validate(&amp;self, request: &amp;Request, mode: FingerprintMode) -&gt; bool {
+        // Implementation varies based on mode (see FingerprintMode below)
+    }
+}
+#}</code></pre></pre>
+<p><strong>Important Notes:</strong></p>
+<ul>
+<li>IP address and user agent are <strong>automatically captured</strong> when a session is created</li>
+<li>User agent is stored as a hash for privacy protection</li>
+<li>The <code>created_ip</code> field stores the full original IP for audit purposes</li>
+<li>The <code>ip_prefix</code> is used for soft validation (allows some IP mobility)</li>
+</ul>
+<a class="header" href="guides/sessions.html#fingerprintmode-enum" id="fingerprintmode-enum"><h4>FingerprintMode Enum</h4></a>
+<p>Controls how strictly sessions are bound to client characteristics:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub enum FingerprintMode {
+    /// No fingerprint validation - sessions work from any IP/browser
+    Disabled,
+
+    /// Soft validation (default) - validates IP prefix + user agent hash
+    /// Allows mobility within same subnet (e.g., WiFi to cellular on same network)
+    Soft,
+
+    /// Strict validation - exact IP and user agent must match
+    /// Maximum security but may cause issues with mobile users or dynamic IPs
+    Strict,
+}
+
+impl Default for FingerprintMode {
+    fn default() -&gt; Self {
+        Self::Soft  // Balanced security and usability
+    }
+}
+#}</code></pre></pre>
+<p><strong>Validation Behavior:</strong></p>
+<ul>
+<li><strong>Disabled</strong>: No validation, session works from anywhere</li>
+<li><strong>Soft</strong>: IP must match first 3 octets (IPv4) or first 3 segments (IPv6), and user agent hash must match</li>
+<li><strong>Strict</strong>: Exact IP address and user agent hash must match</li>
+</ul>
+<p><strong>Accessing Fingerprint Data in Controllers:</strong></p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+async fn show_session_info(ctx: Context) -&gt; Result&lt;Response&gt; {
+    if let Some(session) = ctx.session() {
+        // Get the fingerprint if it exists
+        if let Some(fingerprint) = session.fingerprint() {
+            // Access captured client information
+            let created_ip = &amp;fingerprint.created_ip;
+            let created_at = fingerprint.created_at;
+            let ip_prefix = &amp;fingerprint.ip_prefix;
+
+            return ctx.json(json!({
+                &quot;session_id&quot;: session.id(),
+                &quot;created_from_ip&quot;: created_ip,
+                &quot;created_at&quot;: created_at,
+                &quot;ip_prefix&quot;: ip_prefix,
+                // Note: user_agent_hash is a u64, not human-readable
+                &quot;user_agent_hash&quot;: fingerprint.user_agent_hash,
+            }));
+        }
+    }
+
+    ctx.json(json!({&quot;error&quot;: &quot;No session found&quot;}))
+}
+#}</code></pre></pre>
+<a class="header" href="guides/sessions.html#complete-database-storage-implementation-with-sqlx" id="complete-database-storage-implementation-with-sqlx"><h4>Complete Database Storage Implementation with SQLx</h4></a>
+<p>Here's a complete working example using SQLx for PostgreSQL:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use async_trait::async_trait;
+use rustf::session::{SessionStorage, SessionData, StorageStats};
+use sqlx::{PgPool, Row};
+use std::time::Duration;
+use serde_json;
+
+pub struct DatabaseSessionStorage {
+    pool: PgPool,
+    table_name: String,
+}
+
+impl DatabaseSessionStorage {
+    pub async fn new(database_url: &amp;str) -&gt; Result&lt;Self&gt; {
+        // Create connection pool
+        let pool = PgPool::connect(database_url).await?;
+
+        // Create sessions table if not exists
+        sqlx::query(&amp;format!(r#&quot;
+            CREATE TABLE IF NOT EXISTS sessions (
+                id VARCHAR(64) PRIMARY KEY,
+                data JSONB NOT NULL,
+                expires_at TIMESTAMP NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        &quot;#)).execute(&amp;pool).await?;
+
+        // Create index for cleanup
+        sqlx::query(&quot;CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at)&quot;)
+            .execute(&amp;pool).await?;
+
+        Ok(Self {
+            pool,
+            table_name: &quot;sessions&quot;.to_string(),
+        })
+    }
+}
+
+#[async_trait]
+impl SessionStorage for DatabaseSessionStorage {
+    async fn get(&amp;self, session_id: &amp;str) -&gt; Result&lt;Option&lt;SessionData&gt;&gt; {
+        let query = format!(
+            &quot;SELECT data FROM {} WHERE id = $1 AND expires_at &gt; NOW()&quot;,
+            self.table_name
+        );
+
+        let row = sqlx::query(&amp;query)
+            .bind(session_id)
+            .fetch_optional(&amp;self.pool)
+            .await?;
+
+        match row {
+            Some(row) =&gt; {
+                let data: serde_json::Value = row.get(&quot;data&quot;);
+                let mut session_data: SessionData = serde_json::from_value(data)?;
+
+                // Update last accessed time
+                session_data.touch();
+
+                // Update in database
+                let update_query = format!(
+                    &quot;UPDATE {} SET updated_at = NOW() WHERE id = $1&quot;,
+                    self.table_name
+                );
+                sqlx::query(&amp;update_query)
+                    .bind(session_id)
+                    .execute(&amp;self.pool)
+                    .await?;
+
+                Ok(Some(session_data))
+            }
+            None =&gt; Ok(None),
+        }
+    }
+
+    async fn set(&amp;self, session_id: &amp;str, data: &amp;SessionData, ttl: Duration) -&gt; Result&lt;()&gt; {
+        let expires_at = chrono::Utc::now() + chrono::Duration::seconds(ttl.as_secs() as i64);
+        let json_data = serde_json::to_value(data)?;
+
+        let query = format!(r#&quot;
+            INSERT INTO {} (id, data, expires_at, updated_at)
+            VALUES ($1, $2, $3, NOW())
+            ON CONFLICT (id) DO UPDATE
+            SET data = $2, expires_at = $3, updated_at = NOW()
+        &quot;#, self.table_name);
+
+        sqlx::query(&amp;query)
+            .bind(session_id)
+            .bind(json_data)
+            .bind(expires_at)
+            .execute(&amp;self.pool)
+            .await?;
+
+        Ok(())
+    }
+
+    async fn delete(&amp;self, session_id: &amp;str) -&gt; Result&lt;()&gt; {
+        let query = format!(&quot;DELETE FROM {} WHERE id = $1&quot;, self.table_name);
+        sqlx::query(&amp;query)
+            .bind(session_id)
+            .execute(&amp;self.pool)
+            .await?;
+        Ok(())
+    }
+
+    async fn exists(&amp;self, session_id: &amp;str) -&gt; Result&lt;bool&gt; {
+        let query = format!(
+            &quot;SELECT 1 FROM {} WHERE id = $1 AND expires_at &gt; NOW()&quot;,
+            self.table_name
+        );
+
+        let exists = sqlx::query(&amp;query)
+            .bind(session_id)
+            .fetch_optional(&amp;self.pool)
+            .await?
+            .is_some();
+
+        Ok(exists)
+    }
+
+    async fn cleanup_expired(&amp;self) -&gt; Result&lt;usize&gt; {
+        let query = format!(&quot;DELETE FROM {} WHERE expires_at &lt;= NOW()&quot;, self.table_name);
+        let result = sqlx::query(&amp;query)
+            .execute(&amp;self.pool)
+            .await?;
+
+        Ok(result.rows_affected() as usize)
+    }
+
+    fn backend_name(&amp;self) -&gt; &amp;'static str {
+        &quot;database&quot;
+    }
+
+    async fn stats(&amp;self) -&gt; Result&lt;StorageStats&gt; {
+        let total_query = format!(&quot;SELECT COUNT(*) as count FROM {}&quot;, self.table_name);
+        let active_query = format!(
+            &quot;SELECT COUNT(*) as count FROM {} WHERE expires_at &gt; NOW()&quot;,
+            self.table_name
+        );
+
+        let total: i64 = sqlx::query(&amp;total_query)
+            .fetch_one(&amp;self.pool)
+            .await?
+            .get(&quot;count&quot;);
+
+        let active: i64 = sqlx::query(&amp;active_query)
+            .fetch_one(&amp;self.pool)
+            .await?
+            .get(&quot;count&quot;);
+
+        Ok(StorageStats {
+            total_sessions: total as usize,
+            active_sessions: active as usize,
+            expired_sessions: (total - active) as usize,
+            backend_metrics: HashMap::new(),
+        })
+    }
+}
+
+// Integration (see &quot;How Session Storage Integration Works&quot; section for details)
+// You'll use this storage with SessionMiddleware::with_storage()
+#}</code></pre></pre>
+<a class="header" href="guides/sessions.html#complete-working-example-putting-it-all-together" id="complete-working-example-putting-it-all-together"><h2>Complete Working Example: Putting It All Together</h2></a>
+<p>Here's a complete, working example that shows exactly how to integrate custom database storage:</p>
+<pre><pre class="playpen"><code class="language-rust">// main.rs
+use rustf::prelude::*;
+use rustf::middleware::builtin::session::SessionMiddleware;
+use rustf::session::{SessionStorage, SessionData, StorageStats, manager::SessionConfig};
+use rustf::config::AppConfig;
+use async_trait::async_trait;
+use sqlx::PgPool;
+use std::sync::Arc;
+use std::time::Duration;
+use serde_json;
+
+// Your custom database storage implementation
+pub struct DatabaseSessionStorage {
+    pool: PgPool,
+}
+
+impl DatabaseSessionStorage {
+    pub async fn new(database_url: &amp;str) -&gt; Result&lt;Self&gt; {
+        let pool = PgPool::connect(database_url).await?;
+
+        // Create sessions table
+        sqlx::query(
+            &quot;CREATE TABLE IF NOT EXISTS sessions (
+                id VARCHAR(64) PRIMARY KEY,
+                data JSONB NOT NULL,
+                expires_at TIMESTAMP NOT NULL
+            )&quot;
+        ).execute(&amp;pool).await?;
+
+        Ok(Self { pool })
+    }
+}
+
+#[async_trait]
+impl SessionStorage for DatabaseSessionStorage {
+    async fn get(&amp;self, session_id: &amp;str) -&gt; Result&lt;Option&lt;SessionData&gt;&gt; {
+        let row = sqlx::query!(
+            &quot;SELECT data FROM sessions WHERE id = $1 AND expires_at &gt; NOW()&quot;,
+            session_id
+        )
+        .fetch_optional(&amp;self.pool)
+        .await?;
+
+        match row {
+            Some(row) =&gt; {
+                let mut data: SessionData = serde_json::from_value(row.data)?;
+                data.touch();
+                Ok(Some(data))
+            }
+            None =&gt; Ok(None)
+        }
+    }
+
+    async fn set(&amp;self, session_id: &amp;str, data: &amp;SessionData, ttl: Duration) -&gt; Result&lt;()&gt; {
+        let expires_at = chrono::Utc::now() + chrono::Duration::seconds(ttl.as_secs() as i64);
+        let json_data = serde_json::to_value(data)?;
+
+        sqlx::query!(
+            &quot;INSERT INTO sessions (id, data, expires_at)
+             VALUES ($1, $2, $3)
+             ON CONFLICT (id) DO UPDATE
+             SET data = $2, expires_at = $3&quot;,
+            session_id,
+            json_data,
+            expires_at
+        )
+        .execute(&amp;self.pool)
+        .await?;
+
+        Ok(())
+    }
+
+    async fn delete(&amp;self, session_id: &amp;str) -&gt; Result&lt;()&gt; {
+        sqlx::query!(&quot;DELETE FROM sessions WHERE id = $1&quot;, session_id)
+            .execute(&amp;self.pool)
+            .await?;
+        Ok(())
+    }
+
+    async fn exists(&amp;self, session_id: &amp;str) -&gt; Result&lt;bool&gt; {
+        let exists = sqlx::query!(
+            &quot;SELECT 1 as exists FROM sessions WHERE id = $1 AND expires_at &gt; NOW()&quot;,
+            session_id
+        )
+        .fetch_optional(&amp;self.pool)
+        .await?
+        .is_some();
+
+        Ok(exists)
+    }
+
+    async fn cleanup_expired(&amp;self) -&gt; Result&lt;usize&gt; {
+        let result = sqlx::query!(&quot;DELETE FROM sessions WHERE expires_at &lt;= NOW()&quot;)
+            .execute(&amp;self.pool)
+            .await?;
+        Ok(result.rows_affected() as usize)
+    }
+
+    fn backend_name(&amp;self) -&gt; &amp;'static str {
+        &quot;postgresql&quot;
+    }
+}
+
+#[tokio::main]
+async fn main() -&gt; Result&lt;()&gt; {
+    env_logger::init();
+
+    // Step 1: Load config but disable auto session
+    let mut config = AppConfig::from_file(&quot;config.toml&quot;)?;
+    config.session.enabled = false;  // IMPORTANT: Disable auto-creation
+
+    // Step 2: Create RustF app without auto session
+    let app = RustF::with_config(config.clone());
+
+    // Step 3: Create your custom database storage
+    let db_storage = Arc::new(
+        DatabaseSessionStorage::new(&amp;config.database.url).await?
+    );
+
+    // Step 4: Configure session settings
+    let session_config = SessionConfig {
+        cookie_name: config.session.cookie_name,
+        idle_timeout: Duration::from_secs(config.session.idle_timeout),
+        absolute_timeout: Duration::from_secs(config.session.absolute_timeout),
+        exempt_routes: config.session.exempt_routes,
+        same_site: parse_same_site(&amp;config.session.same_site),
+        enabled: true,
+        ..Default::default()
+    };
+
+    // Step 5: Create session middleware with your storage
+    let session_middleware = SessionMiddleware::with_storage(
+        db_storage,
+        session_config
+    );
+
+    // Step 6: Register everything and start
+    let app = app
+        .middleware_from(|registry| {
+            // Register your custom session middleware
+            registry.register_dual(&quot;session&quot;, session_middleware);
+
+            // Add other middleware as needed
+            registry.register_dual(&quot;cors&quot;, CorsMiddleware::new());
+        })
+        .controllers(auto_controllers!())
+        .models(auto_models!());
+
+    println!(&quot;🚀 Server starting with PostgreSQL session storage&quot;);
+    app.start().await
+}
+
+fn parse_same_site(value: &amp;str) -&gt; rustf::session::SameSite {
+    match value.to_lowercase().as_str() {
+        &quot;strict&quot; =&gt; rustf::session::SameSite::Strict,
+        &quot;lax&quot; =&gt; rustf::session::SameSite::Lax,
+        &quot;none&quot; =&gt; rustf::session::SameSite::None,
+        _ =&gt; rustf::session::SameSite::Lax,
+    }
+}
+
+## Session Data Serialization
+
+Sessions use JSON serialization internally via `serde_json`:
+
+```rust
+// These types work automatically
+ctx.session_set(&quot;string&quot;, &quot;Hello&quot;)?;
+ctx.session_set(&quot;number&quot;, 42)?;
+ctx.session_set(&quot;boolean&quot;, true)?;
+ctx.session_set(&quot;array&quot;, vec![1, 2, 3])?;
+ctx.session_set(&quot;object&quot;, json!({&quot;key&quot;: &quot;value&quot;}))?;
+
+// Custom types need Serialize/Deserialize
+#[derive(Serialize, Deserialize)]
+struct CustomData {
+    id: i32,
+    name: String,
+}
+
+let custom = CustomData { id: 1, name: &quot;test&quot;.to_string() };
+ctx.session_set(&quot;custom&quot;, custom)?;
+
+let retrieved: Option&lt;CustomData&gt; = ctx.session_get(&quot;custom&quot;);
+</code></pre></pre>
+<a class="header" href="guides/sessions.html#error-handling" id="error-handling"><h2>Error Handling</h2></a>
+<p>Session operations return <code>Result&lt;T&gt;</code> for proper error handling:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+async fn safe_session_usage(ctx: Context) -&gt; Result&lt;Response&gt; {
+    // Handle serialization errors
+    match ctx.session_set(&quot;user_id&quot;, 123) {
+        Ok(()) =&gt; log::info!(&quot;Session data saved&quot;),
+        Err(e) =&gt; log::error!(&quot;Failed to save session: {}&quot;, e),
+    }
+
+    // Handle deserialization
+    match ctx.session_get::&lt;i32&gt;(&quot;user_id&quot;) {
+        Some(id) =&gt; log::info!(&quot;User ID: {}&quot;, id),
+        None =&gt; log::info!(&quot;No user ID in session&quot;),
+    }
+
+    // Flash message errors are typically ignored
+    let _ = ctx.flash_set(&quot;message&quot;, &quot;Hello&quot;);
+
+    ctx.json(json!({&quot;status&quot;: &quot;ok&quot;}))
+}
+#}</code></pre></pre>
+<a class="header" href="guides/sessions.html#storage-backend-comparison" id="storage-backend-comparison"><h2>Storage Backend Comparison</h2></a>
+<a class="header" href="guides/sessions.html#memory-storage-implemented" id="memory-storage-implemented"><h3>Memory Storage (Implemented)</h3></a>
+<p><strong>Pros:</strong></p>
+<ul>
+<li>Very fast (in-memory access)</li>
+<li>No external dependencies</li>
+<li>Automatic cleanup with background tasks</li>
+</ul>
+<p><strong>Cons:</strong></p>
+<ul>
+<li>Sessions lost on server restart</li>
+<li>Not suitable for multi-server deployments</li>
+<li>Memory usage grows with active sessions</li>
+</ul>
+<p><strong>Best for:</strong> Development, single-server deployments, temporary sessions</p>
+<a class="header" href="guides/sessions.html#redis-storage-implemented" id="redis-storage-implemented"><h3>Redis Storage (Implemented)</h3></a>
+<p><strong>Pros:</strong></p>
+<ul>
+<li>Persistent across server restarts</li>
+<li>Supports multiple server instances</li>
+<li>Automatic TTL expiration</li>
+<li>High performance with connection pooling</li>
+</ul>
+<p><strong>Cons:</strong></p>
+<ul>
+<li>Requires Redis server</li>
+<li>Network latency for session access</li>
+<li>Additional infrastructure complexity</li>
+</ul>
+<p><strong>Best for:</strong> Production deployments, multi-server setups, persistent sessions</p>
+<a class="header" href="guides/sessions.html#database-storage-user-implementation-required" id="database-storage-user-implementation-required"><h3>Database Storage (User Implementation Required)</h3></a>
+<p><strong>Configuration structure exists but implementation is intentionally delegated to users:</strong></p>
+<pre><code class="language-toml"># config.toml (configuration structure exists)
+[session.storage]
+type = &quot;database&quot;
+table = &quot;sessions&quot;
+connection_url = &quot;postgresql://localhost/myapp&quot;
+cleanup_interval = 300
+</code></pre>
+<p><strong>Important:</strong> When you configure database storage, the framework will return an error with instructions:</p>
+<pre><code>Database session storage must be implemented by the application.
+Please implement the SessionStorage trait for your database backend.
+See the documentation for examples using SQLx or other database libraries.
+</code></pre>
+<p>This is by design - database storage should be implemented by users to:</p>
+<ul>
+<li>Support any database backend (PostgreSQL, MySQL, SQLite, etc.)</li>
+<li>Allow custom table schemas and optimization</li>
+<li>Enable integration with your existing database infrastructure</li>
+<li>Provide flexibility in storage strategies (JSON, normalized, etc.)</li>
+</ul>
+<a class="header" href="guides/sessions.html#how-session-storage-integration-works" id="how-session-storage-integration-works"><h2>How Session Storage Integration Works</h2></a>
+<a class="header" href="guides/sessions.html#architecture-overview" id="architecture-overview"><h3>Architecture Overview</h3></a>
+<p>Session storage in RustF is integrated through middleware, not directly through the application builder:</p>
+<pre><code>RustF → SessionMiddleware → SessionManager → SessionStorage (Your Implementation)
+         ↑
+    Auto-created from config.toml if session.enabled = true
+</code></pre>
+<a class="header" href="guides/sessions.html#default-behavior" id="default-behavior"><h3>Default Behavior</h3></a>
+<p>When you create a RustF application, it automatically creates session middleware if <code>session.enabled = true</code> in your config:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// This happens automatically in RustF::with_config() (app.rs line 64)
+if let Some(session_middleware) = create_session_middleware(&amp;config) {
+    middleware.register_dual(&quot;session&quot;, session_middleware);
+}
+#}</code></pre></pre>
+<p>The default session middleware uses <code>MemorySessionStorage</code>. To use custom storage, you must override this behavior.</p>
+<a class="header" href="guides/sessions.html#integrating-custom-storage" id="integrating-custom-storage"><h2>Integrating Custom Storage</h2></a>
+<a class="header" href="guides/sessions.html#method-1-override-default-session-middleware" id="method-1-override-default-session-middleware"><h3>Method 1: Override Default Session Middleware</h3></a>
+<p><strong>Step 1:</strong> Disable automatic session middleware in config:</p>
+<pre><code class="language-toml"># config.toml
+[session]
+enabled = false  # Disable auto-creation of session middleware
+</code></pre>
+<p><strong>Step 2:</strong> Create and register your custom session middleware:</p>
+<pre><pre class="playpen"><code class="language-rust">use rustf::prelude::*;
+use rustf::middleware::builtin::session::SessionMiddleware;
+use rustf::session::manager::SessionConfig;
+use std::sync::Arc;
+use std::time::Duration;
+
+#[tokio::main]
+async fn main() -&gt; Result&lt;()&gt; {
+    // Load config with sessions disabled
+    let mut config = AppConfig::from_file(&quot;config.toml&quot;)?;
+    config.session.enabled = false;  // Ensure auto-session is disabled
+
+    // Create RustF without auto session middleware
+    let app = RustF::with_config(config.clone());
+
+    // Create your custom storage
+    let custom_storage = Arc::new(
+        DatabaseSessionStorage::new(&quot;postgresql://localhost/myapp&quot;).await?
+    );
+
+    // Create session configuration
+    let session_config = SessionConfig {
+        cookie_name: config.session.cookie_name.clone(),
+        idle_timeout: Duration::from_secs(config.session.idle_timeout),
+        absolute_timeout: Duration::from_secs(config.session.absolute_timeout),
+        exempt_routes: config.session.exempt_routes.clone(),
+        enabled: true,  // Re-enable for our custom middleware
+        ..Default::default()
+    };
+
+    // Create session middleware with custom storage
+    let session_middleware = SessionMiddleware::with_storage(
+        custom_storage,
+        session_config
+    );
+
+    // Register the custom session middleware
+    let app = app.middleware_from(|registry| {
+        registry.register_dual(&quot;session&quot;, session_middleware);
+    })
+    .controllers(auto_controllers!());
+
+    app.start().await
+}
+</code></pre></pre>
+<a class="header" href="guides/sessions.html#method-2-custom-session-manager" id="method-2-custom-session-manager"><h3>Method 2: Custom Session Manager</h3></a>
+<p>Create a custom SessionManager and use it in middleware:</p>
+<pre><pre class="playpen"><code class="language-rust">use rustf::session::manager::{SessionManager, SessionConfig};
+use rustf::middleware::builtin::session::SessionMiddleware;
+
+#[tokio::main]
+async fn main() -&gt; Result&lt;()&gt; {
+    // Disable auto session
+    let mut config = AppConfig::default();
+    config.session.enabled = false;
+
+    let app = RustF::with_config(config);
+
+    // Create custom storage
+    let storage = Arc::new(MyCustomStorage::new().await?);
+
+    // Create custom manager
+    let session_manager = SessionManager::new(storage, SessionConfig::default());
+
+    // Create middleware with custom manager
+    let session_middleware = SessionMiddleware::with_manager(session_manager);
+
+    // Register it
+    let app = app.middleware_from(|registry| {
+        registry.register_dual(&quot;session&quot;, session_middleware);
+    })
+    .controllers(auto_controllers!());
+
+    app.start().await
+}
+</code></pre></pre>
+<a class="header" href="guides/sessions.html#method-3-factory-pattern-for-multiple-environments" id="method-3-factory-pattern-for-multiple-environments"><h3>Method 3: Factory Pattern for Multiple Environments</h3></a>
+<p>Create a factory that handles different storage backends based on configuration:</p>
+<pre><pre class="playpen"><code class="language-rust">use rustf::session::factory::SessionStorageFactory;
+use rustf::config::SessionStorageConfig;
+
+pub struct MyAppSessionFactory;
+
+impl MyAppSessionFactory {
+    pub async fn create_middleware(
+        app_config: &amp;AppConfig
+    ) -&gt; Result&lt;SessionMiddleware&gt; {
+        // Create storage based on config
+        let storage = match &amp;app_config.session.storage {
+            SessionStorageConfig::Memory { .. } =&gt; {
+                // Use built-in factory for memory
+                SessionStorageFactory::create_storage(&amp;app_config.session.storage).await?
+            }
+            SessionStorageConfig::Redis { .. } =&gt; {
+                // Use built-in factory for Redis
+                SessionStorageFactory::create_storage(&amp;app_config.session.storage).await?
+            }
+            SessionStorageConfig::Database { connection_url, .. } =&gt; {
+                // Use your custom database storage
+                Arc::new(DatabaseSessionStorage::new(connection_url).await?)
+            }
+        };
+
+        // Convert config
+        let session_config: SessionConfig = app_config.session.clone().into();
+
+        // Create middleware
+        Ok(SessionMiddleware::with_storage(storage, session_config))
+    }
+}
+
+// Usage in main.rs
+#[tokio::main]
+async fn main() -&gt; Result&lt;()&gt; {
+    let mut config = AppConfig::from_file(&quot;config.toml&quot;)?;
+    config.session.enabled = false;  // Disable auto-creation
+
+    let app = RustF::with_config(config.clone());
+
+    // Create custom middleware based on config
+    let session_middleware = MyAppSessionFactory::create_middleware(&amp;config).await?;
+
+    let app = app.middleware_from(|registry| {
+        registry.register_dual(&quot;session&quot;, session_middleware);
+    })
+    .controllers(auto_controllers!());
+
+    app.start().await
+}
+</code></pre></pre>
+<a class="header" href="guides/sessions.html#important-notes" id="important-notes"><h2>Important Notes</h2></a>
+<a class="header" href="guides/sessions.html#what-doesnt-work" id="what-doesnt-work"><h3>What DOESN'T Work</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// ❌ WRONG - These methods don't exist:
+app.with_session_store(session_store)  // No such method
+SessionStore::with_storage(storage)    // SessionStore is internal to SessionManager
+#}</code></pre></pre>
+<a class="header" href="guides/sessions.html#what-does-work" id="what-does-work"><h3>What DOES Work</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// ✅ CORRECT - Use SessionMiddleware methods:
+SessionMiddleware::with_storage(storage, config)  // Custom storage
+SessionMiddleware::with_manager(manager)          // Custom manager
+SessionMiddleware::new(config)                    // Default memory storage
+#}</code></pre></pre>
+<a class="header" href="guides/sessions.html#key-integration-points" id="key-integration-points"><h3>Key Integration Points</h3></a>
+<ol>
+<li><strong>SessionMiddleware</strong> - The main integration point for custom storage</li>
+<li><strong>SessionManager</strong> - Manages session lifecycle and storage interaction</li>
+<li><strong>SessionStorage trait</strong> - Your custom implementation goes here</li>
+<li><strong>config.session.enabled</strong> - Must be <code>false</code> to prevent auto-creation</li>
+</ol>
+<a class="header" href="guides/sessions.html#monitoring-and-statistics" id="monitoring-and-statistics"><h2>Monitoring and Statistics</h2></a>
+<p>Currently implemented storage backends provide statistics for monitoring:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Access statistics through your storage implementation
+async fn session_monitoring(storage: &amp;Arc&lt;dyn SessionStorage&gt;) -&gt; Result&lt;()&gt; {
+    let stats = storage.stats().await?;
+
+    println!(&quot;Session Statistics:&quot;);
+    println!(&quot;  Total sessions: {}&quot;, stats.total_sessions);
+    println!(&quot;  Active sessions: {}&quot;, stats.active_sessions);
+    println!(&quot;  Expired sessions: {}&quot;, stats.expired_sessions);
+    println!(&quot;  Backend: {}&quot;, session_store.backend_name());
+
+    // Backend-specific metrics
+    for (key, value) in &amp;stats.backend_metrics {
+        println!(&quot;  {}: {}&quot;, key, value);
+    }
+
+    Ok(())
+}
+#}</code></pre></pre>
+<a class="header" href="guides/sessions.html#memory-storage-metrics" id="memory-storage-metrics"><h3>Memory Storage Metrics</h3></a>
+<ul>
+<li><code>total_data_entries</code>: Total data entries across all sessions</li>
+<li><code>total_flash_entries</code>: Total flash messages across all sessions</li>
+<li><code>oldest_session_age_secs</code>: Age of oldest session in seconds</li>
+<li><code>session_timeout_secs</code>: Session timeout configuration</li>
+<li><code>cleanup_interval_secs</code>: Cleanup interval configuration</li>
+</ul>
+<a class="header" href="guides/sessions.html#redis-storage-metrics" id="redis-storage-metrics"><h3>Redis Storage Metrics</h3></a>
+<ul>
+<li><code>redis_pattern</code>: Key pattern used for sessions</li>
+<li><code>scan_method</code>: Scanning method used (non-blocking)</li>
+<li><code>redis_memory_used</code>: Current Redis memory usage</li>
+<li><code>redis_memory_peak</code>: Peak Redis memory usage</li>
+</ul>
+<a class="header" href="guides/sessions.html#best-practices" id="best-practices"><h2>Best Practices</h2></a>
+<a class="header" href="guides/sessions.html#1-keep-session-data-small" id="1-keep-session-data-small"><h3>1. Keep Session Data Small</h3></a>
+<p>Store only essential data in sessions to minimize memory/storage usage:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Good: Store minimal user info
+ctx.session_set(&quot;user_id&quot;, 123)?;
+ctx.session_set(&quot;role&quot;, &quot;admin&quot;)?;
+
+// Less ideal: Store large objects
+ctx.session_set(&quot;full_user_profile&quot;, large_user_object)?;
+#}</code></pre></pre>
+<a class="header" href="guides/sessions.html#2-use-flash-messages-for-ui-feedback" id="2-use-flash-messages-for-ui-feedback"><h3>2. Use Flash Messages for UI Feedback</h3></a>
+<p>Flash messages are perfect for one-time user notifications:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+async fn create_user(ctx: Context) -&gt; Result&lt;Response&gt; {
+    match create_user_in_db(&amp;user_data).await {
+        Ok(_) =&gt; {
+            ctx.flash_success(&quot;User created successfully!&quot;);
+            ctx.redirect(&quot;/users&quot;)
+        }
+        Err(e) =&gt; {
+            ctx.flash_error(&amp;format!(&quot;Failed to create user: {}&quot;, e));
+            ctx.redirect(&quot;/users/new&quot;)
+        }
+    }
+}
+#}</code></pre></pre>
+<a class="header" href="guides/sessions.html#3-handle-session-expiration-gracefully" id="3-handle-session-expiration-gracefully"><h3>3. Handle Session Expiration Gracefully</h3></a>
+<p>Check for required session data and handle missing sessions:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+async fn protected_route(ctx: Context) -&gt; Result&lt;Response&gt; {
+    match ctx.session_get::&lt;i32&gt;(&quot;user_id&quot;) {
+        Some(user_id) =&gt; {
+            // User is logged in, continue
+            handle_authenticated_request(ctx, user_id).await
+        }
+        None =&gt; {
+            ctx.flash_info(&quot;Please log in to continue&quot;);
+            ctx.redirect(&quot;/login&quot;)
+        }
+    }
+}
+#}</code></pre></pre>
+<a class="header" href="guides/sessions.html#4-use-appropriate-storage-backend" id="4-use-appropriate-storage-backend"><h3>4. Use Appropriate Storage Backend</h3></a>
+<ul>
+<li><strong>Development</strong>: Memory storage is fine</li>
+<li><strong>Single server production</strong>: Memory storage with sufficient RAM</li>
+<li><strong>Multi-server production</strong>: Redis storage for session sharing</li>
+</ul>
+<a class="header" href="guides/sessions.html#5-configure-appropriate-timeouts" id="5-configure-appropriate-timeouts"><h3>5. Configure Appropriate Timeouts</h3></a>
+<p>Balance security and user experience:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Short timeout for sensitive data
+let secure_storage = MemorySessionStorage::with_timeout(
+    Duration::from_secs(15 * 60), // 15 minutes
+    Duration::from_secs(2 * 60)   // 2 minutes cleanup
+);
+
+// Longer timeout for general use
+let general_storage = MemorySessionStorage::with_timeout(
+    Duration::from_secs(2 * 60 * 60), // 2 hours
+    Duration::from_secs(10 * 60)      // 10 minutes cleanup
+);
+#}</code></pre></pre>
+<a class="header" href="guides/sessions.html#6-use-appropriate-session-lifecycle-methods" id="6-use-appropriate-session-lifecycle-methods"><h3>6. Use Appropriate Session Lifecycle Methods</h3></a>
+<p>Choose the right method for different scenarios:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// User logout - clear data but keep session for analytics
+async fn logout(ctx: Context) -&gt; Result&lt;Response&gt; {
+    ctx.session_clear();  // Keep session ID for tracking
+    ctx.flash_success(&quot;You have been logged out&quot;);
+    ctx.redirect(&quot;/login&quot;)
+}
+
+// Security incident - completely destroy session
+async fn security_logout(ctx: Context, session_store: &amp;SessionStore) -&gt; Result&lt;Response&gt; {
+    let session_id = ctx.session.id();
+    session_store.destroy_session(session_id).await?;  // Complete removal
+    ctx.redirect(&quot;/login&quot;)
+}
+
+// After login - regenerate ID to prevent session fixation
+async fn after_login(ctx: Context) -&gt; Result&lt;Response&gt; {
+    ctx.session.regenerate_id();  // Security best practice
+    ctx.session_set(&quot;user_id&quot;, user.id)?;
+    ctx.redirect(&quot;/dashboard&quot;)
+}
+#}</code></pre></pre>
+<a class="header" href="guides/sessions.html#integration-with-application" id="integration-with-application"><h2>Integration with Application</h2></a>
+<p>Sessions are automatically available in all controllers and middleware:</p>
+<pre><pre class="playpen"><code class="language-rust">use rustf::prelude::*;
+
+#[tokio::main]
+async fn main() -&gt; Result&lt;()&gt; {
+    let app = RustF::new()
+        .controllers(auto_controllers!())
+        .middleware_from(auto_middleware!());
+
+    // Sessions work automatically - no additional configuration needed
+    app.serve(None).await
+}
+</code></pre></pre>
+<p>The session system integrates seamlessly with the RustF context system, providing a consistent API across controllers, middleware, and views for managing user state and temporary messages.</p>
+
+                </div>
+
+                <!-- Mobile navigation buttons -->
+                
+                    <a rel="prev" href="guides/middleware.html" class="mobile-nav-chapters previous" title="Previous chapter">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                
+
+                
+                    <a rel="next" href="guides/database.html" class="mobile-nav-chapters next" title="Next chapter">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+                
+
+            </div>
+
+            
+                <a href="guides/middleware.html" class="nav-chapters previous" title="You can navigate through the chapters using the arrow keys">
+                    <i class="fa fa-angle-left"></i>
+                </a>
+            
+
+            
+                <a href="guides/database.html" class="nav-chapters next" title="You can navigate through the chapters using the arrow keys">
+                    <i class="fa fa-angle-right"></i>
+                </a>
+            
+
+        </div>
+
+
+        <!-- Local fallback for Font Awesome -->
+        <script>
+            if ($(".fa").css("font-family") !== "FontAwesome") {
+                $('<link rel="stylesheet" type="text/css" href="_FontAwesome/css/font-awesome.css">').prependTo('head');
+            }
+        </script>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        
+
+        
+
+        
+
+        
+
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS script -->
+        
+
+    </body>
+</html>

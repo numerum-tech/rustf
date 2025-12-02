@@ -1,0 +1,1790 @@
+<!DOCTYPE HTML>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Workers - RustF Framework Documentation</title>
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="Complete guide to the RustF MVC web framework for Rust">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <base href="../">
+
+        <link rel="stylesheet" href="book.css">
+        <link href="https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800" rel="stylesheet" type="text/css">
+        <link href="https://fonts.googleapis.com/css?family=Source+Code+Pro:500" rel="stylesheet" type="text/css">
+
+        <link rel="shortcut icon" href="favicon.png">
+
+        <!-- Font Awesome -->
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
+
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme -->
+        
+
+        
+
+        <!-- Fetch Clipboard.js from CDN but have a local fallback -->
+        <script src="https://cdn.jsdelivr.net/clipboard.js/1.6.1/clipboard.min.js"></script>
+        <script>
+            if (typeof Clipboard == 'undefined') {
+                document.write(unescape("%3Cscript src='clipboard.min.js'%3E%3C/script%3E"));
+            }
+        </script>
+
+        <!-- Fetch JQuery from CDN but have a local fallback -->
+        <script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+        <script>
+            if (typeof jQuery == 'undefined') {
+                document.write(unescape("%3Cscript src='jquery.js'%3E%3C/script%3E"));
+            }
+        </script>
+
+        <!-- Fetch store.js from local - TODO add CDN when 2.x.x is available on cdnjs -->
+        <script src="store.js"></script>
+
+    </head>
+    <body class="light">
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme = store.get('mdbook-theme');
+            if (theme === null || theme === undefined) { theme = 'light'; }
+            $('body').removeClass().addClass(theme);
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var sidebar = store.get('mdbook-sidebar');
+            if (sidebar === "hidden") { $("html").addClass("sidebar-hidden") }
+            else if (sidebar === "visible") { $("html").addClass("sidebar-visible") }
+        </script>
+
+        <div id="sidebar" class="sidebar">
+            <ul class="chapter"><li class="affix"><a href="README.html">Introduction</a></li><li><a href="getting-started/README.html"><strong>1.</strong> Quick Start</a></li><li><a href="getting-started/installation.html"><strong>2.</strong> Installation</a></li><li><a href="getting-started/hello-world.html"><strong>3.</strong> Hello World</a></li><li><a href="getting-started/project-structure.html"><strong>4.</strong> Project Structure</a></li><li><a href="guides/controllers.html"><strong>5.</strong> Controllers &amp; Routing</a></li><li><a href="guides/views.html"><strong>6.</strong> Views &amp; Templates</a></li><li><a href="guides/middleware.html"><strong>7.</strong> Middleware</a></li><li><a href="guides/sessions.html"><strong>8.</strong> Sessions</a></li><li><a href="guides/database.html"><strong>9.</strong> Database Integration</a></li><li><a href="guides/configuration.html"><strong>10.</strong> Configuration</a></li><li><a href="guides/security.html"><strong>11.</strong> Security</a></li><li><a href="guides/error-handling.html"><strong>12.</strong> Error Handling</a></li><li><a href="guides/schemas.html"><strong>13.</strong> Schemas &amp; Definitions</a></li><li><a href="advanced/README.html"><strong>14.</strong> Overview</a></li><li><a href="advanced/performance.html"><strong>15.</strong> Performance Optimization</a></li><li><a href="advanced/workers.html" class="active"><strong>16.</strong> Workers</a></li><li><a href="advanced/events.html"><strong>17.</strong> Events</a></li><li><a href="advanced/modules.html"><strong>18.</strong> Modules</a></li><li><a href="advanced/cli.html"><strong>19.</strong> CLI Tool</a></li><li><a href="api-reference/README.html"><strong>20.</strong> Overview</a></li><li><a href="api-reference/context.html"><strong>21.</strong> Context API</a></li><li><a href="api-reference/models.html"><strong>22.</strong> Model API</a></li><li><a href="api-reference/routing.html"><strong>23.</strong> Routing API</a></li><li><a href="api-reference/utilities.html"><strong>24.</strong> Utilities</a></li><li><a href="examples/README.html"><strong>25.</strong> Overview</a></li><li><a href="examples/rest-api.html"><strong>26.</strong> Building a REST API</a></li><li><a href="examples/authentication.html"><strong>27.</strong> Authentication</a></li><li><a href="examples/real-world-app.html"><strong>28.</strong> Real-World Application</a></li><li><a href="deployment/production.html"><strong>29.</strong> Production Deployment</a></li><li><a href="deployment/docker.html"><strong>30.</strong> Docker</a></li></ul>
+        </div>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page" tabindex="-1">
+                
+                <div id="menu-bar" class="menu-bar">
+                    <div class="left-buttons">
+                        <i id="sidebar-toggle" class="fa fa-bars" title="Toggle sidebar"></i>
+                        <i id="theme-toggle" class="fa fa-paint-brush" title="Change theme"></i>
+                    </div>
+
+                    <h1 class="menu-title">RustF Framework Documentation</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html">
+                            <i id="print-button" class="fa fa-print" title="Print this book"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <div id="content" class="content">
+                    <a class="header" href="advanced/workers.html#rustf-worker-system" id="rustf-worker-system"><h1>RustF Worker System</h1></a>
+<a class="header" href="advanced/workers.html#table-of-contents" id="table-of-contents"><h2>Table of Contents</h2></a>
+<ul>
+<li><a href="advanced/workers.html#introduction">Introduction</a></li>
+<li><a href="advanced/workers.html#quick-start">Quick Start</a></li>
+<li><a href="advanced/workers.html#core-concepts">Core Concepts</a></li>
+<li><a href="advanced/workers.html#worker-registration">Worker Registration</a></li>
+<li><a href="advanced/workers.html#executing-workers">Executing Workers</a></li>
+<li><a href="advanced/workers.html#worker-context">Worker Context</a></li>
+<li><a href="advanced/workers.html#advanced-features">Advanced Features</a></li>
+<li><a href="advanced/workers.html#real-world-examples">Real-World Examples</a></li>
+<li><a href="advanced/workers.html#best-practices">Best Practices</a></li>
+<li><a href="advanced/workers.html#api-reference">API Reference</a></li>
+<li><a href="advanced/workers.html#troubleshooting">Troubleshooting</a></li>
+</ul>
+<hr />
+<a class="header" href="advanced/workers.html#introduction" id="introduction"><h2>Introduction</h2></a>
+<p>The RustF Worker system provides a lightweight, Total.js-inspired approach to background task execution. Unlike traditional worker queues or job processors, RustF workers are <strong>on-demand tasks</strong> that execute asynchronously and automatically stop when complete.</p>
+<a class="header" href="advanced/workers.html#why-workers" id="why-workers"><h3>Why Workers?</h3></a>
+<p>Workers are ideal for:</p>
+<ul>
+<li><strong>Background Processing</strong>: Long-running tasks that shouldn't block HTTP responses</li>
+<li><strong>Async Operations</strong>: Email sending, file uploads, report generation</li>
+<li><strong>Scheduled Tasks</strong>: Cleanup, maintenance, data synchronization</li>
+<li><strong>Decoupled Logic</strong>: Separating business logic from HTTP request handling</li>
+<li><strong>Concurrent Execution</strong>: Running multiple independent tasks simultaneously</li>
+</ul>
+<a class="header" href="advanced/workers.html#key-features" id="key-features"><h3>Key Features</h3></a>
+<ul>
+<li><strong>🌍 Global API</strong>: Access workers from anywhere using <code>WORKER::</code></li>
+<li><strong>⚡ On-Demand</strong>: Workers execute when called, no persistent processes</li>
+<li><strong>⏱️ Timeout Support</strong>: Automatic cancellation after specified duration</li>
+<li><strong>📨 Message Streaming</strong>: Real-time communication between worker and caller</li>
+<li><strong>📊 Statistics</strong>: Automatic tracking of runs, errors, and execution times</li>
+<li><strong>🔄 Concurrent</strong>: Multiple workers can run simultaneously</li>
+<li><strong>🎯 Type-Safe</strong>: Full Rust type safety with async/await</li>
+</ul>
+<a class="header" href="advanced/workers.html#design-philosophy" id="design-philosophy"><h3>Design Philosophy</h3></a>
+<p>RustF workers follow Total.js conventions:</p>
+<ul>
+<li><strong>Registration-based</strong>: Define workers once, execute many times</li>
+<li><strong>Context-rich</strong>: Workers receive a <code>WorkerContext</code> with configuration and utilities</li>
+<li><strong>Fire-and-forget or await</strong>: Choose between async execution or waiting for results</li>
+<li><strong>Stateless</strong>: Each execution is independent with isolated state</li>
+</ul>
+<hr />
+<a class="header" href="advanced/workers.html#quick-start" id="quick-start"><h2>Quick Start</h2></a>
+<a class="header" href="advanced/workers.html#1-create-worker-directory" id="1-create-worker-directory"><h3>1. Create Worker Directory</h3></a>
+<p>Create the required <code>src/workers/</code> directory:</p>
+<pre><code class="language-bash">mkdir -p src/workers
+</code></pre>
+<a class="header" href="advanced/workers.html#2-create-your-first-worker" id="2-create-your-first-worker"><h3>2. Create Your First Worker</h3></a>
+<p>Create a worker file in <code>src/workers/</code>:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// src/workers/email.rs
+use rustf::prelude::*;
+use rustf::workers::WORKER;
+use std::time::Duration;
+
+pub async fn install() -&gt; Result&lt;()&gt; {
+    WORKER::register(&quot;send-email&quot;, |ctx| async move {
+        ctx.info(&quot;Sending email...&quot;);
+
+        // Simulate email sending
+        tokio::time::sleep(Duration::from_secs(2)).await;
+
+        ctx.info(&quot;Email sent successfully!&quot;);
+        Ok(())
+    }).await?;
+
+    Ok(())
+}
+#}</code></pre></pre>
+<a class="header" href="advanced/workers.html#3-enable-auto-discovery" id="3-enable-auto-discovery"><h3>3. Enable Auto-Discovery</h3></a>
+<p>Use <code>#[rustf::auto_discover]</code> in your main function:</p>
+<pre><pre class="playpen"><code class="language-rust">// src/main.rs
+use rustf::prelude::*;
+
+#[rustf::auto_discover]  // ← Automatically discovers workers in src/workers/
+#[tokio::main]
+async fn main() -&gt; Result&lt;()&gt; {
+    env_logger::init();
+
+    let app = RustF::new()
+        .auto_load()  // ← Loads all discovered workers
+        .run(&quot;127.0.0.1:3000&quot;)
+        .await?;
+
+    Ok(())
+}
+</code></pre></pre>
+<a class="header" href="advanced/workers.html#4-execute-the-worker" id="4-execute-the-worker"><h3>4. Execute the Worker</h3></a>
+<p>Call the worker from any controller:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use rustf::workers::WORKER;
+
+async fn send_welcome_email(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    // Execute worker and wait for completion
+    WORKER::run(&quot;send-email&quot;, None).await?;
+
+    ctx.json(json!({
+        &quot;status&quot;: &quot;Email sent&quot;
+    }))
+}
+#}</code></pre></pre>
+<p><strong>That's it!</strong> The framework automatically discovers and registers all workers in <code>src/workers/</code>.</p>
+<hr />
+<a class="header" href="advanced/workers.html#core-concepts" id="core-concepts"><h2>Core Concepts</h2></a>
+<a class="header" href="advanced/workers.html#worker-lifecycle" id="worker-lifecycle"><h3>Worker Lifecycle</h3></a>
+<pre><code>┌─────────────┐
+│ Registration│  ← Define worker once during startup
+└──────┬──────┘
+       │
+       ▼
+┌─────────────┐
+│   Idle      │  ← Worker definition exists, waiting to be called
+└──────┬──────┘
+       │
+       ▼ WORKER::call()
+┌─────────────┐
+│  Running    │  ← Worker executing asynchronously
+└──────┬──────┘
+       │
+       ▼
+┌─────────────┐
+│ Completed   │  ← Worker finishes, stats recorded
+└─────────────┘
+</code></pre>
+<p><strong>Important</strong>: RustF workers are <strong>not persistent processes</strong>. Each execution:</p>
+<ol>
+<li>Starts fresh with new context</li>
+<li>Runs to completion</li>
+<li>Automatically stops and cleans up</li>
+<li>Records statistics</li>
+</ol>
+<a class="header" href="advanced/workers.html#workercontext" id="workercontext"><h3>WorkerContext</h3></a>
+<p>Every worker receives a <code>WorkerContext</code> providing:</p>
+<ul>
+<li><strong>Identity</strong>: Worker name and run ID</li>
+<li><strong>Configuration</strong>: Access to app config</li>
+<li><strong>Payload</strong>: Input data passed during execution</li>
+<li><strong>Logging</strong>: Structured logging with worker identification</li>
+<li><strong>State</strong>: Per-execution state management</li>
+<li><strong>Messaging</strong>: Emit messages to caller</li>
+<li><strong>Environment</strong>: Development vs. production detection</li>
+<li><strong>Utilities</strong>: Sleep, timing, etc.</li>
+</ul>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+WORKER::register(&quot;example&quot;, |ctx| async move {
+    ctx.info(&amp;format!(&quot;Worker: {}, Run: {}&quot;,
+        ctx.worker_name(),
+        ctx.run_id()
+    ));
+
+    if ctx.is_development() {
+        ctx.debug(&quot;Running in development mode&quot;);
+    }
+
+    // Access payload
+    if let Some(data) = ctx.payload() {
+        ctx.info(&amp;format!(&quot;Received: {}&quot;, data));
+    }
+
+    Ok(())
+}).await?;
+#}</code></pre></pre>
+<a class="header" href="advanced/workers.html#workerhandle" id="workerhandle"><h3>WorkerHandle</h3></a>
+<p>When calling a worker with <code>WORKER::call()</code>, you receive a <code>WorkerHandle</code>:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+let mut handle = WORKER::call(&quot;worker-name&quot;, None, None).await?;
+
+// Get worker info
+let run_id = handle.id();
+let name = handle.worker_name();
+
+// Receive messages from worker
+while let Some(message) = handle.recv().await {
+    println!(&quot;Worker sent: {}&quot;, message);
+}
+
+// Wait for completion
+handle.await_result().await?;
+
+// Or cancel if needed
+handle.cancel().await?;
+#}</code></pre></pre>
+<a class="header" href="advanced/workers.html#worker-statistics" id="worker-statistics"><h3>Worker Statistics</h3></a>
+<p>The system automatically tracks statistics for each worker:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+#[derive(Debug, Clone, Serialize)]
+pub struct WorkerStats {
+    pub runs: u64,              // Total executions
+    pub errors: u64,            // Failed executions
+    pub last_run_ms: Option&lt;u64&gt;, // Duration of last run
+    pub total_runtime_ms: u64,  // Cumulative runtime
+}
+
+// Access statistics
+let stats = WORKER::stats(&quot;send-email&quot;).await;
+if let Some(stats) = stats {
+    println!(&quot;Runs: {}, Errors: {}, Avg: {}ms&quot;,
+        stats.runs,
+        stats.errors,
+        stats.total_runtime_ms / stats.runs
+    );
+}
+#}</code></pre></pre>
+<hr />
+<a class="header" href="advanced/workers.html#worker-registration" id="worker-registration"><h2>Worker Registration</h2></a>
+<a class="header" href="advanced/workers.html#directory-structure-required" id="directory-structure-required"><h3>Directory Structure (Required)</h3></a>
+<p><strong>All workers MUST be placed in the <code>src/workers/</code> directory.</strong> The framework uses compile-time auto-discovery to find and register workers.</p>
+<pre><code>your-app/
+├── src/
+│   ├── workers/           # ⚠️ Required directory
+│   │   ├── email.rs       # Worker file
+│   │   ├── cleanup.rs     # Worker file
+│   │   └── reports.rs     # Worker file
+│   ├── controllers/
+│   ├── models/
+│   └── main.rs
+└── Cargo.toml
+</code></pre>
+<a class="header" href="advanced/workers.html#worker-file-structure" id="worker-file-structure"><h3>Worker File Structure</h3></a>
+<p>Each worker file in <code>src/workers/</code> must have an <code>install()</code> function:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// src/workers/email.rs
+use rustf::prelude::*;
+use rustf::workers::WORKER;
+use std::time::Duration;
+
+/// Install email worker - this function is called automatically by the framework
+pub async fn install() -&gt; Result&lt;()&gt; {
+    WORKER::register(&quot;send-email&quot;, |ctx| async move {
+        let payload = ctx.payload()
+            .ok_or_else(|| Error::validation(&quot;Email worker requires payload&quot;))?;
+
+        let to = payload[&quot;to&quot;].as_str()
+            .ok_or_else(|| Error::validation(&quot;Missing 'to' field&quot;))?;
+
+        ctx.info(&amp;format!(&quot;Sending email to: {}&quot;, to));
+
+        // Email sending logic...
+        tokio::time::sleep(Duration::from_secs(1)).await;
+
+        ctx.info(&quot;Email sent successfully&quot;);
+        Ok(())
+    }).await?;
+
+    Ok(())
+}
+#}</code></pre></pre>
+<a class="header" href="advanced/workers.html#auto-discovery-methods" id="auto-discovery-methods"><h3>Auto-Discovery Methods</h3></a>
+<p>RustF provides three ways to enable worker auto-discovery:</p>
+<a class="header" href="advanced/workers.html#method-1-rustfauto_discover-recommended" id="method-1-rustfauto_discover-recommended"><h4>Method 1: <code>#[rustf::auto_discover]</code> (Recommended)</h4></a>
+<p>The simplest approach - automatically discovers all workers:</p>
+<pre><pre class="playpen"><code class="language-rust">// src/main.rs
+use rustf::prelude::*;
+
+#[rustf::auto_discover]  // ← Discovers src/workers/ automatically
+#[tokio::main]
+async fn main() -&gt; Result&lt;()&gt; {
+    let app = RustF::with_args()?.auto_load();
+    app.start().await
+}
+</code></pre></pre>
+<a class="header" href="advanced/workers.html#method-2-auto_load-explicit" id="method-2-auto_load-explicit"><h4>Method 2: <code>.auto_load()</code> (Explicit)</h4></a>
+<p>Manually enable auto-loading with full control:</p>
+<pre><pre class="playpen"><code class="language-rust">// src/main.rs
+use rustf::prelude::*;
+
+#[tokio::main]
+async fn main() -&gt; Result&lt;()&gt; {
+    let app = RustF::new()
+        .with_workers()
+        .auto_load();  // ← Loads workers from src/workers/
+
+    app.run(&quot;127.0.0.1:3000&quot;).await
+}
+</code></pre></pre>
+<a class="header" href="advanced/workers.html#method-3-auto_workers-macro-advanced" id="method-3-auto_workers-macro-advanced"><h4>Method 3: <code>auto_workers!()</code> Macro (Advanced)</h4></a>
+<p>Direct macro usage for custom setups:</p>
+<pre><pre class="playpen"><code class="language-rust">// src/main.rs
+use rustf::prelude::*;
+
+#[tokio::main]
+async fn main() -&gt; Result&lt;()&gt; {
+    let app = RustF::new()
+        .with_workers()
+        .workers_from(auto_workers!())  // ← Scans src/workers/ at compile time
+        .run(&quot;127.0.0.1:3000&quot;)
+        .await?;
+
+    Ok(())
+}
+</code></pre></pre>
+<a class="header" href="advanced/workers.html#multiple-workers-per-file" id="multiple-workers-per-file"><h3>Multiple Workers Per File</h3></a>
+<p>You can register multiple workers in a single file:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// src/workers/notifications.rs
+use rustf::prelude::*;
+use rustf::workers::WORKER;
+
+pub async fn install() -&gt; Result&lt;()&gt; {
+    // Email notification worker
+    WORKER::register(&quot;notify-email&quot;, |ctx| async move {
+        ctx.info(&quot;Sending email notification&quot;);
+        // Implementation...
+        Ok(())
+    }).await?;
+
+    // SMS notification worker
+    WORKER::register(&quot;notify-sms&quot;, |ctx| async move {
+        ctx.info(&quot;Sending SMS notification&quot;);
+        // Implementation...
+        Ok(())
+    }).await?;
+
+    // Push notification worker
+    WORKER::register(&quot;notify-push&quot;, |ctx| async move {
+        ctx.info(&quot;Sending push notification&quot;);
+        // Implementation...
+        Ok(())
+    }).await?;
+
+    Ok(())
+}
+#}</code></pre></pre>
+<a class="header" href="advanced/workers.html#nested-directory-organization" id="nested-directory-organization"><h3>Nested Directory Organization</h3></a>
+<p>Workers can be organized in subdirectories:</p>
+<pre><code>src/workers/
+├── notifications/
+│   ├── email.rs
+│   ├── sms.rs
+│   └── push.rs
+├── reports/
+│   ├── daily.rs
+│   └── monthly.rs
+└── maintenance/
+    ├── cleanup.rs
+    └── backup.rs
+</code></pre>
+<p>The framework automatically discovers workers in subdirectories up to 3 levels deep.</p>
+<a class="header" href="advanced/workers.html#skipping-files" id="skipping-files"><h3>Skipping Files</h3></a>
+<p>Files are automatically skipped if they:</p>
+<ul>
+<li>Are named <code>mod.rs</code></li>
+<li>End with <code>.inc.rs</code></li>
+<li>Start with underscore (<code>_helper.rs</code>)</li>
+</ul>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// src/workers/mod.rs - ✅ Skipped automatically
+// src/workers/helpers.inc.rs - ✅ Skipped automatically
+// src/workers/_internal.rs - ✅ Skipped automatically
+// src/workers/email.rs - ❌ Discovered and loaded
+#}</code></pre></pre>
+<a class="header" href="advanced/workers.html#worker-registration-best-practices" id="worker-registration-best-practices"><h3>Worker Registration Best Practices</h3></a>
+<ol>
+<li><strong>Use <code>src/workers/</code> directory</strong>: This is mandatory - workers outside this directory won't be discovered</li>
+<li><strong>One <code>install()</code> per file</strong>: Each worker file must export a public async <code>install()</code> function</li>
+<li><strong>Descriptive file names</strong>: Use clear names like <code>email.rs</code>, <code>cleanup.rs</code>, <code>reports.rs</code></li>
+<li><strong>Descriptive worker names</strong>: Use kebab-case for worker names (<code>send-email</code>, <code>generate-report</code>)</li>
+<li><strong>One responsibility per worker</strong>: Each worker should do one thing well</li>
+<li><strong>Validate payloads early</strong>: Always validate input data at the start of the worker</li>
+<li><strong>Handle errors properly</strong>: Use <code>Result&lt;()&gt;</code> and return meaningful errors</li>
+</ol>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// ✅ Good: Clear name, validated input, error handling
+WORKER::register(&quot;send-welcome-email&quot;, |ctx| async move {
+    let payload = ctx.payload()
+        .ok_or_else(|| Error::validation(&quot;Payload required&quot;))?;
+
+    let email = payload[&quot;email&quot;].as_str()
+        .ok_or_else(|| Error::validation(&quot;Email address required&quot;))?;
+
+    // Validate email format
+    if !email.contains('@') {
+        return Err(Error::validation(&quot;Invalid email format&quot;));
+    }
+
+    send_email(email).await?;
+    Ok(())
+}).await?;
+
+// ❌ Bad: Generic name, no validation, panics
+WORKER::register(&quot;worker1&quot;, |ctx| async move {
+    let email = ctx.payload().unwrap()[&quot;email&quot;].as_str().unwrap();
+    send_email(email).await.unwrap();
+    Ok(())
+}).await?;
+#}</code></pre></pre>
+<hr />
+<a class="header" href="advanced/workers.html#executing-workers" id="executing-workers"><h2>Executing Workers</h2></a>
+<a class="header" href="advanced/workers.html#method-1-call-and-await-most-common" id="method-1-call-and-await-most-common"><h3>Method 1: Call and Await (Most Common)</h3></a>
+<p>Execute a worker and wait for completion:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Simple execution
+WORKER::run(&quot;send-email&quot;, None).await?;
+
+// With payload
+let payload = json!({
+    &quot;to&quot;: &quot;user@example.com&quot;,
+    &quot;subject&quot;: &quot;Welcome!&quot;
+});
+WORKER::run(&quot;send-email&quot;, Some(payload)).await?;
+#}</code></pre></pre>
+<a class="header" href="advanced/workers.html#method-2-call-with-handle-advanced-control" id="method-2-call-with-handle-advanced-control"><h3>Method 2: Call with Handle (Advanced Control)</h3></a>
+<p>Get a handle for message streaming and control:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+let mut handle = WORKER::call(&quot;worker-name&quot;, None, Some(payload)).await?;
+
+// Receive messages while worker runs
+while let Some(message) = handle.recv().await {
+    println!(&quot;Progress: {}&quot;, message);
+}
+
+// Wait for final result
+handle.await_result().await?;
+#}</code></pre></pre>
+<a class="header" href="advanced/workers.html#method-3-fire-and-forget" id="method-3-fire-and-forget"><h3>Method 3: Fire and Forget</h3></a>
+<p>Start a worker without waiting:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+tokio::spawn(async move {
+    let _ = WORKER::run(&quot;cleanup&quot;, None).await;
+});
+#}</code></pre></pre>
+<a class="header" href="advanced/workers.html#timeout-support" id="timeout-support"><h3>Timeout Support</h3></a>
+<p>Set a maximum execution time:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use std::time::Duration;
+
+// Worker will be cancelled if it exceeds 5 seconds
+let handle = WORKER::call(
+    &quot;slow-worker&quot;,
+    Some(Duration::from_secs(5)),  // Timeout
+    Some(payload)
+).await?;
+
+match handle.await_result().await {
+    Ok(_) =&gt; println!(&quot;Completed successfully&quot;),
+    Err(e) =&gt; println!(&quot;Timeout or error: {}&quot;, e),
+}
+#}</code></pre></pre>
+<a class="header" href="advanced/workers.html#passing-payloads" id="passing-payloads"><h3>Passing Payloads</h3></a>
+<p>Workers accept JSON payloads for input data:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Calling code
+let payload = json!({
+    &quot;user_id&quot;: 123,
+    &quot;action&quot;: &quot;process_upload&quot;,
+    &quot;file_path&quot;: &quot;/tmp/upload.pdf&quot;
+});
+WORKER::run(&quot;process-file&quot;, Some(payload)).await?;
+
+// Worker code
+WORKER::register(&quot;process-file&quot;, |ctx| async move {
+    let payload = ctx.payload().ok_or_else(||
+        Error::validation(&quot;Payload required&quot;)
+    )?;
+
+    let user_id = payload[&quot;user_id&quot;].as_i64().unwrap();
+    let file_path = payload[&quot;file_path&quot;].as_str().unwrap();
+
+    ctx.info(&amp;format!(&quot;Processing file for user {}&quot;, user_id));
+    // Process file...
+
+    Ok(())
+}).await?;
+#}</code></pre></pre>
+<a class="header" href="advanced/workers.html#concurrent-execution" id="concurrent-execution"><h3>Concurrent Execution</h3></a>
+<p>Run multiple workers simultaneously:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use futures::future::join_all;
+
+async fn process_batch(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    let items = vec![
+        json!({&quot;id&quot;: 1}),
+        json!({&quot;id&quot;: 2}),
+        json!({&quot;id&quot;: 3}),
+    ];
+
+    // Launch all workers concurrently
+    let futures: Vec&lt;_&gt; = items.into_iter()
+        .map(|item| WORKER::call(&quot;process-item&quot;, None, Some(item)))
+        .collect();
+
+    let handles = join_all(futures).await;
+
+    // Wait for all to complete
+    for handle in handles {
+        handle?.await_result().await?;
+    }
+
+    ctx.json(json!({&quot;status&quot;: &quot;All items processed&quot;}))
+}
+#}</code></pre></pre>
+<hr />
+<a class="header" href="advanced/workers.html#worker-context" id="worker-context"><h2>Worker Context</h2></a>
+<p>The <code>WorkerContext</code> provides rich functionality for worker execution.</p>
+<a class="header" href="advanced/workers.html#identity-and-metadata" id="identity-and-metadata"><h3>Identity and Metadata</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+WORKER::register(&quot;example&quot;, |ctx| async move {
+    // Unique identifier for this execution
+    let run_id = ctx.run_id(); // &quot;550e8400-e29b-41d4-a716-446655440000&quot;
+
+    // Worker definition name
+    let name = ctx.worker_name(); // &quot;example&quot;
+
+    ctx.info(&amp;format!(&quot;Execution {} of {}&quot;, run_id, name));
+    Ok(())
+}).await?;
+#}</code></pre></pre>
+<a class="header" href="advanced/workers.html#logging" id="logging"><h3>Logging</h3></a>
+<p>Workers have structured logging with automatic identification:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+WORKER::register(&quot;logger-demo&quot;, |ctx| async move {
+    ctx.info(&quot;Informational message&quot;);
+    ctx.warn(&quot;Warning message&quot;);
+    ctx.error(&quot;Error message&quot;);
+    ctx.debug(&quot;Debug message (only in development)&quot;);
+
+    // Generic logging with custom level
+    ctx.log(log::Level::Info, &quot;Custom log&quot;);
+
+    Ok(())
+}).await?;
+
+// Output:
+// [Worker:logger-demo run:550e8400...] Informational message
+// [Worker:logger-demo run:550e8400...] Warning message
+#}</code></pre></pre>
+<a class="header" href="advanced/workers.html#environment-detection" id="environment-detection"><h3>Environment Detection</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+WORKER::register(&quot;env-aware&quot;, |ctx| async move {
+    if ctx.is_development() {
+        ctx.info(&quot;Running in development - verbose logging enabled&quot;);
+        // Use test APIs, skip external services, etc.
+    }
+
+    if ctx.is_production() {
+        ctx.info(&quot;Running in production - using live services&quot;);
+        // Use production APIs, send real emails, etc.
+    }
+
+    Ok(())
+}).await?;
+#}</code></pre></pre>
+<p>Environment is determined from <code>RUSTF_ENV</code> or <code>NODE_ENV</code> environment variables.</p>
+<a class="header" href="advanced/workers.html#configuration-access" id="configuration-access"><h3>Configuration Access</h3></a>
+<p>Access application configuration from workers:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+WORKER::register(&quot;config-example&quot;, |ctx| async move {
+    let config = ctx.config();
+
+    // Use configuration values
+    let base_url = config.get::&lt;String&gt;(&quot;api.base_url&quot;)
+        .unwrap_or_else(|| &quot;http://localhost&quot;.to_string());
+
+    ctx.info(&amp;format!(&quot;Using API: {}&quot;, base_url));
+    Ok(())
+}).await?;
+#}</code></pre></pre>
+<a class="header" href="advanced/workers.html#state-management" id="state-management"><h3>State Management</h3></a>
+<p>Each worker execution has isolated state:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+WORKER::register(&quot;stateful&quot;, |ctx| async move {
+    // Set state values
+    ctx.set_state(&quot;progress&quot;, json!(0)).await?;
+    ctx.set_state(&quot;items_processed&quot;, json!([])).await?;
+
+    for i in 1..=5 {
+        // Update state
+        ctx.set_state(&quot;progress&quot;, json!(i * 20)).await?;
+
+        // Read state
+        if let Some(progress) = ctx.get_state(&quot;progress&quot;).await {
+            ctx.info(&amp;format!(&quot;Progress: {}%&quot;, progress));
+        }
+
+        tokio::time::sleep(Duration::from_millis(500)).await;
+    }
+
+    // Clear all state
+    ctx.clear_state().await?;
+    Ok(())
+}).await?;
+#}</code></pre></pre>
+<p><strong>Note</strong>: State is per-execution. Different runs of the same worker have independent state.</p>
+<a class="header" href="advanced/workers.html#message-emission" id="message-emission"><h3>Message Emission</h3></a>
+<p>Send real-time messages to the caller:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Worker code
+WORKER::register(&quot;progress-reporter&quot;, |ctx| async move {
+    for i in 1..=10 {
+        // Emit progress updates
+        ctx.emit(json!({
+            &quot;progress&quot;: i * 10,
+            &quot;message&quot;: format!(&quot;Processing item {}/10&quot;, i)
+        }))?;
+
+        tokio::time::sleep(Duration::from_millis(200)).await;
+    }
+
+    ctx.emit(json!({&quot;status&quot;: &quot;complete&quot;}))?;
+    Ok(())
+}).await?;
+
+// Calling code
+let mut handle = WORKER::call(&quot;progress-reporter&quot;, None, None).await?;
+
+// Receive progress updates
+while let Some(message) = handle.recv().await {
+    let progress = message[&quot;progress&quot;].as_i64().unwrap_or(0);
+    println!(&quot;Progress: {}%&quot;, progress);
+}
+
+handle.await_result().await?;
+#}</code></pre></pre>
+<a class="header" href="advanced/workers.html#utilities" id="utilities"><h3>Utilities</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+WORKER::register(&quot;utilities&quot;, |ctx| async move {
+    // Sleep/delay
+    ctx.sleep(Duration::from_secs(1)).await;
+
+    // Access payload
+    if let Some(payload) = ctx.payload() {
+        ctx.info(&amp;format!(&quot;Received: {}&quot;, payload));
+    }
+
+    Ok(())
+}).await?;
+#}</code></pre></pre>
+<hr />
+<a class="header" href="advanced/workers.html#advanced-features" id="advanced-features"><h2>Advanced Features</h2></a>
+<a class="header" href="advanced/workers.html#cancellation" id="cancellation"><h3>Cancellation</h3></a>
+<p>Cancel running workers using the handle:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+async fn cancelable_operation(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    // Start long-running worker
+    let handle = WORKER::call(&quot;slow-worker&quot;, None, None).await?;
+    let run_id = handle.id().to_string();
+
+    // Start cancellation timer
+    tokio::spawn(async move {
+        tokio::time::sleep(Duration::from_secs(3)).await;
+
+        // Cancel after 3 seconds
+        if let Err(e) = WORKER::cancel(&amp;run_id).await {
+            eprintln!(&quot;Failed to cancel: {}&quot;, e);
+        }
+    });
+
+    // Try to await result
+    match handle.await_result().await {
+        Ok(_) =&gt; ctx.json(json!({&quot;status&quot;: &quot;completed&quot;})),
+        Err(_) =&gt; ctx.json(json!({&quot;status&quot;: &quot;cancelled&quot;})),
+    }
+}
+#}</code></pre></pre>
+<a class="header" href="advanced/workers.html#listing-workers" id="listing-workers"><h3>Listing Workers</h3></a>
+<p>Query registered and running workers:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+async fn worker_dashboard(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    // List all registered worker definitions
+    let definitions = WORKER::definitions().await?;
+
+    // List all currently running worker run IDs
+    let running = WORKER::running().await?;
+
+    // List runs for a specific worker
+    let email_runs = WORKER::running_for(&quot;send-email&quot;).await?;
+
+    ctx.json(json!({
+        &quot;definitions&quot;: definitions,
+        &quot;running_count&quot;: running.len(),
+        &quot;email_worker_runs&quot;: email_runs.len()
+    }))
+}
+#}</code></pre></pre>
+<a class="header" href="advanced/workers.html#statistics-and-monitoring" id="statistics-and-monitoring"><h3>Statistics and Monitoring</h3></a>
+<p>Track worker performance:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+async fn worker_stats(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    let definitions = WORKER::definitions().await?;
+    let mut stats_map = serde_json::Map::new();
+
+    for name in definitions {
+        if let Some(stats) = WORKER::stats(&amp;name).await {
+            let avg_ms = if stats.runs &gt; 0 {
+                stats.total_runtime_ms / stats.runs
+            } else {
+                0
+            };
+
+            stats_map.insert(name, json!({
+                &quot;total_runs&quot;: stats.runs,
+                &quot;errors&quot;: stats.errors,
+                &quot;success_rate&quot;: if stats.runs &gt; 0 {
+                    (stats.runs - stats.errors) as f64 / stats.runs as f64 * 100.0
+                } else {
+                    0.0
+                },
+                &quot;average_duration_ms&quot;: avg_ms,
+                &quot;last_run_ms&quot;: stats.last_run_ms
+            }));
+        }
+    }
+
+    ctx.json(json!(stats_map))
+}
+#}</code></pre></pre>
+<a class="header" href="advanced/workers.html#graceful-shutdown" id="graceful-shutdown"><h3>Graceful Shutdown</h3></a>
+<p>Workers automatically shutdown when the application stops:</p>
+<pre><pre class="playpen"><code class="language-rust">#[tokio::main]
+async fn main() -&gt; Result&lt;()&gt; {
+    let app = RustF::new()
+        .with_workers()
+        .workers_from(|_manager| async move {
+            WORKER::register(&quot;long-task&quot;, |ctx| async move {
+                ctx.info(&quot;Long task started&quot;);
+                tokio::time::sleep(Duration::from_secs(60)).await;
+                ctx.info(&quot;Long task completed&quot;);
+                Ok(())
+            }).await?;
+            Ok(())
+        })
+        .run(&quot;127.0.0.1:3000&quot;)
+        .await?;
+
+    // When app shuts down (Ctrl+C, etc.):
+    // 1. All running workers are cancelled
+    // 2. No new workers can be started
+    // 3. Resources are cleaned up
+
+    Ok(())
+}
+</code></pre></pre>
+<a class="header" href="advanced/workers.html#error-handling-patterns" id="error-handling-patterns"><h3>Error Handling Patterns</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+WORKER::register(&quot;robust-worker&quot;, |ctx| async move {
+    // Validate input early
+    let payload = ctx.payload()
+        .ok_or_else(|| Error::validation(&quot;Payload required&quot;))?;
+
+    let user_id = payload[&quot;user_id&quot;].as_i64()
+        .ok_or_else(|| Error::validation(&quot;user_id is required&quot;))?;
+
+    // Use Result propagation
+    let user = fetch_user(user_id).await?;
+
+    // Handle specific errors
+    match process_user(&amp;user).await {
+        Ok(_) =&gt; {
+            ctx.info(&quot;User processed successfully&quot;);
+            Ok(())
+        }
+        Err(e) if e.is_validation() =&gt; {
+            ctx.warn(&amp;format!(&quot;Validation failed: {}&quot;, e));
+            Err(e)
+        }
+        Err(e) =&gt; {
+            ctx.error(&amp;format!(&quot;Processing failed: {}&quot;, e));
+            Err(e)
+        }
+    }
+}).await?;
+#}</code></pre></pre>
+<hr />
+<a class="header" href="advanced/workers.html#real-world-examples" id="real-world-examples"><h2>Real-World Examples</h2></a>
+<a class="header" href="advanced/workers.html#example-1-email-sending-worker" id="example-1-email-sending-worker"><h3>Example 1: Email Sending Worker</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use rustf::prelude::*;
+use rustf::workers::WORKER;
+
+pub async fn install() -&gt; Result&lt;()&gt; {
+    WORKER::register(&quot;send-email&quot;, |ctx| async move {
+        let payload = ctx.payload()
+            .ok_or_else(|| Error::validation(&quot;Email payload required&quot;))?;
+
+        let to = payload[&quot;to&quot;].as_str()
+            .ok_or_else(|| Error::validation(&quot;'to' address required&quot;))?;
+        let subject = payload[&quot;subject&quot;].as_str()
+            .unwrap_or(&quot;No Subject&quot;);
+        let body = payload[&quot;body&quot;].as_str()
+            .unwrap_or(&quot;&quot;);
+
+        ctx.info(&amp;format!(&quot;Sending email to: {}&quot;, to));
+
+        // Simulate email sending
+        if ctx.is_development() {
+            ctx.info(&amp;format!(&quot;📧 DEV MODE - Email to {} with subject: {}&quot;, to, subject));
+            tokio::time::sleep(Duration::from_millis(100)).await;
+        } else {
+            // Production: use real SMTP service
+            // send_smtp_email(to, subject, body).await?;
+            tokio::time::sleep(Duration::from_secs(2)).await;
+        }
+
+        ctx.emit(json!({
+            &quot;status&quot;: &quot;sent&quot;,
+            &quot;to&quot;: to,
+            &quot;timestamp&quot;: chrono::Utc::now().to_rfc3339()
+        }))?;
+
+        ctx.info(&quot;✅ Email sent successfully&quot;);
+        Ok(())
+    }).await?;
+
+    Ok(())
+}
+
+// Usage from controller
+async fn register_user(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    let body = ctx.full_body();
+    let email = body[&quot;email&quot;].as_str().unwrap();
+
+    // Create user...
+
+    // Send welcome email in background
+    WORKER::run(&quot;send-email&quot;, Some(json!({
+        &quot;to&quot;: email,
+        &quot;subject&quot;: &quot;Welcome to Our App!&quot;,
+        &quot;body&quot;: &quot;Thanks for registering...&quot;
+    }))).await?;
+
+    ctx.json(json!({&quot;status&quot;: &quot;User registered&quot;}))
+}
+#}</code></pre></pre>
+<a class="header" href="advanced/workers.html#example-2-file-processing-worker" id="example-2-file-processing-worker"><h3>Example 2: File Processing Worker</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+WORKER::register(&quot;process-upload&quot;, |ctx| async move {
+    let payload = ctx.payload()
+        .ok_or_else(|| Error::validation(&quot;Payload required&quot;))?;
+
+    let file_path = payload[&quot;file_path&quot;].as_str()
+        .ok_or_else(|| Error::validation(&quot;file_path required&quot;))?;
+
+    ctx.info(&amp;format!(&quot;Processing file: {}&quot;, file_path));
+
+    // Step 1: Validate file
+    ctx.emit(json!({&quot;step&quot;: &quot;validate&quot;, &quot;progress&quot;: 25}))?;
+    validate_file(file_path).await?;
+    tokio::time::sleep(Duration::from_secs(1)).await;
+
+    // Step 2: Process file
+    ctx.emit(json!({&quot;step&quot;: &quot;process&quot;, &quot;progress&quot;: 50}))?;
+    let result = process_file(file_path).await?;
+    tokio::time::sleep(Duration::from_secs(2)).await;
+
+    // Step 3: Generate thumbnail
+    ctx.emit(json!({&quot;step&quot;: &quot;thumbnail&quot;, &quot;progress&quot;: 75}))?;
+    generate_thumbnail(file_path).await?;
+    tokio::time::sleep(Duration::from_secs(1)).await;
+
+    // Step 4: Save to database
+    ctx.emit(json!({&quot;step&quot;: &quot;save&quot;, &quot;progress&quot;: 100}))?;
+    save_to_database(&amp;result).await?;
+
+    ctx.info(&quot;✅ File processing complete&quot;);
+    Ok(())
+}).await?;
+
+// Usage with progress tracking
+async fn upload_file(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    let file_path = &quot;/tmp/uploads/file.pdf&quot;;
+
+    let mut handle = WORKER::call(
+        &quot;process-upload&quot;,
+        Some(Duration::from_secs(30)),
+        Some(json!({&quot;file_path&quot;: file_path}))
+    ).await?;
+
+    // Stream progress to client
+    while let Some(progress) = handle.recv().await {
+        log::info!(&quot;Progress: {:?}&quot;, progress);
+        // Could send SSE to client here
+    }
+
+    handle.await_result().await?;
+    ctx.json(json!({&quot;status&quot;: &quot;Processing complete&quot;}))
+}
+#}</code></pre></pre>
+<a class="header" href="advanced/workers.html#example-3-cleanup-worker" id="example-3-cleanup-worker"><h3>Example 3: Cleanup Worker</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+WORKER::register(&quot;cleanup-temp-files&quot;, |ctx| async move {
+    ctx.info(&quot;🧹 Starting cleanup task&quot;);
+
+    let temp_dir = &quot;/tmp/app_uploads&quot;;
+    let cutoff = chrono::Utc::now() - chrono::Duration::hours(24);
+
+    let mut removed_count = 0;
+
+    // Scan directory
+    let entries = tokio::fs::read_dir(temp_dir).await?;
+    // Process each file...
+
+    ctx.emit(json!({
+        &quot;files_removed&quot;: removed_count,
+        &quot;directory&quot;: temp_dir
+    }))?;
+
+    ctx.info(&amp;format!(&quot;✅ Cleanup complete: {} files removed&quot;, removed_count));
+    Ok(())
+}).await?;
+
+// Schedule via cron or event system
+app.on(&quot;ready&quot;, |ctx| Box::pin(async move {
+    // Run cleanup every hour
+    tokio::spawn(async {
+        loop {
+            tokio::time::sleep(Duration::from_secs(3600)).await;
+            let _ = WORKER::run(&quot;cleanup-temp-files&quot;, None).await;
+        }
+    });
+    Ok(())
+}))
+#}</code></pre></pre>
+<a class="header" href="advanced/workers.html#example-4-report-generation-worker" id="example-4-report-generation-worker"><h3>Example 4: Report Generation Worker</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+WORKER::register(&quot;generate-report&quot;, |ctx| async move {
+    let payload = ctx.payload()
+        .ok_or_else(|| Error::validation(&quot;Report parameters required&quot;))?;
+
+    let report_type = payload[&quot;type&quot;].as_str().unwrap_or(&quot;monthly&quot;);
+    let user_id = payload[&quot;user_id&quot;].as_i64().unwrap();
+
+    ctx.info(&amp;format!(&quot;Generating {} report for user {}&quot;, report_type, user_id));
+
+    // Fetch data
+    ctx.emit(json!({&quot;stage&quot;: &quot;fetching_data&quot;, &quot;progress&quot;: 10}))?;
+    let data = fetch_report_data(user_id, report_type).await?;
+
+    // Process data
+    ctx.emit(json!({&quot;stage&quot;: &quot;processing&quot;, &quot;progress&quot;: 40}))?;
+    let processed = process_report_data(&amp;data).await?;
+
+    // Generate PDF
+    ctx.emit(json!({&quot;stage&quot;: &quot;generating_pdf&quot;, &quot;progress&quot;: 70}))?;
+    let pdf_path = generate_pdf_report(&amp;processed).await?;
+
+    // Upload to storage
+    ctx.emit(json!({&quot;stage&quot;: &quot;uploading&quot;, &quot;progress&quot;: 90}))?;
+    let url = upload_to_storage(&amp;pdf_path).await?;
+
+    ctx.emit(json!({
+        &quot;stage&quot;: &quot;complete&quot;,
+        &quot;progress&quot;: 100,
+        &quot;url&quot;: url
+    }))?;
+
+    ctx.info(&amp;format!(&quot;✅ Report generated: {}&quot;, url));
+    Ok(())
+}).await?;
+#}</code></pre></pre>
+<a class="header" href="advanced/workers.html#example-5-batch-processing-worker" id="example-5-batch-processing-worker"><h3>Example 5: Batch Processing Worker</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+WORKER::register(&quot;batch-processor&quot;, |ctx| async move {
+    let payload = ctx.payload()
+        .ok_or_else(|| Error::validation(&quot;Batch items required&quot;))?;
+
+    let items = payload[&quot;items&quot;].as_array()
+        .ok_or_else(|| Error::validation(&quot;items must be an array&quot;))?;
+
+    let total = items.len();
+    ctx.info(&amp;format!(&quot;Processing {} items&quot;, total));
+
+    for (index, item) in items.iter().enumerate() {
+        let progress = ((index + 1) as f64 / total as f64 * 100.0) as u64;
+
+        ctx.emit(json!({
+            &quot;current&quot;: index + 1,
+            &quot;total&quot;: total,
+            &quot;progress&quot;: progress,
+            &quot;item&quot;: item
+        }))?;
+
+        // Process item
+        process_item(item).await?;
+
+        // Small delay to avoid overwhelming external APIs
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+
+    ctx.info(&amp;format!(&quot;✅ Processed {} items&quot;, total));
+    Ok(())
+}).await?;
+#}</code></pre></pre>
+<hr />
+<a class="header" href="advanced/workers.html#best-practices" id="best-practices"><h2>Best Practices</h2></a>
+<a class="header" href="advanced/workers.html#when-to-use-workers" id="when-to-use-workers"><h3>When to Use Workers</h3></a>
+<p><strong>✅ Good Use Cases:</strong></p>
+<ul>
+<li><strong>Long-running tasks</strong>: Anything taking &gt;100ms that blocks the response</li>
+<li><strong>External API calls</strong>: Third-party services, webhooks, notifications</li>
+<li><strong>File operations</strong>: Uploads, conversions, compression</li>
+<li><strong>Email/SMS sending</strong>: Any messaging operations</li>
+<li><strong>Report generation</strong>: PDFs, exports, analytics</li>
+<li><strong>Data synchronization</strong>: Batch updates, imports</li>
+<li><strong>Cleanup tasks</strong>: Maintenance, garbage collection</li>
+</ul>
+<p><strong>❌ Not Suitable For:</strong></p>
+<ul>
+<li><strong>Quick database queries</strong>: Just use models directly</li>
+<li><strong>Simple calculations</strong>: Pure functions don't need workers</li>
+<li><strong>Request validation</strong>: Should happen synchronously</li>
+<li><strong>Response formatting</strong>: Part of controller logic</li>
+<li><strong>Configuration loading</strong>: Do at startup, not in workers</li>
+</ul>
+<a class="header" href="advanced/workers.html#error-handling" id="error-handling"><h3>Error Handling</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// ✅ Good: Specific error types, proper propagation
+WORKER::register(&quot;good-errors&quot;, |ctx| async move {
+    let payload = ctx.payload()
+        .ok_or_else(|| Error::validation(&quot;Payload required&quot;))?;
+
+    match external_api_call().await {
+        Ok(result) =&gt; {
+            ctx.info(&quot;API call succeeded&quot;);
+            Ok(())
+        }
+        Err(e) if e.is_timeout() =&gt; {
+            ctx.warn(&quot;API timeout, will retry later&quot;);
+            Err(Error::timeout(&quot;External API timeout&quot;))
+        }
+        Err(e) =&gt; {
+            ctx.error(&amp;format!(&quot;Unexpected error: {}&quot;, e));
+            Err(e)
+        }
+    }
+}).await?;
+
+// ❌ Bad: Swallowing errors, panics
+WORKER::register(&quot;bad-errors&quot;, |ctx| async move {
+    let data = ctx.payload().unwrap(); // Panic!
+    external_api_call().await.ok(); // Error ignored!
+    Ok(())
+}).await?;
+#}</code></pre></pre>
+<a class="header" href="advanced/workers.html#resource-management" id="resource-management"><h3>Resource Management</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// ✅ Good: Cleanup resources, bounded operations
+WORKER::register(&quot;resource-safe&quot;, |ctx| async move {
+    let temp_file = create_temp_file().await?;
+
+    let result = process_file(&amp;temp_file).await;
+
+    // Always cleanup
+    tokio::fs::remove_file(&amp;temp_file).await?;
+
+    result
+}).await?;
+
+// ❌ Bad: Resource leaks, unbounded operations
+WORKER::register(&quot;resource-leak&quot;, |ctx| async move {
+    let file = create_temp_file().await?;
+    process_file(&amp;file).await?;
+    // File never cleaned up!
+
+    // Unbounded loop - could run forever
+    loop {
+        process_next().await?;
+    }
+}).await?;
+#}</code></pre></pre>
+<a class="header" href="advanced/workers.html#payload-validation" id="payload-validation"><h3>Payload Validation</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// ✅ Good: Validate early, clear errors
+WORKER::register(&quot;validated&quot;, |ctx| async move {
+    let payload = ctx.payload()
+        .ok_or_else(|| Error::validation(&quot;Payload required&quot;))?;
+
+    // Validate all required fields upfront
+    let email = payload[&quot;email&quot;].as_str()
+        .ok_or_else(|| Error::validation(&quot;email is required&quot;))?;
+
+    if !email.contains('@') {
+        return Err(Error::validation(&quot;Invalid email format&quot;));
+    }
+
+    let age = payload[&quot;age&quot;].as_i64()
+        .ok_or_else(|| Error::validation(&quot;age must be a number&quot;))?;
+
+    if age &lt; 0 || age &gt; 150 {
+        return Err(Error::validation(&quot;Invalid age range&quot;));
+    }
+
+    // Proceed with validated data
+    process_user(email, age).await
+}).await?;
+#}</code></pre></pre>
+<a class="header" href="advanced/workers.html#logging-and-observability" id="logging-and-observability"><h3>Logging and Observability</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+WORKER::register(&quot;observable&quot;, |ctx| async move {
+    let start = std::time::Instant::now();
+
+    ctx.info(&quot;Worker started&quot;);
+
+    // Log major steps
+    ctx.info(&quot;Step 1: Fetching data&quot;);
+    let data = fetch_data().await?;
+
+    ctx.info(&amp;format!(&quot;Step 2: Processing {} records&quot;, data.len()));
+    let result = process_data(&amp;data).await?;
+
+    ctx.info(&quot;Step 3: Saving results&quot;);
+    save_results(&amp;result).await?;
+
+    let duration = start.elapsed();
+    ctx.info(&amp;format!(&quot;✅ Completed in {:.2}s&quot;, duration.as_secs_f64()));
+
+    // Emit metrics
+    ctx.emit(json!({
+        &quot;duration_ms&quot;: duration.as_millis(),
+        &quot;records_processed&quot;: data.len()
+    }))?;
+
+    Ok(())
+}).await?;
+#}</code></pre></pre>
+<a class="header" href="advanced/workers.html#testing-workers" id="testing-workers"><h3>Testing Workers</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_email_worker() {
+        // Setup
+        let app = RustF::new().with_workers();
+
+        // Register test worker
+        WORKER::register(&quot;test-email&quot;, |ctx| async move {
+            let payload = ctx.payload().unwrap();
+            assert!(payload[&quot;to&quot;].as_str().is_some());
+            Ok(())
+        }).await.unwrap();
+
+        // Execute
+        let result = WORKER::run(&quot;test-email&quot;, Some(json!({
+            &quot;to&quot;: &quot;test@example.com&quot;
+        }))).await;
+
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_worker_timeout() {
+        WORKER::register(&quot;slow&quot;, |ctx| async move {
+            tokio::time::sleep(Duration::from_secs(10)).await;
+            Ok(())
+        }).await.unwrap();
+
+        let handle = WORKER::call(
+            &quot;slow&quot;,
+            Some(Duration::from_secs(1)),
+            None
+        ).await.unwrap();
+
+        let result = handle.await_result().await;
+        assert!(result.is_err()); // Should timeout
+    }
+}
+#}</code></pre></pre>
+<a class="header" href="advanced/workers.html#performance-considerations" id="performance-considerations"><h3>Performance Considerations</h3></a>
+<ol>
+<li><strong>Use timeouts</strong>: Always set reasonable timeouts for external operations</li>
+<li><strong>Batch operations</strong>: Process multiple items in one worker run when possible</li>
+<li><strong>Avoid blocking</strong>: Use async I/O, don't block the thread</li>
+<li><strong>Limit concurrency</strong>: Don't spawn thousands of workers simultaneously</li>
+<li><strong>Monitor statistics</strong>: Track execution times and error rates</li>
+</ol>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// ✅ Good: Bounded concurrency
+async fn process_many_items(items: Vec&lt;Value&gt;) -&gt; Result&lt;()&gt; {
+    use futures::stream::{self, StreamExt};
+
+    stream::iter(items)
+        .map(|item| async move {
+            WORKER::run(&quot;process-item&quot;, Some(item)).await
+        })
+        .buffer_unordered(10) // Max 10 concurrent workers
+        .collect::&lt;Vec&lt;_&gt;&gt;()
+        .await;
+
+    Ok(())
+}
+
+// ❌ Bad: Unbounded concurrency
+async fn process_many_items_bad(items: Vec&lt;Value&gt;) -&gt; Result&lt;()&gt; {
+    for item in items {
+        tokio::spawn(async move {
+            WORKER::run(&quot;process-item&quot;, Some(item)).await
+        });
+    }
+    Ok(())
+}
+#}</code></pre></pre>
+<hr />
+<a class="header" href="advanced/workers.html#api-reference" id="api-reference"><h2>API Reference</h2></a>
+<a class="header" href="advanced/workers.html#worker-global-api" id="worker-global-api"><h3>WORKER Global API</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+pub struct WORKER;
+
+impl WORKER {
+    /// Register a worker definition
+    pub async fn register&lt;F, Fut&gt;(
+        name: impl Into&lt;String&gt;,
+        handler: F
+    ) -&gt; Result&lt;()&gt;
+    where
+        F: Fn(WorkerContext) -&gt; Fut + Send + Sync + 'static,
+        Fut: Future&lt;Output = Result&lt;()&gt;&gt; + Send + 'static;
+
+    /// Call a worker and get a handle
+    pub async fn call(
+        worker_name: &amp;str,
+        timeout: Option&lt;Duration&gt;,
+        payload: Option&lt;Value&gt;
+    ) -&gt; Result&lt;WorkerHandle&gt;;
+
+    /// Run a worker and await completion
+    pub async fn run(
+        worker_name: &amp;str,
+        payload: Option&lt;Value&gt;
+    ) -&gt; Result&lt;()&gt;;
+
+    /// Cancel a running worker
+    pub async fn cancel(run_id: &amp;str) -&gt; Result&lt;()&gt;;
+
+    /// List registered worker names
+    pub async fn definitions() -&gt; Result&lt;Vec&lt;String&gt;&gt;;
+
+    /// List currently running worker IDs
+    pub async fn running() -&gt; Result&lt;Vec&lt;String&gt;&gt;;
+
+    /// List running instances of a specific worker
+    pub async fn running_for(worker_name: &amp;str) -&gt; Result&lt;Vec&lt;String&gt;&gt;;
+
+    /// Get statistics for a worker
+    pub async fn stats(worker_name: &amp;str) -&gt; Option&lt;WorkerStats&gt;;
+
+    /// Shutdown all running workers
+    pub async fn shutdown() -&gt; Result&lt;()&gt;;
+}
+#}</code></pre></pre>
+<a class="header" href="advanced/workers.html#workercontext-1" id="workercontext-1"><h3>WorkerContext</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+pub struct WorkerContext {
+    // Identity
+    pub fn worker_name(&amp;self) -&gt; &amp;str;
+    pub fn run_id(&amp;self) -&gt; &amp;str;
+
+    // Configuration
+    pub fn config(&amp;self) -&gt; &amp;Arc&lt;AppConfig&gt;;
+
+    // Payload
+    pub fn payload(&amp;self) -&gt; Option&lt;&amp;Value&gt;;
+
+    // Environment
+    pub fn is_development(&amp;self) -&gt; bool;
+    pub fn is_production(&amp;self) -&gt; bool;
+
+    // Logging
+    pub fn log(&amp;self, level: log::Level, message: &amp;str);
+    pub fn info(&amp;self, message: &amp;str);
+    pub fn warn(&amp;self, message: &amp;str);
+    pub fn error(&amp;self, message: &amp;str);
+    pub fn debug(&amp;self, message: &amp;str);
+
+    // State
+    pub async fn set_state(
+        &amp;self,
+        key: impl Into&lt;String&gt;,
+        value: Value
+    ) -&gt; Result&lt;()&gt;;
+    pub async fn get_state(&amp;self, key: &amp;str) -&gt; Option&lt;Value&gt;;
+    pub async fn clear_state(&amp;self) -&gt; Result&lt;()&gt;;
+
+    // Messaging
+    pub fn emit(&amp;self, message: Value) -&gt; Result&lt;()&gt;;
+
+    // Utilities
+    pub async fn sleep(&amp;self, duration: Duration);
+}
+#}</code></pre></pre>
+<a class="header" href="advanced/workers.html#workerhandle-1" id="workerhandle-1"><h3>WorkerHandle</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+pub struct WorkerHandle {
+    /// Get the unique run ID
+    pub fn id(&amp;self) -&gt; &amp;str;
+
+    /// Get the worker name
+    pub fn worker_name(&amp;self) -&gt; &amp;str;
+
+    /// Cancel this worker execution
+    pub async fn cancel(&amp;self) -&gt; Result&lt;()&gt;;
+
+    /// Receive next message from worker
+    pub async fn recv(&amp;mut self) -&gt; Option&lt;Value&gt;;
+
+    /// Wait for worker to complete
+    pub async fn await_result(self) -&gt; Result&lt;()&gt;;
+}
+#}</code></pre></pre>
+<a class="header" href="advanced/workers.html#workerstats" id="workerstats"><h3>WorkerStats</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WorkerStats {
+    /// Total number of executions
+    pub runs: u64,
+
+    /// Number of failed executions
+    pub errors: u64,
+
+    /// Duration of last execution in milliseconds
+    pub last_run_ms: Option&lt;u64&gt;,
+
+    /// Total cumulative runtime in milliseconds
+    pub total_runtime_ms: u64,
+}
+#}</code></pre></pre>
+<hr />
+<a class="header" href="advanced/workers.html#troubleshooting" id="troubleshooting"><h2>Troubleshooting</h2></a>
+<a class="header" href="advanced/workers.html#worker-not-found" id="worker-not-found"><h3>Worker Not Found</h3></a>
+<p><strong>Error</strong>: <code>Worker 'my-worker' not registered</code></p>
+<p><strong>Solutions</strong>:</p>
+<ol>
+<li><strong>Ensure worker file is in <code>src/workers/</code> directory</strong>:</li>
+</ol>
+<pre><code>src/
+└── workers/
+    └── my_worker.rs  ← Must be here!
+</code></pre>
+<ol start="2">
+<li><strong>Check that the file has an <code>install()</code> function</strong>:</li>
+</ol>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// src/workers/my_worker.rs
+pub async fn install() -&gt; Result&lt;()&gt; {
+    WORKER::register(&quot;my-worker&quot;, |ctx| async move {
+        // Worker implementation
+        Ok(())
+    }).await?;
+    Ok(())
+}
+#}</code></pre></pre>
+<ol start="3">
+<li><strong>Verify auto-discovery is enabled</strong>:</li>
+</ol>
+<pre><pre class="playpen"><code class="language-rust">// src/main.rs
+#[rustf::auto_discover]  // ← Required!
+#[tokio::main]
+async fn main() -&gt; Result&lt;()&gt; {
+    let app = RustF::new().auto_load();
+    app.start().await
+}
+</code></pre></pre>
+<ol start="4">
+<li><strong>Check that file isn't being skipped</strong> (shouldn't be <code>mod.rs</code>, <code>_*.rs</code>, or <code>*.inc.rs</code>)</li>
+</ol>
+<a class="header" href="advanced/workers.html#worker-manager-not-initialized" id="worker-manager-not-initialized"><h3>Worker Manager Not Initialized</h3></a>
+<p><strong>Error</strong>: <code>Worker manager not initialised</code></p>
+<p><strong>Solution</strong>: Use <code>.auto_load()</code> or explicitly enable workers:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Recommended: Use auto_load
+let app = RustF::new()
+    .auto_load()  // Automatically enables workers
+    .run(&quot;127.0.0.1:3000&quot;)
+    .await?;
+
+// Or explicitly:
+let app = RustF::new()
+    .with_workers()
+    .workers_from(auto_workers!())
+    .run(&quot;127.0.0.1:3000&quot;)
+    .await?;
+#}</code></pre></pre>
+<a class="header" href="advanced/workers.html#worker-timeout" id="worker-timeout"><h3>Worker Timeout</h3></a>
+<p><strong>Error</strong>: <code>Worker 'slow-task' timed out after 5s</code></p>
+<p><strong>Solutions</strong>:</p>
+<ol>
+<li>Increase timeout:</li>
+</ol>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+WORKER::call(&quot;slow-task&quot;, Some(Duration::from_secs(30)), payload).await?;
+#}</code></pre></pre>
+<ol start="2">
+<li>Optimize worker to run faster:</li>
+</ol>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Break work into smaller chunks
+// Use async I/O instead of blocking
+// Process in parallel where possible
+#}</code></pre></pre>
+<ol start="3">
+<li>Remove timeout (not recommended for production):</li>
+</ol>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+WORKER::call(&quot;slow-task&quot;, None, payload).await?;
+#}</code></pre></pre>
+<a class="header" href="advanced/workers.html#messages-not-received" id="messages-not-received"><h3>Messages Not Received</h3></a>
+<p><strong>Problem</strong>: <code>handle.recv()</code> returns <code>None</code> immediately.</p>
+<p><strong>Solution</strong>: Worker must emit messages:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Worker must explicitly emit
+WORKER::register(&quot;messenger&quot;, |ctx| async move {
+    ctx.emit(json!({&quot;progress&quot;: 50}))?; // Emit message
+    Ok(())
+}).await?;
+
+// Caller receives messages
+let mut handle = WORKER::call(&quot;messenger&quot;, None, None).await?;
+while let Some(msg) = handle.recv().await {
+    println!(&quot;{}&quot;, msg);
+}
+#}</code></pre></pre>
+<a class="header" href="advanced/workers.html#payload-access-issues" id="payload-access-issues"><h3>Payload Access Issues</h3></a>
+<p><strong>Problem</strong>: <code>ctx.payload()</code> returns <code>None</code>.</p>
+<p><strong>Solution</strong>: Pass payload when calling:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Pass payload
+WORKER::run(&quot;my-worker&quot;, Some(json!({&quot;key&quot;: &quot;value&quot;}))).await?;
+
+// Access in worker
+WORKER::register(&quot;my-worker&quot;, |ctx| async move {
+    if let Some(payload) = ctx.payload() {
+        // Use payload
+    }
+    Ok(())
+}).await?;
+#}</code></pre></pre>
+<a class="header" href="advanced/workers.html#worker-hangs-forever" id="worker-hangs-forever"><h3>Worker Hangs Forever</h3></a>
+<p><strong>Problem</strong>: Worker never completes.</p>
+<p><strong>Solutions</strong>:</p>
+<ol>
+<li>Add timeout:</li>
+</ol>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+WORKER::call(&quot;worker&quot;, Some(Duration::from_secs(30)), payload).await?;
+#}</code></pre></pre>
+<ol start="2">
+<li>Debug with logging:</li>
+</ol>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+WORKER::register(&quot;debug&quot;, |ctx| async move {
+    ctx.info(&quot;Step 1&quot;);
+    step1().await?;
+    ctx.info(&quot;Step 2&quot;);
+    step2().await?;
+    ctx.info(&quot;Complete&quot;);
+    Ok(())
+}).await?;
+#}</code></pre></pre>
+<ol start="3">
+<li>Check for infinite loops or deadlocks in worker code.</li>
+</ol>
+<a class="header" href="advanced/workers.html#high-memory-usage" id="high-memory-usage"><h3>High Memory Usage</h3></a>
+<p><strong>Problem</strong>: Memory grows when running many workers.</p>
+<p><strong>Solutions</strong>:</p>
+<ol>
+<li>Limit concurrent workers:</li>
+</ol>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use futures::stream::{self, StreamExt};
+
+stream::iter(items)
+    .map(|item| WORKER::run(&quot;process&quot;, Some(item)))
+    .buffer_unordered(10) // Max 10 concurrent
+    .collect::&lt;Vec&lt;_&gt;&gt;()
+    .await;
+#}</code></pre></pre>
+<ol start="2">
+<li>Clean up resources in workers:</li>
+</ol>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+WORKER::register(&quot;cleanup&quot;, |ctx| async move {
+    let resource = allocate().await?;
+    let result = process(&amp;resource).await;
+    drop(resource); // Explicit cleanup
+    result
+}).await?;
+#}</code></pre></pre>
+<ol start="3">
+<li>Use streaming for large data:</li>
+</ol>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Process in chunks instead of loading everything
+for chunk in data.chunks(1000) {
+    process_chunk(chunk).await?;
+}
+#}</code></pre></pre>
+<a class="header" href="advanced/workers.html#statistics-not-updating" id="statistics-not-updating"><h3>Statistics Not Updating</h3></a>
+<p><strong>Problem</strong>: <code>WORKER::stats()</code> returns outdated values.</p>
+<p><strong>Solution</strong>: Statistics update after worker completion. Ensure:</p>
+<ol>
+<li>Worker completes successfully or fails (not cancelled mid-execution)</li>
+<li>Await worker completion before checking stats</li>
+<li>Stats are per-definition, not per-run</li>
+</ol>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Execute worker
+WORKER::run(&quot;task&quot;, None).await?;
+
+// Now stats are updated
+let stats = WORKER::stats(&quot;task&quot;).await;
+#}</code></pre></pre>
+<hr />
+<a class="header" href="advanced/workers.html#summary" id="summary"><h2>Summary</h2></a>
+<p>The RustF Worker system provides:</p>
+<ul>
+<li><strong>Simple Registration</strong>: <code>WORKER::register()</code> with async handlers</li>
+<li><strong>Flexible Execution</strong>: Call and await, fire-and-forget, or stream messages</li>
+<li><strong>Rich Context</strong>: Logging, state, configuration, and messaging</li>
+<li><strong>Monitoring</strong>: Built-in statistics and running worker tracking</li>
+<li><strong>Robust</strong>: Timeout support, cancellation, and graceful shutdown</li>
+</ul>
+<p><strong>Quick Reference</strong>:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Enable
+app.with_workers()
+
+// Register
+WORKER::register(&quot;name&quot;, |ctx| async move { Ok(()) }).await?
+
+// Execute
+WORKER::run(&quot;name&quot;, Some(payload)).await?
+
+// Monitor
+WORKER::stats(&quot;name&quot;).await
+WORKER::running().await?
+#}</code></pre></pre>
+<p>For more examples, see the <a href="https://github.com/your-repo/rustf/tree/main/rustf-example">rustf-example</a> project.</p>
+<hr />
+<p><strong>Documentation Version</strong>: 1.0
+<strong>Last Updated</strong>: 2025-01-22
+<strong>RustF Version</strong>: 0.1.0</p>
+
+                </div>
+
+                <!-- Mobile navigation buttons -->
+                
+                    <a rel="prev" href="advanced/performance.html" class="mobile-nav-chapters previous" title="Previous chapter">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                
+
+                
+                    <a rel="next" href="advanced/events.html" class="mobile-nav-chapters next" title="Next chapter">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+                
+
+            </div>
+
+            
+                <a href="advanced/performance.html" class="nav-chapters previous" title="You can navigate through the chapters using the arrow keys">
+                    <i class="fa fa-angle-left"></i>
+                </a>
+            
+
+            
+                <a href="advanced/events.html" class="nav-chapters next" title="You can navigate through the chapters using the arrow keys">
+                    <i class="fa fa-angle-right"></i>
+                </a>
+            
+
+        </div>
+
+
+        <!-- Local fallback for Font Awesome -->
+        <script>
+            if ($(".fa").css("font-family") !== "FontAwesome") {
+                $('<link rel="stylesheet" type="text/css" href="_FontAwesome/css/font-awesome.css">').prependTo('head');
+            }
+        </script>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        
+
+        
+
+        
+
+        
+
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS script -->
+        
+
+    </body>
+</html>

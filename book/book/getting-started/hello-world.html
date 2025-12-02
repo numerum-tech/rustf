@@ -1,0 +1,337 @@
+<!DOCTYPE HTML>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Hello World - RustF Framework Documentation</title>
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="Complete guide to the RustF MVC web framework for Rust">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <base href="../">
+
+        <link rel="stylesheet" href="book.css">
+        <link href="https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800" rel="stylesheet" type="text/css">
+        <link href="https://fonts.googleapis.com/css?family=Source+Code+Pro:500" rel="stylesheet" type="text/css">
+
+        <link rel="shortcut icon" href="favicon.png">
+
+        <!-- Font Awesome -->
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
+
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme -->
+        
+
+        
+
+        <!-- Fetch Clipboard.js from CDN but have a local fallback -->
+        <script src="https://cdn.jsdelivr.net/clipboard.js/1.6.1/clipboard.min.js"></script>
+        <script>
+            if (typeof Clipboard == 'undefined') {
+                document.write(unescape("%3Cscript src='clipboard.min.js'%3E%3C/script%3E"));
+            }
+        </script>
+
+        <!-- Fetch JQuery from CDN but have a local fallback -->
+        <script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+        <script>
+            if (typeof jQuery == 'undefined') {
+                document.write(unescape("%3Cscript src='jquery.js'%3E%3C/script%3E"));
+            }
+        </script>
+
+        <!-- Fetch store.js from local - TODO add CDN when 2.x.x is available on cdnjs -->
+        <script src="store.js"></script>
+
+    </head>
+    <body class="light">
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme = store.get('mdbook-theme');
+            if (theme === null || theme === undefined) { theme = 'light'; }
+            $('body').removeClass().addClass(theme);
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var sidebar = store.get('mdbook-sidebar');
+            if (sidebar === "hidden") { $("html").addClass("sidebar-hidden") }
+            else if (sidebar === "visible") { $("html").addClass("sidebar-visible") }
+        </script>
+
+        <div id="sidebar" class="sidebar">
+            <ul class="chapter"><li class="affix"><a href="README.html">Introduction</a></li><li><a href="getting-started/README.html"><strong>1.</strong> Quick Start</a></li><li><a href="getting-started/installation.html"><strong>2.</strong> Installation</a></li><li><a href="getting-started/hello-world.html" class="active"><strong>3.</strong> Hello World</a></li><li><a href="getting-started/project-structure.html"><strong>4.</strong> Project Structure</a></li><li><a href="guides/controllers.html"><strong>5.</strong> Controllers &amp; Routing</a></li><li><a href="guides/views.html"><strong>6.</strong> Views &amp; Templates</a></li><li><a href="guides/middleware.html"><strong>7.</strong> Middleware</a></li><li><a href="guides/sessions.html"><strong>8.</strong> Sessions</a></li><li><a href="guides/database.html"><strong>9.</strong> Database Integration</a></li><li><a href="guides/configuration.html"><strong>10.</strong> Configuration</a></li><li><a href="guides/security.html"><strong>11.</strong> Security</a></li><li><a href="guides/error-handling.html"><strong>12.</strong> Error Handling</a></li><li><a href="guides/schemas.html"><strong>13.</strong> Schemas &amp; Definitions</a></li><li><a href="advanced/README.html"><strong>14.</strong> Overview</a></li><li><a href="advanced/performance.html"><strong>15.</strong> Performance Optimization</a></li><li><a href="advanced/workers.html"><strong>16.</strong> Workers</a></li><li><a href="advanced/events.html"><strong>17.</strong> Events</a></li><li><a href="advanced/modules.html"><strong>18.</strong> Modules</a></li><li><a href="advanced/cli.html"><strong>19.</strong> CLI Tool</a></li><li><a href="api-reference/README.html"><strong>20.</strong> Overview</a></li><li><a href="api-reference/context.html"><strong>21.</strong> Context API</a></li><li><a href="api-reference/models.html"><strong>22.</strong> Model API</a></li><li><a href="api-reference/routing.html"><strong>23.</strong> Routing API</a></li><li><a href="api-reference/utilities.html"><strong>24.</strong> Utilities</a></li><li><a href="examples/README.html"><strong>25.</strong> Overview</a></li><li><a href="examples/rest-api.html"><strong>26.</strong> Building a REST API</a></li><li><a href="examples/authentication.html"><strong>27.</strong> Authentication</a></li><li><a href="examples/real-world-app.html"><strong>28.</strong> Real-World Application</a></li><li><a href="deployment/production.html"><strong>29.</strong> Production Deployment</a></li><li><a href="deployment/docker.html"><strong>30.</strong> Docker</a></li></ul>
+        </div>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page" tabindex="-1">
+                
+                <div id="menu-bar" class="menu-bar">
+                    <div class="left-buttons">
+                        <i id="sidebar-toggle" class="fa fa-bars" title="Toggle sidebar"></i>
+                        <i id="theme-toggle" class="fa fa-paint-brush" title="Change theme"></i>
+                    </div>
+
+                    <h1 class="menu-title">RustF Framework Documentation</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html">
+                            <i id="print-button" class="fa fa-print" title="Print this book"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <div id="content" class="content">
+                    <a class="header" href="getting-started/hello-world.html#hello-world-tutorial" id="hello-world-tutorial"><h1>Hello World Tutorial</h1></a>
+<p>This tutorial will walk you through creating your first RustF application step-by-step.</p>
+<a class="header" href="getting-started/hello-world.html#what-well-build" id="what-well-build"><h2>What We'll Build</h2></a>
+<p>We'll create a simple application that:</p>
+<ul>
+<li>Displays a &quot;Hello World&quot; message</li>
+<li>Shows a JSON API endpoint</li>
+<li>Demonstrates basic routing</li>
+</ul>
+<a class="header" href="getting-started/hello-world.html#step-1-create-the-project" id="step-1-create-the-project"><h2>Step 1: Create the Project</h2></a>
+<pre><code class="language-bash">rustf-cli new project hello-rustf
+cd hello-rustf
+</code></pre>
+<p>Or manually:</p>
+<pre><code class="language-bash">cargo new hello-rustf
+cd hello-rustf
+</code></pre>
+<a class="header" href="getting-started/hello-world.html#step-2-add-dependencies" id="step-2-add-dependencies"><h2>Step 2: Add Dependencies</h2></a>
+<p>Edit <code>Cargo.toml</code>:</p>
+<pre><code class="language-toml">[dependencies]
+rustf = { path = &quot;../rustf&quot; }  # Adjust path as needed
+tokio = { version = &quot;1.0&quot;, features = [&quot;full&quot;] }
+serde = { version = &quot;1.0&quot;, features = [&quot;derive&quot;] }
+serde_json = &quot;1.0&quot;
+log = &quot;0.4&quot;
+env_logger = &quot;0.10&quot;
+</code></pre>
+<a class="header" href="getting-started/hello-world.html#step-3-create-the-main-application" id="step-3-create-the-main-application"><h2>Step 3: Create the Main Application</h2></a>
+<p>Edit <code>src/main.rs</code>:</p>
+<pre><pre class="playpen"><code class="language-rust">use rustf::prelude::*;
+
+#[tokio::main]
+async fn main() -&gt; rustf::Result&lt;()&gt; {
+    // Initialize logger
+    env_logger::init();
+    
+    // Create the application with auto-discovery
+    let app = RustF::new()
+        .controllers(auto_controllers!())      // Auto-discover controllers
+        .middleware_from(auto_middleware!());   // Auto-discover middleware
+    
+    println!(&quot;🚀 Server running at http://127.0.0.1:8000&quot;);
+    println!(&quot;📖 Visit http://127.0.0.1:8000/ for Hello World&quot;);
+    println!(&quot;📡 Visit http://127.0.0.1:8000/api/status for JSON API&quot;);
+    
+    // Start the server
+    app.start().await
+}
+</code></pre></pre>
+<a class="header" href="getting-started/hello-world.html#step-4-create-your-first-controller" id="step-4-create-your-first-controller"><h2>Step 4: Create Your First Controller</h2></a>
+<p>Create <code>src/controllers/home.rs</code>:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use rustf::prelude::*;
+
+// Every controller must have an install() function
+pub fn install() -&gt; Vec&lt;Route&gt; {
+    routes![
+        GET &quot;/&quot; =&gt; hello_world,
+        GET &quot;/api/status&quot; =&gt; api_status,
+    ]
+}
+
+// Handler function - must be async and take &amp;mut Context
+async fn hello_world(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    // Send HTML response
+    ctx.html(&quot;&lt;h1&gt;Hello, RustF! 🚀&lt;/h1&gt;&lt;p&gt;Welcome to your first RustF application!&lt;/p&gt;&quot;)
+}
+
+// JSON API endpoint
+async fn api_status(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    // Create JSON data
+    let data = json!({
+        &quot;status&quot;: &quot;ok&quot;,
+        &quot;framework&quot;: &quot;RustF&quot;,
+        &quot;version&quot;: &quot;0.1.0&quot;,
+        &quot;message&quot;: &quot;Hello from the API!&quot;
+    });
+    
+    // Send JSON response
+    ctx.json(data)
+}
+#}</code></pre></pre>
+<a class="header" href="getting-started/hello-world.html#step-5-create-configuration" id="step-5-create-configuration"><h2>Step 5: Create Configuration</h2></a>
+<p>Create <code>config.toml</code>:</p>
+<pre><code class="language-toml">[server]
+host = &quot;127.0.0.1&quot;
+port = 8000
+timeout = 30
+
+[views]
+directory = &quot;views&quot;
+cache_enabled = false
+default_layout = &quot;layouts/default&quot;
+
+[session]
+timeout = 3600
+cookie_name = &quot;hello_rustf_session&quot;
+secure = false
+http_only = true
+</code></pre>
+<a class="header" href="getting-started/hello-world.html#step-6-run-your-application" id="step-6-run-your-application"><h2>Step 6: Run Your Application</h2></a>
+<pre><code class="language-bash">cargo run
+</code></pre>
+<p>You should see:</p>
+<pre><code>🚀 Server running at http://127.0.0.1:8000
+📖 Visit http://127.0.0.1:8000/ for Hello World
+📡 Visit http://127.0.0.1:8000/api/status for JSON API
+</code></pre>
+<a class="header" href="getting-started/hello-world.html#step-7-test-your-application" id="step-7-test-your-application"><h2>Step 7: Test Your Application</h2></a>
+<a class="header" href="getting-started/hello-world.html#test-the-html-endpoint" id="test-the-html-endpoint"><h3>Test the HTML Endpoint</h3></a>
+<p>Visit <code>http://127.0.0.1:8000/</code> in your browser. You should see:</p>
+<pre><code class="language-html">Hello, RustF! 🚀
+Welcome to your first RustF application!
+</code></pre>
+<a class="header" href="getting-started/hello-world.html#test-the-json-api" id="test-the-json-api"><h3>Test the JSON API</h3></a>
+<p>Visit <code>http://127.0.0.1:8000/api/status</code> or use curl:</p>
+<pre><code class="language-bash">curl http://127.0.0.1:8000/api/status
+</code></pre>
+<p>You should get:</p>
+<pre><code class="language-json">{
+  &quot;status&quot;: &quot;ok&quot;,
+  &quot;framework&quot;: &quot;RustF&quot;,
+  &quot;version&quot;: &quot;0.1.0&quot;,
+  &quot;message&quot;: &quot;Hello from the API!&quot;
+}
+</code></pre>
+<a class="header" href="getting-started/hello-world.html#understanding-the-code" id="understanding-the-code"><h2>Understanding the Code</h2></a>
+<a class="header" href="getting-started/hello-world.html#the-install-function" id="the-install-function"><h3>The <code>install()</code> Function</h3></a>
+<p>Every controller must have an <code>install()</code> function that returns <code>Vec&lt;Route&gt;</code>. This function:</p>
+<ul>
+<li>Defines all routes for this controller</li>
+<li>Uses the <code>routes![]</code> macro for clean syntax</li>
+<li>Is automatically discovered by <code>auto_controllers!()</code></li>
+</ul>
+<a class="header" href="getting-started/hello-world.html#route-handlers" id="route-handlers"><h3>Route Handlers</h3></a>
+<p>Route handlers must:</p>
+<ul>
+<li>Be <code>async</code> functions</li>
+<li>Take <code>&amp;mut Context</code> as the only parameter</li>
+<li>Return <code>Result&lt;()&gt;</code></li>
+<li>Use <code>ctx</code> methods to send responses</li>
+</ul>
+<a class="header" href="getting-started/hello-world.html#response-methods" id="response-methods"><h3>Response Methods</h3></a>
+<p>The <code>Context</code> provides several response methods:</p>
+<ul>
+<li><code>ctx.html(content)</code> - Send HTML response</li>
+<li><code>ctx.json(data)</code> - Send JSON response</li>
+<li><code>ctx.text(content)</code> - Send plain text</li>
+<li><code>ctx.redirect(url)</code> - Redirect to another URL</li>
+<li><code>ctx.status(code)</code> - Set HTTP status code</li>
+</ul>
+<a class="header" href="getting-started/hello-world.html#adding-more-routes" id="adding-more-routes"><h2>Adding More Routes</h2></a>
+<p>Let's add a route with a parameter:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+pub fn install() -&gt; Vec&lt;Route&gt; {
+    routes![
+        GET &quot;/&quot; =&gt; hello_world,
+        GET &quot;/api/status&quot; =&gt; api_status,
+        GET &quot;/hello/{name}&quot; =&gt; personalized_hello,  // New route with parameter
+    ]
+}
+
+async fn personalized_hello(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    // Get route parameter
+    let name = ctx.param(&quot;name&quot;).unwrap_or(&quot;World&quot;);
+    
+    let message = format!(&quot;Hello, {}! Welcome to RustF!&quot;, name);
+    ctx.html(&amp;format!(&quot;&lt;h1&gt;{}&lt;/h1&gt;&quot;, message))
+}
+#}</code></pre></pre>
+<p>Now visit <code>http://127.0.0.1:8000/hello/Alice</code> to see a personalized greeting!</p>
+<a class="header" href="getting-started/hello-world.html#next-steps" id="next-steps"><h2>Next Steps</h2></a>
+<p>Congratulations! You've created your first RustF application. Now you can:</p>
+<ol>
+<li><strong><a href="project-structure.md">Learn about Project Structure</a></strong> - Understand how RustF projects are organized</li>
+<li><strong><a href="../guides/controllers.md">Explore Controllers</a></strong> - Learn more about routing and controllers</li>
+<li><strong><a href="../guides/views.md">Add Views</a></strong> - Use templates instead of inline HTML</li>
+<li><strong><a href="../examples/rest-api.md">Build a REST API</a></strong> - Create a complete API</li>
+</ol>
+<a class="header" href="getting-started/hello-world.html#common-questions" id="common-questions"><h2>Common Questions</h2></a>
+<p><strong>Q: Why do I need <code>&amp;mut Context</code>?</strong>
+A: Context is mutable because it stores request/response data and session information that may change during request processing.</p>
+<p><strong>Q: What does <code>auto_controllers!()</code> do?</strong>
+A: It's a macro that automatically discovers all controllers in <code>src/controllers/</code> at compile time and registers their routes.</p>
+<p><strong>Q: Can I use <code>&amp;Context</code> instead?</strong>
+A: No, handlers require <code>&amp;mut Context</code> because they need to modify the response and potentially update session data.</p>
+<p><strong>Q: How do I handle errors?</strong>
+A: Return <code>Err(Error::...)</code> from your handler. The framework will handle it appropriately based on the error type.</p>
+
+                </div>
+
+                <!-- Mobile navigation buttons -->
+                
+                    <a rel="prev" href="getting-started/installation.html" class="mobile-nav-chapters previous" title="Previous chapter">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                
+
+                
+                    <a rel="next" href="getting-started/project-structure.html" class="mobile-nav-chapters next" title="Next chapter">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+                
+
+            </div>
+
+            
+                <a href="getting-started/installation.html" class="nav-chapters previous" title="You can navigate through the chapters using the arrow keys">
+                    <i class="fa fa-angle-left"></i>
+                </a>
+            
+
+            
+                <a href="getting-started/project-structure.html" class="nav-chapters next" title="You can navigate through the chapters using the arrow keys">
+                    <i class="fa fa-angle-right"></i>
+                </a>
+            
+
+        </div>
+
+
+        <!-- Local fallback for Font Awesome -->
+        <script>
+            if ($(".fa").css("font-family") !== "FontAwesome") {
+                $('<link rel="stylesheet" type="text/css" href="_FontAwesome/css/font-awesome.css">').prependTo('head');
+            }
+        </script>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        
+
+        
+
+        
+
+        
+
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS script -->
+        
+
+    </body>
+</html>

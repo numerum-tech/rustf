@@ -1,0 +1,1033 @@
+<!DOCTYPE HTML>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Utilities - RustF Framework Documentation</title>
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="Complete guide to the RustF MVC web framework for Rust">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <base href="../">
+
+        <link rel="stylesheet" href="book.css">
+        <link href="https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800" rel="stylesheet" type="text/css">
+        <link href="https://fonts.googleapis.com/css?family=Source+Code+Pro:500" rel="stylesheet" type="text/css">
+
+        <link rel="shortcut icon" href="favicon.png">
+
+        <!-- Font Awesome -->
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
+
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme -->
+        
+
+        
+
+        <!-- Fetch Clipboard.js from CDN but have a local fallback -->
+        <script src="https://cdn.jsdelivr.net/clipboard.js/1.6.1/clipboard.min.js"></script>
+        <script>
+            if (typeof Clipboard == 'undefined') {
+                document.write(unescape("%3Cscript src='clipboard.min.js'%3E%3C/script%3E"));
+            }
+        </script>
+
+        <!-- Fetch JQuery from CDN but have a local fallback -->
+        <script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+        <script>
+            if (typeof jQuery == 'undefined') {
+                document.write(unescape("%3Cscript src='jquery.js'%3E%3C/script%3E"));
+            }
+        </script>
+
+        <!-- Fetch store.js from local - TODO add CDN when 2.x.x is available on cdnjs -->
+        <script src="store.js"></script>
+
+    </head>
+    <body class="light">
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme = store.get('mdbook-theme');
+            if (theme === null || theme === undefined) { theme = 'light'; }
+            $('body').removeClass().addClass(theme);
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var sidebar = store.get('mdbook-sidebar');
+            if (sidebar === "hidden") { $("html").addClass("sidebar-hidden") }
+            else if (sidebar === "visible") { $("html").addClass("sidebar-visible") }
+        </script>
+
+        <div id="sidebar" class="sidebar">
+            <ul class="chapter"><li class="affix"><a href="README.html">Introduction</a></li><li><a href="getting-started/README.html"><strong>1.</strong> Quick Start</a></li><li><a href="getting-started/installation.html"><strong>2.</strong> Installation</a></li><li><a href="getting-started/hello-world.html"><strong>3.</strong> Hello World</a></li><li><a href="getting-started/project-structure.html"><strong>4.</strong> Project Structure</a></li><li><a href="guides/controllers.html"><strong>5.</strong> Controllers &amp; Routing</a></li><li><a href="guides/views.html"><strong>6.</strong> Views &amp; Templates</a></li><li><a href="guides/middleware.html"><strong>7.</strong> Middleware</a></li><li><a href="guides/sessions.html"><strong>8.</strong> Sessions</a></li><li><a href="guides/database.html"><strong>9.</strong> Database Integration</a></li><li><a href="guides/configuration.html"><strong>10.</strong> Configuration</a></li><li><a href="guides/security.html"><strong>11.</strong> Security</a></li><li><a href="guides/error-handling.html"><strong>12.</strong> Error Handling</a></li><li><a href="guides/schemas.html"><strong>13.</strong> Schemas &amp; Definitions</a></li><li><a href="advanced/README.html"><strong>14.</strong> Overview</a></li><li><a href="advanced/performance.html"><strong>15.</strong> Performance Optimization</a></li><li><a href="advanced/workers.html"><strong>16.</strong> Workers</a></li><li><a href="advanced/events.html"><strong>17.</strong> Events</a></li><li><a href="advanced/modules.html"><strong>18.</strong> Modules</a></li><li><a href="advanced/cli.html"><strong>19.</strong> CLI Tool</a></li><li><a href="api-reference/README.html"><strong>20.</strong> Overview</a></li><li><a href="api-reference/context.html"><strong>21.</strong> Context API</a></li><li><a href="api-reference/models.html"><strong>22.</strong> Model API</a></li><li><a href="api-reference/routing.html"><strong>23.</strong> Routing API</a></li><li><a href="api-reference/utilities.html" class="active"><strong>24.</strong> Utilities</a></li><li><a href="examples/README.html"><strong>25.</strong> Overview</a></li><li><a href="examples/rest-api.html"><strong>26.</strong> Building a REST API</a></li><li><a href="examples/authentication.html"><strong>27.</strong> Authentication</a></li><li><a href="examples/real-world-app.html"><strong>28.</strong> Real-World Application</a></li><li><a href="deployment/production.html"><strong>29.</strong> Production Deployment</a></li><li><a href="deployment/docker.html"><strong>30.</strong> Docker</a></li></ul>
+        </div>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page" tabindex="-1">
+                
+                <div id="menu-bar" class="menu-bar">
+                    <div class="left-buttons">
+                        <i id="sidebar-toggle" class="fa fa-bars" title="Toggle sidebar"></i>
+                        <i id="theme-toggle" class="fa fa-paint-brush" title="Change theme"></i>
+                    </div>
+
+                    <h1 class="menu-title">RustF Framework Documentation</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html">
+                            <i id="print-button" class="fa fa-print" title="Print this book"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <div id="content" class="content">
+                    <a class="header" href="api-reference/utilities.html#rustf-utilities-u-user-guide" id="rustf-utilities-u-user-guide"><h1>RustF Utilities (U) User Guide</h1></a>
+<a class="header" href="api-reference/utilities.html#overview" id="overview"><h2>Overview</h2></a>
+<p>RustF provides a global utilities system through the <code>U</code> module, offering commonly used functions for web development. Inspired by Total.js, it provides a convenient API for random generation, string processing, HTTP utilities, encoding, parsing, cryptographic hash functions, and more.</p>
+<p>The utilities system supports two access patterns:</p>
+<ul>
+<li><strong>Direct access</strong>: <code>U::function_name()</code> for commonly used functions</li>
+<li><strong>Namespaced access</strong>: <code>U::ModuleName::function_name()</code> for extended functionality</li>
+</ul>
+<a class="header" href="api-reference/utilities.html#getting-started" id="getting-started"><h2>Getting Started</h2></a>
+<p>Import and use the utilities:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use rustf::prelude::*;  // Includes U
+// or
+use rustf::U;
+
+// Direct access - commonly used functions
+let id = U::guid();
+let encoded = U::encode(&quot;hello world&quot;);
+let status = U::http_status(404); // &quot;Not Found&quot;
+let hash = U::sha256(&quot;data&quot;);      // Secure hash function
+
+// Namespaced access - extended functionality  
+let slug = U::String::to_slug(&quot;Hello World!&quot;);
+let html = U::Encoding::html_encode(&quot;&lt;script&gt;&quot;);
+let duration = U::Parsing::parse_duration(&quot;1h&quot;, 0);
+let md5_hash = U::Crypto::md5(&quot;data&quot;);  // Warning: Not secure
+#}</code></pre></pre>
+<a class="header" href="api-reference/utilities.html#available-utilities" id="available-utilities"><h2>Available Utilities</h2></a>
+<p>The RustF utilities system provides two access patterns:</p>
+<a class="header" href="api-reference/utilities.html#direct-access-functions-ufunction" id="direct-access-functions-ufunction"><h3>Direct Access Functions (U::function())</h3></a>
+<p>These are the most commonly used functions available directly through <code>U::</code>:</p>
+<table><thead><tr><th> Category </th><th> Function </th><th> Description </th><th> Example </th></tr></thead><tbody>
+<tr><td> <strong>Random</strong> </td><td> <code>U::guid()</code> </td><td> Generate UUID without hyphens </td><td> <code>U::guid()</code> → <code>&quot;a1b2c3d4e5f67890...&quot;</code> </td></tr>
+<tr><td> </td><td> <code>U::random_string(len)</code> </td><td> Generate random alphanumeric string </td><td> <code>U::random_string(8)</code> → <code>&quot;Kj8mN2pQ&quot;</code> </td></tr>
+<tr><td> </td><td> <code>U::random_number(min, max)</code> </td><td> Generate random number in range </td><td> <code>U::random_number(1, 100)</code> → <code>42</code> </td></tr>
+<tr><td> <strong>HTTP</strong> </td><td> <code>U::http_status(code)</code> </td><td> Get HTTP status text </td><td> <code>U::http_status(404)</code> → <code>&quot;Not Found&quot;</code> </td></tr>
+<tr><td> </td><td> <code>U::etag(content)</code> </td><td> Generate ETag for content </td><td> <code>U::etag(&quot;hello&quot;)</code> → <code>&quot;5d41402a...&quot;</code> </td></tr>
+<tr><td> </td><td> <code>U::get_content_type(ext)</code> </td><td> Get MIME type by extension </td><td> <code>U::get_content_type(&quot;json&quot;)</code> → <code>&quot;application/json&quot;</code> </td></tr>
+<tr><td> <strong>Encoding</strong> </td><td> <code>U::encode(str)</code> </td><td> URL encode string </td><td> <code>U::encode(&quot;hello world&quot;)</code> → <code>&quot;hello%20world&quot;</code> </td></tr>
+<tr><td> </td><td> <code>U::decode(str)</code> </td><td> URL decode string </td><td> <code>U::decode(&quot;hello%20world&quot;)</code> → <code>&quot;hello world&quot;</code> </td></tr>
+<tr><td> </td><td> <code>U::btoa(str)</code> </td><td> Base64 encode </td><td> <code>U::btoa(&quot;hello&quot;)</code> → <code>&quot;aGVsbG8=&quot;</code> </td></tr>
+<tr><td> </td><td> <code>U::atob(str)</code> </td><td> Base64 decode </td><td> <code>U::atob(&quot;aGVsbG8=&quot;)</code> → <code>&quot;hello&quot;</code> </td></tr>
+<tr><td> <strong>String</strong> </td><td> <code>U::trim(str)</code> </td><td> Clean whitespace </td><td> <code>U::trim(&quot; hello &quot;)</code> → <code>&quot;hello&quot;</code> </td></tr>
+<tr><td> </td><td> <code>U::keywords(text, max, min_len)</code> </td><td> Extract keywords </td><td> <code>U::keywords(&quot;hello world&quot;, 10, 3)</code> → <code>[&quot;hello&quot;, &quot;world&quot;]</code> </td></tr>
+<tr><td> <strong>Parsing</strong> </td><td> <code>U::parse_bool(str, default)</code> </td><td> Parse boolean safely </td><td> <code>U::parse_bool(&quot;true&quot;, false)</code> → <code>true</code> </td></tr>
+<tr><td> </td><td> <code>U::parse_int(str, default)</code> </td><td> Parse integer safely </td><td> <code>U::parse_int(&quot;123&quot;, 0)</code> → <code>123</code> </td></tr>
+<tr><td> </td><td> <code>U::parse_float(str, default)</code> </td><td> Parse float safely </td><td> <code>U::parse_float(&quot;12.34&quot;, 0.0)</code> → <code>12.34</code> </td></tr>
+<tr><td> <strong>JSON</strong> </td><td> <code>U::get(obj, path)</code> </td><td> Get nested property </td><td> <code>U::get(&amp;data, &quot;user.name&quot;)</code> → <code>Some(&amp;Value)</code> </td></tr>
+<tr><td> </td><td> <code>U::set(obj, path, value)</code> </td><td> Set nested property </td><td> <code>U::set(&amp;mut data, &quot;user.name&quot;, json!(&quot;John&quot;))</code> </td></tr>
+<tr><td> <strong>Geographic</strong> </td><td> <code>U::distance(lat1, lon1, lat2, lon2)</code> </td><td> Distance in kilometers </td><td> <code>U::distance(40.7, -74.0, 34.0, -118.2)</code> → <code>3944.42</code> </td></tr>
+<tr><td> <strong>Crypto</strong> </td><td> <code>U::md5(str)</code> </td><td> MD5 hash ⚠️ Not secure </td><td> <code>U::md5(&quot;hello world&quot;)</code> → <code>&quot;5eb63bbbe01...&quot;</code> </td></tr>
+<tr><td> </td><td> <code>U::sha256(str)</code> </td><td> SHA256 hash (secure) </td><td> <code>U::sha256(&quot;hello world&quot;)</code> → <code>&quot;b94d27b993...&quot;</code> </td></tr>
+</tbody></table>
+<p><strong>Total: 20 direct access functions</strong></p>
+<a class="header" href="api-reference/utilities.html#namespaced-access-functions-umodulefunction" id="namespaced-access-functions-umodulefunction"><h3>Namespaced Access Functions (U::Module::function())</h3></a>
+<p>Extended functionality is available through nested modules:</p>
+<a class="header" href="api-reference/utilities.html#random-generation" id="random-generation"><h3>Random Generation</h3></a>
+<a class="header" href="api-reference/utilities.html#generate-uuids" id="generate-uuids"><h4>Generate UUIDs</h4></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Generate a simple UUID (without hyphens) - Direct access
+let id = U::guid();
+println!(&quot;ID: {}&quot;, id); // e.g., &quot;a1b2c3d4e5f67890abcdef1234567890&quot;
+
+// Generate UUID with hyphens - Extended access
+let uuid = U::Random::generate_guid_with_hyphens();
+println!(&quot;UUID: {}&quot;, uuid); // e.g., &quot;a1b2c3d4-e5f6-7890-abcd-ef1234567890&quot;
+#}</code></pre></pre>
+<a class="header" href="api-reference/utilities.html#generate-random-strings" id="generate-random-strings"><h4>Generate Random Strings</h4></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Generate random alphanumeric string - Direct access
+let token = U::random_string(32);
+println!(&quot;Token: {}&quot;, token); // e.g., &quot;Kj8mN2pQ5rT9wX3yZ7aB4cD6fG1hI0kL&quot;
+
+// Use for session tokens, API keys, etc.
+let api_key = U::random_string(64);
+let session_id = U::random_string(16);
+
+// Generate with custom character set - Extended access
+let numeric_code = U::Random::generate_random_string_with_charset(6, &quot;0123456789&quot;);
+let secure_token = U::Random::generate_secure_token(32); // Cryptographically secure
+#}</code></pre></pre>
+<a class="header" href="api-reference/utilities.html#generate-random-numbers" id="generate-random-numbers"><h4>Generate Random Numbers</h4></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Generate random number in range (inclusive)
+let dice = U::random_number(1, 6);
+let port = U::random_number(8000, 9000);
+let user_id = U::random_number(1000, 99999);
+#}</code></pre></pre>
+<a class="header" href="api-reference/utilities.html#http-utilities" id="http-utilities"><h3>HTTP Utilities</h3></a>
+<a class="header" href="api-reference/utilities.html#status-code-helpers" id="status-code-helpers"><h4>Status Code Helpers</h4></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Get human-readable status text
+let status = U::http_status(200);  // &quot;OK&quot;
+let error = U::http_status(404);   // &quot;Not Found&quot;
+let server_error = U::http_status(500); // &quot;Internal Server Error&quot;
+
+// Use in responses
+async fn not_found(ctx: Context) -&gt; Result&lt;Response&gt; {
+    let message = U::http_status(404);
+    Ok(Response::not_found().with_text(message))
+}
+#}</code></pre></pre>
+<a class="header" href="api-reference/utilities.html#etag-generation" id="etag-generation"><h4>ETag Generation</h4></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Generate ETags for content caching
+let content = &quot;Hello, World!&quot;;
+let etag = U::etag(content);
+
+// Use in HTTP responses
+async fn cached_content(ctx: Context) -&gt; Result&lt;Response&gt; {
+    let content = get_content();
+    let etag = U::etag(&amp;content);
+    
+    Ok(Response::ok()
+        .with_header(&quot;ETag&quot;, &amp;etag)
+        .with_text(content))
+}
+#}</code></pre></pre>
+<a class="header" href="api-reference/utilities.html#mime-type-detection" id="mime-type-detection"><h4>MIME Type Detection</h4></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Get content type by file extension
+let html_type = U::get_content_type(&quot;html&quot;);   // &quot;text/html&quot;
+let json_type = U::get_content_type(&quot;json&quot;);   // &quot;application/json&quot;
+let css_type = U::get_content_type(&quot;css&quot;);     // &quot;text/css&quot;
+let js_type = U::get_content_type(&quot;js&quot;);       // &quot;application/javascript&quot;
+
+// Use in file serving
+async fn serve_file(ctx: Context) -&gt; Result&lt;Response&gt; {
+    let filename = ctx.param(&quot;filename&quot;)?;
+    let extension = filename.split('.').last().unwrap_or(&quot;txt&quot;);
+    let content_type = U::get_content_type(extension);
+    
+    let content = std::fs::read_to_string(&amp;filename)?;
+    Ok(Response::ok()
+        .with_header(&quot;Content-Type&quot;, content_type)
+        .with_text(content))
+}
+#}</code></pre></pre>
+<a class="header" href="api-reference/utilities.html#encoding--decoding" id="encoding--decoding"><h3>Encoding &amp; Decoding</h3></a>
+<a class="header" href="api-reference/utilities.html#url-encoding" id="url-encoding"><h4>URL Encoding</h4></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// URL encode strings - Direct access
+let encoded = U::encode(&quot;hello world&quot;);
+assert_eq!(encoded, &quot;hello%20world&quot;);
+
+let encoded = U::encode(&quot;user@example.com&quot;);
+assert_eq!(encoded, &quot;user%40example.com&quot;);
+
+// URL decode strings - Direct access
+let decoded = U::decode(&quot;hello%20world&quot;)?;
+assert_eq!(decoded, &quot;hello world&quot;);
+
+// Extended encoding functions - Namespaced access
+let html = U::Encoding::html_encode(&quot;&lt;script&gt;alert('xss')&lt;/script&gt;&quot;);
+let hex = U::Encoding::hex_encode(&amp;[255, 0, 128]);  // &quot;ff0080&quot;
+let base64_url = U::Encoding::base64_url_encode(&quot;data&quot;);
+
+// Use in URL building
+fn build_search_url(query: &amp;str) -&gt; String {
+    format!(&quot;/search?q={}&quot;, U::encode(query))
+}
+#}</code></pre></pre>
+<a class="header" href="api-reference/utilities.html#base64-encoding" id="base64-encoding"><h4>Base64 Encoding</h4></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Base64 encode (btoa = binary to ASCII)
+let encoded = U::btoa(&quot;hello&quot;);
+println!(&quot;Base64: {}&quot;, encoded); // &quot;aGVsbG8=&quot;
+
+// Base64 decode (atob = ASCII to binary)
+let decoded = U::atob(&quot;aGVsbG8=&quot;)?;
+assert_eq!(decoded, &quot;hello&quot;);
+
+// Use for API tokens, data encoding
+let token = U::btoa(&amp;format!(&quot;{}:{}&quot;, username, password));
+#}</code></pre></pre>
+<a class="header" href="api-reference/utilities.html#string-processing" id="string-processing"><h3>String Processing</h3></a>
+<a class="header" href="api-reference/utilities.html#text-cleaning" id="text-cleaning"><h4>Text Cleaning</h4></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Clean and normalize text - Direct access
+let messy = &quot;  hello    world  \n\t&quot;;
+let clean = U::trim(messy);
+assert_eq!(clean, &quot;hello world&quot;);
+
+// Extended string functions - Namespaced access
+let slug = U::String::to_slug(&quot;Hello World!&quot;);        // &quot;hello-world&quot;
+let camel = U::String::to_camel_case(&quot;hello world&quot;);   // &quot;helloWorld&quot;
+let pascal = U::String::to_pascal_case(&quot;hello world&quot;); // &quot;HelloWorld&quot;
+let snake = U::String::to_snake_case(&quot;Hello World&quot;);   // &quot;hello_world&quot;
+let title = U::String::title_case(&quot;hello world&quot;);      // &quot;Hello World&quot;
+let truncated = U::String::truncate(&quot;Long text here&quot;, 10); // &quot;Long te...&quot;
+
+// Use for user input processing
+async fn process_comment(ctx: Context) -&gt; Result&lt;Response&gt; {
+    let raw_comment = ctx.form_value(&quot;comment&quot;)?;
+    let clean_comment = U::trim(&amp;raw_comment);
+    
+    // Save clean comment to database
+    save_comment(&amp;clean_comment).await?;
+    ctx.redirect(&quot;/comments&quot;)
+}
+#}</code></pre></pre>
+<a class="header" href="api-reference/utilities.html#keyword-extraction" id="keyword-extraction"><h4>Keyword Extraction</h4></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Extract keywords for search indexing
+let text = &quot;This is a sample blog post about web development&quot;;
+let keywords = U::keywords(text, 10, 3);
+// Returns: [&quot;sample&quot;, &quot;blog&quot;, &quot;post&quot;, &quot;web&quot;, &quot;development&quot;]
+// (excludes common words like &quot;This&quot;, &quot;is&quot;, &quot;a&quot;, &quot;about&quot;)
+
+// Use for content indexing
+async fn create_post(ctx: Context) -&gt; Result&lt;Response&gt; {
+    let title = ctx.form_value(&quot;title&quot;)?;
+    let content = ctx.form_value(&quot;content&quot;)?;
+    
+    // Extract keywords for search
+    let search_keywords = U::keywords(&amp;format!(&quot;{} {}&quot;, title, content), 20, 4);
+    
+    let post = Post {
+        title,
+        content,
+        keywords: search_keywords.join(&quot;, &quot;),
+        ..Default::default()
+    };
+    
+    post.save().await?;
+    ctx.redirect(&quot;/posts&quot;)
+}
+#}</code></pre></pre>
+<a class="header" href="api-reference/utilities.html#safe-parsing" id="safe-parsing"><h3>Safe Parsing</h3></a>
+<p>Parse strings with fallback values using direct access for common types, or namespaced access for extended parsing:</p>
+<a class="header" href="api-reference/utilities.html#boolean-parsing" id="boolean-parsing"><h4>Boolean Parsing</h4></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Parse booleans safely
+let enabled = U::parse_bool(&quot;true&quot;, false);   // true
+let disabled = U::parse_bool(&quot;false&quot;, true);  // false
+let default = U::parse_bool(&quot;invalid&quot;, false); // false (fallback)
+
+// Use with form data
+async fn update_settings(ctx: Context) -&gt; Result&lt;Response&gt; {
+    let notifications = U::parse_bool(&amp;ctx.form_value(&quot;notifications&quot;)?, false);
+    let public_profile = U::parse_bool(&amp;ctx.form_value(&quot;public&quot;)?, true);
+    
+    update_user_settings(notifications, public_profile).await?;
+    ctx.redirect(&quot;/settings&quot;)
+}
+#}</code></pre></pre>
+<a class="header" href="api-reference/utilities.html#number-parsing" id="number-parsing"><h4>Number Parsing</h4></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Parse integers safely - Direct access
+let page = U::parse_int(&quot;5&quot;, 1);        // 5
+let invalid = U::parse_int(&quot;abc&quot;, 1);   // 1 (fallback)
+let limit = U::parse_int(&quot;100&quot;, 10);    // 100
+
+// Parse floats safely - Direct access
+let price = U::parse_float(&quot;19.99&quot;, 0.0);    // 19.99
+let invalid = U::parse_float(&quot;abc&quot;, 0.0);    // 0.0 (fallback)
+
+// Extended parsing functions - Namespaced access
+let duration = U::Parsing::parse_duration(&quot;1h&quot;, 0);     // 3600 seconds
+let size = U::Parsing::parse_size(&quot;1MB&quot;, 0);            // 1048576 bytes
+let percent = U::Parsing::parse_percentage(&quot;75%&quot;, 0.0); // 0.75
+let unsigned = U::Parsing::parse_unsigned_integer(&quot;123&quot;, 0); // 123
+let comma_separated = U::Parsing::parse_comma_separated(&quot;a,b,c&quot;); // [&quot;a&quot;, &quot;b&quot;, &quot;c&quot;]
+
+// Use with query parameters
+async fn list_products(ctx: Context) -&gt; Result&lt;Response&gt; {
+    let page = U::parse_int(&amp;ctx.query_value(&quot;page&quot;)?, 1);
+    let limit = U::parse_int(&amp;ctx.query_value(&quot;limit&quot;)?, 10);
+    let min_price = U::parse_float(&amp;ctx.query_value(&quot;min_price&quot;)?, 0.0);
+    
+    let products = Product::paginate(page, limit)
+        .where_gte(&quot;price&quot;, min_price)
+        .get().await?;
+    
+    ctx.view(&quot;/products/list&quot;, json!({
+        &quot;products&quot;: products,
+        &quot;page&quot;: page,
+        &quot;limit&quot;: limit
+    }))
+}
+#}</code></pre></pre>
+<a class="header" href="api-reference/utilities.html#json-object-manipulation" id="json-object-manipulation"><h3>JSON Object Manipulation</h3></a>
+<a class="header" href="api-reference/utilities.html#getting-nested-values" id="getting-nested-values"><h4>Getting Nested Values</h4></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use serde_json::json;
+
+// Get nested properties safely
+let data = json!({
+    &quot;user&quot;: {
+        &quot;profile&quot;: {
+            &quot;name&quot;: &quot;John Doe&quot;,
+            &quot;age&quot;: 30
+        },
+        &quot;settings&quot;: {
+            &quot;theme&quot;: &quot;dark&quot;
+        }
+    }
+});
+
+let name = U::get(&amp;data, &quot;user.profile.name&quot;);
+// Returns: Some(&amp;Value::String(&quot;John Doe&quot;))
+
+let theme = U::get(&amp;data, &quot;user.settings.theme&quot;);
+// Returns: Some(&amp;Value::String(&quot;dark&quot;))
+
+let missing = U::get(&amp;data, &quot;user.profile.email&quot;);
+// Returns: None
+
+// Use in templates or API responses
+async fn user_profile(ctx: Context) -&gt; Result&lt;Response&gt; {
+    let user_data = get_user_data().await?;
+    
+    let display_name = U::get(&amp;user_data, &quot;profile.display_name&quot;)
+        .and_then(|v| v.as_str())
+        .unwrap_or(&quot;Anonymous&quot;);
+    
+    ctx.view(&quot;/profile&quot;, json!({
+        &quot;name&quot;: display_name,
+        &quot;data&quot;: user_data
+    }))
+}
+#}</code></pre></pre>
+<a class="header" href="api-reference/utilities.html#setting-nested-values" id="setting-nested-values"><h4>Setting Nested Values</h4></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Set nested properties
+let mut data = json!({});
+
+// Creates nested structure automatically
+U::set(&amp;mut data, &quot;user.name&quot;, json!(&quot;Jane&quot;))?;
+U::set(&amp;mut data, &quot;user.profile.age&quot;, json!(25))?;
+U::set(&amp;mut data, &quot;settings.theme&quot;, json!(&quot;light&quot;))?;
+
+// Result:
+// {
+//   &quot;user&quot;: {
+//     &quot;name&quot;: &quot;Jane&quot;,
+//     &quot;profile&quot;: {
+//       &quot;age&quot;: 25
+//     }
+//   },
+//   &quot;settings&quot;: {
+//     &quot;theme&quot;: &quot;light&quot;
+//   }
+// }
+
+// Use for dynamic data building
+async fn build_user_response(user: &amp;User) -&gt; Result&lt;Value&gt; {
+    let mut response = json!({});
+    
+    U::set(&amp;mut response, &quot;user.id&quot;, json!(user.id))?;
+    U::set(&amp;mut response, &quot;user.name&quot;, json!(user.name))?;
+    U::set(&amp;mut response, &quot;user.email&quot;, json!(user.email))?;
+    U::set(&amp;mut response, &quot;meta.timestamp&quot;, json!(chrono::Utc::now()))?;
+    
+    Ok(response)
+}
+#}</code></pre></pre>
+<a class="header" href="api-reference/utilities.html#geographic-utilities" id="geographic-utilities"><h3>Geographic Utilities</h3></a>
+<a class="header" href="api-reference/utilities.html#distance-calculation" id="distance-calculation"><h4>Distance Calculation</h4></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Calculate distance between two points in kilometers - Direct access
+let ny_lat = 40.7128;
+let ny_lon = -74.0060;
+let la_lat = 34.0522;
+let la_lon = -118.2437;
+
+let distance = U::distance(ny_lat, ny_lon, la_lat, la_lon);
+println!(&quot;Distance: {:.2} km&quot;, distance); // Distance: 3944.42 km
+
+// Extended geographic functions - Namespaced access
+let distance_miles = U::Geo::distance_miles(ny_lat, ny_lon, la_lat, la_lon);
+let is_in_bounds = U::Geo::in_bounds(40.7, -74.0, 40.0, 41.0, -75.0, -73.0);
+let bearing = U::Geo::bearing(ny_lat, ny_lon, la_lat, la_lon);
+
+// Use for location-based features
+async fn find_nearby_stores(ctx: Context) -&gt; Result&lt;Response&gt; {
+    let user_lat = U::parse_float(&amp;ctx.query_value(&quot;lat&quot;)?, 0.0);
+    let user_lon = U::parse_float(&amp;ctx.query_value(&quot;lon&quot;)?, 0.0);
+    
+    let stores = get_all_stores().await?;
+    let mut nearby_stores = Vec::new();
+    
+    for store in stores {
+        let distance = U::distance(user_lat, user_lon, store.lat, store.lon);
+        if distance &lt;= 50.0 { // Within 50km
+            nearby_stores.push((store, distance));
+        }
+    }
+    
+    // Sort by distance
+    nearby_stores.sort_by(|a, b| a.1.partial_cmp(&amp;b.1).unwrap());
+    
+    ctx.json(&amp;json!({
+        &quot;stores&quot;: nearby_stores.into_iter()
+            .map(|(store, dist)| json!({
+                &quot;store&quot;: store,
+                &quot;distance&quot;: dist
+            }))
+            .collect::&lt;Vec&lt;_&gt;&gt;()
+    }))
+}
+#}</code></pre></pre>
+<a class="header" href="api-reference/utilities.html#cryptographic-hash-functions" id="cryptographic-hash-functions"><h3>Cryptographic Hash Functions</h3></a>
+<p>RustF provides secure hash functions accessible both directly and through the Crypto namespace:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Direct access to most common hash functions
+let md5_hash = U::md5(&quot;hello world&quot;);        // ⚠️ Warning: MD5 not secure
+let sha256_hash = U::sha256(&quot;hello world&quot;);  // ✅ Secure hash function
+
+// Extended access to all hash functions via U::Crypto::
+let sha1_hash = U::Crypto::sha1(&quot;data&quot;);       // ⚠️ Warning: SHA1 not secure  
+let sha512_hash = U::Crypto::sha512(&quot;data&quot;);   // ✅ Very secure hash function
+
+// Hash from byte arrays
+let hash_from_bytes = U::Crypto::md5_bytes(&amp;[1, 2, 3, 4, 5]);
+let secure_hash_bytes = U::Crypto::sha256_bytes(b&quot;binary data&quot;);
+
+// Other crypto utilities
+let hash_code = U::Crypto::hash_string(&quot;data&quot;);           // Fast non-crypto hash
+let is_equal = U::Crypto::constant_time_compare(&quot;a&quot;, &quot;b&quot;); // Timing-safe comparison
+let checksum = U::Crypto::simple_checksum(&quot;integrity check&quot;);
+
+// Simple obfuscation (not encryption!)
+let obfuscated = U::Crypto::obfuscate_string(&quot;secret&quot;, 5);
+let deobfuscated = U::Crypto::deobfuscate_string(&amp;obfuscated, 5);
+
+// Basic XOR encryption/decryption (not secure - for obfuscation only)
+let encrypted = U::Crypto::xor_encrypt(&quot;message&quot;, &quot;key&quot;);
+let decrypted = U::Crypto::xor_decrypt(&amp;encrypted, &quot;key&quot;);
+#}</code></pre></pre>
+<p><strong>Security Notice</strong>: MD5 and SHA1 are cryptographically broken and should not be used for security purposes. Use SHA256 or higher for security-sensitive applications.</p>
+<a class="header" href="api-reference/utilities.html#common-usage-patterns" id="common-usage-patterns"><h2>Common Usage Patterns</h2></a>
+<a class="header" href="api-reference/utilities.html#form-processing" id="form-processing"><h3>Form Processing</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+async fn process_form(ctx: Context) -&gt; Result&lt;Response&gt; {
+    // Safe parsing with defaults - Direct access
+    let name = U::trim(&amp;ctx.form_value(&quot;name&quot;)?);
+    let age = U::parse_int(&amp;ctx.form_value(&quot;age&quot;)?, 0);
+    let email = U::trim(&amp;ctx.form_value(&quot;email&quot;)?);
+    let newsletter = U::parse_bool(&amp;ctx.form_value(&quot;newsletter&quot;)?, false);
+    
+    // Extended validation using namespaced functions
+    let clean_email = U::String::strip_html(&amp;email);
+    let email_slug = U::String::to_slug(&amp;name); // For URL-friendly usernames
+    
+    if name.is_empty() || age &lt;= 0 {
+        ctx.flash_set(&quot;error_msg&quot;, &quot;Please fill in all required fields&quot;);
+        return ctx.redirect(&quot;/form&quot;);
+    }
+    
+    // Create user with secure hash for verification tokens
+    let user_id = U::guid();
+    let verification_token = U::sha256(&amp;format!(&quot;{}:{}&quot;, user_id, email));
+    
+    let user = User {
+        id: user_id,
+        name,
+        age,
+        email: clean_email,
+        newsletter_subscribed: newsletter,
+        verification_token,
+    };
+    
+    user.save().await?;
+    ctx.flash_set(&quot;success_msg&quot;, &quot;User created successfully!&quot;);
+    ctx.redirect(&quot;/users&quot;)
+}
+#}</code></pre></pre>
+<a class="header" href="api-reference/utilities.html#api-response-building" id="api-response-building"><h3>API Response Building</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+async fn api_user_list(ctx: Context) -&gt; Result&lt;Response&gt; {
+    // Parse pagination parameters safely - Direct access
+    let page = U::parse_int(&amp;ctx.query_value(&quot;page&quot;)?, 1);
+    let limit = U::parse_int(&amp;ctx.query_value(&quot;limit&quot;)?, 10);
+    
+    // Extended parsing for filtering - Namespaced access  
+    let search = U::String::trim(&amp;ctx.query_value(&quot;search&quot;).unwrap_or_default());
+    let sort_order = U::Parsing::parse_enum(&amp;ctx.query_value(&quot;sort&quot;)?, SortOrder::Asc);
+    
+    let users = User::paginate(page, limit).await?;
+    let total = User::count().await?;
+    
+    // Build response with utilities - Direct access for JSON manipulation
+    let mut response = json!({});
+    U::set(&amp;mut response, &quot;data&quot;, json!(users))?;
+    U::set(&amp;mut response, &quot;pagination.page&quot;, json!(page))?;
+    U::set(&amp;mut response, &quot;pagination.limit&quot;, json!(limit))?;
+    U::set(&amp;mut response, &quot;pagination.total&quot;, json!(total))?;
+    U::set(&amp;mut response, &quot;meta.request_id&quot;, json!(U::guid()))?;
+    U::set(&amp;mut response, &quot;meta.timestamp&quot;, json!(chrono::Utc::now()))?;
+    
+    // Extended object manipulation - Namespaced access
+    let has_filters = U::Object::has_nested_property(&amp;response, &quot;filters&quot;);
+    if !search.is_empty() {
+        U::set(&amp;mut response, &quot;filters.search&quot;, json!(search))?;
+    }
+    
+    // Generate ETag for caching - Direct access
+    let content = response.to_string();
+    let etag = U::etag(&amp;content);
+    
+    Ok(Response::ok()
+        .with_header(&quot;ETag&quot;, &amp;etag)
+        .with_json(&amp;response)?)
+}
+#}</code></pre></pre>
+<a class="header" href="api-reference/utilities.html#search-and-filtering" id="search-and-filtering"><h3>Search and Filtering</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+async fn search_content(ctx: Context) -&gt; Result&lt;Response&gt; {
+    // Basic input processing - Direct access
+    let query = U::trim(&amp;ctx.query_value(&quot;q&quot;)?);
+    let category = ctx.query_value(&quot;category&quot;)?;
+    
+    // Extended string processing - Namespaced access
+    let clean_query = U::String::strip_html(&amp;query);
+    let query_slug = U::String::to_slug(&amp;clean_query);
+    
+    if clean_query.is_empty() {
+        return ctx.view(&quot;/search&quot;, json!({
+            &quot;message&quot;: &quot;Please enter a search term&quot;
+        }));
+    }
+    
+    // Extract search keywords - Direct access
+    let search_terms = U::keywords(&amp;clean_query, 10, 3);
+    
+    // Generate search hash for caching - Direct access
+    let search_hash = U::sha256(&amp;format!(&quot;{}:{}&quot;, clean_query, category));
+    
+    // Build search results
+    let results = search_posts(&amp;search_terms, &amp;category).await?;
+    
+    // Extended parsing for result formatting - Namespaced access
+    let result_limit = U::Parsing::parse_int(&amp;ctx.query_value(&quot;limit&quot;)?, 10);
+    let truncated_results: Vec&lt;_&gt; = results.into_iter()
+        .take(result_limit as usize)
+        .map(|mut post| {
+            // Truncate content for search results
+            post.content = U::String::truncate_words(&amp;post.content, 100);
+            post
+        })
+        .collect();
+    
+    ctx.view(&quot;/search&quot;, json!({
+        &quot;query&quot;: clean_query,
+        &quot;results&quot;: truncated_results,
+        &quot;keywords&quot;: search_terms,
+        &quot;total&quot;: truncated_results.len(),
+        &quot;search_hash&quot;: search_hash
+    }))
+}
+#}</code></pre></pre>
+<a class="header" href="api-reference/utilities.html#file-upload-processing" id="file-upload-processing"><h3>File Upload Processing</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+async fn handle_upload(ctx: Context) -&gt; Result&lt;Response&gt; {
+    let file = ctx.file(&quot;upload&quot;)?;
+    
+    // Generate unique filename - Direct access
+    let file_id = U::guid();
+    let original_name = file.filename.unwrap_or(&quot;upload&quot;.to_string());
+    let extension = original_name.split('.').last().unwrap_or(&quot;bin&quot;);
+    
+    // Extended string processing - Namespaced access
+    let safe_original_name = U::String::strip_html(&amp;original_name);
+    let filename_slug = U::String::to_slug(&amp;safe_original_name);
+    let secure_token = U::Random::generate_secure_token(16);
+    let new_filename = format!(&quot;{}_{}_{}.{}&quot;, file_id, filename_slug, secure_token, extension);
+    
+    // Get content type and validate - Direct and namespaced access
+    let content_type = U::get_content_type(extension);
+    let is_valid_type = U::Http::is_success_status(200); // Example validation
+    
+    // Generate file hash for integrity checking - Direct access
+    let file_hash = U::sha256(&amp;format!(&quot;{:?}&quot;, file.data));
+    
+    // Extended parsing for file size - Namespaced access
+    let max_size = U::Parsing::parse_size(&quot;10MB&quot;, 10485760); // 10MB default
+    if file.data.len() &gt; max_size as usize {
+        return ctx.json(&amp;json!({
+            &quot;error&quot;: &quot;File too large&quot;,
+            &quot;max_size&quot;: format!(&quot;{}MB&quot;, max_size / 1048576)
+        }));
+    }
+    
+    // Save file metadata with enhanced information
+    let file_record = FileRecord {
+        id: file_id.clone(),
+        original_name: safe_original_name,
+        filename: new_filename.clone(),
+        content_type: content_type.to_string(),
+        size: file.data.len(),
+        hash: file_hash,
+        upload_token: secure_token,
+        ..Default::default()
+    };
+    
+    // Save to storage and database
+    save_file(&amp;new_filename, &amp;file.data).await?;
+    file_record.save().await?;
+    
+    ctx.json(&amp;json!({
+        &quot;success&quot;: true,
+        &quot;file_id&quot;: file_id,
+        &quot;filename&quot;: new_filename,
+        &quot;size&quot;: file.data.len(),
+        &quot;content_type&quot;: content_type
+    }))
+}
+#}</code></pre></pre>
+<a class="header" href="api-reference/utilities.html#best-practices" id="best-practices"><h2>Best Practices</h2></a>
+<a class="header" href="api-reference/utilities.html#error-handling" id="error-handling"><h3>Error Handling</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Always handle potential errors from parsing
+match U::decode(&amp;encoded_value) {
+    Ok(decoded) =&gt; process_value(&amp;decoded),
+    Err(_) =&gt; {
+        log::warn!(&quot;Failed to decode value: {}&quot;, encoded_value);
+        use_default_value()
+    }
+}
+
+// Or use parsing utilities with safe defaults
+let safe_value = U::parse_int(&amp;user_input, 0);
+#}</code></pre></pre>
+<a class="header" href="api-reference/utilities.html#performance-considerations" id="performance-considerations"><h3>Performance Considerations</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Cache expensive operations
+static KEYWORDS_CACHE: OnceCell&lt;HashMap&lt;String, Vec&lt;String&gt;&gt;&gt; = OnceCell::new();
+
+fn get_cached_keywords(text: &amp;str) -&gt; Vec&lt;String&gt; {
+    let cache = KEYWORDS_CACHE.get_or_init(HashMap::new);
+    
+    if let Some(cached) = cache.get(text) {
+        return cached.clone();
+    }
+    
+    let keywords = U::keywords(text, 20, 4);
+    // In real implementation, you'd update the cache here
+    keywords
+}
+#}</code></pre></pre>
+<a class="header" href="api-reference/utilities.html#security" id="security"><h3>Security</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Always validate and sanitize user input
+async fn update_profile(ctx: Context) -&gt; Result&lt;Response&gt; {
+    let name = U::trim(&amp;ctx.form_value(&quot;name&quot;)?);
+    let bio = U::trim(&amp;ctx.form_value(&quot;bio&quot;)?);
+    
+    // Validate lengths
+    if name.len() &gt; 100 {
+        return ctx.json(&amp;json!({
+            &quot;error&quot;: &quot;Name too long&quot;
+        }));
+    }
+    
+    if bio.len() &gt; 1000 {
+        return ctx.json(&amp;json!({
+            &quot;error&quot;: &quot;Bio too long&quot;  
+        }));
+    }
+    
+    // Update user...
+}
+#}</code></pre></pre>
+<a class="header" href="api-reference/utilities.html#summary" id="summary"><h2>Summary</h2></a>
+<p>The RustF utilities system provides comprehensive utility functions organized in a dual-access pattern:</p>
+<a class="header" href="api-reference/utilities.html#core-features" id="core-features"><h3>Core Features</h3></a>
+<ul>
+<li><strong>Random generation</strong> - UUIDs, strings, numbers, secure tokens</li>
+<li><strong>HTTP utilities</strong> - Status codes, ETags, MIME types, response validation</li>
+<li><strong>String processing</strong> - Cleaning, keyword extraction, case conversion, HTML stripping</li>
+<li><strong>Encoding/decoding</strong> - URL encoding, Base64, HTML entities, hexadecimal</li>
+<li><strong>Safe parsing</strong> - Numbers, booleans, durations, sizes, percentages with defaults</li>
+<li><strong>JSON manipulation</strong> - Get/set nested properties, deep merging, object flattening</li>
+<li><strong>Geographic calculations</strong> - Distance between coordinates, boundary checking, bearing</li>
+<li><strong>Cryptographic functions</strong> - MD5, SHA1, SHA256, SHA512 hashing, secure comparisons</li>
+</ul>
+<a class="header" href="api-reference/utilities.html#access-patterns" id="access-patterns"><h3>Access Patterns</h3></a>
+<p>The RustF utilities system provides both direct access (<code>U::function_name()</code>) for commonly used functions and namespaced access (<code>U::ModuleName::function_name()</code>) for extended functionality.</p>
+<p><strong>Key Achievement</strong>: The exact <code>U::ModuleName::function()</code> syntax that was requested now works perfectly, providing powerful, organized access to all utility functions throughout your RustF application.</p>
+<a class="header" href="api-reference/utilities.html#security-features" id="security-features"><h3>Security Features</h3></a>
+<ul>
+<li>✅ Secure hash functions (SHA256, SHA512)</li>
+<li>⚠️ Legacy hash functions (MD5, SHA1) with clear warnings</li>
+<li>🔒 Timing-safe comparisons for sensitive data</li>
+<li>🛡️ Input sanitization and validation helpers</li>
+<li>🔐 Cryptographically secure token generation</li>
+</ul>
+<p>Use the utilities system to build secure, maintainable web applications with consistent, predictable utility functions that follow Rust best practices and web development standards.</p>
+<a class="header" href="api-reference/utilities.html#urandom---random-generation-extended" id="urandom---random-generation-extended"><h4>U::Random:: - Random Generation (Extended)</h4></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+U::Random::generate_guid_with_hyphens()           // UUID with hyphens
+U::Random::generate_random_string_with_charset(len, charset) // Custom character set
+U::Random::generate_random_float(min, max)        // Random float
+U::Random::generate_random_text(word_count)       // Lorem ipsum text
+U::Random::generate_secure_token(byte_len)        // Cryptographically secure token
+#}</code></pre></pre>
+<a class="header" href="api-reference/utilities.html#uencoding---encoding-extended" id="uencoding---encoding-extended"><h4>U::Encoding:: - Encoding (Extended)</h4></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+U::Encoding::encode_with_safe(str, safe_chars)    // URL encode with safe characters
+U::Encoding::btoa_bytes(bytes)                    // Base64 encode bytes
+U::Encoding::base64_decode_bytes(str)             // Base64 decode to bytes
+U::Encoding::base64_url_encode(str)               // URL-safe base64 encode
+U::Encoding::base64_url_decode(str)               // URL-safe base64 decode
+U::Encoding::html_encode(str)                     // HTML entity encode
+U::Encoding::html_decode(str)                     // HTML entity decode
+U::Encoding::json_encode(str)                     // JSON string escape
+U::Encoding::hex_encode(bytes)                    // Hexadecimal encode
+U::Encoding::hex_decode(str)                      // Hexadecimal decode
+U::Encoding::query_encode(params)                 // Query string encode
+U::Encoding::query_decode(query)                  // Query string decode
+#}</code></pre></pre>
+<a class="header" href="api-reference/utilities.html#ustring---string-processing-extended" id="ustring---string-processing-extended"><h4>U::String:: - String Processing (Extended)</h4></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+U::String::to_slug(str)           // Convert to URL slug
+U::String::to_camel_case(str)     // Convert to camelCase
+U::String::to_pascal_case(str)    // Convert to PascalCase
+U::String::to_snake_case(str)     // Convert to snake_case
+U::String::truncate(str, len)     // Truncate by character count
+U::String::truncate_words(str, len) // Truncate by word count
+U::String::word_count(str)        // Count words
+U::String::title_case(str)        // Convert to Title Case
+U::String::strip_html(str)        // Remove HTML tags
+U::String::wrap_text(str, width)  // Wrap text to width
+#}</code></pre></pre>
+<a class="header" href="api-reference/utilities.html#uparsing---parsing-extended" id="uparsing---parsing-extended"><h4>U::Parsing:: - Parsing (Extended)</h4></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+U::Parsing::parse_unsigned_integer(str, default) // Parse u64
+U::Parsing::parse_i32(str, default)              // Parse i32
+U::Parsing::parse_f32(str, default)              // Parse f32
+U::Parsing::parse_enum(str, default)             // Parse enum from string
+U::Parsing::parse_comma_separated(str)           // Parse comma-separated values
+U::Parsing::parse_comma_separated_integers(str, default) // Parse comma-separated integers
+U::Parsing::parse_key_value(str, separator)      // Parse key=value pairs
+U::Parsing::parse_duration(str, default)         // Parse duration (1h, 30m, etc.)
+U::Parsing::parse_size(str, default)             // Parse size (1KB, 2MB, etc.)
+U::Parsing::parse_percentage(str, default)       // Parse percentage
+#}</code></pre></pre>
+<a class="header" href="api-reference/utilities.html#ucrypto---cryptographic-functions" id="ucrypto---cryptographic-functions"><h4>U::Crypto:: - Cryptographic Functions</h4></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Hash functions (includes all direct access functions plus extended ones)
+U::Crypto::md5(str)                    // MD5 hash ⚠️ Not secure
+U::Crypto::md5_bytes(bytes)           // MD5 hash from bytes ⚠️ Not secure
+U::Crypto::sha1(str)                  // SHA1 hash ⚠️ Not secure
+U::Crypto::sha1_bytes(bytes)         // SHA1 hash from bytes ⚠️ Not secure
+U::Crypto::sha256(str)               // SHA256 hash (secure)
+U::Crypto::sha256_bytes(bytes)       // SHA256 hash from bytes (secure)
+U::Crypto::sha512(str)               // SHA512 hash (secure)
+U::Crypto::sha512_bytes(bytes)       // SHA512 hash from bytes (secure)
+
+// Other crypto utilities
+U::Crypto::hash_string(str)                      // Hash string (non-crypto)
+U::Crypto::hash_bytes(bytes)                     // Hash bytes (non-crypto)
+U::Crypto::xor_encrypt(data, key)                // XOR encrypt (not secure)
+U::Crypto::xor_decrypt(data, key)                // XOR decrypt (not secure)
+U::Crypto::simple_checksum(data)                 // Simple checksum
+U::Crypto::constant_time_compare(a, b)           // Timing-safe string compare
+U::Crypto::constant_time_compare_bytes(a, b)     // Timing-safe byte compare
+U::Crypto::obfuscate_string(str, offset)         // Simple obfuscation
+U::Crypto::deobfuscate_string(str, offset)       // Simple deobfuscation
+#}</code></pre></pre>
+<a class="header" href="api-reference/utilities.html#uhttp---http-extended" id="uhttp---http-extended"><h4>U::Http:: - HTTP (Extended)</h4></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+U::Http::generate_strong_etag(content, modified) // Strong ETag with timestamp
+U::Http::get_extension_from_content_type(mime)   // Get extension from MIME type
+U::Http::is_success_status(code)                 // Check if 2xx status
+U::Http::is_client_error(code)                   // Check if 4xx status
+U::Http::is_server_error(code)                   // Check if 5xx status
+U::Http::is_redirect_status(code)                // Check if 3xx status
+#}</code></pre></pre>
+<a class="header" href="api-reference/utilities.html#uobject---object-manipulation-extended" id="uobject---object-manipulation-extended"><h4>U::Object:: - Object Manipulation (Extended)</h4></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+U::Object::remove_nested_property(obj, path)     // Remove nested property
+U::Object::deep_merge(target, source)            // Deep merge objects
+U::Object::shallow_merge(target, source)         // Shallow merge objects
+U::Object::deep_clone(value)                     // Deep clone JSON value
+U::Object::flatten_object(obj, prefix)           // Flatten nested object
+U::Object::has_nested_property(obj, path)        // Check if property exists
+U::Object::get_all_keys(obj)                     // Get all object keys
+#}</code></pre></pre>
+<a class="header" href="api-reference/utilities.html#ugeo---geographic-extended" id="ugeo---geographic-extended"><h4>U::Geo:: - Geographic (Extended)</h4></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+U::Geo::distance_miles(lat1, lon1, lat2, lon2)   // Distance in miles
+U::Geo::in_bounds(lat, lon, min_lat, max_lat, min_lon, max_lon) // Check if in bounds
+U::Geo::bearing(lat1, lon1, lat2, lon2)          // Calculate bearing/direction
+#}</code></pre></pre>
+<a class="header" href="api-reference/utilities.html#usage-patterns" id="usage-patterns"><h2>Usage Patterns</h2></a>
+<p>The RustF utilities system supports three usage patterns:</p>
+<a class="header" href="api-reference/utilities.html#1-direct-access-recommended-for-common-operations" id="1-direct-access-recommended-for-common-operations"><h3>1. Direct Access (Recommended for Common Operations)</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use rustf::U;
+
+// Most commonly used functions - direct access
+let id = U::guid();
+let encoded = U::encode(&quot;hello world&quot;);
+let hash = U::sha256(&quot;secure data&quot;);
+let parsed = U::parse_int(&quot;123&quot;, 0);
+#}</code></pre></pre>
+<a class="header" href="api-reference/utilities.html#2-namespaced-access-extended-functionality" id="2-namespaced-access-extended-functionality"><h3>2. Namespaced Access (Extended Functionality)</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use rustf::U;
+
+// Extended functions through nested modules - exact syntax requested!
+let slug = U::String::to_slug(&quot;Hello World!&quot;);
+let html = U::Encoding::html_encode(&quot;&lt;p&gt;Hello&lt;/p&gt;&quot;);
+let size = U::Parsing::parse_size(&quot;1MB&quot;, 0);
+let secure_token = U::Random::generate_secure_token(32);
+let sha1_hash = U::Crypto::sha1(&quot;legacy data&quot;); // Warning: Not secure
+#}</code></pre></pre>
+<a class="header" href="api-reference/utilities.html#3-module-level-access-alternative" id="3-module-level-access-alternative"><h3>3. Module-Level Access (Alternative)</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Alternative approach - direct module imports
+use rustf::utils::{string, encoding, parsing};
+
+let slug = string::to_slug(&quot;Hello World!&quot;);
+let html = encoding::html_encode(&quot;&lt;p&gt;Hello&lt;/p&gt;&quot;);
+let size = parsing::parse_size(&quot;1MB&quot;, 0);
+#}</code></pre></pre>
+
+                </div>
+
+                <!-- Mobile navigation buttons -->
+                
+                    <a rel="prev" href="api-reference/routing.html" class="mobile-nav-chapters previous" title="Previous chapter">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                
+
+                
+                    <a rel="next" href="examples/README.html" class="mobile-nav-chapters next" title="Next chapter">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+                
+
+            </div>
+
+            
+                <a href="api-reference/routing.html" class="nav-chapters previous" title="You can navigate through the chapters using the arrow keys">
+                    <i class="fa fa-angle-left"></i>
+                </a>
+            
+
+            
+                <a href="examples/README.html" class="nav-chapters next" title="You can navigate through the chapters using the arrow keys">
+                    <i class="fa fa-angle-right"></i>
+                </a>
+            
+
+        </div>
+
+
+        <!-- Local fallback for Font Awesome -->
+        <script>
+            if ($(".fa").css("font-family") !== "FontAwesome") {
+                $('<link rel="stylesheet" type="text/css" href="_FontAwesome/css/font-awesome.css">').prependTo('head');
+            }
+        </script>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        
+
+        
+
+        
+
+        
+
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS script -->
+        
+
+    </body>
+</html>

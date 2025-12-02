@@ -1,0 +1,287 @@
+<!DOCTYPE HTML>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Routing API - RustF Framework Documentation</title>
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="Complete guide to the RustF MVC web framework for Rust">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <base href="../">
+
+        <link rel="stylesheet" href="book.css">
+        <link href="https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800" rel="stylesheet" type="text/css">
+        <link href="https://fonts.googleapis.com/css?family=Source+Code+Pro:500" rel="stylesheet" type="text/css">
+
+        <link rel="shortcut icon" href="favicon.png">
+
+        <!-- Font Awesome -->
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
+
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme -->
+        
+
+        
+
+        <!-- Fetch Clipboard.js from CDN but have a local fallback -->
+        <script src="https://cdn.jsdelivr.net/clipboard.js/1.6.1/clipboard.min.js"></script>
+        <script>
+            if (typeof Clipboard == 'undefined') {
+                document.write(unescape("%3Cscript src='clipboard.min.js'%3E%3C/script%3E"));
+            }
+        </script>
+
+        <!-- Fetch JQuery from CDN but have a local fallback -->
+        <script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+        <script>
+            if (typeof jQuery == 'undefined') {
+                document.write(unescape("%3Cscript src='jquery.js'%3E%3C/script%3E"));
+            }
+        </script>
+
+        <!-- Fetch store.js from local - TODO add CDN when 2.x.x is available on cdnjs -->
+        <script src="store.js"></script>
+
+    </head>
+    <body class="light">
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme = store.get('mdbook-theme');
+            if (theme === null || theme === undefined) { theme = 'light'; }
+            $('body').removeClass().addClass(theme);
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var sidebar = store.get('mdbook-sidebar');
+            if (sidebar === "hidden") { $("html").addClass("sidebar-hidden") }
+            else if (sidebar === "visible") { $("html").addClass("sidebar-visible") }
+        </script>
+
+        <div id="sidebar" class="sidebar">
+            <ul class="chapter"><li class="affix"><a href="README.html">Introduction</a></li><li><a href="getting-started/README.html"><strong>1.</strong> Quick Start</a></li><li><a href="getting-started/installation.html"><strong>2.</strong> Installation</a></li><li><a href="getting-started/hello-world.html"><strong>3.</strong> Hello World</a></li><li><a href="getting-started/project-structure.html"><strong>4.</strong> Project Structure</a></li><li><a href="guides/controllers.html"><strong>5.</strong> Controllers &amp; Routing</a></li><li><a href="guides/views.html"><strong>6.</strong> Views &amp; Templates</a></li><li><a href="guides/middleware.html"><strong>7.</strong> Middleware</a></li><li><a href="guides/sessions.html"><strong>8.</strong> Sessions</a></li><li><a href="guides/database.html"><strong>9.</strong> Database Integration</a></li><li><a href="guides/configuration.html"><strong>10.</strong> Configuration</a></li><li><a href="guides/security.html"><strong>11.</strong> Security</a></li><li><a href="guides/error-handling.html"><strong>12.</strong> Error Handling</a></li><li><a href="guides/schemas.html"><strong>13.</strong> Schemas &amp; Definitions</a></li><li><a href="advanced/README.html"><strong>14.</strong> Overview</a></li><li><a href="advanced/performance.html"><strong>15.</strong> Performance Optimization</a></li><li><a href="advanced/workers.html"><strong>16.</strong> Workers</a></li><li><a href="advanced/events.html"><strong>17.</strong> Events</a></li><li><a href="advanced/modules.html"><strong>18.</strong> Modules</a></li><li><a href="advanced/cli.html"><strong>19.</strong> CLI Tool</a></li><li><a href="api-reference/README.html"><strong>20.</strong> Overview</a></li><li><a href="api-reference/context.html"><strong>21.</strong> Context API</a></li><li><a href="api-reference/models.html"><strong>22.</strong> Model API</a></li><li><a href="api-reference/routing.html" class="active"><strong>23.</strong> Routing API</a></li><li><a href="api-reference/utilities.html"><strong>24.</strong> Utilities</a></li><li><a href="examples/README.html"><strong>25.</strong> Overview</a></li><li><a href="examples/rest-api.html"><strong>26.</strong> Building a REST API</a></li><li><a href="examples/authentication.html"><strong>27.</strong> Authentication</a></li><li><a href="examples/real-world-app.html"><strong>28.</strong> Real-World Application</a></li><li><a href="deployment/production.html"><strong>29.</strong> Production Deployment</a></li><li><a href="deployment/docker.html"><strong>30.</strong> Docker</a></li></ul>
+        </div>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page" tabindex="-1">
+                
+                <div id="menu-bar" class="menu-bar">
+                    <div class="left-buttons">
+                        <i id="sidebar-toggle" class="fa fa-bars" title="Toggle sidebar"></i>
+                        <i id="theme-toggle" class="fa fa-paint-brush" title="Change theme"></i>
+                    </div>
+
+                    <h1 class="menu-title">RustF Framework Documentation</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html">
+                            <i id="print-button" class="fa fa-print" title="Print this book"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <div id="content" class="content">
+                    <a class="header" href="api-reference/routing.html#routing-api-reference" id="routing-api-reference"><h1>Routing API Reference</h1></a>
+<p>RustF provides a clean routing system with the <code>routes!</code> macro and <code>Route</code> struct.</p>
+<a class="header" href="api-reference/routing.html#route-definition" id="route-definition"><h2>Route Definition</h2></a>
+<a class="header" href="api-reference/routing.html#the-routes-macro" id="the-routes-macro"><h3>The <code>routes!</code> Macro</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+routes![
+    GET &quot;/path&quot; =&gt; handler_function,
+    POST &quot;/path&quot; =&gt; handler_function,
+    PUT &quot;/path/{id}&quot; =&gt; handler_function,
+    DELETE &quot;/path/{id}&quot; =&gt; handler_function,
+]
+#}</code></pre></pre>
+<a class="header" href="api-reference/routing.html#route-struct" id="route-struct"><h3>Route Struct</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+pub struct Route {
+    pub method: String,        // HTTP method
+    pub path: String,          // URL pattern
+    pub handler: RouteHandler,  // Handler function
+}
+#}</code></pre></pre>
+<a class="header" href="api-reference/routing.html#routehandler-type" id="routehandler-type"><h3>RouteHandler Type</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+pub type RouteHandler = for&lt;'a&gt; fn(&amp;'a mut Context) 
+    -&gt; Pin&lt;Box&lt;dyn Future&lt;Output = Result&lt;()&gt;&gt; + Send + 'a&gt;&gt;;
+#}</code></pre></pre>
+<a class="header" href="api-reference/routing.html#manual-route-creation" id="manual-route-creation"><h2>Manual Route Creation</h2></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use rustf::routing::Route;
+
+// Create routes manually
+Route::get(&quot;/users&quot;, handler)
+Route::post(&quot;/users&quot;, handler)
+Route::put(&quot;/users/{id}&quot;, handler)
+Route::delete(&quot;/users/{id}&quot;, handler)
+#}</code></pre></pre>
+<a class="header" href="api-reference/routing.html#url-parameters" id="url-parameters"><h2>URL Parameters</h2></a>
+<p>Routes support URL parameters using <code>{parameter}</code> syntax:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+routes![
+    GET &quot;/users/{id}&quot; =&gt; get_user,
+    GET &quot;/posts/{post_id}/comments/{comment_id}&quot; =&gt; get_comment,
+]
+#}</code></pre></pre>
+<p>Access parameters in handlers:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+async fn get_user(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    let user_id = ctx.param(&quot;id&quot;)?;
+    // ...
+}
+#}</code></pre></pre>
+<a class="header" href="api-reference/routing.html#route-registration" id="route-registration"><h2>Route Registration</h2></a>
+<a class="header" href="api-reference/routing.html#auto-discovery-recommended" id="auto-discovery-recommended"><h3>Auto-Discovery (Recommended)</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+let app = RustF::new()
+    .controllers(auto_controllers!());
+#}</code></pre></pre>
+<a class="header" href="api-reference/routing.html#manual-registration" id="manual-registration"><h3>Manual Registration</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+let app = RustF::new()
+    .controllers({
+        let mut routes = Vec::new();
+        routes.extend(controllers::home::install());
+        routes.extend(controllers::users::install());
+        routes
+    });
+#}</code></pre></pre>
+<a class="header" href="api-reference/routing.html#controller-pattern" id="controller-pattern"><h2>Controller Pattern</h2></a>
+<p>Every controller must have an <code>install()</code> function:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+pub fn install() -&gt; Vec&lt;Route&gt; {
+    routes![
+        GET &quot;/&quot; =&gt; index,
+        POST &quot;/submit&quot; =&gt; submit,
+    ]
+}
+#}</code></pre></pre>
+<a class="header" href="api-reference/routing.html#http-methods" id="http-methods"><h2>HTTP Methods</h2></a>
+<p>Supported methods:</p>
+<ul>
+<li><code>GET</code> - Retrieve resource</li>
+<li><code>POST</code> - Create resource</li>
+<li><code>PUT</code> - Update resource</li>
+<li><code>DELETE</code> - Delete resource</li>
+</ul>
+<a class="header" href="api-reference/routing.html#route-matching" id="route-matching"><h2>Route Matching</h2></a>
+<p>Routes are matched in order of registration. First match wins.</p>
+<a class="header" href="api-reference/routing.html#examples" id="examples"><h2>Examples</h2></a>
+<a class="header" href="api-reference/routing.html#basic-routes" id="basic-routes"><h3>Basic Routes</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+pub fn install() -&gt; Vec&lt;Route&gt; {
+    routes![
+        GET &quot;/&quot; =&gt; index,
+        GET &quot;/about&quot; =&gt; about,
+    ]
+}
+#}</code></pre></pre>
+<a class="header" href="api-reference/routing.html#restful-routes" id="restful-routes"><h3>RESTful Routes</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+pub fn install() -&gt; Vec&lt;Route&gt; {
+    routes![
+        GET    &quot;/api/users&quot; =&gt; list_users,
+        GET    &quot;/api/users/{id}&quot; =&gt; get_user,
+        POST   &quot;/api/users&quot; =&gt; create_user,
+        PUT    &quot;/api/users/{id}&quot; =&gt; update_user,
+        DELETE &quot;/api/users/{id}&quot; =&gt; delete_user,
+    ]
+}
+#}</code></pre></pre>
+<a class="header" href="api-reference/routing.html#nested-routes" id="nested-routes"><h3>Nested Routes</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// src/controllers/api/users.rs
+pub fn install() -&gt; Vec&lt;Route&gt; {
+    routes![
+        GET &quot;/api/users&quot; =&gt; list,
+        GET &quot;/api/users/{id}&quot; =&gt; show,
+    ]
+}
+#}</code></pre></pre>
+
+                </div>
+
+                <!-- Mobile navigation buttons -->
+                
+                    <a rel="prev" href="api-reference/models.html" class="mobile-nav-chapters previous" title="Previous chapter">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                
+
+                
+                    <a rel="next" href="api-reference/utilities.html" class="mobile-nav-chapters next" title="Next chapter">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+                
+
+            </div>
+
+            
+                <a href="api-reference/models.html" class="nav-chapters previous" title="You can navigate through the chapters using the arrow keys">
+                    <i class="fa fa-angle-left"></i>
+                </a>
+            
+
+            
+                <a href="api-reference/utilities.html" class="nav-chapters next" title="You can navigate through the chapters using the arrow keys">
+                    <i class="fa fa-angle-right"></i>
+                </a>
+            
+
+        </div>
+
+
+        <!-- Local fallback for Font Awesome -->
+        <script>
+            if ($(".fa").css("font-family") !== "FontAwesome") {
+                $('<link rel="stylesheet" type="text/css" href="_FontAwesome/css/font-awesome.css">').prependTo('head');
+            }
+        </script>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        
+
+        
+
+        
+
+        
+
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS script -->
+        
+
+    </body>
+</html>

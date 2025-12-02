@@ -1,0 +1,481 @@
+<!DOCTYPE HTML>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Context API - RustF Framework Documentation</title>
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="Complete guide to the RustF MVC web framework for Rust">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <base href="../">
+
+        <link rel="stylesheet" href="book.css">
+        <link href="https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800" rel="stylesheet" type="text/css">
+        <link href="https://fonts.googleapis.com/css?family=Source+Code+Pro:500" rel="stylesheet" type="text/css">
+
+        <link rel="shortcut icon" href="favicon.png">
+
+        <!-- Font Awesome -->
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
+
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme -->
+        
+
+        
+
+        <!-- Fetch Clipboard.js from CDN but have a local fallback -->
+        <script src="https://cdn.jsdelivr.net/clipboard.js/1.6.1/clipboard.min.js"></script>
+        <script>
+            if (typeof Clipboard == 'undefined') {
+                document.write(unescape("%3Cscript src='clipboard.min.js'%3E%3C/script%3E"));
+            }
+        </script>
+
+        <!-- Fetch JQuery from CDN but have a local fallback -->
+        <script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+        <script>
+            if (typeof jQuery == 'undefined') {
+                document.write(unescape("%3Cscript src='jquery.js'%3E%3C/script%3E"));
+            }
+        </script>
+
+        <!-- Fetch store.js from local - TODO add CDN when 2.x.x is available on cdnjs -->
+        <script src="store.js"></script>
+
+    </head>
+    <body class="light">
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme = store.get('mdbook-theme');
+            if (theme === null || theme === undefined) { theme = 'light'; }
+            $('body').removeClass().addClass(theme);
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var sidebar = store.get('mdbook-sidebar');
+            if (sidebar === "hidden") { $("html").addClass("sidebar-hidden") }
+            else if (sidebar === "visible") { $("html").addClass("sidebar-visible") }
+        </script>
+
+        <div id="sidebar" class="sidebar">
+            <ul class="chapter"><li class="affix"><a href="README.html">Introduction</a></li><li><a href="getting-started/README.html"><strong>1.</strong> Quick Start</a></li><li><a href="getting-started/installation.html"><strong>2.</strong> Installation</a></li><li><a href="getting-started/hello-world.html"><strong>3.</strong> Hello World</a></li><li><a href="getting-started/project-structure.html"><strong>4.</strong> Project Structure</a></li><li><a href="guides/controllers.html"><strong>5.</strong> Controllers &amp; Routing</a></li><li><a href="guides/views.html"><strong>6.</strong> Views &amp; Templates</a></li><li><a href="guides/middleware.html"><strong>7.</strong> Middleware</a></li><li><a href="guides/sessions.html"><strong>8.</strong> Sessions</a></li><li><a href="guides/database.html"><strong>9.</strong> Database Integration</a></li><li><a href="guides/configuration.html"><strong>10.</strong> Configuration</a></li><li><a href="guides/security.html"><strong>11.</strong> Security</a></li><li><a href="guides/error-handling.html"><strong>12.</strong> Error Handling</a></li><li><a href="guides/schemas.html"><strong>13.</strong> Schemas &amp; Definitions</a></li><li><a href="advanced/README.html"><strong>14.</strong> Overview</a></li><li><a href="advanced/performance.html"><strong>15.</strong> Performance Optimization</a></li><li><a href="advanced/workers.html"><strong>16.</strong> Workers</a></li><li><a href="advanced/events.html"><strong>17.</strong> Events</a></li><li><a href="advanced/modules.html"><strong>18.</strong> Modules</a></li><li><a href="advanced/cli.html"><strong>19.</strong> CLI Tool</a></li><li><a href="api-reference/README.html"><strong>20.</strong> Overview</a></li><li><a href="api-reference/context.html" class="active"><strong>21.</strong> Context API</a></li><li><a href="api-reference/models.html"><strong>22.</strong> Model API</a></li><li><a href="api-reference/routing.html"><strong>23.</strong> Routing API</a></li><li><a href="api-reference/utilities.html"><strong>24.</strong> Utilities</a></li><li><a href="examples/README.html"><strong>25.</strong> Overview</a></li><li><a href="examples/rest-api.html"><strong>26.</strong> Building a REST API</a></li><li><a href="examples/authentication.html"><strong>27.</strong> Authentication</a></li><li><a href="examples/real-world-app.html"><strong>28.</strong> Real-World Application</a></li><li><a href="deployment/production.html"><strong>29.</strong> Production Deployment</a></li><li><a href="deployment/docker.html"><strong>30.</strong> Docker</a></li></ul>
+        </div>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page" tabindex="-1">
+                
+                <div id="menu-bar" class="menu-bar">
+                    <div class="left-buttons">
+                        <i id="sidebar-toggle" class="fa fa-bars" title="Toggle sidebar"></i>
+                        <i id="theme-toggle" class="fa fa-paint-brush" title="Change theme"></i>
+                    </div>
+
+                    <h1 class="menu-title">RustF Framework Documentation</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html">
+                            <i id="print-button" class="fa fa-print" title="Print this book"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <div id="content" class="content">
+                    <a class="header" href="api-reference/context.html#context-api-reference" id="context-api-reference"><h1>Context API Reference</h1></a>
+<p>The <code>Context</code> struct provides access to request data, response methods, sessions, and more. All route handlers receive a <code>&amp;mut Context</code> parameter.</p>
+<a class="header" href="api-reference/context.html#overview" id="overview"><h2>Overview</h2></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+pub struct Context {
+    pub req: Request,           // HTTP request
+    pub res: Option&lt;Response&gt;,   // HTTP response
+    // ... internal fields
+}
+#}</code></pre></pre>
+<a class="header" href="api-reference/context.html#request-data" id="request-data"><h2>Request Data</h2></a>
+<a class="header" href="api-reference/context.html#url-parameters" id="url-parameters"><h3>URL Parameters</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Get route parameter (e.g., /users/{id})
+ctx.param(&quot;id&quot;) -&gt; Option&lt;&amp;str&gt;
+
+// Typed parameter access
+ctx.str_param(&quot;id&quot;) -&gt; Result&lt;String&gt;
+ctx.int_param(&quot;id&quot;) -&gt; Result&lt;i32&gt;
+ctx.str_param_or(&quot;id&quot;, &quot;default&quot;) -&gt; String
+ctx.int_param_or(&quot;id&quot;, 0) -&gt; i32
+#}</code></pre></pre>
+<a class="header" href="api-reference/context.html#query-parameters" id="query-parameters"><h3>Query Parameters</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Get query parameter (e.g., ?page=2)
+ctx.query(&quot;page&quot;) -&gt; Option&lt;&amp;str&gt;
+
+// Typed query access
+ctx.str_query(&quot;page&quot;) -&gt; Result&lt;String&gt;
+ctx.int_query(&quot;page&quot;) -&gt; Result&lt;i32&gt;
+ctx.bool_query(&quot;active&quot;) -&gt; Result&lt;bool&gt;
+ctx.str_query_or(&quot;page&quot;, &quot;1&quot;) -&gt; String
+ctx.int_query_or(&quot;limit&quot;, 10) -&gt; i32
+ctx.bool_query_or(&quot;active&quot;, false) -&gt; bool
+#}</code></pre></pre>
+<a class="header" href="api-reference/context.html#request-body" id="request-body"><h3>Request Body</h3></a>
+<a class="header" href="api-reference/context.html#json-body" id="json-body"><h4>JSON Body</h4></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Parse JSON body into struct
+let data: MyStruct = ctx.body_json()?;
+
+// Get full body as JSON Value
+let body: Value = ctx.full_body()?;
+#}</code></pre></pre>
+<a class="header" href="api-reference/context.html#form-data" id="form-data"><h4>Form Data</h4></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Get form data as HashMap&lt;String, String&gt;
+let form: HashMap&lt;String, String&gt; = ctx.body_form()?;
+
+// Get form data with array support
+let form: HashMap&lt;String, FormValue&gt; = ctx.body_form_data()?;
+
+// Typed form parsing
+#[derive(Deserialize)]
+struct LoginForm {
+    email: String,
+    password: String,
+}
+let form: LoginForm = ctx.body_form_typed()?;
+
+// Individual field access
+let email = ctx.str_body(&quot;email&quot;)?;              // Required
+let age = ctx.int_body(&quot;age&quot;)?;                  // Parse as integer
+let active = ctx.bool_body(&quot;active&quot;)?;           // Parse as boolean
+let name = ctx.str_body_or(&quot;name&quot;, &quot;Anonymous&quot;); // Optional with default
+#}</code></pre></pre>
+<a class="header" href="api-reference/context.html#headers" id="headers"><h3>Headers</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Get header value
+ctx.header(&quot;Authorization&quot;) -&gt; Option&lt;&amp;str&gt;
+
+// Add response header
+ctx.add_header(&quot;X-Custom&quot;, &quot;value&quot;);
+#}</code></pre></pre>
+<a class="header" href="api-reference/context.html#client-information" id="client-information"><h3>Client Information</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+ctx.ip() -&gt; String                    // Client IP address
+ctx.user_agent() -&gt; Option&lt;&amp;str&gt;      // User agent string
+ctx.is_mobile() -&gt; bool               // Mobile device detection
+ctx.is_robot() -&gt; bool                // Bot/crawler detection
+ctx.is_secure() -&gt; bool               // HTTPS request
+ctx.is_xhr() -&gt; bool                  // AJAX request
+ctx.language() -&gt; Option&lt;&amp;str&gt;        // Preferred language
+ctx.referrer() -&gt; Option&lt;&amp;str&gt;        // Referrer URL
+ctx.url() -&gt; &amp;str                     // Request URL path
+ctx.path() -&gt; &amp;str                    // URL path
+ctx.host() -&gt; Option&lt;&amp;str&gt;            // Host header
+ctx.hostname(path: Option&lt;&amp;str&gt;) -&gt; String  // Full hostname URL
+ctx.extension() -&gt; Option&lt;&amp;str&gt;       // File extension
+#}</code></pre></pre>
+<a class="header" href="api-reference/context.html#response-methods" id="response-methods"><h2>Response Methods</h2></a>
+<a class="header" href="api-reference/context.html#json-response" id="json-response"><h3>JSON Response</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+ctx.json(data: impl Serialize) -&gt; Result&lt;()&gt;
+#}</code></pre></pre>
+<a class="header" href="api-reference/context.html#html-response" id="html-response"><h3>HTML Response</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+ctx.html(content: impl Into&lt;String&gt;) -&gt; Result&lt;()&gt;
+#}</code></pre></pre>
+<a class="header" href="api-reference/context.html#text-response" id="text-response"><h3>Text Response</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+ctx.text(content: impl Into&lt;String&gt;) -&gt; Result&lt;()&gt;
+ctx.plain(text: impl Into&lt;String&gt;) -&gt; Result&lt;()&gt;
+#}</code></pre></pre>
+<a class="header" href="api-reference/context.html#viewtemplate-response" id="viewtemplate-response"><h3>View/Template Response</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+ctx.view(template: &amp;str, data: Value) -&gt; Result&lt;()&gt;
+#}</code></pre></pre>
+<a class="header" href="api-reference/context.html#redirect" id="redirect"><h3>Redirect</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+ctx.redirect(path: &amp;str) -&gt; Result&lt;()&gt;
+#}</code></pre></pre>
+<a class="header" href="api-reference/context.html#http-error-responses" id="http-error-responses"><h3>HTTP Error Responses</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+ctx.throw400(message: Option&lt;&amp;str&gt;) -&gt; Result&lt;()&gt;  // Bad Request
+ctx.throw401(message: Option&lt;&amp;str&gt;) -&gt; Result&lt;()&gt;  // Unauthorized
+ctx.throw403(message: Option&lt;&amp;str&gt;) -&gt; Result&lt;()&gt;  // Forbidden
+ctx.throw404(message: Option&lt;&amp;str&gt;) -&gt; Result&lt;()&gt;  // Not Found
+ctx.throw409(message: Option&lt;&amp;str&gt;) -&gt; Result&lt;()&gt;  // Conflict
+ctx.throw500(message: Option&lt;&amp;str&gt;) -&gt; Result&lt;()&gt;  // Internal Server Error
+ctx.throw501(message: Option&lt;&amp;str&gt;) -&gt; Result&lt;()&gt;  // Not Implemented
+ctx.view404() -&gt; Result&lt;()&gt;                        // Custom 404 view
+#}</code></pre></pre>
+<a class="header" href="api-reference/context.html#other-responses" id="other-responses"><h3>Other Responses</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+ctx.empty() -&gt; Result&lt;()&gt;                          // 204 No Content
+ctx.success(data: Option&lt;T&gt;) -&gt; Result&lt;()&gt;         // Success JSON response
+ctx.status(status: StatusCode)                      // Set status code
+#}</code></pre></pre>
+<a class="header" href="api-reference/context.html#file-responses" id="file-responses"><h3>File Responses</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Download file
+ctx.file_download(path: P, filename: Option&lt;&amp;str&gt;) -&gt; Result&lt;()&gt;
+
+// Inline file
+ctx.file_inline(path: P) -&gt; Result&lt;()&gt;
+
+// Binary data
+ctx.binary(data: Vec&lt;u8&gt;, content_type: &amp;str) -&gt; Result&lt;()&gt;
+
+// Stream response
+ctx.stream(stream: impl Stream&lt;Item = Result&lt;Bytes&gt;&gt;, content_type: &amp;str) -&gt; Result&lt;()&gt;
+#}</code></pre></pre>
+<a class="header" href="api-reference/context.html#session-management" id="session-management"><h2>Session Management</h2></a>
+<a class="header" href="api-reference/context.html#session-access" id="session-access"><h3>Session Access</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+ctx.session() -&gt; Option&lt;&amp;Session&gt;
+ctx.has_session() -&gt; bool
+ctx.require_session() -&gt; Result&lt;&amp;Session&gt;
+ctx.require_auth() -&gt; Result&lt;&amp;Session&gt;
+#}</code></pre></pre>
+<a class="header" href="api-reference/context.html#session-data" id="session-data"><h3>Session Data</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Set session value
+ctx.session_set(key: &amp;str, value: T) -&gt; Result&lt;()&gt;
+
+// Get session value
+ctx.session_get(key: &amp;str) -&gt; Option&lt;T&gt;
+
+// Remove session value
+ctx.session_remove(key: &amp;str) -&gt; Option&lt;Value&gt;
+
+// Clear all session data
+ctx.session_clear()
+
+// Flush session (save changes)
+ctx.session_flush()
+
+// Destroy session
+ctx.session_destroy()
+#}</code></pre></pre>
+<a class="header" href="api-reference/context.html#authentication" id="authentication"><h3>Authentication</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+ctx.login(user_id: i64) -&gt; Result&lt;()&gt;
+ctx.logout() -&gt; Result&lt;()&gt;
+#}</code></pre></pre>
+<a class="header" href="api-reference/context.html#flash-messages" id="flash-messages"><h2>Flash Messages</h2></a>
+<p>Flash messages are one-time messages stored in the session.</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Set flash message
+ctx.flash(key: &amp;str, value: impl Serialize) -&gt; Result&lt;()&gt;
+
+// Convenience methods
+ctx.flash_success(message: impl Into&lt;String&gt;) -&gt; Result&lt;()&gt;
+ctx.flash_error(message: impl Into&lt;String&gt;) -&gt; Result&lt;()&gt;
+ctx.flash_info(message: impl Into&lt;String&gt;) -&gt; Result&lt;()&gt;
+ctx.flash_warning(message: impl Into&lt;String&gt;) -&gt; Result&lt;()&gt;
+
+// Get flash message
+ctx.get_flash(key: &amp;str) -&gt; Option&lt;Value&gt;
+ctx.get_all_flash() -&gt; HashMap&lt;String, Value&gt;
+
+// Clear flash messages
+ctx.flash_clear() -&gt; Result&lt;()&gt;
+ctx.flash_clear_key(key: &amp;str) -&gt; Result&lt;()&gt;
+#}</code></pre></pre>
+<a class="header" href="api-reference/context.html#repository-data" id="repository-data"><h2>Repository Data</h2></a>
+<p>Repository data is handler-scoped data accessible in all views rendered within the handler.</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Set repository data
+ctx.repository_set(key: &amp;str, value: impl Into&lt;Value&gt;) -&gt; &amp;mut Self
+
+// Get repository data
+ctx.repository_get(key: &amp;str) -&gt; Option&lt;&amp;Value&gt;
+
+// Clear all repository data
+ctx.repository_clear() -&gt; &amp;mut Self
+#}</code></pre></pre>
+<a class="header" href="api-reference/context.html#layout-management" id="layout-management"><h2>Layout Management</h2></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Set layout for views
+ctx.layout(name: &amp;str) -&gt; &amp;mut Self
+
+// Use empty layout
+ctx.layout(&quot;&quot;)
+#}</code></pre></pre>
+<a class="header" href="api-reference/context.html#file-uploads" id="file-uploads"><h2>File Uploads</h2></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Get all uploaded files
+ctx.files() -&gt; Result&lt;&amp;FileCollection&gt;
+
+// Get specific uploaded file
+ctx.file(field_name: &amp;str) -&gt; Result&lt;Option&lt;&amp;UploadedFile&gt;&gt;
+#}</code></pre></pre>
+<a class="header" href="api-reference/context.html#middleware-data" id="middleware-data"><h2>Middleware Data</h2></a>
+<p>Middleware can store data in the context for communication.</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Store data
+ctx.set(key: &amp;str, value: T) -&gt; Result&lt;()&gt;
+
+// Retrieve data
+ctx.get(key: &amp;str) -&gt; Option&lt;&amp;T&gt;
+
+// Check if data exists
+ctx.has_data(key: &amp;str) -&gt; bool
+#}</code></pre></pre>
+<a class="header" href="api-reference/context.html#request-data-helper" id="request-data-helper"><h2>Request Data Helper</h2></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Get comprehensive request data
+ctx.request_data() -&gt; Result&lt;RequestData&gt;
+#}</code></pre></pre>
+<a class="header" href="api-reference/context.html#response-management" id="response-management"><h2>Response Management</h2></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Set custom response
+ctx.set_response(response: Response)
+
+// Get response
+ctx.get_response() -&gt; Option&lt;&amp;Response&gt;
+
+// Take response
+ctx.take_response() -&gt; Option&lt;Response&gt;
+#}</code></pre></pre>
+<a class="header" href="api-reference/context.html#examples" id="examples"><h2>Examples</h2></a>
+<a class="header" href="api-reference/context.html#basic-handler" id="basic-handler"><h3>Basic Handler</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+async fn get_user(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    let user_id = ctx.int_param(&quot;id&quot;)?;
+    // ... fetch user ...
+    ctx.json(json!({&quot;user&quot;: user}))
+}
+#}</code></pre></pre>
+<a class="header" href="api-reference/context.html#form-handling" id="form-handling"><h3>Form Handling</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+async fn create_user(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    let form: CreateUserForm = ctx.body_form_typed()?;
+    // ... create user ...
+    ctx.flash_success(&quot;User created!&quot;)?;
+    ctx.redirect(&quot;/users&quot;)
+}
+#}</code></pre></pre>
+<a class="header" href="api-reference/context.html#session-usage" id="session-usage"><h3>Session Usage</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+async fn dashboard(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    let user: User = ctx.session_get(&quot;user&quot;)
+        .ok_or_else(|| ctx.throw401(Some(&quot;Login required&quot;)))?;
+    
+    ctx.repository_set(&quot;user&quot;, json!(user));
+    ctx.view(&quot;/dashboard/index&quot;, json!({}))
+}
+#}</code></pre></pre>
+
+                </div>
+
+                <!-- Mobile navigation buttons -->
+                
+                    <a rel="prev" href="api-reference/README.html" class="mobile-nav-chapters previous" title="Previous chapter">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                
+
+                
+                    <a rel="next" href="api-reference/models.html" class="mobile-nav-chapters next" title="Next chapter">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+                
+
+            </div>
+
+            
+                <a href="api-reference/README.html" class="nav-chapters previous" title="You can navigate through the chapters using the arrow keys">
+                    <i class="fa fa-angle-left"></i>
+                </a>
+            
+
+            
+                <a href="api-reference/models.html" class="nav-chapters next" title="You can navigate through the chapters using the arrow keys">
+                    <i class="fa fa-angle-right"></i>
+                </a>
+            
+
+        </div>
+
+
+        <!-- Local fallback for Font Awesome -->
+        <script>
+            if ($(".fa").css("font-family") !== "FontAwesome") {
+                $('<link rel="stylesheet" type="text/css" href="_FontAwesome/css/font-awesome.css">').prependTo('head');
+            }
+        </script>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        
+
+        
+
+        
+
+        
+
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS script -->
+        
+
+    </body>
+</html>

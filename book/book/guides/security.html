@@ -1,0 +1,1121 @@
+<!DOCTYPE HTML>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Security - RustF Framework Documentation</title>
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="Complete guide to the RustF MVC web framework for Rust">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <base href="../">
+
+        <link rel="stylesheet" href="book.css">
+        <link href="https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800" rel="stylesheet" type="text/css">
+        <link href="https://fonts.googleapis.com/css?family=Source+Code+Pro:500" rel="stylesheet" type="text/css">
+
+        <link rel="shortcut icon" href="favicon.png">
+
+        <!-- Font Awesome -->
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
+
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme -->
+        
+
+        
+
+        <!-- Fetch Clipboard.js from CDN but have a local fallback -->
+        <script src="https://cdn.jsdelivr.net/clipboard.js/1.6.1/clipboard.min.js"></script>
+        <script>
+            if (typeof Clipboard == 'undefined') {
+                document.write(unescape("%3Cscript src='clipboard.min.js'%3E%3C/script%3E"));
+            }
+        </script>
+
+        <!-- Fetch JQuery from CDN but have a local fallback -->
+        <script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+        <script>
+            if (typeof jQuery == 'undefined') {
+                document.write(unescape("%3Cscript src='jquery.js'%3E%3C/script%3E"));
+            }
+        </script>
+
+        <!-- Fetch store.js from local - TODO add CDN when 2.x.x is available on cdnjs -->
+        <script src="store.js"></script>
+
+    </head>
+    <body class="light">
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme = store.get('mdbook-theme');
+            if (theme === null || theme === undefined) { theme = 'light'; }
+            $('body').removeClass().addClass(theme);
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var sidebar = store.get('mdbook-sidebar');
+            if (sidebar === "hidden") { $("html").addClass("sidebar-hidden") }
+            else if (sidebar === "visible") { $("html").addClass("sidebar-visible") }
+        </script>
+
+        <div id="sidebar" class="sidebar">
+            <ul class="chapter"><li class="affix"><a href="README.html">Introduction</a></li><li><a href="getting-started/README.html"><strong>1.</strong> Quick Start</a></li><li><a href="getting-started/installation.html"><strong>2.</strong> Installation</a></li><li><a href="getting-started/hello-world.html"><strong>3.</strong> Hello World</a></li><li><a href="getting-started/project-structure.html"><strong>4.</strong> Project Structure</a></li><li><a href="guides/controllers.html"><strong>5.</strong> Controllers &amp; Routing</a></li><li><a href="guides/views.html"><strong>6.</strong> Views &amp; Templates</a></li><li><a href="guides/middleware.html"><strong>7.</strong> Middleware</a></li><li><a href="guides/sessions.html"><strong>8.</strong> Sessions</a></li><li><a href="guides/database.html"><strong>9.</strong> Database Integration</a></li><li><a href="guides/configuration.html"><strong>10.</strong> Configuration</a></li><li><a href="guides/security.html" class="active"><strong>11.</strong> Security</a></li><li><a href="guides/error-handling.html"><strong>12.</strong> Error Handling</a></li><li><a href="guides/schemas.html"><strong>13.</strong> Schemas &amp; Definitions</a></li><li><a href="advanced/README.html"><strong>14.</strong> Overview</a></li><li><a href="advanced/performance.html"><strong>15.</strong> Performance Optimization</a></li><li><a href="advanced/workers.html"><strong>16.</strong> Workers</a></li><li><a href="advanced/events.html"><strong>17.</strong> Events</a></li><li><a href="advanced/modules.html"><strong>18.</strong> Modules</a></li><li><a href="advanced/cli.html"><strong>19.</strong> CLI Tool</a></li><li><a href="api-reference/README.html"><strong>20.</strong> Overview</a></li><li><a href="api-reference/context.html"><strong>21.</strong> Context API</a></li><li><a href="api-reference/models.html"><strong>22.</strong> Model API</a></li><li><a href="api-reference/routing.html"><strong>23.</strong> Routing API</a></li><li><a href="api-reference/utilities.html"><strong>24.</strong> Utilities</a></li><li><a href="examples/README.html"><strong>25.</strong> Overview</a></li><li><a href="examples/rest-api.html"><strong>26.</strong> Building a REST API</a></li><li><a href="examples/authentication.html"><strong>27.</strong> Authentication</a></li><li><a href="examples/real-world-app.html"><strong>28.</strong> Real-World Application</a></li><li><a href="deployment/production.html"><strong>29.</strong> Production Deployment</a></li><li><a href="deployment/docker.html"><strong>30.</strong> Docker</a></li></ul>
+        </div>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page" tabindex="-1">
+                
+                <div id="menu-bar" class="menu-bar">
+                    <div class="left-buttons">
+                        <i id="sidebar-toggle" class="fa fa-bars" title="Toggle sidebar"></i>
+                        <i id="theme-toggle" class="fa fa-paint-brush" title="Change theme"></i>
+                    </div>
+
+                    <h1 class="menu-title">RustF Framework Documentation</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html">
+                            <i id="print-button" class="fa fa-print" title="Print this book"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <div id="content" class="content">
+                    <a class="header" href="guides/security.html#rustf-csrf-protection-guide" id="rustf-csrf-protection-guide"><h1>RustF CSRF Protection Guide</h1></a>
+<p>🔒 <strong>Comprehensive Cross-Site Request Forgery Protection</strong></p>
+<p>This guide covers RustF's automatic CSRF protection system, designed for both security and developer productivity with zero-configuration defaults and extensive customization options.</p>
+<a class="header" href="guides/security.html#table-of-contents" id="table-of-contents"><h2>Table of Contents</h2></a>
+<ul>
+<li><a href="guides/security.html#overview">Overview</a></li>
+<li><a href="guides/security.html#quick-start">Quick Start</a></li>
+<li><a href="guides/security.html#automatic-protection">Automatic Protection</a></li>
+<li><a href="guides/security.html#configuration">Configuration</a></li>
+<li><a href="guides/security.html#route-exemptions">Route Exemptions</a></li>
+<li><a href="guides/security.html#token-management">Token Management</a></li>
+<li><a href="guides/security.html#context-integration">Context Integration</a></li>
+<li><a href="guides/security.html#error-handling">Error Handling</a></li>
+<li><a href="guides/security.html#ajax-integration">AJAX Integration</a></li>
+<li><a href="guides/security.html#form-integration">Form Integration</a></li>
+<li><a href="guides/security.html#advanced-usage">Advanced Usage</a></li>
+<li><a href="guides/security.html#troubleshooting">Troubleshooting</a></li>
+<li><a href="guides/security.html#best-practices">Best Practices</a></li>
+</ul>
+<a class="header" href="guides/security.html#overview" id="overview"><h2>Overview</h2></a>
+<p>Cross-Site Request Forgery (CSRF) attacks trick users into performing unintended actions by exploiting their authenticated sessions. RustF provides comprehensive CSRF protection through:</p>
+<a class="header" href="guides/security.html#key-features" id="key-features"><h3>Key Features</h3></a>
+<p>✅ <strong>One-Time Use Tokens</strong> - Tokens are consumed after successful verification (prevents replay attacks)<br />
+✅ <strong>Token Expiration</strong> - Tokens automatically expire after 1 hour<br />
+✅ <strong>Multiple Concurrent Tokens</strong> - Support different token IDs for different forms<br />
+✅ <strong>Automatic HTTP Method Detection</strong> - Only unsafe methods (POST, PUT, PATCH, DELETE) require validation<br />
+✅ <strong>Session Integration</strong> - Tokens stored and validated via the session system<br />
+✅ <strong>Route Exemption Patterns</strong> - Flexible wildcard and exact matching<br />
+✅ <strong>Multiple Token Sources</strong> - Headers, form fields, and query parameters<br />
+✅ <strong>Smart Error Handling</strong> - Context-aware responses (JSON for APIs, HTML for web)<br />
+✅ <strong>Zero Configuration</strong> - Works out-of-the-box with sensible defaults<br />
+✅ <strong>Context Methods</strong> - Convenient <code>verify_csrf()</code> and <code>generate_csrf()</code> methods</p>
+<a class="header" href="guides/security.html#protection-scope" id="protection-scope"><h3>Protection Scope</h3></a>
+<p><strong>Protected Methods (Require CSRF token):</strong></p>
+<ul>
+<li><code>POST</code> - Create operations</li>
+<li><code>PUT</code> - Full resource updates</li>
+<li><code>PATCH</code> - Partial resource updates</li>
+<li><code>DELETE</code> - Resource deletion</li>
+</ul>
+<p><strong>Safe Methods (Bypass CSRF):</strong></p>
+<ul>
+<li><code>GET</code> - Read operations</li>
+<li><code>HEAD</code> - Header-only requests</li>
+<li><code>OPTIONS</code> - CORS preflight requests</li>
+</ul>
+<a class="header" href="guides/security.html#quick-start" id="quick-start"><h2>Quick Start</h2></a>
+<a class="header" href="guides/security.html#basic-setup" id="basic-setup"><h3>Basic Setup</h3></a>
+<p>Add CSRF protection with zero configuration:</p>
+<pre><pre class="playpen"><code class="language-rust">use rustf::prelude::*;
+use rustf::security::CsrfMiddleware;
+
+#[tokio::main]
+async fn main() -&gt; Result&lt;()&gt; {
+    let mut app = RustF::new();
+    
+    // Enable CSRF protection (default configuration)
+    app.middleware(&quot;csrf&quot;, CsrfMiddleware::new());
+    
+    // Your routes - CSRF automatically applied
+    app.post(&quot;/users&quot;, create_user_handler);         // Protected
+    app.put(&quot;/users/:id&quot;, update_user_handler);      // Protected  
+    app.delete(&quot;/users/:id&quot;, delete_user_handler);   // Protected
+    app.get(&quot;/users&quot;, list_users_handler);           // Not protected
+    
+    app.listen(&quot;127.0.0.1:8080&quot;).await?;
+    Ok(())
+}
+
+async fn create_user_handler(ctx: Context) -&gt; Result&lt;Response&gt; {
+    // CSRF already validated by middleware
+    let form_data = ctx.body_form()?;
+    
+    // Process request normally
+    let user = create_user(&amp;form_data).await?;
+    ctx.json(json!({&quot;message&quot;: &quot;User created&quot;, &quot;id&quot;: user.id}))
+}
+</code></pre></pre>
+<a class="header" href="guides/security.html#default-behavior" id="default-behavior"><h3>Default Behavior</h3></a>
+<p>With zero configuration, the CSRF middleware:</p>
+<ul>
+<li>Protects POST, PUT, PATCH, DELETE requests</li>
+<li>Exempts all <code>/api/*</code> routes (configurable)</li>
+<li>Stores tokens in the session</li>
+<li>Returns appropriate error responses</li>
+</ul>
+<a class="header" href="guides/security.html#automatic-protection" id="automatic-protection"><h2>Automatic Protection</h2></a>
+<a class="header" href="guides/security.html#http-method-based-protection" id="http-method-based-protection"><h3>HTTP Method-Based Protection</h3></a>
+<p>CSRF protection is applied automatically based on HTTP methods:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// These routes are automatically protected:
+app.post(&quot;/users&quot;, create_user);           // ✅ CSRF Required
+app.put(&quot;/users/:id&quot;, update_user);        // ✅ CSRF Required  
+app.patch(&quot;/users/:id&quot;, partial_update);   // ✅ CSRF Required
+app.delete(&quot;/users/:id&quot;, delete_user);     // ✅ CSRF Required
+
+// These routes bypass CSRF protection:
+app.get(&quot;/users&quot;, list_users);             // ⏭️ CSRF Bypassed
+app.head(&quot;/users/:id&quot;, check_user);        // ⏭️ CSRF Bypassed
+app.options(&quot;/users&quot;, cors_preflight);     // ⏭️ CSRF Bypassed
+#}</code></pre></pre>
+<a class="header" href="guides/security.html#session-integration" id="session-integration"><h3>Session Integration</h3></a>
+<p>CSRF tokens are automatically managed through the session system:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Token lifecycle (handled automatically):
+// 1. Generate token: stored in session[&quot;_csrf_token&quot;]
+// 2. Validate token: compare submitted vs stored
+// 3. Token persistence: lives with the session
+// 4. Token regeneration: on session regeneration
+#}</code></pre></pre>
+<a class="header" href="guides/security.html#configuration" id="configuration"><h2>Configuration</h2></a>
+<a class="header" href="guides/security.html#custom-configuration" id="custom-configuration"><h3>Custom Configuration</h3></a>
+<p>Create a custom CSRF configuration for advanced scenarios:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use rustf::security::{CsrfMiddleware, CsrfConfig};
+
+let csrf_config = CsrfConfig::new()
+    // Route exemptions
+    .exempt(&quot;/webhook/github&quot;)              // Specific webhook
+    .exempt(&quot;/webhook/*&quot;)                   // All webhook routes  
+    .exempt(&quot;/api/public/*&quot;)               // Public API endpoints
+    .exempt(&quot;/uploads/process&quot;)             // File processing endpoint
+    
+    // Error handling
+    .error_message(&quot;Security validation failed. Please refresh and try again.&quot;)
+    .redirect_on_failure(&quot;/login&quot;)          // Redirect instead of error page
+    .flash_error_key(&quot;security_error&quot;)      // Custom flash message key
+    
+    // HTTP method customization
+    .protect_method(&quot;CUSTOM&quot;)               // Add custom method protection
+    .exempt_method(&quot;DELETE&quot;);               // Remove DELETE protection
+
+let csrf_middleware = CsrfMiddleware::with_config(csrf_config);
+app.middleware(&quot;csrf&quot;, csrf_middleware);
+#}</code></pre></pre>
+<a class="header" href="guides/security.html#configuration-builder-methods" id="configuration-builder-methods"><h3>Configuration Builder Methods</h3></a>
+<table><thead><tr><th> Method </th><th> Description </th><th> Example </th></tr></thead><tbody>
+<tr><td> <code>exempt(route)</code> </td><td> Add route exemption pattern </td><td> <code>.exempt(&quot;/api/*&quot;)</code> </td></tr>
+<tr><td> <code>error_message(msg)</code> </td><td> Custom error message </td><td> <code>.error_message(&quot;Token expired&quot;)</code> </td></tr>
+<tr><td> <code>redirect_on_failure(url)</code> </td><td> Redirect URL on failure </td><td> <code>.redirect_on_failure(&quot;/login&quot;)</code> </td></tr>
+<tr><td> <code>flash_error_key(key)</code> </td><td> Flash message key </td><td> <code>.flash_error_key(&quot;csrf_error&quot;)</code> </td></tr>
+<tr><td> <code>disabled()</code> </td><td> Disable CSRF globally </td><td> <code>.disabled()</code> </td></tr>
+<tr><td> <code>protect_method(method)</code> </td><td> Add protected HTTP method </td><td> <code>.protect_method(&quot;CUSTOM&quot;)</code> </td></tr>
+<tr><td> <code>exempt_method(method)</code> </td><td> Remove method protection </td><td> <code>.exempt_method(&quot;PUT&quot;)</code> </td></tr>
+</tbody></table>
+<a class="header" href="guides/security.html#route-exemptions" id="route-exemptions"><h2>Route Exemptions</h2></a>
+<a class="header" href="guides/security.html#pattern-matching" id="pattern-matching"><h3>Pattern Matching</h3></a>
+<p>CSRF route exemptions support both exact matches and wildcard patterns:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+let csrf_config = CsrfConfig::new()
+    // Exact matches
+    .exempt(&quot;/webhook&quot;)                     // Only /webhook
+    .exempt(&quot;/public/upload&quot;)               // Only /public/upload
+    
+    // Wildcard patterns  
+    .exempt(&quot;/api/*&quot;)                       // /api/users, /api/v1/posts, etc.
+    .exempt(&quot;/webhook/*&quot;)                   // /webhook/github, /webhook/stripe, etc.
+    .exempt(&quot;/admin/*/public&quot;);             // /admin/users/public, /admin/posts/public, etc.
+#}</code></pre></pre>
+<a class="header" href="guides/security.html#pattern-examples" id="pattern-examples"><h3>Pattern Examples</h3></a>
+<table><thead><tr><th> Pattern </th><th> Matches </th><th> Doesn't Match </th></tr></thead><tbody>
+<tr><td> <code>/api/*</code> </td><td> <code>/api/users</code>, <code>/api/v1/data</code> </td><td> <code>/api</code>, <code>/public/api</code> </td></tr>
+<tr><td> <code>/webhook/github</code> </td><td> <code>/webhook/github</code> </td><td> <code>/webhook/github/push</code> </td></tr>
+<tr><td> <code>/public/upload</code> </td><td> <code>/public/upload</code> </td><td> <code>/public/uploads</code> </td></tr>
+</tbody></table>
+<a class="header" href="guides/security.html#default-exemptions" id="default-exemptions"><h3>Default Exemptions</h3></a>
+<p>By default, all <code>/api/*</code> routes are exempt. To change this:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Remove default exemptions and add custom ones
+let csrf_config = CsrfConfig::new()
+    .exempt(&quot;/external/webhooks/*&quot;)     // Custom exemption
+    .exempt(&quot;/integrations/*&quot;);         // Another exemption
+    // Note: This removes the default /api/* exemption
+#}</code></pre></pre>
+<a class="header" href="guides/security.html#common-exemption-patterns" id="common-exemption-patterns"><h3>Common Exemption Patterns</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Webhooks and integrations
+.exempt(&quot;/webhook/*&quot;)
+.exempt(&quot;/integration/*&quot;) 
+.exempt(&quot;/callback/*&quot;)
+
+// Public APIs  
+.exempt(&quot;/api/public/*&quot;)
+.exempt(&quot;/api/v1/status&quot;)
+.exempt(&quot;/api/health&quot;)
+
+// File uploads from external sources
+.exempt(&quot;/upload/external/*&quot;)
+.exempt(&quot;/cdn/callback&quot;)
+
+// Payment gateways
+.exempt(&quot;/payment/stripe/webhook&quot;)
+.exempt(&quot;/payment/paypal/ipn&quot;)
+#}</code></pre></pre>
+<a class="header" href="guides/security.html#token-management" id="token-management"><h2>Token Management</h2></a>
+<a class="header" href="guides/security.html#automatic-token-generation" id="automatic-token-generation"><h3>Automatic Token Generation</h3></a>
+<p>CSRF tokens are generated and managed automatically:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Token generation happens automatically when:
+// 1. First CSRF-protected request is made
+// 2. ctx.generate_csrf() is called explicitly
+
+async fn show_form(ctx: Context) -&gt; Result&lt;Response&gt; {
+    // Automatically generates and stores token in session
+    ctx.generate_csrf()?;
+    
+    // Token is accessible in templates via @{csrf_token} and @{csrf}
+    ctx.view(&quot;user/form&quot;, json!({
+        &quot;user&quot;: load_user_data().await?
+    }))
+}
+#}</code></pre></pre>
+<a class="header" href="guides/security.html#token-properties" id="token-properties"><h3>Token Properties</h3></a>
+<ul>
+<li><strong>Format</strong>: Base64-encoded random bytes (32 bytes = ~44 characters)</li>
+<li><strong>Storage</strong>: Session key <code>_csrf_token</code> (or custom ID) with JSON structure: <code>{&quot;token&quot;: &quot;...&quot;, &quot;valid_to&quot;: timestamp}</code></li>
+<li><strong>Lifetime</strong>: 1 hour from generation (configurable)</li>
+<li><strong>Usage</strong>: One-time use - consumed after successful verification</li>
+<li><strong>Security</strong>: Cryptographically secure random generation</li>
+</ul>
+<a class="header" href="guides/security.html#token-lifecycle" id="token-lifecycle"><h3>Token Lifecycle</h3></a>
+<p>Tokens follow a secure lifecycle:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// 1. Generation - Token created with expiration
+let token = ctx.generate_csrf(None)?;  // Default token
+let custom = ctx.generate_csrf(Some(&quot;upload_csrf&quot;))?;  // Custom ID
+
+// 2. Verification - Token consumed (one-time use)
+if ctx.verify_csrf(None)? {  // Default token
+    // Token is valid and now removed from session
+}
+
+// 3. Expiration - Tokens expire after 1 hour
+// Expired tokens are automatically removed on verification attempt
+
+// 4. Session destruction - All tokens cleared
+ctx.session.destroy();  // All tokens removed
+#}</code></pre></pre>
+<a class="header" href="guides/security.html#context-integration" id="context-integration"><h2>Context Integration</h2></a>
+<a class="header" href="guides/security.html#context-methods" id="context-methods"><h3>Context Methods</h3></a>
+<p>RustF provides convenient methods on the Context for CSRF operations:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+async fn form_controller(ctx: Context) -&gt; Result&lt;Response&gt; {
+    // Generate CSRF token (stored in session)
+    let csrf_token = ctx.generate_csrf()?;
+    
+    // Manual verification (usually not needed due to middleware)
+    if !ctx.verify_csrf()? {
+        return ctx.throw403(Some(&quot;CSRF validation failed&quot;));
+    }
+    
+    // Token is accessible in templates
+    ctx.view(&quot;form&quot;, json!({
+        &quot;user_data&quot;: load_user().await?
+    }))
+}
+#}</code></pre></pre>
+<a class="header" href="guides/security.html#method-details" id="method-details"><h3>Method Details</h3></a>
+<a class="header" href="guides/security.html#ctxgenerate_csrftoken_id-optionstr" id="ctxgenerate_csrftoken_id-optionstr"><h4><code>ctx.generate_csrf(token_id: Option&lt;&amp;str&gt;)</code></h4></a>
+<p>Generates a new CSRF token with optional custom ID and stores it in the session:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+async fn api_csrf_token(ctx: Context) -&gt; Result&lt;Response&gt; {
+    // Default token
+    let token = ctx.generate_csrf(None)?;
+    
+    // Custom token for specific form
+    let upload_token = ctx.generate_csrf(Some(&quot;upload_csrf&quot;))?;
+    
+    ctx.json(json!({
+        &quot;csrf_token&quot;: token,
+        &quot;upload_token&quot;: upload_token,
+        &quot;expires_in&quot;: &quot;1 hour&quot;,
+        &quot;usage&quot;: &quot;one-time&quot;
+    }))
+}
+#}</code></pre></pre>
+<a class="header" href="guides/security.html#ctxverify_csrftoken_id-optionstr" id="ctxverify_csrftoken_id-optionstr"><h4><code>ctx.verify_csrf(token_id: Option&lt;&amp;str&gt;)</code></h4></a>
+<p>Manually verify and consume CSRF token (rarely needed due to middleware):</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+async fn manual_verification(ctx: Context) -&gt; Result&lt;Response&gt; {
+    // Verify default token (consumed after successful verification)
+    match ctx.verify_csrf(None)? {
+        true =&gt; {
+            // Token was valid and is now consumed
+            ctx.json(json!({&quot;message&quot;: &quot;Token valid and consumed&quot;}))
+        }
+        false =&gt; {
+            // Token is invalid, expired, or missing
+            ctx.throw403(Some(&quot;CSRF token validation failed&quot;))
+        }
+    }
+}
+
+// Verify custom token
+async fn verify_upload(ctx: Context) -&gt; Result&lt;Response&gt; {
+    if ctx.verify_csrf(Some(&quot;upload_csrf&quot;))? {
+        // Upload token valid and consumed
+        process_upload(&amp;ctx).await
+    } else {
+        ctx.throw403(Some(&quot;Invalid upload token&quot;))
+    }
+}
+#}</code></pre></pre>
+<a class="header" href="guides/security.html#csrf-token-in-templates" id="csrf-token-in-templates"><h4>CSRF Token in Templates</h4></a>
+<p>CSRF tokens support multiple forms with different token IDs:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+async fn show_forms(ctx: Context) -&gt; Result&lt;Response&gt; {
+    // Generate multiple tokens for different forms
+    ctx.generate_csrf(None)?;  // Default token
+    ctx.generate_csrf(Some(&quot;upload_csrf&quot;))?;  // Upload form
+    ctx.generate_csrf(Some(&quot;api_csrf&quot;))?;  // API calls
+    
+    // Tokens accessible in templates:
+    // - @{csrf} - hidden input with default token
+    // - @{csrf(&quot;upload_csrf&quot;)} - hidden input with custom token
+    // - @{csrf_token} - default token value
+    // - @{csrf_token.upload_csrf} - custom token value
+    
+    ctx.view(&quot;forms/multi&quot;, json!({
+        &quot;user&quot;: load_user_data().await?
+    }))
+}
+#}</code></pre></pre>
+<p><strong>Template Usage:</strong></p>
+<pre><code class="language-html">&lt;!-- Default token --&gt;
+&lt;form method=&quot;POST&quot;&gt;
+    @{csrf}  &lt;!-- &lt;input type=&quot;hidden&quot; name=&quot;_csrf_token&quot; value=&quot;...&quot;&gt; --&gt;
+&lt;/form&gt;
+
+&lt;!-- Custom token --&gt;
+&lt;form method=&quot;POST&quot; action=&quot;/upload&quot;&gt;
+    @{csrf(&quot;upload_csrf&quot;)}  &lt;!-- &lt;input type=&quot;hidden&quot; name=&quot;upload_csrf&quot; value=&quot;...&quot;&gt; --&gt;
+&lt;/form&gt;
+
+&lt;!-- Token values for JavaScript --&gt;
+&lt;script&gt;
+    const defaultToken = &quot;@{csrf_token}&quot;;
+    const uploadToken = &quot;@{csrf_token.upload_csrf}&quot;;
+    const apiToken = &quot;@{csrf_token.api_csrf}&quot;;
+&lt;/script&gt;
+</code></pre>
+<a class="header" href="guides/security.html#error-handling" id="error-handling"><h2>Error Handling</h2></a>
+<a class="header" href="guides/security.html#automatic-error-responses" id="automatic-error-responses"><h3>Automatic Error Responses</h3></a>
+<p>CSRF failures are handled intelligently based on the request type:</p>
+<a class="header" href="guides/security.html#api-requests-json-response" id="api-requests-json-response"><h4>API Requests (JSON Response)</h4></a>
+<p>For requests expecting JSON (detected by headers):</p>
+<pre><code class="language-json">{
+    &quot;error&quot;: &quot;csrf_token_invalid&quot;,
+    &quot;message&quot;: &quot;CSRF token validation failed. Please try again.&quot;
+}
+</code></pre>
+<p>HTTP Status: <code>403 Forbidden</code></p>
+<a class="header" href="guides/security.html#web-requests-html-response" id="web-requests-html-response"><h4>Web Requests (HTML Response)</h4></a>
+<p>For regular web requests:</p>
+<ul>
+<li>Returns HTTP <code>403 Forbidden</code> with error page</li>
+<li>OR redirects to configured URL with flash message</li>
+</ul>
+<a class="header" href="guides/security.html#custom-error-handling" id="custom-error-handling"><h3>Custom Error Handling</h3></a>
+<p>Configure custom error responses:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+let csrf_config = CsrfConfig::new()
+    // Custom error message
+    .error_message(&quot;Security token expired. Please refresh the page.&quot;)
+    
+    // Redirect instead of error page
+    .redirect_on_failure(&quot;/login&quot;)
+    
+    // Custom flash message key
+    .flash_error_key(&quot;security_alert&quot;);
+
+app.middleware(&quot;csrf&quot;, CsrfMiddleware::with_config(csrf_config));
+
+// In your login template, show the flash message:
+// {{#if flash.security_alert}}
+//     &lt;div class=&quot;alert alert-danger&quot;&gt;{{flash.security_alert}}&lt;/div&gt;  
+// {{/if}}
+#}</code></pre></pre>
+<a class="header" href="guides/security.html#error-detection" id="error-detection"><h3>Error Detection</h3></a>
+<p>The middleware detects request type using:</p>
+<ol>
+<li><code>Accept</code> header containing <code>application/json</code></li>
+<li><code>Content-Type</code> header containing <code>application/json</code></li>
+<li>Request path starting with <code>/api/</code> (if not exempted)</li>
+</ol>
+<a class="header" href="guides/security.html#ajax-integration" id="ajax-integration"><h2>AJAX Integration</h2></a>
+<a class="header" href="guides/security.html#frontend-csrf-token-fetching" id="frontend-csrf-token-fetching"><h3>Frontend CSRF Token Fetching</h3></a>
+<p>Create an endpoint to provide CSRF tokens for AJAX requests:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// CSRF token endpoint
+async fn csrf_token_api(ctx: Context) -&gt; Result&lt;Response&gt; {
+    let token = ctx.generate_csrf()?;
+    
+    ctx.json(json!({
+        &quot;csrf_token&quot;: token,
+        &quot;field_name&quot;: &quot;_token&quot;,
+        &quot;header_name&quot;: &quot;X-CSRF-Token&quot;
+    }))
+}
+
+// Register the endpoint (this bypasses CSRF as it's a GET request)
+app.get(&quot;/api/csrf-token&quot;, csrf_token_api);
+#}</code></pre></pre>
+<a class="header" href="guides/security.html#javascript-integration" id="javascript-integration"><h3>JavaScript Integration</h3></a>
+<pre><code class="language-javascript">// Fetch CSRF token
+async function getCsrfToken() {
+    const response = await fetch('/api/csrf-token');
+    if (!response.ok) throw new Error('Failed to fetch CSRF token');
+    const data = await response.json();
+    return data.csrf_token;
+}
+
+// Method 1: HTTP Header (Recommended)
+const csrfToken = await getCsrfToken();
+
+const response = await fetch('/api/users', {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': csrfToken  // Header method
+    },
+    body: JSON.stringify({
+        name: 'John Doe',
+        email: 'john@example.com'
+    })
+});
+
+// Method 2: Form Data
+const formData = new FormData();
+formData.append('name', 'John Doe');
+formData.append('email', 'john@example.com');
+formData.append('_token', csrfToken);  // Form field method
+
+await fetch('/api/users', {
+    method: 'POST',
+    body: formData
+});
+
+// Method 3: Query Parameter
+await fetch(`/api/users?_token=${csrfToken}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(userData)
+});
+</code></pre>
+<a class="header" href="guides/security.html#global-ajax-setup" id="global-ajax-setup"><h3>Global AJAX Setup</h3></a>
+<p>Set up CSRF token globally for all AJAX requests:</p>
+<pre><code class="language-javascript">class CsrfManager {
+    constructor() {
+        this.token = null;
+        this.tokenPromise = null;
+    }
+    
+    async getToken() {
+        if (!this.tokenPromise) {
+            this.tokenPromise = this.fetchToken();
+        }
+        return this.tokenPromise;
+    }
+    
+    async fetchToken() {
+        const response = await fetch('/api/csrf-token');
+        const data = await response.json();
+        this.token = data.csrf_token;
+        return this.token;
+    }
+    
+    async apiCall(url, options = {}) {
+        const token = await this.getToken();
+        
+        const headers = {
+            ...options.headers,
+            'X-CSRF-Token': token
+        };
+        
+        return fetch(url, { ...options, headers });
+    }
+}
+
+// Global instance
+const csrf = new CsrfManager();
+
+// Usage
+await csrf.apiCall('/api/users', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(userData)
+});
+</code></pre>
+<a class="header" href="guides/security.html#form-integration" id="form-integration"><h2>Form Integration</h2></a>
+<a class="header" href="guides/security.html#html-forms" id="html-forms"><h3>HTML Forms</h3></a>
+<p>Include CSRF tokens in HTML forms using the context helper:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+async fn show_user_form(ctx: Context) -&gt; Result&lt;Response&gt; {
+    // Ensure CSRF token exists
+    ctx.generate_csrf()?;
+    
+    ctx.view(&quot;users/form&quot;, json!({
+        &quot;user&quot;: load_user_data().await?,
+        &quot;action&quot;: &quot;/users/create&quot;
+    }))
+}
+#}</code></pre></pre>
+<p>Template (Total.js syntax):</p>
+<pre><code class="language-html">&lt;!-- Default token --&gt;
+&lt;form action=&quot;@{action}&quot; method=&quot;POST&quot;&gt;
+    @{csrf}  &lt;!-- Auto-generated hidden input --&gt;
+    
+    &lt;div class=&quot;form-group&quot;&gt;
+        &lt;label&gt;Name:&lt;/label&gt;
+        &lt;input type=&quot;text&quot; name=&quot;name&quot; value=&quot;@{user.name}&quot; required&gt;
+    &lt;/div&gt;
+    
+    &lt;div class=&quot;form-group&quot;&gt;
+        &lt;label&gt;Email:&lt;/label&gt;
+        &lt;input type=&quot;email&quot; name=&quot;email&quot; value=&quot;@{user.email}&quot; required&gt;
+    &lt;/div&gt;
+    
+    &lt;button type=&quot;submit&quot;&gt;Save User&lt;/button&gt;
+&lt;/form&gt;
+
+&lt;!-- Multiple forms with different tokens --&gt;
+&lt;form id=&quot;userForm&quot; method=&quot;POST&quot; action=&quot;/users&quot;&gt;
+    @{csrf}  &lt;!-- Default token --&gt;
+    &lt;!-- form fields --&gt;
+&lt;/form&gt;
+
+&lt;form id=&quot;uploadForm&quot; method=&quot;POST&quot; action=&quot;/upload&quot;&gt;
+    @{csrf(&quot;upload_csrf&quot;)}  &lt;!-- Custom upload token --&gt;
+    &lt;input type=&quot;file&quot; name=&quot;file&quot;&gt;
+&lt;/form&gt;
+</code></pre>
+<a class="header" href="guides/security.html#manual-token-inclusion" id="manual-token-inclusion"><h3>Manual Token Inclusion</h3></a>
+<p>If you need to include tokens manually in data:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+async fn manual_form(ctx: Context) -&gt; Result&lt;Response&gt; {
+    let csrf_token = ctx.generate_csrf()?;
+    
+    ctx.view(&quot;forms/manual&quot;, json!({
+        &quot;csrf_token&quot;: csrf_token,
+        &quot;form_data&quot;: load_form_data().await?
+    }))
+}
+#}</code></pre></pre>
+<p>Template:</p>
+<pre><code class="language-html">&lt;!-- Default token manual inclusion --&gt;
+&lt;form action=&quot;/users&quot; method=&quot;POST&quot;&gt;
+    &lt;input type=&quot;hidden&quot; name=&quot;_csrf_token&quot; value=&quot;@{csrf_token}&quot;&gt;
+    &lt;!-- form fields... --&gt;
+&lt;/form&gt;
+
+&lt;!-- Custom token manual inclusion --&gt;
+&lt;form action=&quot;/api/action&quot; method=&quot;POST&quot;&gt;
+    &lt;input type=&quot;hidden&quot; name=&quot;api_csrf&quot; value=&quot;@{csrf_token.api_csrf}&quot;&gt;
+    &lt;!-- form fields... --&gt;
+&lt;/form&gt;
+
+&lt;!-- Mixed approach --&gt;
+&lt;div&gt;
+    &lt;form method=&quot;POST&quot; action=&quot;/form1&quot;&gt;
+        @{csrf}  &lt;!-- Auto-generated --&gt;
+    &lt;/form&gt;
+    
+    &lt;form method=&quot;POST&quot; action=&quot;/form2&quot;&gt;
+        &lt;input type=&quot;hidden&quot; name=&quot;form2_csrf&quot; value=&quot;@{csrf_token.form2_csrf}&quot;&gt;
+    &lt;/form&gt;
+&lt;/div&gt;
+</code></pre>
+<a class="header" href="guides/security.html#form-processing" id="form-processing"><h3>Form Processing</h3></a>
+<p>Form processing requires no changes - CSRF is handled by middleware:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+async fn process_user_form(ctx: Context) -&gt; Result&lt;Response&gt; {
+    // CSRF already validated by middleware
+    let form_data = ctx.body_form()?;
+    
+    // Validate form data
+    let user_data = validate_user_form(&amp;form_data)?;
+    
+    // Save user
+    let user = create_user(&amp;user_data).await?;
+    
+    // Success response
+    ctx.flash_success(&quot;User created successfully!&quot;);
+    ctx.redirect(&quot;/users&quot;)
+}
+#}</code></pre></pre>
+<a class="header" href="guides/security.html#advanced-usage" id="advanced-usage"><h2>Advanced Usage</h2></a>
+<a class="header" href="guides/security.html#conditional-csrf-protection" id="conditional-csrf-protection"><h3>Conditional CSRF Protection</h3></a>
+<p>Apply CSRF protection conditionally:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use rustf::security::CsrfConfig;
+
+// Environment-based configuration
+let csrf_config = match env::var(&quot;ENVIRONMENT&quot;).as_deref() {
+    Ok(&quot;development&quot;) =&gt; {
+        // Relaxed CSRF in development
+        CsrfConfig::new()
+            .exempt(&quot;/debug/*&quot;)
+            .exempt(&quot;/test/*&quot;)
+    }
+    Ok(&quot;production&quot;) =&gt; {
+        // Strict CSRF in production  
+        CsrfConfig::new()
+            .error_message(&quot;Security validation failed&quot;)
+            .redirect_on_failure(&quot;/login&quot;)
+    }
+    _ =&gt; CsrfConfig::new()  // Default
+};
+#}</code></pre></pre>
+<a class="header" href="guides/security.html#custom-http-methods" id="custom-http-methods"><h3>Custom HTTP Methods</h3></a>
+<p>Protect custom HTTP methods:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+let csrf_config = CsrfConfig::new()
+    .protect_method(&quot;CUSTOM&quot;)       // Add protection
+    .protect_method(&quot;MERGE&quot;)        // Custom REST method
+    .exempt_method(&quot;DELETE&quot;);       // Remove DELETE protection
+
+app.middleware(&quot;csrf&quot;, CsrfMiddleware::with_config(csrf_config));
+
+// Custom method handling
+app.route(&quot;CUSTOM&quot;, &quot;/resources/:id&quot;, custom_method_handler);
+#}</code></pre></pre>
+<a class="header" href="guides/security.html#multiple-csrf-configurations" id="multiple-csrf-configurations"><h3>Multiple CSRF Configurations</h3></a>
+<p>Apply different CSRF configurations to different route groups:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Public API - no CSRF
+let public_routes = RouteGroup::new(&quot;/api/public&quot;)
+    .route(&quot;POST&quot;, &quot;/contact&quot;, contact_handler)
+    .route(&quot;POST&quot;, &quot;/newsletter&quot;, newsletter_handler);
+
+// Private API - CSRF required
+let private_api_config = CsrfConfig::new()
+    .error_message(&quot;API authentication failed&quot;);
+
+let private_routes = RouteGroup::new(&quot;/api/private&quot;)
+    .middleware(&quot;csrf&quot;, CsrfMiddleware::with_config(private_api_config))
+    .route(&quot;POST&quot;, &quot;/users&quot;, create_user)
+    .route(&quot;PUT&quot;, &quot;/users/:id&quot;, update_user);
+
+app.route_group(public_routes);
+app.route_group(private_routes);
+#}</code></pre></pre>
+<a class="header" href="guides/security.html#bypass-middleware-for-specific-controllers" id="bypass-middleware-for-specific-controllers"><h3>Bypass Middleware for Specific Controllers</h3></a>
+<p>Exempt specific controllers from global CSRF protection:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Global CSRF protection
+app.middleware(&quot;csrf&quot;, CsrfMiddleware::new());
+
+// Routes with CSRF
+app.post(&quot;/users&quot;, create_user_handler);
+app.put(&quot;/users/:id&quot;, update_user_handler);
+
+// Exempt webhook routes
+app.post(&quot;/webhook/stripe&quot;, stripe_webhook_handler);  // Exempt via /api/* default
+app.post(&quot;/integration/github&quot;, github_webhook_handler);  // Need explicit exemption
+
+// Add specific exemptions
+let csrf_config = CsrfConfig::new()
+    .exempt(&quot;/integration/*&quot;)
+    .exempt(&quot;/external/callback&quot;);
+    
+app.middleware(&quot;csrf&quot;, CsrfMiddleware::with_config(csrf_config));
+#}</code></pre></pre>
+<a class="header" href="guides/security.html#troubleshooting" id="troubleshooting"><h2>Troubleshooting</h2></a>
+<a class="header" href="guides/security.html#common-issues" id="common-issues"><h3>Common Issues</h3></a>
+<a class="header" href="guides/security.html#1-403-csrf-token-errors" id="1-403-csrf-token-errors"><h4>1. 403 CSRF Token Errors</h4></a>
+<p><strong>Problem:</strong> Getting 403 errors on valid requests</p>
+<p><strong>Solutions:</strong></p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Check if route is properly exempted
+let csrf_config = CsrfConfig::new()
+    .exempt(&quot;/your/route/*&quot;);  // Add exemption
+
+// Verify token submission method
+// For default token:
+// - Header: X-CSRF-Token
+// - Form field: _token or _csrf_token  
+// - Query param: _token
+
+// For custom token (e.g., &quot;upload_csrf&quot;):
+// - Header: X-CSRF-Token
+// - Form field: upload_csrf
+// - Query param: upload_csrf
+
+// Check token expiration (tokens expire after 1 hour)
+// Generate a fresh token if needed
+
+// Remember: Tokens are one-time use
+// After successful verification, generate a new token for the next request
+#}</code></pre></pre>
+<a class="header" href="guides/security.html#2-ajax-requests-failing" id="2-ajax-requests-failing"><h4>2. AJAX Requests Failing</h4></a>
+<p><strong>Problem:</strong> AJAX requests returning 403 CSRF errors</p>
+<p><strong>Solutions:</strong></p>
+<pre><code class="language-javascript">// Method 1: Include CSRF header
+fetch('/api/endpoint', {
+    method: 'POST',
+    headers: {
+        'X-CSRF-Token': await getCsrfToken()  // Most reliable
+    },
+    body: formData
+});
+
+// Method 2: Check API route exemptions
+// Ensure /api/* routes are exempted or add specific exemptions
+</code></pre>
+<a class="header" href="guides/security.html#3-webhooks-failing" id="3-webhooks-failing"><h4>3. Webhooks Failing</h4></a>
+<p><strong>Problem:</strong> External webhooks returning 403 errors</p>
+<p><strong>Solutions:</strong></p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Add webhook exemptions
+let csrf_config = CsrfConfig::new()
+    .exempt(&quot;/webhook/*&quot;)           // All webhook routes
+    .exempt(&quot;/integration/*&quot;)       // Integration callbacks
+    .exempt(&quot;/callback/*&quot;);         // External callbacks
+#}</code></pre></pre>
+<a class="header" href="guides/security.html#4-token-generation-issues" id="4-token-generation-issues"><h4>4. Token Generation Issues</h4></a>
+<p><strong>Problem:</strong> CSRF tokens not being generated or stored</p>
+<p><strong>Solutions:</strong></p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Check session configuration
+// CSRF relies on sessions - ensure sessions are enabled
+
+// Manual token generation
+let token = ctx.generate_csrf(None)?;  // Default token
+let custom = ctx.generate_csrf(Some(&quot;custom_id&quot;))?;  // Custom token
+
+// Verify session storage
+// Check that session storage backend is working
+// Tokens are stored as: {&quot;token&quot;: &quot;...&quot;, &quot;valid_to&quot;: timestamp}
+#}</code></pre></pre>
+<a class="header" href="guides/security.html#5-token-reuse-issues" id="5-token-reuse-issues"><h4>5. Token Reuse Issues</h4></a>
+<p><strong>Problem:</strong> Token validation fails on second attempt</p>
+<p><strong>Solution:</strong> Tokens are <strong>one-time use</strong> - they are consumed after successful verification</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Generate new token for each form submission
+async fn show_form_after_submit(ctx: Context) -&gt; Result&lt;Response&gt; {
+    // Generate fresh token for the next submission
+    ctx.generate_csrf(None)?;
+    ctx.view(&quot;form&quot;, data)
+}
+
+// For AJAX: Fetch new token after each successful request
+#}</code></pre></pre>
+<a class="header" href="guides/security.html#debugging" id="debugging"><h3>Debugging</h3></a>
+<p>Enable debug logging to troubleshoot CSRF issues:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Add logging middleware to see request flow
+app.middleware(&quot;logging&quot;, LoggingMiddleware::new());
+
+// Check CSRF middleware execution
+// Look for log entries showing CSRF validation
+#}</code></pre></pre>
+<p>Check CSRF token presence and expiration:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+async fn debug_csrf(ctx: Context) -&gt; Result&lt;Response&gt; {
+    // Check default token
+    let token_data: Option&lt;serde_json::Value&gt; = ctx.session.get(&quot;_csrf_token&quot;);
+    let token_info = if let Some(data) = token_data {
+        json!({
+            &quot;token&quot;: data.get(&quot;token&quot;),
+            &quot;expires_at&quot;: data.get(&quot;valid_to&quot;),
+            &quot;expired&quot;: {
+                let now = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH).unwrap()
+                    .as_secs();
+                data.get(&quot;valid_to&quot;)
+                    .and_then(|v| v.as_u64())
+                    .map(|exp| now &gt; exp)
+                    .unwrap_or(true)
+            }
+        })
+    } else {
+        json!(null)
+    };
+    
+    ctx.json(json!({
+        &quot;token_info&quot;: token_info,
+        &quot;headers&quot;: ctx.request.headers,
+        &quot;form_data&quot;: ctx.body_form().unwrap_or_default()
+    }))
+}
+#}</code></pre></pre>
+<a class="header" href="guides/security.html#best-practices" id="best-practices"><h2>Best Practices</h2></a>
+<a class="header" href="guides/security.html#1-default-configuration" id="1-default-configuration"><h3>1. Default Configuration</h3></a>
+<p>Start with default CSRF configuration and customize as needed:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Good: Start simple
+app.middleware(&quot;csrf&quot;, CsrfMiddleware::new());
+
+// Then customize for specific needs
+let csrf_config = CsrfConfig::new()
+    .exempt(&quot;/specific/webhook&quot;)
+    .error_message(&quot;Custom error message&quot;);
+#}</code></pre></pre>
+<a class="header" href="guides/security.html#2-route-organization" id="2-route-organization"><h3>2. Route Organization</h3></a>
+<p>Organize routes to minimize exemptions:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Good: Group exempt routes under common prefixes
+app.post(&quot;/api/webhook/stripe&quot;, stripe_handler);        // Auto-exempt
+app.post(&quot;/api/webhook/github&quot;, github_handler);        // Auto-exempt
+app.post(&quot;/api/integration/slack&quot;, slack_handler);      // Auto-exempt
+
+// Better than scattered exemptions
+let csrf_config = CsrfConfig::new()
+    .exempt(&quot;/webhook/stripe&quot;)      // Scattered
+    .exempt(&quot;/integration/github&quot;)  // Scattered  
+    .exempt(&quot;/callback/slack&quot;);     // Scattered
+#}</code></pre></pre>
+<a class="header" href="guides/security.html#3-token-management" id="3-token-management"><h3>3. Token Management</h3></a>
+<p>Use context methods for token management:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Good: Generate tokens before rendering
+async fn show_form(ctx: Context) -&gt; Result&lt;Response&gt; {
+    ctx.generate_csrf(None)?;  // Default token
+    ctx.generate_csrf(Some(&quot;api_csrf&quot;))?;  // API token
+    ctx.view(&quot;form&quot;, data)  // Tokens accessible in templates
+}
+
+// Good: Regenerate after consumption
+async fn handle_form(ctx: Context) -&gt; Result&lt;Response&gt; {
+    if !ctx.verify_csrf(None)? {
+        return ctx.throw403(Some(&quot;Invalid token&quot;));
+    }
+    // Token consumed, generate new one for next request
+    ctx.generate_csrf(None)?;
+    ctx.redirect(&quot;/form&quot;)
+}
+
+// Avoid: Reusing tokens
+// Tokens are one-time use - always generate fresh tokens
+#}</code></pre></pre>
+<a class="header" href="guides/security.html#4-error-handling" id="4-error-handling"><h3>4. Error Handling</h3></a>
+<p>Provide user-friendly error messages:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+let csrf_config = CsrfConfig::new()
+    .error_message(&quot;Your session has expired. Please refresh the page and try again.&quot;)
+    .redirect_on_failure(&quot;/login&quot;)  // Better UX than error page
+    .flash_error_key(&quot;security_message&quot;);
+#}</code></pre></pre>
+<a class="header" href="guides/security.html#5-testing" id="5-testing"><h3>5. Testing</h3></a>
+<p>Test CSRF protection in your application:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+#[cfg(test)]
+mod tests {
+    use super::*;
+    
+    #[tokio::test]
+    async fn test_csrf_protection() {
+        let app = test_app_with_csrf();
+        
+        // Test protected route without token (should fail)
+        let response = app.post(&quot;/users&quot;).send().await;
+        assert_eq!(response.status(), 403);
+        
+        // Test with valid token (should succeed)
+        let csrf_token = get_csrf_token(&amp;app).await;
+        let response = app.post(&quot;/users&quot;)
+            .header(&quot;X-CSRF-Token&quot;, csrf_token)
+            .json(json!({&quot;name&quot;: &quot;Test User&quot;}))
+            .send().await;
+        assert_eq!(response.status(), 200);
+    }
+    
+    #[tokio::test]
+    async fn test_exempt_routes() {
+        let app = test_app_with_csrf();
+        
+        // Test exempt route (should succeed without token)
+        let response = app.post(&quot;/api/webhook/test&quot;).send().await;
+        assert_eq!(response.status(), 200);
+    }
+}
+#}</code></pre></pre>
+<a class="header" href="guides/security.html#6-performance-considerations" id="6-performance-considerations"><h3>6. Performance Considerations</h3></a>
+<ul>
+<li>CSRF middleware has minimal performance impact</li>
+<li>Session reads/writes only occur on protected requests</li>
+<li>Pattern matching is optimized for common cases</li>
+<li>Consider using <code>should_run()</code> for conditional execution</li>
+</ul>
+<a class="header" href="guides/security.html#7-security-considerations" id="7-security-considerations"><h3>7. Security Considerations</h3></a>
+<ul>
+<li>Always use HTTPS in production to protect tokens in transit</li>
+<li>Tokens are automatically one-time use (prevents replay attacks)</li>
+<li>Tokens expire after 1 hour (limits attack window)</li>
+<li>Support for multiple concurrent tokens (different security contexts)</li>
+<li>Monitor for unusual CSRF failure patterns (potential attacks)</li>
+<li>Regularly review and update route exemptions</li>
+</ul>
+<hr />
+<a class="header" href="guides/security.html#summary" id="summary"><h2>Summary</h2></a>
+<p>RustF's CSRF protection provides:</p>
+<p>✅ <strong>One-Time Use Tokens</strong> - Consumed after verification (prevents replay attacks)<br />
+✅ <strong>Token Expiration</strong> - Automatic 1-hour expiration<br />
+✅ <strong>Multiple Concurrent Tokens</strong> - Different tokens for different forms<br />
+✅ <strong>Zero Configuration</strong> - Works out-of-the-box with sensible defaults<br />
+✅ <strong>Automatic Protection</strong> - HTTP method-based validation<br />
+✅ <strong>Flexible Configuration</strong> - Extensive customization options<br />
+✅ <strong>Session Integration</strong> - Seamless token storage and validation<br />
+✅ <strong>Multiple Token Sources</strong> - Headers, forms, and query parameters<br />
+✅ <strong>Smart Error Handling</strong> - Context-aware error responses<br />
+✅ <strong>Developer Friendly</strong> - Convenient context methods and helpers</p>
+<a class="header" href="guides/security.html#related-topics" id="related-topics"><h2>Related Topics</h2></a>
+<ul>
+<li><a href="middleware.md">Middleware</a> - Request/response processing and security middleware</li>
+<li><a href="configuration.md">Configuration</a> - Security configuration options</li>
+<li><a href="sessions.md">Sessions</a> - Secure session management</li>
+<li><a href="error-handling.md">Error Handling</a> - Secure error responses</li>
+</ul>
+<hr />
+<a class="header" href="guides/security.html#additional-security-features" id="additional-security-features"><h2>Additional Security Features</h2></a>
+<p>See the <a href="../guides/configuration.md#security">Security Configuration</a> section for more security options.</p>
+
+                </div>
+
+                <!-- Mobile navigation buttons -->
+                
+                    <a rel="prev" href="guides/configuration.html" class="mobile-nav-chapters previous" title="Previous chapter">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                
+
+                
+                    <a rel="next" href="guides/error-handling.html" class="mobile-nav-chapters next" title="Next chapter">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+                
+
+            </div>
+
+            
+                <a href="guides/configuration.html" class="nav-chapters previous" title="You can navigate through the chapters using the arrow keys">
+                    <i class="fa fa-angle-left"></i>
+                </a>
+            
+
+            
+                <a href="guides/error-handling.html" class="nav-chapters next" title="You can navigate through the chapters using the arrow keys">
+                    <i class="fa fa-angle-right"></i>
+                </a>
+            
+
+        </div>
+
+
+        <!-- Local fallback for Font Awesome -->
+        <script>
+            if ($(".fa").css("font-family") !== "FontAwesome") {
+                $('<link rel="stylesheet" type="text/css" href="_FontAwesome/css/font-awesome.css">').prependTo('head');
+            }
+        </script>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        
+
+        
+
+        
+
+        
+
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS script -->
+        
+
+    </body>
+</html>
