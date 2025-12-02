@@ -67,13 +67,21 @@ impl SessionStorageFactory {
                 url,
                 prefix,
                 pool_size,
-                connection_timeout: _,
-                command_timeout: _,
+                connection_timeout,
+                command_timeout,
             } => {
                 use crate::session::redis::RedisSessionStorage;
                 let storage = Arc::new(
-                    RedisSessionStorage::from_url(url, prefix, *pool_size, fingerprint_mode)
-                        .await?,
+                    RedisSessionStorage::from_url(
+                        url,
+                        prefix,
+                        *pool_size,
+                        fingerprint_mode,
+                        Duration::from_secs(30 * 60), // Default 30 minutes TTL
+                        Duration::from_millis(*connection_timeout),
+                        Duration::from_millis(*command_timeout),
+                    )
+                    .await?,
                 );
                 Ok(storage)
             }
@@ -107,8 +115,16 @@ impl SessionStorageFactory {
     ) -> Result<Arc<dyn SessionStorage>> {
         use crate::session::redis::RedisSessionStorage;
         let storage = Arc::new(
-            RedisSessionStorage::from_url(redis_url, "rustf:session:", 10, fingerprint_mode)
-                .await?,
+            RedisSessionStorage::from_url(
+                redis_url,
+                "rustf:session:",
+                10,
+                fingerprint_mode,
+                Duration::from_secs(30 * 60), // Default 30 minutes TTL
+                Duration::from_secs(5),       // Default 5 seconds connection timeout
+                Duration::from_secs(3),        // Default 3 seconds command timeout
+            )
+            .await?,
         );
         Ok(storage)
     }
