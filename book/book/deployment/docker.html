@@ -1,0 +1,385 @@
+<!DOCTYPE HTML>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Docker - RustF Framework Documentation</title>
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="Complete guide to the RustF MVC web framework for Rust">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <base href="../">
+
+        <link rel="stylesheet" href="book.css">
+        <link href="https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800" rel="stylesheet" type="text/css">
+        <link href="https://fonts.googleapis.com/css?family=Source+Code+Pro:500" rel="stylesheet" type="text/css">
+
+        <link rel="shortcut icon" href="favicon.png">
+
+        <!-- Font Awesome -->
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
+
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme -->
+        
+
+        
+
+        <!-- Fetch Clipboard.js from CDN but have a local fallback -->
+        <script src="https://cdn.jsdelivr.net/clipboard.js/1.6.1/clipboard.min.js"></script>
+        <script>
+            if (typeof Clipboard == 'undefined') {
+                document.write(unescape("%3Cscript src='clipboard.min.js'%3E%3C/script%3E"));
+            }
+        </script>
+
+        <!-- Fetch JQuery from CDN but have a local fallback -->
+        <script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+        <script>
+            if (typeof jQuery == 'undefined') {
+                document.write(unescape("%3Cscript src='jquery.js'%3E%3C/script%3E"));
+            }
+        </script>
+
+        <!-- Fetch store.js from local - TODO add CDN when 2.x.x is available on cdnjs -->
+        <script src="store.js"></script>
+
+    </head>
+    <body class="light">
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme = store.get('mdbook-theme');
+            if (theme === null || theme === undefined) { theme = 'light'; }
+            $('body').removeClass().addClass(theme);
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var sidebar = store.get('mdbook-sidebar');
+            if (sidebar === "hidden") { $("html").addClass("sidebar-hidden") }
+            else if (sidebar === "visible") { $("html").addClass("sidebar-visible") }
+        </script>
+
+        <div id="sidebar" class="sidebar">
+            <ul class="chapter"><li class="affix"><a href="README.html">Introduction</a></li><li><a href="getting-started/README.html"><strong>1.</strong> Quick Start</a></li><li><a href="getting-started/installation.html"><strong>2.</strong> Installation</a></li><li><a href="getting-started/hello-world.html"><strong>3.</strong> Hello World</a></li><li><a href="getting-started/project-structure.html"><strong>4.</strong> Project Structure</a></li><li><a href="guides/controllers.html"><strong>5.</strong> Controllers &amp; Routing</a></li><li><a href="guides/views.html"><strong>6.</strong> Views &amp; Templates</a></li><li><a href="guides/middleware.html"><strong>7.</strong> Middleware</a></li><li><a href="guides/sessions.html"><strong>8.</strong> Sessions</a></li><li><a href="guides/database.html"><strong>9.</strong> Database Integration</a></li><li><a href="guides/configuration.html"><strong>10.</strong> Configuration</a></li><li><a href="guides/security.html"><strong>11.</strong> Security</a></li><li><a href="guides/error-handling.html"><strong>12.</strong> Error Handling</a></li><li><a href="guides/schemas.html"><strong>13.</strong> Schemas &amp; Definitions</a></li><li><a href="advanced/README.html"><strong>14.</strong> Overview</a></li><li><a href="advanced/performance.html"><strong>15.</strong> Performance Optimization</a></li><li><a href="advanced/workers.html"><strong>16.</strong> Workers</a></li><li><a href="advanced/events.html"><strong>17.</strong> Events</a></li><li><a href="advanced/modules.html"><strong>18.</strong> Modules</a></li><li><a href="advanced/cli.html"><strong>19.</strong> CLI Tool</a></li><li><a href="api-reference/README.html"><strong>20.</strong> Overview</a></li><li><a href="api-reference/context.html"><strong>21.</strong> Context API</a></li><li><a href="api-reference/models.html"><strong>22.</strong> Model API</a></li><li><a href="api-reference/routing.html"><strong>23.</strong> Routing API</a></li><li><a href="api-reference/utilities.html"><strong>24.</strong> Utilities</a></li><li><a href="examples/README.html"><strong>25.</strong> Overview</a></li><li><a href="examples/rest-api.html"><strong>26.</strong> Building a REST API</a></li><li><a href="examples/authentication.html"><strong>27.</strong> Authentication</a></li><li><a href="examples/real-world-app.html"><strong>28.</strong> Real-World Application</a></li><li><a href="deployment/production.html"><strong>29.</strong> Production Deployment</a></li><li><a href="deployment/docker.html" class="active"><strong>30.</strong> Docker</a></li></ul>
+        </div>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page" tabindex="-1">
+                
+                <div id="menu-bar" class="menu-bar">
+                    <div class="left-buttons">
+                        <i id="sidebar-toggle" class="fa fa-bars" title="Toggle sidebar"></i>
+                        <i id="theme-toggle" class="fa fa-paint-brush" title="Change theme"></i>
+                    </div>
+
+                    <h1 class="menu-title">RustF Framework Documentation</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html">
+                            <i id="print-button" class="fa fa-print" title="Print this book"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <div id="content" class="content">
+                    <a class="header" href="deployment/docker.html#docker-deployment" id="docker-deployment"><h1>Docker Deployment</h1></a>
+<p>This guide covers containerizing and deploying RustF applications with Docker.</p>
+<a class="header" href="deployment/docker.html#dockerfile" id="dockerfile"><h2>Dockerfile</h2></a>
+<a class="header" href="deployment/docker.html#multi-stage-build" id="multi-stage-build"><h3>Multi-Stage Build</h3></a>
+<p>Create <code>Dockerfile</code>:</p>
+<pre><code class="language-dockerfile"># Build stage
+FROM rust:1.70 as builder
+
+WORKDIR /app
+
+# Copy dependency files
+COPY Cargo.toml Cargo.lock ./
+COPY rustf/Cargo.toml ./rustf/
+COPY rustf-macros/Cargo.toml ./rustf-macros/
+
+# Copy source code
+COPY . .
+
+# Build release binary
+RUN cargo build --release
+
+# Runtime stage
+FROM debian:bookworm-slim
+
+# Install runtime dependencies
+RUN apt-get update &amp;&amp; apt-get install -y \
+    ca-certificates \
+    libssl3 \
+    &amp;&amp; rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy binary from builder
+COPY --from=builder /app/target/release/rustf-app /app/rustf-app
+
+# Copy configuration and static files
+COPY config.toml ./
+COPY views ./views
+COPY public ./public
+
+# Create non-root user
+RUN useradd -m -u 1000 appuser &amp;&amp; \
+    chown -R appuser:appuser /app
+
+USER appuser
+
+EXPOSE 8000
+
+CMD [&quot;./rustf-app&quot;]
+</code></pre>
+<a class="header" href="deployment/docker.html#docker-compose" id="docker-compose"><h2>Docker Compose</h2></a>
+<p>Create <code>docker-compose.yml</code>:</p>
+<pre><code class="language-yaml">version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - &quot;8000:8000&quot;
+    environment:
+      - RUSTF_ENV=production
+      - DATABASE_URL=postgresql://user:pass@db:5432/dbname
+    depends_on:
+      - db
+      - redis
+    volumes:
+      - ./config.toml:/app/config.toml
+      - ./views:/app/views
+      - ./public:/app/public
+    restart: unless-stopped
+
+  db:
+    image: postgres:15
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=pass
+      - POSTGRES_DB=dbname
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+</code></pre>
+<a class="header" href="deployment/docker.html#build-and-run" id="build-and-run"><h2>Build and Run</h2></a>
+<a class="header" href="deployment/docker.html#build-image" id="build-image"><h3>Build Image</h3></a>
+<pre><code class="language-bash">docker build -t rustf-app .
+</code></pre>
+<a class="header" href="deployment/docker.html#run-container" id="run-container"><h3>Run Container</h3></a>
+<pre><code class="language-bash">docker run -d \
+  -p 8000:8000 \
+  -e RUSTF_ENV=production \
+  -v $(pwd)/config.toml:/app/config.toml \
+  --name rustf-app \
+  rustf-app
+</code></pre>
+<a class="header" href="deployment/docker.html#docker-compose-1" id="docker-compose-1"><h3>Docker Compose</h3></a>
+<pre><code class="language-bash"># Start all services
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Stop services
+docker-compose down
+</code></pre>
+<a class="header" href="deployment/docker.html#production-dockerfile" id="production-dockerfile"><h2>Production Dockerfile</h2></a>
+<p>Optimized for production:</p>
+<pre><code class="language-dockerfile">FROM rust:1.70 as builder
+
+WORKDIR /app
+
+# Install build dependencies
+RUN apt-get update &amp;&amp; apt-get install -y \
+    pkg-config \
+    libssl-dev \
+    &amp;&amp; rm -rf /var/lib/apt/lists/*
+
+# Copy and build
+COPY . .
+RUN cargo build --release
+
+FROM debian:bookworm-slim
+
+RUN apt-get update &amp;&amp; apt-get install -y \
+    ca-certificates \
+    libssl3 \
+    &amp;&amp; rm -rf /var/lib/apt/lists/* \
+    &amp;&amp; useradd -m -u 1000 appuser
+
+WORKDIR /app
+
+COPY --from=builder /app/target/release/rustf-app /app/
+COPY --from=builder /app/config.toml ./
+COPY --from=builder /app/views ./views
+COPY --from=builder /app/public ./public
+
+RUN chown -R appuser:appuser /app
+
+USER appuser
+
+EXPOSE 8000
+
+HEALTHCHECK --interval=30s --timeout=3s \
+  CMD curl -f http://localhost:8000/health || exit 1
+
+CMD [&quot;./rustf-app&quot;]
+</code></pre>
+<a class="header" href="deployment/docker.html#dockerignore" id="dockerignore"><h2>.dockerignore</h2></a>
+<p>Create <code>.dockerignore</code>:</p>
+<pre><code>target/
+.git/
+.gitignore
+*.md
+.env
+.env.local
+*.log
+</code></pre>
+<a class="header" href="deployment/docker.html#kubernetes" id="kubernetes"><h2>Kubernetes</h2></a>
+<a class="header" href="deployment/docker.html#deployment" id="deployment"><h3>Deployment</h3></a>
+<p>Create <code>k8s/deployment.yaml</code>:</p>
+<pre><code class="language-yaml">apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rustf-app
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: rustf-app
+  template:
+    metadata:
+      labels:
+        app: rustf-app
+    spec:
+      containers:
+      - name: rustf-app
+        image: rustf-app:latest
+        ports:
+        - containerPort: 8000
+        env:
+        - name: RUSTF_ENV
+          value: &quot;production&quot;
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: db-secret
+              key: url
+        resources:
+          requests:
+            memory: &quot;256Mi&quot;
+            cpu: &quot;250m&quot;
+          limits:
+            memory: &quot;512Mi&quot;
+            cpu: &quot;500m&quot;
+</code></pre>
+<a class="header" href="deployment/docker.html#service" id="service"><h3>Service</h3></a>
+<p>Create <code>k8s/service.yaml</code>:</p>
+<pre><code class="language-yaml">apiVersion: v1
+kind: Service
+metadata:
+  name: rustf-app
+spec:
+  selector:
+    app: rustf-app
+  ports:
+  - port: 80
+    targetPort: 8000
+  type: LoadBalancer
+</code></pre>
+<a class="header" href="deployment/docker.html#best-practices" id="best-practices"><h2>Best Practices</h2></a>
+<ol>
+<li><strong>Use multi-stage builds</strong> to reduce image size</li>
+<li><strong>Run as non-root user</strong> for security</li>
+<li><strong>Use .dockerignore</strong> to exclude unnecessary files</li>
+<li><strong>Set resource limits</strong> in production</li>
+<li><strong>Use health checks</strong> for monitoring</li>
+<li><strong>Keep images updated</strong> with security patches</li>
+<li><strong>Use secrets management</strong> for sensitive data</li>
+<li><strong>Enable logging</strong> for debugging</li>
+</ol>
+<a class="header" href="deployment/docker.html#troubleshooting" id="troubleshooting"><h2>Troubleshooting</h2></a>
+<a class="header" href="deployment/docker.html#container-wont-start" id="container-wont-start"><h3>Container won't start</h3></a>
+<pre><code class="language-bash"># Check logs
+docker logs rustf-app
+
+# Run interactively
+docker run -it rustf-app /bin/bash
+</code></pre>
+<a class="header" href="deployment/docker.html#database-connection-issues" id="database-connection-issues"><h3>Database connection issues</h3></a>
+<ul>
+<li>Verify database URL</li>
+<li>Check network connectivity</li>
+<li>Verify credentials</li>
+</ul>
+<a class="header" href="deployment/docker.html#performance-issues" id="performance-issues"><h3>Performance issues</h3></a>
+<ul>
+<li>Increase resource limits</li>
+<li>Enable connection pooling</li>
+<li>Use caching layer</li>
+</ul>
+
+                </div>
+
+                <!-- Mobile navigation buttons -->
+                
+                    <a rel="prev" href="deployment/production.html" class="mobile-nav-chapters previous" title="Previous chapter">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                
+
+                
+
+            </div>
+
+            
+                <a href="deployment/production.html" class="nav-chapters previous" title="You can navigate through the chapters using the arrow keys">
+                    <i class="fa fa-angle-left"></i>
+                </a>
+            
+
+            
+
+        </div>
+
+
+        <!-- Local fallback for Font Awesome -->
+        <script>
+            if ($(".fa").css("font-family") !== "FontAwesome") {
+                $('<link rel="stylesheet" type="text/css" href="_FontAwesome/css/font-awesome.css">').prependTo('head');
+            }
+        </script>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        
+
+        
+
+        
+
+        
+
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS script -->
+        
+
+    </body>
+</html>

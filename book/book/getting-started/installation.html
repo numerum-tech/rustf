@@ -1,0 +1,303 @@
+<!DOCTYPE HTML>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Installation - RustF Framework Documentation</title>
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="Complete guide to the RustF MVC web framework for Rust">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <base href="../">
+
+        <link rel="stylesheet" href="book.css">
+        <link href="https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800" rel="stylesheet" type="text/css">
+        <link href="https://fonts.googleapis.com/css?family=Source+Code+Pro:500" rel="stylesheet" type="text/css">
+
+        <link rel="shortcut icon" href="favicon.png">
+
+        <!-- Font Awesome -->
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
+
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme -->
+        
+
+        
+
+        <!-- Fetch Clipboard.js from CDN but have a local fallback -->
+        <script src="https://cdn.jsdelivr.net/clipboard.js/1.6.1/clipboard.min.js"></script>
+        <script>
+            if (typeof Clipboard == 'undefined') {
+                document.write(unescape("%3Cscript src='clipboard.min.js'%3E%3C/script%3E"));
+            }
+        </script>
+
+        <!-- Fetch JQuery from CDN but have a local fallback -->
+        <script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+        <script>
+            if (typeof jQuery == 'undefined') {
+                document.write(unescape("%3Cscript src='jquery.js'%3E%3C/script%3E"));
+            }
+        </script>
+
+        <!-- Fetch store.js from local - TODO add CDN when 2.x.x is available on cdnjs -->
+        <script src="store.js"></script>
+
+    </head>
+    <body class="light">
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme = store.get('mdbook-theme');
+            if (theme === null || theme === undefined) { theme = 'light'; }
+            $('body').removeClass().addClass(theme);
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var sidebar = store.get('mdbook-sidebar');
+            if (sidebar === "hidden") { $("html").addClass("sidebar-hidden") }
+            else if (sidebar === "visible") { $("html").addClass("sidebar-visible") }
+        </script>
+
+        <div id="sidebar" class="sidebar">
+            <ul class="chapter"><li class="affix"><a href="README.html">Introduction</a></li><li><a href="getting-started/README.html"><strong>1.</strong> Quick Start</a></li><li><a href="getting-started/installation.html" class="active"><strong>2.</strong> Installation</a></li><li><a href="getting-started/hello-world.html"><strong>3.</strong> Hello World</a></li><li><a href="getting-started/project-structure.html"><strong>4.</strong> Project Structure</a></li><li><a href="guides/controllers.html"><strong>5.</strong> Controllers &amp; Routing</a></li><li><a href="guides/views.html"><strong>6.</strong> Views &amp; Templates</a></li><li><a href="guides/middleware.html"><strong>7.</strong> Middleware</a></li><li><a href="guides/sessions.html"><strong>8.</strong> Sessions</a></li><li><a href="guides/database.html"><strong>9.</strong> Database Integration</a></li><li><a href="guides/configuration.html"><strong>10.</strong> Configuration</a></li><li><a href="guides/security.html"><strong>11.</strong> Security</a></li><li><a href="guides/error-handling.html"><strong>12.</strong> Error Handling</a></li><li><a href="guides/schemas.html"><strong>13.</strong> Schemas &amp; Definitions</a></li><li><a href="advanced/README.html"><strong>14.</strong> Overview</a></li><li><a href="advanced/performance.html"><strong>15.</strong> Performance Optimization</a></li><li><a href="advanced/workers.html"><strong>16.</strong> Workers</a></li><li><a href="advanced/events.html"><strong>17.</strong> Events</a></li><li><a href="advanced/modules.html"><strong>18.</strong> Modules</a></li><li><a href="advanced/cli.html"><strong>19.</strong> CLI Tool</a></li><li><a href="api-reference/README.html"><strong>20.</strong> Overview</a></li><li><a href="api-reference/context.html"><strong>21.</strong> Context API</a></li><li><a href="api-reference/models.html"><strong>22.</strong> Model API</a></li><li><a href="api-reference/routing.html"><strong>23.</strong> Routing API</a></li><li><a href="api-reference/utilities.html"><strong>24.</strong> Utilities</a></li><li><a href="examples/README.html"><strong>25.</strong> Overview</a></li><li><a href="examples/rest-api.html"><strong>26.</strong> Building a REST API</a></li><li><a href="examples/authentication.html"><strong>27.</strong> Authentication</a></li><li><a href="examples/real-world-app.html"><strong>28.</strong> Real-World Application</a></li><li><a href="deployment/production.html"><strong>29.</strong> Production Deployment</a></li><li><a href="deployment/docker.html"><strong>30.</strong> Docker</a></li></ul>
+        </div>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page" tabindex="-1">
+                
+                <div id="menu-bar" class="menu-bar">
+                    <div class="left-buttons">
+                        <i id="sidebar-toggle" class="fa fa-bars" title="Toggle sidebar"></i>
+                        <i id="theme-toggle" class="fa fa-paint-brush" title="Change theme"></i>
+                    </div>
+
+                    <h1 class="menu-title">RustF Framework Documentation</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html">
+                            <i id="print-button" class="fa fa-print" title="Print this book"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <div id="content" class="content">
+                    <a class="header" href="getting-started/installation.html#installation" id="installation"><h1>Installation</h1></a>
+<p>This guide covers multiple ways to install and set up RustF for development.</p>
+<a class="header" href="getting-started/installation.html#method-1-using-rustf-cli-recommended" id="method-1-using-rustf-cli-recommended"><h2>Method 1: Using RustF CLI (Recommended)</h2></a>
+<p>The easiest way to create a new RustF project is using the CLI tool:</p>
+<a class="header" href="getting-started/installation.html#install-rustf-cli" id="install-rustf-cli"><h3>Install RustF CLI</h3></a>
+<pre><code class="language-bash"># Clone the repository
+git clone https://github.com/numerum-tech/rustf.git
+cd rustf/rustf-cli
+
+# Build and install
+cargo install --path .
+</code></pre>
+<a class="header" href="getting-started/installation.html#create-a-new-project" id="create-a-new-project"><h3>Create a New Project</h3></a>
+<pre><code class="language-bash"># Create a new project
+rustf-cli new project my-app
+
+# Navigate to your project
+cd my-app
+
+# Run the server
+cargo run
+</code></pre>
+<p>The CLI tool will:</p>
+<ul>
+<li>Set up the correct project structure</li>
+<li>Create necessary directories (controllers, models, views, etc.)</li>
+<li>Generate a basic <code>main.rs</code> with auto-discovery</li>
+<li>Create a sample controller</li>
+<li>Set up configuration files</li>
+</ul>
+<a class="header" href="getting-started/installation.html#method-2-manual-setup" id="method-2-manual-setup"><h2>Method 2: Manual Setup</h2></a>
+<p>If you prefer to set up a project manually:</p>
+<a class="header" href="getting-started/installation.html#1-create-a-new-cargo-project" id="1-create-a-new-cargo-project"><h3>1. Create a New Cargo Project</h3></a>
+<pre><code class="language-bash">cargo new my-app
+cd my-app
+</code></pre>
+<a class="header" href="getting-started/installation.html#2-add-dependencies" id="2-add-dependencies"><h3>2. Add Dependencies</h3></a>
+<p>Edit <code>Cargo.toml</code>:</p>
+<pre><code class="language-toml">[package]
+name = &quot;my-app&quot;
+version = &quot;0.1.0&quot;
+edition = &quot;2021&quot;
+
+[dependencies]
+rustf = { path = &quot;../rustf&quot; }  # Or from crates.io when published
+tokio = { version = &quot;1.0&quot;, features = [&quot;full&quot;] }
+serde = { version = &quot;1.0&quot;, features = [&quot;derive&quot;] }
+serde_json = &quot;1.0&quot;
+log = &quot;0.4&quot;
+env_logger = &quot;0.10&quot;
+</code></pre>
+<a class="header" href="getting-started/installation.html#3-create-project-structure" id="3-create-project-structure"><h3>3. Create Project Structure</h3></a>
+<pre><code class="language-bash">mkdir -p src/controllers src/models src/modules src/middleware
+mkdir -p views/layouts public/css public/js
+mkdir -p schemas uploads
+</code></pre>
+<a class="header" href="getting-started/installation.html#4-create-main-application" id="4-create-main-application"><h3>4. Create Main Application</h3></a>
+<p>Create <code>src/main.rs</code>:</p>
+<pre><pre class="playpen"><code class="language-rust">use rustf::prelude::*;
+
+#[tokio::main]
+async fn main() -&gt; rustf::Result&lt;()&gt; {
+    env_logger::init();
+    
+    let app = RustF::new()
+        .controllers(auto_controllers!())
+        .middleware_from(auto_middleware!());
+    
+    println!(&quot;🚀 Server at http://127.0.0.1:8000&quot;);
+    app.start().await
+}
+</code></pre></pre>
+<a class="header" href="getting-started/installation.html#5-create-your-first-controller" id="5-create-your-first-controller"><h3>5. Create Your First Controller</h3></a>
+<p>Create <code>src/controllers/home.rs</code>:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use rustf::prelude::*;
+
+pub fn install() -&gt; Vec&lt;Route&gt; {
+    routes![
+        GET &quot;/&quot; =&gt; index,
+    ]
+}
+
+async fn index(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    ctx.html(&quot;&lt;h1&gt;Hello, RustF!&lt;/h1&gt;&quot;)
+}
+#}</code></pre></pre>
+<a class="header" href="getting-started/installation.html#6-create-configuration" id="6-create-configuration"><h3>6. Create Configuration</h3></a>
+<p>Create <code>config.toml</code>:</p>
+<pre><code class="language-toml">[server]
+host = &quot;127.0.0.1&quot;
+port = 8000
+
+[views]
+directory = &quot;views&quot;
+cache_enabled = false
+</code></pre>
+<a class="header" href="getting-started/installation.html#method-3-using-git-template" id="method-3-using-git-template"><h2>Method 3: Using Git Template</h2></a>
+<p>You can also use the sample application as a template:</p>
+<pre><code class="language-bash"># Clone the repository
+git clone https://github.com/numerum-tech/rustf.git
+cd rustf/sample-app
+
+# Copy to your project
+cp -r . /path/to/your/project
+cd /path/to/your/project
+
+# Install dependencies and run
+cargo run
+</code></pre>
+<a class="header" href="getting-started/installation.html#verifying-installation" id="verifying-installation"><h2>Verifying Installation</h2></a>
+<p>After installation, verify everything works:</p>
+<pre><code class="language-bash"># Build the project
+cargo build
+
+# Run tests
+cargo test
+
+# Start the server
+cargo run
+</code></pre>
+<p>You should see:</p>
+<pre><code>🚀 Server at http://127.0.0.1:8000
+</code></pre>
+<p>Visit <code>http://127.0.0.1:8000</code> in your browser to see your application.</p>
+<a class="header" href="getting-started/installation.html#development-dependencies" id="development-dependencies"><h2>Development Dependencies</h2></a>
+<p>For development, you may also want to add:</p>
+<pre><code class="language-toml">[dev-dependencies]
+tokio-test = &quot;0.4&quot;
+tempfile = &quot;3.8&quot;
+</code></pre>
+<a class="header" href="getting-started/installation.html#troubleshooting" id="troubleshooting"><h2>Troubleshooting</h2></a>
+<a class="header" href="getting-started/installation.html#common-issues" id="common-issues"><h3>Common Issues</h3></a>
+<p><strong>Issue: &quot;cannot find crate <code>rustf</code>&quot;</strong></p>
+<ul>
+<li>Solution: Make sure you've added rustf to <code>Cargo.toml</code> dependencies</li>
+<li>If using local development: Use <code>path = &quot;../rustf&quot;</code> in Cargo.toml</li>
+<li>If using published version: Use <code>version = &quot;0.1.0&quot;</code> from crates.io</li>
+</ul>
+<p><strong>Issue: &quot;proc macro not found&quot;</strong></p>
+<ul>
+<li>Solution: Make sure <code>rustf-macros</code> is available</li>
+<li>Check that <code>auto-discovery</code> feature is enabled</li>
+</ul>
+<p><strong>Issue: &quot;port already in use&quot;</strong></p>
+<ul>
+<li>Solution: Change the port in <code>config.toml</code> or stop the other process</li>
+<li>Default port is 8000</li>
+</ul>
+<a class="header" href="getting-started/installation.html#next-steps" id="next-steps"><h2>Next Steps</h2></a>
+<p>Now that you have RustF installed:</p>
+<ol>
+<li><strong><a href="hello-world.md">Hello World Tutorial</a></strong> - Build your first application</li>
+<li><strong><a href="project-structure.md">Project Structure</a></strong> - Understand the framework layout</li>
+<li><strong><a href="../guides/controllers.md">Controllers Guide</a></strong> - Learn about routing and controllers</li>
+</ol>
+
+                </div>
+
+                <!-- Mobile navigation buttons -->
+                
+                    <a rel="prev" href="getting-started/README.html" class="mobile-nav-chapters previous" title="Previous chapter">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                
+
+                
+                    <a rel="next" href="getting-started/hello-world.html" class="mobile-nav-chapters next" title="Next chapter">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+                
+
+            </div>
+
+            
+                <a href="getting-started/README.html" class="nav-chapters previous" title="You can navigate through the chapters using the arrow keys">
+                    <i class="fa fa-angle-left"></i>
+                </a>
+            
+
+            
+                <a href="getting-started/hello-world.html" class="nav-chapters next" title="You can navigate through the chapters using the arrow keys">
+                    <i class="fa fa-angle-right"></i>
+                </a>
+            
+
+        </div>
+
+
+        <!-- Local fallback for Font Awesome -->
+        <script>
+            if ($(".fa").css("font-family") !== "FontAwesome") {
+                $('<link rel="stylesheet" type="text/css" href="_FontAwesome/css/font-awesome.css">').prependTo('head');
+            }
+        </script>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        
+
+        
+
+        
+
+        
+
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS script -->
+        
+
+    </body>
+</html>

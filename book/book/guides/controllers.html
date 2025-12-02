@@ -1,0 +1,1847 @@
+<!DOCTYPE HTML>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Controllers &amp; Routing - RustF Framework Documentation</title>
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="Complete guide to the RustF MVC web framework for Rust">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <base href="../">
+
+        <link rel="stylesheet" href="book.css">
+        <link href="https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800" rel="stylesheet" type="text/css">
+        <link href="https://fonts.googleapis.com/css?family=Source+Code+Pro:500" rel="stylesheet" type="text/css">
+
+        <link rel="shortcut icon" href="favicon.png">
+
+        <!-- Font Awesome -->
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
+
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme -->
+        
+
+        
+
+        <!-- Fetch Clipboard.js from CDN but have a local fallback -->
+        <script src="https://cdn.jsdelivr.net/clipboard.js/1.6.1/clipboard.min.js"></script>
+        <script>
+            if (typeof Clipboard == 'undefined') {
+                document.write(unescape("%3Cscript src='clipboard.min.js'%3E%3C/script%3E"));
+            }
+        </script>
+
+        <!-- Fetch JQuery from CDN but have a local fallback -->
+        <script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+        <script>
+            if (typeof jQuery == 'undefined') {
+                document.write(unescape("%3Cscript src='jquery.js'%3E%3C/script%3E"));
+            }
+        </script>
+
+        <!-- Fetch store.js from local - TODO add CDN when 2.x.x is available on cdnjs -->
+        <script src="store.js"></script>
+
+    </head>
+    <body class="light">
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme = store.get('mdbook-theme');
+            if (theme === null || theme === undefined) { theme = 'light'; }
+            $('body').removeClass().addClass(theme);
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var sidebar = store.get('mdbook-sidebar');
+            if (sidebar === "hidden") { $("html").addClass("sidebar-hidden") }
+            else if (sidebar === "visible") { $("html").addClass("sidebar-visible") }
+        </script>
+
+        <div id="sidebar" class="sidebar">
+            <ul class="chapter"><li class="affix"><a href="README.html">Introduction</a></li><li><a href="getting-started/README.html"><strong>1.</strong> Quick Start</a></li><li><a href="getting-started/installation.html"><strong>2.</strong> Installation</a></li><li><a href="getting-started/hello-world.html"><strong>3.</strong> Hello World</a></li><li><a href="getting-started/project-structure.html"><strong>4.</strong> Project Structure</a></li><li><a href="guides/controllers.html" class="active"><strong>5.</strong> Controllers &amp; Routing</a></li><li><a href="guides/views.html"><strong>6.</strong> Views &amp; Templates</a></li><li><a href="guides/middleware.html"><strong>7.</strong> Middleware</a></li><li><a href="guides/sessions.html"><strong>8.</strong> Sessions</a></li><li><a href="guides/database.html"><strong>9.</strong> Database Integration</a></li><li><a href="guides/configuration.html"><strong>10.</strong> Configuration</a></li><li><a href="guides/security.html"><strong>11.</strong> Security</a></li><li><a href="guides/error-handling.html"><strong>12.</strong> Error Handling</a></li><li><a href="guides/schemas.html"><strong>13.</strong> Schemas &amp; Definitions</a></li><li><a href="advanced/README.html"><strong>14.</strong> Overview</a></li><li><a href="advanced/performance.html"><strong>15.</strong> Performance Optimization</a></li><li><a href="advanced/workers.html"><strong>16.</strong> Workers</a></li><li><a href="advanced/events.html"><strong>17.</strong> Events</a></li><li><a href="advanced/modules.html"><strong>18.</strong> Modules</a></li><li><a href="advanced/cli.html"><strong>19.</strong> CLI Tool</a></li><li><a href="api-reference/README.html"><strong>20.</strong> Overview</a></li><li><a href="api-reference/context.html"><strong>21.</strong> Context API</a></li><li><a href="api-reference/models.html"><strong>22.</strong> Model API</a></li><li><a href="api-reference/routing.html"><strong>23.</strong> Routing API</a></li><li><a href="api-reference/utilities.html"><strong>24.</strong> Utilities</a></li><li><a href="examples/README.html"><strong>25.</strong> Overview</a></li><li><a href="examples/rest-api.html"><strong>26.</strong> Building a REST API</a></li><li><a href="examples/authentication.html"><strong>27.</strong> Authentication</a></li><li><a href="examples/real-world-app.html"><strong>28.</strong> Real-World Application</a></li><li><a href="deployment/production.html"><strong>29.</strong> Production Deployment</a></li><li><a href="deployment/docker.html"><strong>30.</strong> Docker</a></li></ul>
+        </div>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page" tabindex="-1">
+                
+                <div id="menu-bar" class="menu-bar">
+                    <div class="left-buttons">
+                        <i id="sidebar-toggle" class="fa fa-bars" title="Toggle sidebar"></i>
+                        <i id="theme-toggle" class="fa fa-paint-brush" title="Change theme"></i>
+                    </div>
+
+                    <h1 class="menu-title">RustF Framework Documentation</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html">
+                            <i id="print-button" class="fa fa-print" title="Print this book"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <div id="content" class="content">
+                    <a class="header" href="guides/controllers.html#rustf-controllers-user-guide" id="rustf-controllers-user-guide"><h1>RustF Controllers User Guide</h1></a>
+<p><strong>Complete documentation based on current framework implementation</strong></p>
+<a class="header" href="guides/controllers.html#overview" id="overview"><h2>Overview</h2></a>
+<p>RustF provides a clean, organized controller system inspired by Total.js. Controllers are Rust modules that group related route handlers together and expose them through an <code>install()</code> function. The framework supports both manual controller registration and automatic controller discovery for streamlined development.</p>
+<a class="header" href="guides/controllers.html#key-features" id="key-features"><h3>Key Features</h3></a>
+<ul>
+<li><strong>Convention-based routing</strong> - Clean <code>routes![]</code> macro syntax</li>
+<li><strong>Auto-discovery</strong> - Automatically finds and registers controllers at compile time</li>
+<li><strong>Total.js-inspired API</strong> - Familiar patterns for web developers</li>
+<li><strong>Type-safe handlers</strong> - All handlers are statically checked at compile time</li>
+<li><strong>Flexible organization</strong> - Group related functionality logically</li>
+</ul>
+<a class="header" href="guides/controllers.html#core-components" id="core-components"><h2>Core Components</h2></a>
+<a class="header" href="guides/controllers.html#route-system" id="route-system"><h3>Route System</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+pub struct Route {
+    pub method: String,    // HTTP method (GET, POST, PUT, DELETE)
+    pub path: String,      // URL pattern with optional parameters ({id})
+    pub handler: RouteHandler,  // Async handler function
+}
+
+// Type alias for route handlers - all handlers follow this signature
+pub type RouteHandler = for&lt;'a&gt; fn(&amp;'a mut Context) -&gt; Pin&lt;Box&lt;dyn Future&lt;Output = Result&lt;()&gt;&gt; + Send + 'a&gt;&gt;;
+#}</code></pre></pre>
+<p><strong>Route Handler Requirements:</strong></p>
+<ul>
+<li>Must be <code>async</code> functions</li>
+<li>Take a single <code>&amp;mut Context</code> parameter (mutable reference)</li>
+<li>Return <code>Result&lt;()&gt;</code> (response is set internally on Context)</li>
+<li>Are automatically wrapped by the <code>routes!</code> macro</li>
+</ul>
+<a class="header" href="guides/controllers.html#supported-http-methods" id="supported-http-methods"><h3>Supported HTTP Methods</h3></a>
+<p>The framework supports all standard HTTP methods:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Available in routes! macro:
+GET    &quot;/path&quot;     =&gt; handler_function
+POST   &quot;/path&quot;     =&gt; handler_function  
+PUT    &quot;/path&quot;     =&gt; handler_function
+DELETE &quot;/path&quot;     =&gt; handler_function
+
+// Manual route creation (rarely needed):
+Route::get(&quot;/users&quot;, handler)           // GET request
+Route::post(&quot;/users&quot;, handler)          // POST request
+Route::put(&quot;/users/{id}&quot;, handler)       // PUT request
+Route::delete(&quot;/users/{id}&quot;, handler)    // DELETE request
+#}</code></pre></pre>
+<a class="header" href="guides/controllers.html#controller-pattern" id="controller-pattern"><h2>Controller Pattern</h2></a>
+<a class="header" href="guides/controllers.html#basic-controller-structure" id="basic-controller-structure"><h3>Basic Controller Structure</h3></a>
+<p>Every controller must follow this exact pattern:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use rustf::prelude::*;
+
+// Required: Every controller must have an install() function
+pub fn install() -&gt; Vec&lt;Route&gt; {
+    routes![
+        GET &quot;/&quot; =&gt; index,
+        POST &quot;/submit&quot; =&gt; submit,
+        GET &quot;/item/{id}&quot; =&gt; show_item,
+    ]
+}
+
+// Handler functions - must be async and return Result&lt;()&gt;
+async fn index(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    let data = json!({&quot;message&quot;: &quot;Welcome!&quot;});
+    ctx.view(&quot;/home/index&quot;, data)
+}
+
+async fn submit(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    let form_data = ctx.body_form()?;
+    // Process form data
+    ctx.redirect(&quot;/success&quot;)
+}
+
+async fn show_item(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    let item_id = ctx.param(&quot;id&quot;).unwrap_or(&quot;0&quot;).to_string();
+    let data = json!({&quot;id&quot;: item_id});
+    ctx.json(data)
+}
+#}</code></pre></pre>
+<a class="header" href="guides/controllers.html#controller-file-organization" id="controller-file-organization"><h3>Controller File Organization</h3></a>
+<pre><code>src/controllers/
+├── home.rs          # Home page and static content
+├── auth.rs          # Login, logout, registration
+├── users.rs         # User management
+├── api/
+│   ├── users.rs     # API endpoints for users
+│   └── posts.rs     # API endpoints for posts
+└── admin.rs         # Admin functionality
+</code></pre>
+<a class="header" href="guides/controllers.html#the-routes-macro" id="the-routes-macro"><h3>The routes! Macro</h3></a>
+<p>The <code>routes!</code> macro provides clean, declarative route definition:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+routes![
+    // Basic routes
+    GET &quot;/&quot; =&gt; index,
+    GET &quot;/about&quot; =&gt; about,
+    
+    // Routes with parameters
+    GET &quot;/users/{id}&quot; =&gt; get_user,
+    GET &quot;/posts/{post_id}/comments/{comment_id}&quot; =&gt; get_comment,
+    
+    // Different HTTP methods
+    POST &quot;/users&quot; =&gt; create_user,
+    PUT &quot;/users/{id}&quot; =&gt; update_user,
+    DELETE &quot;/users/{id}&quot; =&gt; delete_user,
+    
+    // Complex paths
+    GET &quot;/api/v1/users/{id}/profile&quot; =&gt; get_user_profile,
+]
+#}</code></pre></pre>
+<p><strong>Features:</strong></p>
+<ul>
+<li>Clean, readable syntax</li>
+<li>Automatic handler wrapping</li>
+<li>Compile-time validation</li>
+<li>Support for URL parameters with <code>{parameter}</code> syntax</li>
+<li>Trailing commas allowed</li>
+</ul>
+<a class="header" href="guides/controllers.html#writing-route-handlers" id="writing-route-handlers"><h2>Writing Route Handlers</h2></a>
+<a class="header" href="guides/controllers.html#handler-function-requirements" id="handler-function-requirements"><h3>Handler Function Requirements</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Required signature for all handlers
+async fn handler_name(ctx: &amp;mut Context) -&gt; Result&lt;()&gt;
+#}</code></pre></pre>
+<p><strong>Handler Rules:</strong></p>
+<ul>
+<li>Must be <code>async</code> functions</li>
+<li>Must take exactly one <code>&amp;mut Context</code> parameter (mutable reference)</li>
+<li>Must return <code>Result&lt;()&gt;</code> - the response is set internally on the Context</li>
+<li>Can have any name (referenced in routes! macro)</li>
+<li>Are automatically wrapped by the framework</li>
+</ul>
+<a class="header" href="guides/controllers.html#response-handling-pattern" id="response-handling-pattern"><h3>Response Handling Pattern</h3></a>
+<p><strong>Key Change:</strong> Handlers now receive <code>&amp;mut Context</code> and return <code>Result&lt;()&gt;</code> instead of <code>Result&lt;Response&gt;</code>. This architectural change ensures that session data and all middleware modifications persist throughout the entire request/response lifecycle.</p>
+<a class="header" href="guides/controllers.html#how-responses-work" id="how-responses-work"><h4>How Responses Work</h4></a>
+<ol>
+<li><strong>Response Storage</strong>: The Context struct now contains an <code>Option&lt;Response&gt;</code> field initialized with a default 200 OK response</li>
+<li><strong>Setting Responses</strong>: All response helper methods (<code>json()</code>, <code>view()</code>, <code>redirect()</code>, etc.) internally call <code>ctx.set_response()</code></li>
+<li><strong>Return Type</strong>: Methods return <code>Result&lt;()&gt;</code> to indicate success/failure of setting the response</li>
+<li><strong>Middleware Access</strong>: Both inbound and outbound middleware can access and modify the response via <code>ctx.response</code></li>
+<li><strong>Response Helpers in Middleware</strong>: Since Context initializes with a default response, middleware can use the same response helpers (<code>ctx.json()</code>, <code>ctx.throw403()</code>, etc.) as handlers</li>
+</ol>
+<a class="header" href="guides/controllers.html#custom-response-creation" id="custom-response-creation"><h4>Custom Response Creation</h4></a>
+<p>If you need to create a custom response beyond the built-in helpers:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+async fn custom_response_handler(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    // Create a custom response
+    let response = Response::new(StatusCode::from_u16(418).unwrap())
+        .with_header(&quot;X-Custom&quot;, &quot;value&quot;)
+        .with_body(b&quot;I'm a teapot&quot;.to_vec());
+    
+    // Set it on the context
+    ctx.set_response(response);
+    Ok(())
+}
+#}</code></pre></pre>
+<a class="header" href="guides/controllers.html#error-handling-pattern" id="error-handling-pattern"><h4>Error Handling Pattern</h4></a>
+<p>Since handlers return <code>Result&lt;()&gt;</code>, error responses are handled the same way as success responses:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+async fn validated_handler(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    let data = ctx.body_json::&lt;MyData&gt;()?;
+    
+    if !data.is_valid() {
+        // Error response - still returns Result&lt;()&gt;
+        return ctx.throw400(Some(&quot;Invalid data&quot;));
+    }
+    
+    // Success response - also returns Result&lt;()&gt;
+    ctx.json(json!({&quot;status&quot;: &quot;success&quot;}))
+}
+#}</code></pre></pre>
+<a class="header" href="guides/controllers.html#working-with-context" id="working-with-context"><h3>Working with Context</h3></a>
+<p>The <code>Context</code> parameter provides access to all request/response functionality.</p>
+<p><strong>Important Note on Middleware Context Preservation:</strong>
+The framework ensures that all context modifications made by middleware (such as setting layout, repository data, or session values) are properly preserved and passed to your controller handlers. The context is passed by mutable reference through the middleware chain and arrives at your handler with all modifications intact.</p>
+<a class="header" href="guides/controllers.html#request-data" id="request-data"><h4>Request Data</h4></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// URL parameters (/users/{id} -&gt; id)
+let user_id = ctx.param(&quot;id&quot;).unwrap_or(&quot;0&quot;);
+
+// Query parameters (?page=2 -&gt; page)
+let page = ctx.query(&quot;page&quot;).unwrap_or(&quot;1&quot;);
+
+// Form data - Three approaches available:
+
+// 1. Manual parsing (low-level, verbose but flexible)
+let form_data = ctx.body_form()?;
+let email = form_data.get(&quot;email&quot;).unwrap_or(&amp;String::new());
+
+// 2. Typed parsing (recommended - automatic deserialization)
+#[derive(serde::Deserialize)]
+struct LoginForm {
+    email: String,
+    password: String,
+}
+let form: LoginForm = ctx.body_form_typed()?;
+let email = form.email;
+
+// 3. Individual field helpers (for simple cases)
+let email = ctx.str_body(&quot;email&quot;)?;              // Required field
+let name = ctx.str_body_or(&quot;name&quot;, &quot;Anonymous&quot;); // Optional with default
+let age = ctx.int_body(&quot;age&quot;)?;                  // Parse as integer
+let active = ctx.bool_body_or(&quot;active&quot;, false);  // Parse as boolean
+
+// JSON body
+let json_data: MyStruct = ctx.body_json()?;
+
+// Headers
+let auth_header = ctx.header(&quot;Authorization&quot;);
+
+// File uploads
+let uploaded_file = ctx.file(&quot;avatar&quot;)?;
+#}</code></pre></pre>
+<a class="header" href="guides/controllers.html#response-modification" id="response-modification"><h4>Response Modification</h4></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Add custom headers to response
+ctx.add_header(&quot;X-Custom-Header&quot;, &quot;value&quot;);
+ctx.add_header(&quot;Cache-Control&quot;, &quot;no-cache&quot;);
+
+// Set response status code
+ctx.status(hyper::StatusCode::CREATED);  // 201 Created
+ctx.status(hyper::StatusCode::ACCEPTED); // 202 Accepted
+
+// These methods are particularly useful in middleware
+// since Context now initializes with a default 200 OK response
+#}</code></pre></pre>
+<a class="header" href="guides/controllers.html#response-generation" id="response-generation"><h4>Response Generation</h4></a>
+<p><strong>Important:</strong> All response methods now set the response internally on the Context and return <code>Result&lt;()&gt;</code> instead of <code>Result&lt;Response&gt;</code>. This ensures that session data and middleware modifications are preserved throughout the request lifecycle.</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Template responses (data accessed via model.key or M.key in template)
+ctx.view(&quot;/users/profile&quot;, json!({&quot;user&quot;: user_data}))?  // Sets template response
+
+// JSON responses
+ctx.json(json!({&quot;status&quot;: &quot;success&quot;, &quot;data&quot;: users}))?   // Sets JSON response
+
+// Redirects
+ctx.redirect(&quot;/login&quot;)?                                  // Sets redirect response
+
+// HTTP errors - all return Result&lt;()&gt; after setting error response
+ctx.throw404(Some(&quot;User not found&quot;))?                   // Sets 404 error
+ctx.throw400(Some(&quot;Invalid input&quot;))?                    // Sets 400 error
+ctx.throw500(None)?                                      // Sets 500 error
+
+// Plain text
+ctx.text(&quot;Hello, world!&quot;)?                              // Sets text response
+
+// File responses
+ctx.file_download(&quot;/path/to/file&quot;, Some(&quot;name.pdf&quot;))?   // Sets file download
+ctx.file_inline(&quot;/path/to/image.jpg&quot;)?                  // Sets inline file
+#}</code></pre></pre>
+<a class="header" href="guides/controllers.html#session-management" id="session-management"><h4>Session Management</h4></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Set session data
+ctx.session_set(&quot;user_id&quot;, 123)?;
+ctx.session_set(&quot;cart&quot;, json!({&quot;items&quot;: []}));
+
+// Get session data
+let user_id: Option&lt;i32&gt; = ctx.session_get(&quot;user_id&quot;);
+let cart: Option&lt;Value&gt; = ctx.session_get(&quot;cart&quot;);
+
+// Remove session data
+ctx.session_remove(&quot;temporary_data&quot;);
+#}</code></pre></pre>
+<a class="header" href="guides/controllers.html#repository-data-handler-scoped-data" id="repository-data-handler-scoped-data"><h4>Repository Data (Handler-Scoped Data)</h4></a>
+<p>The repository system allows controllers to pass data to all views called within the handler function without explicitly including it in each view's data parameter. The repository lives for the duration of the handler function execution.</p>
+<p><strong>Setting Repository Data</strong></p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+async fn my_handler(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    // Set simple values
+    ctx.repository_set(&quot;app_name&quot;, &quot;RustF Application&quot;);
+    ctx.repository_set(&quot;current_section&quot;, &quot;dashboard&quot;);
+    ctx.repository_set(&quot;user_level&quot;, 5);
+    
+    // Set arrays
+    ctx.repository_set(&quot;nav_items&quot;, json!([
+        {&quot;title&quot;: &quot;Home&quot;, &quot;url&quot;: &quot;/&quot;},
+        {&quot;title&quot;: &quot;About&quot;, &quot;url&quot;: &quot;/about&quot;},
+        {&quot;title&quot;: &quot;Contact&quot;, &quot;url&quot;: &quot;/contact&quot;}
+    ]));
+    
+    // Set complex objects
+    ctx.repository_set(&quot;site_config&quot;, json!({
+        &quot;theme&quot;: &quot;dark&quot;,
+        &quot;sidebar&quot;: &quot;expanded&quot;,
+        &quot;notifications&quot;: true
+    }));
+    
+    // Repository data is automatically available in the view
+    // Note: View data is accessed via model.key or M.key in templates
+    ctx.view(&quot;/my_view&quot;, json!({&quot;title&quot;: &quot;Page Title&quot;}))
+}
+#}</code></pre></pre>
+<p><strong>Important Note About View Data Access</strong></p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// When you pass data to ctx.view(), it becomes the &quot;model&quot; in the template
+ctx.view(&quot;/template&quot;, json!({
+    &quot;title&quot;: &quot;My Page&quot;,
+    &quot;users&quot;: vec![...]
+}))
+
+// In the template, access this data with model. or M. prefix:
+// @{model.title} or @{M.title}
+// @{model.users} or @{M.users}
+// NOT directly as @{title} or @{users}
+#}</code></pre></pre>
+<p><strong>Working with Repository</strong></p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Get data from repository
+let section = ctx.repository_get(&quot;current_section&quot;);
+
+// Clear all repository data
+ctx.repository_clear();
+
+// Chain multiple operations
+ctx.repository_set(&quot;key1&quot;, &quot;value1&quot;)
+   .repository_set(&quot;key2&quot;, &quot;value2&quot;)
+   .repository_clear();  // Returns &amp;mut Self for chaining
+#}</code></pre></pre>
+<p><strong>Accessing in Templates</strong></p>
+<pre><code class="language-html">&lt;!-- Use repository.key or R.key (shorthand) --&gt;
+&lt;h1&gt;@{repository.app_name}&lt;/h1&gt;
+&lt;div class=&quot;section-@{R.current_section}&quot;&gt;
+
+&lt;!-- Access nested data --&gt;
+Theme: @{repository.site_config.theme}
+Sidebar: @{R.site_config.sidebar}
+
+&lt;!-- Use in conditionals --&gt;
+@{if R.site_config.notifications}
+    &lt;div class=&quot;notifications&quot;&gt;Enabled&lt;/div&gt;
+@{fi}
+
+&lt;!-- Iterate over arrays --&gt;
+@{foreach item in repository.nav_items}
+    &lt;a href=&quot;@{item.url}&quot;&gt;@{item.title}&lt;/a&gt;
+@{end}
+</code></pre>
+<p><strong>Complete Example</strong></p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use rustf::prelude::*;
+
+pub fn install() -&gt; Vec&lt;Route&gt; {
+    routes![
+        GET &quot;/dashboard&quot; =&gt; dashboard,
+    ]
+}
+
+async fn dashboard(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    // Set shared repository data
+    ctx.repository_set(&quot;user&quot;, json!({
+        &quot;name&quot;: &quot;John Doe&quot;,
+        &quot;role&quot;: &quot;admin&quot;,
+        &quot;avatar&quot;: &quot;/images/john.jpg&quot;
+    }));
+    
+    ctx.repository_set(&quot;breadcrumbs&quot;, json!([
+        {&quot;label&quot;: &quot;Home&quot;, &quot;url&quot;: &quot;/&quot;},
+        {&quot;label&quot;: &quot;Dashboard&quot;, &quot;url&quot;: null}
+    ]));
+    
+    ctx.repository_set(&quot;stats&quot;, json!({
+        &quot;total_users&quot;: 1234,
+        &quot;active_sessions&quot;: 42
+    }));
+    
+    // View-specific data
+    let data = json!({
+        &quot;title&quot;: &quot;Dashboard&quot;,
+        &quot;recent_activity&quot;: [&quot;Login&quot;, &quot;Posted comment&quot;, &quot;Updated profile&quot;]
+    });
+    
+    ctx.view(&quot;/dashboard/index&quot;, data)
+}
+#}</code></pre></pre>
+<p><strong>Multiple Views in One Handler</strong></p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+async fn dashboard_with_sidebar(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    // Set repository data once - available to all views in this handler
+    ctx.repository_set(&quot;user&quot;, get_current_user()?);
+    ctx.repository_set(&quot;notifications&quot;, get_notifications()?);
+    ctx.repository_set(&quot;theme&quot;, &quot;dark&quot;);
+    
+    // Conditional rendering - all views have access to repository
+    if is_mobile_device(&amp;ctx) {
+        // Mobile view also has access to repository data
+        return ctx.view(&quot;/dashboard/mobile&quot;, json!({
+            &quot;stats&quot;: get_stats()?
+        }));
+    }
+    
+    // Desktop view also has access to the same repository data
+    ctx.view(&quot;/dashboard/desktop&quot;, json!({
+        &quot;stats&quot;: get_stats()?,
+        &quot;charts&quot;: get_charts()?
+    }))
+}
+#}</code></pre></pre>
+<p><strong>Use Cases for Repository</strong></p>
+<ul>
+<li>Data needed by all views rendered in the same handler</li>
+<li>User information and permissions for the current handler</li>
+<li>UI state (theme, layout) for views in this handler</li>
+<li>Temporary data that shouldn't be in the main view data</li>
+<li>Avoiding repetition when calling multiple views</li>
+</ul>
+<p><strong>Note:</strong> The repository lives only for the handler function's execution and is cleared when the handler returns. For application-wide data that persists across all requests and is accessible throughout the entire application, use the APP global repository system.</p>
+<a class="header" href="guides/controllers.html#flash-messages-one-time-messages" id="flash-messages-one-time-messages"><h4>Flash Messages (one-time messages)</h4></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Standard convenience methods
+ctx.flash_success(&quot;User created successfully!&quot;);
+ctx.flash_error(&quot;Invalid credentials&quot;);
+ctx.flash_info(&quot;Please check your email&quot;);
+
+// Generic flash setter for custom keys
+ctx.flash(&quot;warning_msg&quot;, &quot;This is a warning&quot;)?;
+ctx.flash(&quot;user_level&quot;, 42)?;
+ctx.flash(&quot;notification&quot;, json!({&quot;text&quot;: &quot;You have messages&quot;, &quot;count&quot;: 5}))?;
+ctx.flash(&quot;items&quot;, vec![&quot;one&quot;, &quot;two&quot;, &quot;three&quot;])?;
+
+// Manual flash management
+ctx.flash_clear();                    // Clear all flash messages
+ctx.flash_clear_key(&quot;error_msg&quot;);     // Clear specific flash message
+
+// Flash messages automatically appear in views via @{flash.success_msg}, @{flash.custom_key}, etc.
+#}</code></pre></pre>
+<a class="header" href="guides/controllers.html#client-information" id="client-information"><h4>Client Information</h4></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Client details
+let ip = ctx.ip();                    // Client IP address
+let user_agent = ctx.user_agent();    // Browser/client info
+let is_mobile = ctx.is_mobile();      // Mobile device detection
+let is_ajax = ctx.is_xhr();           // AJAX request detection
+let language = ctx.language();        // Preferred language
+#}</code></pre></pre>
+<a class="header" href="guides/controllers.html#controller-registration" id="controller-registration"><h2>Controller Registration</h2></a>
+<a class="header" href="guides/controllers.html#manual-registration" id="manual-registration"><h3>Manual Registration</h3></a>
+<p>For simple applications or when you need precise control:</p>
+<pre><pre class="playpen"><code class="language-rust">use rustf::prelude::*;
+
+mod controllers {
+    pub mod home;
+    pub mod auth;
+    pub mod users;
+}
+
+#[tokio::main]
+async fn main() -&gt; Result&lt;()&gt; {
+    let app = RustF::new()
+        .controllers({
+            let mut routes = Vec::new();
+            routes.extend(controllers::home::install());
+            routes.extend(controllers::auth::install());
+            routes.extend(controllers::users::install());
+            routes
+        });
+        
+    app.start().await
+}
+</code></pre></pre>
+<a class="header" href="guides/controllers.html#auto-discovery-recommended" id="auto-discovery-recommended"><h3>Auto-Discovery (Recommended)</h3></a>
+<p>For larger applications, use automatic controller discovery:</p>
+<pre><pre class="playpen"><code class="language-rust">use rustf::prelude::*;
+
+// The #[rustf::auto_discover] attribute automatically:
+// 1. Scans src/controllers/*.rs files
+// 2. Generates module declarations  
+// 3. Creates controller registration code
+#[rustf::auto_discover]
+#[tokio::main]
+async fn main() -&gt; Result&lt;()&gt; {
+    let app = RustF::new()
+        .controllers(auto_controllers!())  // Registers all discovered controllers
+        .models(auto_models!())           // Also discovers models
+        .middleware_from(auto_middleware!()); // And middleware
+        
+    app.start().await
+}
+</code></pre></pre>
+<p><strong>Auto-discovery Process:</strong></p>
+<ol>
+<li><strong>Compile-time scanning</strong> - Framework scans <code>src/controllers/*.rs</code> at build time</li>
+<li><strong>Module generation</strong> - Generates <code>_controllers.rs</code> with module declarations</li>
+<li><strong>Registration</strong> - <code>auto_controllers!()</code> macro returns all discovered routes</li>
+</ol>
+<p><strong>Requirements for Auto-Discovery:</strong></p>
+<ul>
+<li>Enable <code>auto-discovery</code> feature in <code>Cargo.toml</code></li>
+<li>Each controller file must have <code>pub fn install() -&gt; Vec&lt;Route&gt;</code></li>
+<li>Controller files must be in <code>src/controllers/</code> directory</li>
+<li>Use <code>#[rustf::auto_discover]</code> attribute on main function</li>
+</ul>
+<a class="header" href="guides/controllers.html#complete-controller-examples" id="complete-controller-examples"><h2>Complete Controller Examples</h2></a>
+<a class="header" href="guides/controllers.html#simple-home-controller" id="simple-home-controller"><h3>Simple Home Controller</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// src/controllers/home.rs
+use rustf::prelude::*;
+
+pub fn install() -&gt; Vec&lt;Route&gt; {
+    routes![
+        GET &quot;/&quot; =&gt; index,
+        GET &quot;/about&quot; =&gt; about,
+        GET &quot;/contact&quot; =&gt; contact,
+    ]
+}
+
+async fn index(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    let data = json!({
+        &quot;title&quot;: &quot;Welcome to RustF&quot;,
+        &quot;message&quot;: &quot;Your application is running successfully!&quot;,
+        &quot;features&quot;: [
+            &quot;Auto-discovery for controllers&quot;,
+            &quot;Template engine with layouts&quot;, 
+            &quot;Session management&quot;,
+            &quot;Built-in security features&quot;
+        ]
+    });
+    
+    ctx.view(&quot;/home/index&quot;, data)
+}
+
+async fn about(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    let data = json!({
+        &quot;title&quot;: &quot;About&quot;,
+        &quot;description&quot;: &quot;Built with RustF framework - an AI-friendly MVC framework for Rust&quot;,
+        &quot;version&quot;: &quot;1.0.0&quot;
+    });
+    
+    ctx.view(&quot;/home/about&quot;, data)
+}
+
+async fn contact(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    ctx.view(&quot;/home/contact&quot;, json!({
+        &quot;title&quot;: &quot;Contact Us&quot;,
+        &quot;email&quot;: &quot;info@example.com&quot;
+    }))
+}
+#}</code></pre></pre>
+<a class="header" href="guides/controllers.html#authentication-controller-with-repository" id="authentication-controller-with-repository"><h3>Authentication Controller with Repository</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// src/controllers/auth.rs  
+use rustf::prelude::*;
+use serde::Deserialize;
+
+pub fn install() -&gt; Vec&lt;Route&gt; {
+    routes![
+        GET  &quot;/auth/login&quot;    =&gt; view_login,
+        POST &quot;/auth/login&quot;    =&gt; do_login,
+        GET  &quot;/auth/logout&quot;   =&gt; do_logout,
+        GET  &quot;/auth/register&quot; =&gt; view_register,
+        POST &quot;/auth/register&quot; =&gt; do_register,
+    ]
+}
+
+// Struct for form validation (optional)
+#[derive(Deserialize)]
+struct LoginForm {
+    email: String,
+    password: String,
+}
+
+#[derive(Deserialize)]
+struct RegisterForm {
+    email: String,
+    password: String,
+    name: String,
+}
+
+async fn view_login(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    // Set repository data for this request
+    ctx.repository_set(&quot;page_type&quot;, &quot;auth&quot;)
+       .repository_set(&quot;show_social_login&quot;, true)
+       .repository_set(&quot;providers&quot;, json!([&quot;google&quot;, &quot;github&quot;]));
+    
+    // Use empty layout for login page
+    ctx.layout(&quot;&quot;)
+       .view(&quot;/auth/login&quot;, json!({
+           &quot;title&quot;: &quot;Login&quot;,
+           &quot;debug&quot;: cfg!(debug_assertions) // Show test credentials in debug
+       }))
+}
+
+async fn do_login(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    // Parse form data into typed structure
+    let form: LoginForm = ctx.body_form_typed()?;
+
+    // Input validation
+    if !form.email.contains('@') || form.password.is_empty() {
+        ctx.flash_error(&quot;Please provide a valid email and password&quot;);
+        return ctx.redirect(&quot;/auth/login&quot;);
+    }
+
+    // Authentication logic (use proper password hashing in production)
+    if form.email == &quot;admin@example.com&quot; &amp;&amp; form.password == &quot;password&quot; {
+        ctx.session_set(&quot;user&quot;, json!({
+            &quot;id&quot;: 1,
+            &quot;email&quot;: form.email,
+            &quot;name&quot;: &quot;Admin User&quot;,
+            &quot;role&quot;: &quot;admin&quot;
+        }))?;
+
+        ctx.flash_success(&quot;Login successful!&quot;);
+        ctx.redirect(&quot;/dashboard&quot;)
+    } else {
+        ctx.flash_error(&quot;Invalid email or password&quot;);
+        ctx.redirect(&quot;/auth/login&quot;)
+    }
+}
+
+async fn do_logout(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    ctx.session_remove(&quot;user&quot;);
+    ctx.flash_info(&quot;You have been logged out successfully&quot;);
+    ctx.redirect(&quot;/auth/login&quot;)
+}
+
+async fn view_register(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    ctx.layout(&quot;&quot;)
+       .view(&quot;/auth/register&quot;, json!({
+           &quot;title&quot;: &quot;Create Account&quot;
+       }))
+}
+
+async fn do_register(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    // Parse form data into typed structure
+    let form: RegisterForm = ctx.body_form_typed()?;
+
+    // Validation
+    if !form.email.contains('@') {
+        ctx.flash_error(&quot;Please provide a valid email address&quot;);
+        return ctx.redirect(&quot;/auth/register&quot;);
+    }
+
+    if form.password.len() &lt; 8 {
+        ctx.flash_error(&quot;Password must be at least 8 characters long&quot;);
+        return ctx.redirect(&quot;/auth/register&quot;);
+    }
+
+    if form.name.trim().is_empty() {
+        ctx.flash_error(&quot;Please provide your name&quot;);
+        return ctx.redirect(&quot;/auth/register&quot;);
+    }
+
+    // Check if user already exists (simplified)
+    // In real app: check database
+    if form.email == &quot;admin@example.com&quot; {
+        ctx.flash_error(&quot;User already exists&quot;);
+        return ctx.redirect(&quot;/auth/register&quot;);
+    }
+
+    // Create user (in real app: hash password, save to database)
+    ctx.flash_success(&amp;format!(&quot;Account created successfully for {}! You can now log in.&quot;, form.name));
+    ctx.redirect(&quot;/auth/login&quot;)
+}
+#}</code></pre></pre>
+<a class="header" href="guides/controllers.html#form-handling-with-typed-parsing" id="form-handling-with-typed-parsing"><h3>Form Handling with Typed Parsing</h3></a>
+<p>RustF provides <code>body_form_typed&lt;T&gt;()</code> for automatic form deserialization into Rust structures, significantly reducing boilerplate code.</p>
+<a class="header" href="guides/controllers.html#basic-form-parsing" id="basic-form-parsing"><h4>Basic Form Parsing</h4></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use rustf::prelude::*;
+use serde::Deserialize;
+
+// Define your form structure
+#[derive(Deserialize)]
+struct ContactForm {
+    name: String,
+    email: String,
+    message: String,
+}
+
+pub fn install() -&gt; Vec&lt;Route&gt; {
+    routes![
+        GET  &quot;/contact&quot; =&gt; view_contact,
+        POST &quot;/contact&quot; =&gt; submit_contact,
+    ]
+}
+
+async fn view_contact(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    ctx.view(&quot;/contact&quot;, json!({&quot;title&quot;: &quot;Contact Us&quot;}))
+}
+
+async fn submit_contact(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    // Parse form directly into typed structure
+    let form: ContactForm = ctx.body_form_typed()?;
+
+    // Validate
+    if !form.email.contains('@') {
+        ctx.flash_error(&quot;Please provide a valid email address&quot;);
+        return ctx.redirect(&quot;/contact&quot;);
+    }
+
+    if form.message.trim().is_empty() {
+        ctx.flash_error(&quot;Message cannot be empty&quot;);
+        return ctx.redirect(&quot;/contact&quot;);
+    }
+
+    // Process form data
+    log::info!(&quot;Contact form from {}: {}&quot;, form.name, form.email);
+
+    ctx.flash_success(&quot;Thank you! We'll get back to you soon.&quot;);
+    ctx.redirect(&quot;/&quot;)
+}
+#}</code></pre></pre>
+<a class="header" href="guides/controllers.html#optional-fields" id="optional-fields"><h4>Optional Fields</h4></a>
+<p>Use <code>Option&lt;T&gt;</code> for optional form fields:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+#[derive(Deserialize)]
+struct ProfileForm {
+    name: String,              // Required
+    bio: Option&lt;String&gt;,       // Optional
+    website: Option&lt;String&gt;,   // Optional
+    age: Option&lt;i32&gt;,          // Optional number
+    newsletter: Option&lt;bool&gt;,  // Optional checkbox
+}
+
+async fn update_profile(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    let form: ProfileForm = ctx.body_form_typed()?;
+
+    // Required field is always present
+    let name = form.name;
+
+    // Optional fields can be None
+    if let Some(bio) = form.bio {
+        log::info!(&quot;User bio: {}&quot;, bio);
+    }
+
+    // Provide defaults for optional fields
+    let website = form.website.unwrap_or_else(|| &quot;Not provided&quot;.to_string());
+    let age = form.age.unwrap_or(0);
+    let newsletter = form.newsletter.unwrap_or(false);
+
+    ctx.flash_success(&quot;Profile updated!&quot;);
+    ctx.redirect(&quot;/profile&quot;)
+}
+#}</code></pre></pre>
+<a class="header" href="guides/controllers.html#working-with-arrays-multiple-select--checkboxes" id="working-with-arrays-multiple-select--checkboxes"><h4>Working with Arrays (Multiple Select / Checkboxes)</h4></a>
+<p>Handle multiple values using <code>Vec&lt;T&gt;</code>:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+#[derive(Deserialize)]
+struct PreferencesForm {
+    username: String,
+    interests: Vec&lt;String&gt;,      // Multiple checkboxes
+    languages: Vec&lt;String&gt;,       // Multiple select
+    notifications: Option&lt;Vec&lt;String&gt;&gt;, // Optional multiple
+}
+
+async fn save_preferences(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    let form: PreferencesForm = ctx.body_form_typed()?;
+
+    // Handle multiple values
+    log::info!(&quot;User interests: {:?}&quot;, form.interests);
+    log::info!(&quot;Languages: {:?}&quot;, form.languages);
+
+    // Optional arrays
+    if let Some(notif) = form.notifications {
+        log::info!(&quot;Notification preferences: {:?}&quot;, notif);
+    }
+
+    ctx.flash_success(&quot;Preferences saved!&quot;);
+    ctx.redirect(&quot;/settings&quot;)
+}
+#}</code></pre></pre>
+<p><strong>HTML Form Example:</strong></p>
+<pre><code class="language-html">&lt;form method=&quot;POST&quot;&gt;
+    &lt;input name=&quot;username&quot; value=&quot;john_doe&quot; /&gt;
+
+    &lt;!-- Multiple checkboxes with same name --&gt;
+    &lt;input type=&quot;checkbox&quot; name=&quot;interests&quot; value=&quot;sports&quot; checked /&gt;
+    &lt;input type=&quot;checkbox&quot; name=&quot;interests&quot; value=&quot;music&quot; checked /&gt;
+    &lt;input type=&quot;checkbox&quot; name=&quot;interests&quot; value=&quot;travel&quot; /&gt;
+
+    &lt;!-- Multiple select --&gt;
+    &lt;select name=&quot;languages&quot; multiple&gt;
+        &lt;option value=&quot;en&quot; selected&gt;English&lt;/option&gt;
+        &lt;option value=&quot;fr&quot; selected&gt;French&lt;/option&gt;
+        &lt;option value=&quot;es&quot;&gt;Spanish&lt;/option&gt;
+    &lt;/select&gt;
+&lt;/form&gt;
+</code></pre>
+<a class="header" href="guides/controllers.html#post-processing-transformations" id="post-processing-transformations"><h4>Post-Processing Transformations</h4></a>
+<p>Apply transformations after parsing:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+#[derive(Deserialize)]
+struct CountryForm {
+    code: String,
+    name: String,
+    native_name: Option&lt;String&gt;,
+    timezone: Option&lt;String&gt;,
+}
+
+async fn save_country(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    let mut form: CountryForm = ctx.body_form_typed()?;
+
+    // Apply transformations
+    form.code = form.code.trim().to_uppercase();
+    form.name = form.name.trim().to_string();
+
+    // Transform optional fields
+    form.native_name = form.native_name
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty());
+
+    form.timezone = form.timezone
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty());
+
+    // Validate transformed data
+    if form.code.len() != 2 {
+        ctx.flash_error(&quot;Country code must be exactly 2 characters&quot;);
+        return ctx.redirect(&quot;/countries/new&quot;);
+    }
+
+    // Save to database...
+
+    ctx.flash_success(&amp;format!(&quot;Country {} created!&quot;, form.name));
+    ctx.redirect(&quot;/countries&quot;)
+}
+#}</code></pre></pre>
+<a class="header" href="guides/controllers.html#nested-structures" id="nested-structures"><h4>Nested Structures</h4></a>
+<p>Handle complex nested forms:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+#[derive(Deserialize)]
+struct Address {
+    street: String,
+    city: String,
+    country: String,
+    postal_code: String,
+}
+
+#[derive(Deserialize)]
+struct UserForm {
+    name: String,
+    email: String,
+    address: Address,  // Nested structure
+}
+
+async fn create_user(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    let form: UserForm = ctx.body_form_typed()?;
+
+    // Access nested data
+    log::info!(&quot;User: {}&quot;, form.name);
+    log::info!(&quot;Address: {}, {}&quot;, form.address.city, form.address.country);
+
+    ctx.json(json!({
+        &quot;success&quot;: true,
+        &quot;user&quot;: form
+    }))
+}
+#}</code></pre></pre>
+<p><strong>HTML Form Example:</strong></p>
+<pre><code class="language-html">&lt;form method=&quot;POST&quot;&gt;
+    &lt;input name=&quot;name&quot; value=&quot;John Doe&quot; /&gt;
+    &lt;input name=&quot;email&quot; value=&quot;john@example.com&quot; /&gt;
+
+    &lt;!-- Nested fields use dot notation --&gt;
+    &lt;input name=&quot;address.street&quot; value=&quot;123 Main St&quot; /&gt;
+    &lt;input name=&quot;address.city&quot; value=&quot;New York&quot; /&gt;
+    &lt;input name=&quot;address.country&quot; value=&quot;USA&quot; /&gt;
+    &lt;input name=&quot;address.postal_code&quot; value=&quot;10001&quot; /&gt;
+&lt;/form&gt;
+</code></pre>
+<a class="header" href="guides/controllers.html#error-handling" id="error-handling"><h4>Error Handling</h4></a>
+<p>Handle parsing errors gracefully:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+async fn safe_form_handler(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    // Parse form with error handling
+    let form: ContactForm = match ctx.body_form_typed() {
+        Ok(f) =&gt; f,
+        Err(e) =&gt; {
+            log::error!(&quot;Form parsing error: {}&quot;, e);
+            ctx.flash_error(&quot;Invalid form data. Please check your input.&quot;);
+            return ctx.redirect(&quot;/contact&quot;);
+        }
+    };
+
+    // Process valid form...
+    ctx.flash_success(&quot;Form submitted successfully!&quot;);
+    ctx.redirect(&quot;/&quot;)
+}
+#}</code></pre></pre>
+<a class="header" href="guides/controllers.html#comparison-three-approaches" id="comparison-three-approaches"><h4>Comparison: Three Approaches</h4></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// ❌ Approach 1: Manual (verbose, error-prone)
+async fn manual_approach(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    let form_data = ctx.body_form()?;
+    let name = form_data.get(&quot;name&quot;).unwrap_or(&amp;String::new()).clone();
+    let email = form_data.get(&quot;email&quot;).unwrap_or(&amp;String::new()).clone();
+    let age = form_data.get(&quot;age&quot;).unwrap_or(&amp;String::new()).parse::&lt;i32&gt;().unwrap_or(0);
+    // ... lots of repetitive code
+}
+
+// ⚠️ Approach 2: Field helpers (good for simple forms)
+async fn field_helpers_approach(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    let name = ctx.str_body(&quot;name&quot;)?;
+    let email = ctx.str_body(&quot;email&quot;)?;
+    let age = ctx.int_body(&quot;age&quot;)?;
+    // Good for 2-3 fields, becomes verbose with many fields
+}
+
+// ✅ Approach 3: Typed parsing (recommended for complex forms)
+#[derive(Deserialize)]
+struct UserForm {
+    name: String,
+    email: String,
+    age: i32,
+}
+
+async fn typed_approach(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    let form: UserForm = ctx.body_form_typed()?;
+    // Clean, type-safe, and concise!
+}
+#}</code></pre></pre>
+<a class="header" href="guides/controllers.html#when-to-use-each-method" id="when-to-use-each-method"><h4>When to Use Each Method</h4></a>
+<p><strong>Use <code>body_form_typed&lt;T&gt;()</code></strong> when:</p>
+<ul>
+<li>✅ Form has 4+ fields</li>
+<li>✅ You need type safety</li>
+<li>✅ You have nested data structures</li>
+<li>✅ You want to reuse form structures</li>
+<li>✅ You need to pass form data to other functions</li>
+</ul>
+<p><strong>Use individual field helpers</strong> (<code>str_body()</code>, etc.) when:</p>
+<ul>
+<li>✅ Form has 1-3 simple fields</li>
+<li>✅ You need immediate validation</li>
+<li>✅ Quick prototyping</li>
+</ul>
+<p><strong>Use manual <code>body_form()</code></strong> when:</p>
+<ul>
+<li>✅ You need maximum flexibility</li>
+<li>✅ Dynamic field names</li>
+<li>✅ Custom parsing logic</li>
+</ul>
+<a class="header" href="guides/controllers.html#restful-api-controller" id="restful-api-controller"><h3>RESTful API Controller</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// src/controllers/api.rs
+use rustf::prelude::*;
+use serde::{Serialize, Deserialize};
+
+pub fn install() -&gt; Vec&lt;Route&gt; {
+    routes![
+        // User management API
+        GET    &quot;/api/users&quot;          =&gt; list_users,
+        GET    &quot;/api/users/{id}&quot;      =&gt; get_user,
+        POST   &quot;/api/users&quot;          =&gt; create_user,
+        PUT    &quot;/api/users/{id}&quot;      =&gt; update_user,
+        DELETE &quot;/api/users/{id}&quot;      =&gt; delete_user,
+        
+        // Additional endpoints
+        GET    &quot;/api/users/search&quot;   =&gt; search_users,
+        GET    &quot;/api/health&quot;         =&gt; health_check,
+    ]
+}
+
+#[derive(Serialize, Deserialize)]
+struct User {
+    id: i32,
+    name: String,
+    email: String,
+    created_at: String,
+    is_active: bool,
+}
+
+#[derive(Deserialize)]
+struct CreateUserRequest {
+    name: String,
+    email: String,
+}
+
+#[derive(Deserialize)] 
+struct UpdateUserRequest {
+    name: Option&lt;String&gt;,
+    email: Option&lt;String&gt;,
+    is_active: Option&lt;bool&gt;,
+}
+
+async fn list_users(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    // Parse query parameters for pagination
+    let page = ctx.query(&quot;page&quot;).unwrap_or(&quot;1&quot;).parse::&lt;i32&gt;().unwrap_or(1);
+    let limit = ctx.query(&quot;limit&quot;).unwrap_or(&quot;10&quot;).parse::&lt;i32&gt;().unwrap_or(10);
+    
+    let users = vec![
+        User {
+            id: 1,
+            name: &quot;Alice Johnson&quot;.to_string(),
+            email: &quot;alice@example.com&quot;.to_string(),
+            created_at: &quot;2024-01-15T10:00:00Z&quot;.to_string(),
+            is_active: true,
+        },
+        User {
+            id: 2,
+            name: &quot;Bob Smith&quot;.to_string(),
+            email: &quot;bob@example.com&quot;.to_string(),
+            created_at: &quot;2024-02-20T14:30:00Z&quot;.to_string(),
+            is_active: true,
+        },
+    ];
+    
+    ctx.json(json!({
+        &quot;users&quot;: users,
+        &quot;pagination&quot;: {
+            &quot;page&quot;: page,
+            &quot;limit&quot;: limit,
+            &quot;total&quot;: users.len(),
+            &quot;total_pages&quot;: 1
+        }
+    }))
+}
+
+async fn get_user(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    let user_id = ctx.param(&quot;id&quot;).unwrap_or(&quot;0&quot;);
+    
+    match user_id.parse::&lt;i32&gt;() {
+        Ok(id) if id &gt; 0 =&gt; {
+            let user = User {
+                id,
+                name: &quot;Sample User&quot;.to_string(),
+                email: &quot;user@example.com&quot;.to_string(),
+                created_at: &quot;2024-01-01T00:00:00Z&quot;.to_string(),
+                is_active: true,
+            };
+            
+            ctx.json(json!({
+                &quot;success&quot;: true,
+                &quot;user&quot;: user
+            }))
+        }
+        _ =&gt; {
+            ctx.throw400(Some(&quot;Invalid user ID&quot;))
+        }
+    }
+}
+
+async fn create_user(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    let request: CreateUserRequest = ctx.body_json()?;
+    
+    // Validation
+    if request.name.trim().is_empty() {
+        return ctx.throw400(Some(&quot;Name is required&quot;));
+    }
+    
+    if !request.email.contains('@') {
+        return ctx.throw400(Some(&quot;Valid email is required&quot;));
+    }
+    
+    // Create user (in real app: save to database)
+    let user = User {
+        id: 3, // Would be generated by database
+        name: request.name,
+        email: request.email,
+        created_at: chrono::Utc::now().to_rfc3339(),
+        is_active: true,
+    };
+    
+    ctx.json(json!({
+        &quot;success&quot;: true,
+        &quot;message&quot;: &quot;User created successfully&quot;,
+        &quot;user&quot;: user
+    }))
+}
+
+async fn update_user(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    let user_id = ctx.param(&quot;id&quot;).unwrap_or(&quot;0&quot;);
+    let request: UpdateUserRequest = ctx.body_json()?;
+    
+    match user_id.parse::&lt;i32&gt;() {
+        Ok(id) if id &gt; 0 =&gt; {
+            // In real app: update in database
+            ctx.json(json!({
+                &quot;success&quot;: true,
+                &quot;message&quot;: &quot;User updated successfully&quot;,
+                &quot;user_id&quot;: id,
+                &quot;updated_fields&quot;: request
+            }))
+        }
+        _ =&gt; {
+            ctx.throw400(Some(&quot;Invalid user ID&quot;))
+        }
+    }
+}
+
+async fn delete_user(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    let user_id = ctx.param(&quot;id&quot;).unwrap_or(&quot;0&quot;);
+    
+    match user_id.parse::&lt;i32&gt;() {
+        Ok(id) if id &gt; 0 =&gt; {
+            // In real app: delete from database
+            ctx.json(json!({
+                &quot;success&quot;: true,
+                &quot;message&quot;: &quot;User deleted successfully&quot;,
+                &quot;deleted_user_id&quot;: id
+            }))
+        }
+        _ =&gt; {
+            ctx.throw400(Some(&quot;Invalid user ID&quot;))
+        }
+    }
+}
+
+async fn search_users(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    let query = ctx.query(&quot;q&quot;).unwrap_or(&quot;&quot;);
+    
+    if query.is_empty() {
+        return ctx.throw400(Some(&quot;Search query is required&quot;));
+    }
+    
+    // In real app: search database
+    let results = vec![
+        User {
+            id: 1,
+            name: &quot;Alice Johnson&quot;.to_string(),
+            email: &quot;alice@example.com&quot;.to_string(),
+            created_at: &quot;2024-01-15T10:00:00Z&quot;.to_string(),
+            is_active: true,
+        }
+    ];
+    
+    ctx.json(json!({
+        &quot;success&quot;: true,
+        &quot;query&quot;: query,
+        &quot;results&quot;: results,
+        &quot;count&quot;: results.len()
+    }))
+}
+
+async fn health_check(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    ctx.json(json!({
+        &quot;status&quot;: &quot;healthy&quot;,
+        &quot;timestamp&quot;: chrono::Utc::now().to_rfc3339(),
+        &quot;version&quot;: &quot;1.0.0&quot;
+    }))
+}
+#}</code></pre></pre>
+<a class="header" href="guides/controllers.html#advanced-features" id="advanced-features"><h2>Advanced Features</h2></a>
+<a class="header" href="guides/controllers.html#url-parameters" id="url-parameters"><h3>URL Parameters</h3></a>
+<p>Capture dynamic parts of URLs using the <code>{parameter}</code> syntax:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+routes![
+    GET &quot;/users/{id}&quot; =&gt; get_user,
+    GET &quot;/users/{user_id}/posts/{post_id}&quot; =&gt; get_user_post,
+    GET &quot;/posts/{post_id}/comments/{comment_id}&quot; =&gt; get_comment,
+    GET &quot;/files/{category}/{filename}&quot; =&gt; download_file,
+]
+
+async fn get_user(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    let id = ctx.param(&quot;id&quot;).unwrap_or(&quot;0&quot;);
+    
+    // Validate and parse parameter
+    match id.parse::&lt;i32&gt;() {
+        Ok(user_id) if user_id &gt; 0 =&gt; {
+            // Use the validated user_id
+            ctx.json(json!({&quot;user_id&quot;: user_id, &quot;name&quot;: &quot;User Name&quot;}))
+        }
+        _ =&gt; ctx.throw400(Some(&quot;Invalid user ID&quot;))
+    }
+}
+
+async fn get_user_post(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    let user_id = ctx.param(&quot;user_id&quot;).unwrap_or(&quot;0&quot;);
+    let post_id = ctx.param(&quot;post_id&quot;).unwrap_or(&quot;0&quot;);
+    
+    ctx.json(json!({
+        &quot;user_id&quot;: user_id,
+        &quot;post_id&quot;: post_id,
+        &quot;title&quot;: &quot;Sample Post&quot;
+    }))
+}
+
+async fn download_file(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    let category = ctx.param(&quot;category&quot;).unwrap_or(&quot;general&quot;);
+    let filename = ctx.param(&quot;filename&quot;).unwrap_or(&quot;file.txt&quot;);
+    
+    // Security: validate file path (prevent directory traversal)
+    if filename.contains(&quot;..&quot;) || filename.contains('/') {
+        return ctx.throw403(Some(&quot;Invalid filename&quot;));
+    }
+    
+    let file_path = format!(&quot;uploads/{}/{}&quot;, category, filename);
+    ctx.file_download(&amp;file_path, Some(filename))
+}
+#}</code></pre></pre>
+<a class="header" href="guides/controllers.html#query-parameters" id="query-parameters"><h3>Query Parameters</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// URL: /search?q=rust&amp;category=programming&amp;page=2
+async fn search(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    let query = ctx.query(&quot;q&quot;).unwrap_or(&quot;&quot;);
+    let category = ctx.query(&quot;category&quot;).unwrap_or(&quot;all&quot;);
+    let page = ctx.query(&quot;page&quot;).unwrap_or(&quot;1&quot;)
+        .parse::&lt;i32&gt;().unwrap_or(1);
+    
+    if query.is_empty() {
+        return ctx.throw400(Some(&quot;Search query is required&quot;));
+    }
+    
+    // Perform search with parameters
+    ctx.json(json!({
+        &quot;query&quot;: query,
+        &quot;category&quot;: category,
+        &quot;page&quot;: page,
+        &quot;results&quot;: [/* search results */]
+    }))
+}
+#}</code></pre></pre>
+<a class="header" href="guides/controllers.html#file-handling" id="file-handling"><h3>File Handling</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+routes![
+    GET  &quot;/upload&quot; =&gt; upload_form,
+    POST &quot;/upload&quot; =&gt; handle_upload,
+    GET  &quot;/files/{filename}&quot; =&gt; serve_file,
+]
+
+async fn upload_form(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    ctx.view(&quot;/upload&quot;, json!({&quot;title&quot;: &quot;File Upload&quot;}))
+}
+
+async fn handle_upload(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    // Get uploaded files
+    let files = ctx.files()?;
+    
+    if files.is_empty() {
+        ctx.flash_error(&quot;No files were uploaded&quot;);
+        return ctx.redirect(&quot;/upload&quot;);
+    }
+    
+    // Process first uploaded file
+    if let Some(file) = ctx.file(&quot;document&quot;)? {
+        // Validate file type
+        let allowed_types = [&quot;pdf&quot;, &quot;doc&quot;, &quot;docx&quot;, &quot;txt&quot;];
+        let file_ext = file.filename
+            .as_ref()
+            .and_then(|name| name.split('.').last())
+            .unwrap_or(&quot;&quot;);
+            
+        if !allowed_types.contains(&amp;file_ext) {
+            ctx.flash_error(&quot;Only PDF, DOC, DOCX, and TXT files are allowed&quot;);
+            return ctx.redirect(&quot;/upload&quot;);
+        }
+        
+        // Save file (in real app: save to disk/cloud storage)
+        let filename = format!(&quot;upload_{}.{}&quot;, U::guid(), file_ext);
+        
+        ctx.flash_success(&amp;format!(&quot;File '{}' uploaded successfully as {}&quot;, 
+            file.filename.as_ref().unwrap_or(&amp;&quot;unknown&quot;.to_string()), filename));
+    }
+    
+    ctx.redirect(&quot;/upload&quot;)
+}
+
+async fn serve_file(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    let filename = ctx.param(&quot;filename&quot;).unwrap_or(&quot;missing&quot;);
+    let file_path = format!(&quot;uploads/{}&quot;, filename);
+    
+    // Security check
+    if filename.contains(&quot;..&quot;) {
+        return ctx.throw403(Some(&quot;Access denied&quot;));
+    }
+    
+    ctx.file_download(&amp;file_path, Some(filename))
+}
+#}</code></pre></pre>
+<a class="header" href="guides/controllers.html#middleware-integration" id="middleware-integration"><h3>Middleware Integration</h3></a>
+<p>Controllers work seamlessly with middleware:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Authentication middleware can protect routes
+routes![
+    GET &quot;/admin/dashboard&quot; =&gt; admin_dashboard,  // Protected by auth middleware
+    GET &quot;/admin/users&quot;     =&gt; admin_users,     // Protected by auth middleware
+    GET &quot;/public/info&quot;     =&gt; public_info,     // Not protected
+]
+
+async fn admin_dashboard(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    // This handler only runs if auth middleware allows it
+    let user: Value = ctx.session_get(&quot;user&quot;).unwrap_or_default();
+    
+    ctx.view(&quot;/admin/dashboard&quot;, json!({
+        &quot;title&quot;: &quot;Admin Dashboard&quot;,
+        &quot;user&quot;: user
+    }))
+}
+#}</code></pre></pre>
+<a class="header" href="guides/controllers.html#error-handling-best-practices" id="error-handling-best-practices"><h2>Error Handling Best Practices</h2></a>
+<a class="header" href="guides/controllers.html#structured-error-handling" id="structured-error-handling"><h3>Structured Error Handling</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+async fn robust_handler(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    // Parse form data with proper error handling
+    let form_data = match ctx.body_form() {
+        Ok(data) =&gt; data,
+        Err(e) =&gt; {
+            log::error!(&quot;Failed to parse form data: {}&quot;, e);
+            return ctx.throw400(Some(&quot;Invalid form data&quot;));
+        }
+    };
+    
+    // Validate required fields
+    let email = match form_data.get(&quot;email&quot;) {
+        Some(email) if !email.is_empty() =&gt; email,
+        _ =&gt; {
+            ctx.flash_error(&quot;Email is required&quot;);
+            return ctx.redirect(&quot;/form&quot;);
+        }
+    };
+    
+    // Business logic validation
+    if !email.contains('@') {
+        ctx.flash_error(&quot;Please provide a valid email address&quot;);
+        return ctx.redirect(&quot;/form&quot;);
+    }
+    
+    // Success path
+    ctx.flash_success(&quot;Form processed successfully!&quot;);
+    ctx.redirect(&quot;/success&quot;)
+}
+#}</code></pre></pre>
+<a class="header" href="guides/controllers.html#api-error-responses" id="api-error-responses"><h3>API Error Responses</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+async fn api_handler(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    // Parse JSON with error handling
+    let request_data: Value = match ctx.body_json() {
+        Ok(data) =&gt; data,
+        Err(_) =&gt; {
+            return ctx.json(json!({
+                &quot;error&quot;: &quot;Invalid JSON&quot;,
+                &quot;code&quot;: &quot;INVALID_JSON&quot;,
+                &quot;status&quot;: 400
+            }));
+        }
+    };
+    
+    // Validate required fields
+    let name = match request_data[&quot;name&quot;].as_str() {
+        Some(name) if !name.trim().is_empty() =&gt; name.trim(),
+        _ =&gt; {
+            return ctx.json(json!({
+                &quot;error&quot;: &quot;Name is required&quot;,
+                &quot;code&quot;: &quot;MISSING_NAME&quot;, 
+                &quot;status&quot;: 400
+            }));
+        }
+    };
+    
+    // Success response
+    ctx.json(json!({
+        &quot;success&quot;: true,
+        &quot;message&quot;: &quot;Data processed successfully&quot;,
+        &quot;data&quot;: {&quot;name&quot;: name}
+    }))
+}
+#}</code></pre></pre>
+<a class="header" href="guides/controllers.html#using-http-error-methods" id="using-http-error-methods"><h3>Using HTTP Error Methods</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+async fn comprehensive_error_handler(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    let action = ctx.param(&quot;action&quot;).unwrap_or(&quot;&quot;);
+    
+    match action {
+        &quot;unauthorized&quot; =&gt; ctx.throw401(Some(&quot;Please log in&quot;)),
+        &quot;forbidden&quot; =&gt; ctx.throw403(Some(&quot;Access denied&quot;)), 
+        &quot;notfound&quot; =&gt; ctx.throw404(Some(&quot;Resource not found&quot;)),
+        &quot;conflict&quot; =&gt; ctx.throw409(Some(&quot;Resource already exists&quot;)),
+        &quot;server_error&quot; =&gt; ctx.throw500(Some(&quot;Internal server error&quot;)),
+        &quot;not_implemented&quot; =&gt; ctx.throw501(Some(&quot;Feature not implemented&quot;)),
+        _ =&gt; ctx.throw400(Some(&quot;Invalid action&quot;))
+    }
+}
+#}</code></pre></pre>
+<a class="header" href="guides/controllers.html#framework-integration" id="framework-integration"><h2>Framework Integration</h2></a>
+<a class="header" href="guides/controllers.html#how-controllers-work-in-rustf" id="how-controllers-work-in-rustf"><h3>How Controllers Work in RustF</h3></a>
+<ol>
+<li><strong>Route Registration</strong> - Controllers return <code>Vec&lt;Route&gt;</code> from their <code>install()</code> function</li>
+<li><strong>Request Matching</strong> - Framework matches incoming requests to routes using method and path</li>
+<li><strong>Context Creation</strong> - Framework creates a <code>Context</code> with request data, session, and config</li>
+<li><strong>Middleware Chain</strong> - Request passes through middleware before reaching controller</li>
+<li><strong>Handler Execution</strong> - Controller handler processes request and returns response</li>
+<li><strong>Response Processing</strong> - Framework sends response back to client</li>
+</ol>
+<a class="header" href="guides/controllers.html#application-lifecycle" id="application-lifecycle"><h3>Application Lifecycle</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// 1. Application setup
+let app = RustF::new()
+    .controllers(auto_controllers!())  // Register all controllers
+    .middleware(&quot;auth&quot;, AuthMiddleware::new());  // Add middleware
+
+// 2. Server startup
+app.start().await;  // Starts HTTP server
+
+// 3. Request processing
+// HTTP Request -&gt; Middleware Chain -&gt; Controller Handler -&gt; HTTP Response
+#}</code></pre></pre>
+<a class="header" href="guides/controllers.html#best-practices" id="best-practices"><h2>Best Practices</h2></a>
+<a class="header" href="guides/controllers.html#1-controller-organization" id="1-controller-organization"><h3>1. Controller Organization</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// ✅ Good: Group related functionality
+// src/controllers/auth.rs - All authentication
+// src/controllers/users.rs - All user management
+// src/controllers/api/users.rs - API endpoints for users
+
+// ❌ Bad: Mixed functionality in one controller
+// src/controllers/everything.rs - Login, users, posts, etc.
+#}</code></pre></pre>
+<a class="header" href="guides/controllers.html#2-naming-conventions" id="2-naming-conventions"><h3>2. Naming Conventions</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// ✅ Good: Descriptive, consistent names
+routes![
+    GET  &quot;/login&quot;  =&gt; view_login,     // Shows form
+    POST &quot;/login&quot;  =&gt; do_login,       // Processes form
+    GET  &quot;/users&quot;  =&gt; list_users,     // Lists resources
+    GET  &quot;/users/{id}&quot; =&gt; show_user,   // Shows single resource
+    POST &quot;/users&quot;  =&gt; create_user,    // Creates resource
+    PUT  &quot;/users/{id}&quot; =&gt; update_user, // Updates resource
+    DELETE &quot;/users/{id}&quot; =&gt; delete_user, // Deletes resource
+]
+
+// ❌ Bad: Generic, unclear names
+routes![
+    GET &quot;/login&quot; =&gt; handler1,
+    POST &quot;/login&quot; =&gt; handler2,
+    GET &quot;/users&quot; =&gt; users,
+]
+#}</code></pre></pre>
+<a class="header" href="guides/controllers.html#3-input-validation" id="3-input-validation"><h3>3. Input Validation</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// ✅ Good: Comprehensive validation
+async fn create_user(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    let form_data = ctx.body_form()?;
+    
+    // Validate required fields
+    let email = match form_data.get(&quot;email&quot;) {
+        Some(email) if !email.trim().is_empty() =&gt; email.trim(),
+        _ =&gt; {
+            ctx.flash_error(&quot;Email is required&quot;);
+            return ctx.redirect(&quot;/users/new&quot;);
+        }
+    };
+    
+    // Validate format
+    if !email.contains('@') {
+        ctx.flash_error(&quot;Please provide a valid email address&quot;);
+        return ctx.redirect(&quot;/users/new&quot;);
+    }
+    
+    // Continue with processing...
+}
+
+// ❌ Bad: No validation
+async fn create_user(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    let form_data = ctx.body_form()?;
+    let email = form_data.get(&quot;email&quot;).unwrap(); // Can panic!
+    // Save without validation...
+}
+#}</code></pre></pre>
+<a class="header" href="guides/controllers.html#4-error-handling" id="4-error-handling"><h3>4. Error Handling</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// ✅ Good: Proper error handling with user feedback
+async fn process_payment(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    let amount_str = ctx.query(&quot;amount&quot;).unwrap_or(&quot;0&quot;);
+    
+    let amount = match amount_str.parse::&lt;f64&gt;() {
+        Ok(amt) if amt &gt; 0.0 =&gt; amt,
+        _ =&gt; {
+            ctx.flash_error(&quot;Invalid payment amount&quot;);
+            return ctx.redirect(&quot;/payment&quot;);
+        }
+    };
+    
+    // Process payment with proper error handling
+    match process_payment_logic(amount).await {
+        Ok(receipt) =&gt; {
+            ctx.flash_success(&quot;Payment processed successfully!&quot;);
+            ctx.redirect(&amp;format!(&quot;/receipt/{}&quot;, receipt.id))
+        }
+        Err(e) =&gt; {
+            log::error!(&quot;Payment failed: {}&quot;, e);
+            ctx.flash_error(&quot;Payment processing failed. Please try again.&quot;);
+            ctx.redirect(&quot;/payment&quot;)
+        }
+    }
+}
+#}</code></pre></pre>
+<a class="header" href="guides/controllers.html#5-response-patterns" id="5-response-patterns"><h3>5. Response Patterns</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// ✅ Good: Consistent response patterns
+routes![
+    GET  &quot;/users&quot;     =&gt; list_users,    // Returns view or JSON list
+    POST &quot;/users&quot;     =&gt; create_user,   // Redirects on success, back on error
+    GET  &quot;/api/users&quot; =&gt; api_list_users, // Always returns JSON
+]
+
+async fn list_users(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    let users = get_users().await?;
+    ctx.view(&quot;/users/index&quot;, json!({&quot;users&quot;: users}))
+}
+
+async fn create_user(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    // Validation...
+    // Creation...
+    
+    ctx.flash_success(&quot;User created successfully!&quot;);
+    ctx.redirect(&quot;/users&quot;)
+}
+
+async fn api_list_users(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    let users = get_users().await?;
+    ctx.json(json!({
+        &quot;success&quot;: true,
+        &quot;users&quot;: users,
+        &quot;count&quot;: users.len()
+    }))
+}
+#}</code></pre></pre>
+<a class="header" href="guides/controllers.html#6-security-considerations" id="6-security-considerations"><h3>6. Security Considerations</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// ✅ Good: Security-aware controller
+async fn download_file(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    let filename = ctx.param(&quot;filename&quot;).unwrap_or(&quot;&quot;);
+    
+    // Prevent directory traversal attacks
+    if filename.contains(&quot;..&quot;) || filename.contains('/') || filename.contains('\\') {
+        return ctx.throw403(Some(&quot;Invalid filename&quot;));
+    }
+    
+    // Validate file exists and user has access
+    let file_path = format!(&quot;uploads/{}&quot;, filename);
+    if !std::path::Path::new(&amp;file_path).exists() {
+        return ctx.throw404(Some(&quot;File not found&quot;));
+    }
+    
+    // Check user permissions
+    if let Some(user) = ctx.session_get::&lt;Value&gt;(&quot;user&quot;) {
+        ctx.file_download(&amp;file_path, Some(filename))
+    } else {
+        ctx.throw401(Some(&quot;Login required&quot;))
+    }
+}
+#}</code></pre></pre>
+<a class="header" href="guides/controllers.html#7-testing-controllers" id="7-testing-controllers"><h3>7. Testing Controllers</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rustf::test_helpers::*;
+    
+    #[tokio::test]
+    async fn test_login_success() {
+        let ctx = create_test_context()
+            .with_form_data([
+                (&quot;email&quot;, &quot;test@example.com&quot;),
+                (&quot;password&quot;, &quot;password&quot;)
+            ]);
+            
+        let response = do_login(ctx).await.unwrap();
+        assert_eq!(response.status_code(), 302); // Redirect
+    }
+    
+    #[tokio::test]
+    async fn test_login_invalid_email() {
+        let ctx = create_test_context()
+            .with_form_data([
+                (&quot;email&quot;, &quot;invalid-email&quot;),
+                (&quot;password&quot;, &quot;password&quot;)
+            ]);
+            
+        let response = do_login(ctx).await.unwrap();
+        assert_eq!(response.status_code(), 302); // Redirect back to form
+    }
+}
+#}</code></pre></pre>
+<a class="header" href="guides/controllers.html#file-organization" id="file-organization"><h2>File Organization</h2></a>
+<a class="header" href="guides/controllers.html#recommended-project-structure" id="recommended-project-structure"><h3>Recommended Project Structure</h3></a>
+<pre><code>src/
+├── controllers/
+│   ├── home.rs          # Home page, about, contact
+│   ├── auth.rs          # Authentication (login, register, logout)
+│   ├── users.rs         # User management (CRUD operations)
+│   ├── posts.rs         # Blog posts or content
+│   ├── api/
+│   │   ├── mod.rs        # API module declaration
+│   │   ├── users.rs      # User API endpoints
+│   │   ├── posts.rs      # Posts API endpoints
+│   │   └── auth.rs       # Authentication API
+│   ├── admin/
+│   │   ├── mod.rs        # Admin module declaration
+│   │   ├── dashboard.rs  # Admin dashboard
+│   │   ├── users.rs      # Admin user management
+│   │   └── settings.rs   # System settings
+│   └── errors.rs         # Error pages (404, 500, etc.)
+├── _controllers.rs       # Auto-generated (DO NOT EDIT)
+├── models/              # Database models
+├── modules/             # Business logic modules
+├── middleware/          # Custom middleware
+└── main.rs              # Application entry point
+</code></pre>
+<a class="header" href="guides/controllers.html#auto-generated-files" id="auto-generated-files"><h3>Auto-Generated Files</h3></a>
+<ul>
+<li><code>_controllers.rs</code> - Generated by <code>#[rustf::auto_discover]</code> for IDE support</li>
+<li><strong>DO NOT EDIT</strong> auto-generated files manually</li>
+<li>Regenerated on each build when controllers change</li>
+</ul>
+<a class="header" href="guides/controllers.html#summary" id="summary"><h2>Summary</h2></a>
+<p>RustF's controller system provides:</p>
+<p>✅ <strong>Clean Architecture</strong> - Separate HTTP handling from business logic
+✅ <strong>Auto-Discovery</strong> - Automatic controller registration at compile time<br />
+✅ <strong>Type Safety</strong> - Compile-time validation of routes and handlers
+✅ <strong>Total.js Familiarity</strong> - Familiar patterns for web developers
+✅ <strong>Flexible Organization</strong> - Organize controllers by feature or API version
+✅ <strong>Rich Context API</strong> - Comprehensive request/response handling
+✅ <strong>Error Handling</strong> - Built-in HTTP error responses
+✅ <strong>Security Features</strong> - Session management, input validation helpers
+✅ <strong>Testing Support</strong> - Easy to unit test individual handlers</p>
+<p>The controller system strikes a balance between simplicity and power, making it easy to build maintainable web applications while providing all the features needed for modern web development.</p>
+<a class="header" href="guides/controllers.html#related-topics" id="related-topics"><h2>Related Topics</h2></a>
+<ul>
+<li><a href="views.md">Views &amp; Templates</a> - Learn how to render templates in controllers</li>
+<li><a href="middleware.md">Middleware</a> - Add request/response processing to your routes</li>
+<li><a href="sessions.md">Sessions</a> - Manage user sessions in your controllers</li>
+<li><a href="error-handling.md">Error Handling</a> - Handle errors gracefully</li>
+<li><a href="database.md">Database Integration</a> - Access databases from controllers</li>
+<li><a href="../api-reference/context.md">API Reference: Context</a> - Complete Context API documentation</li>
+<li><a href="../examples/rest-api.md">Examples: REST API</a> - See controllers in action</li>
+</ul>
+
+                </div>
+
+                <!-- Mobile navigation buttons -->
+                
+                    <a rel="prev" href="getting-started/project-structure.html" class="mobile-nav-chapters previous" title="Previous chapter">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                
+
+                
+                    <a rel="next" href="guides/views.html" class="mobile-nav-chapters next" title="Next chapter">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+                
+
+            </div>
+
+            
+                <a href="getting-started/project-structure.html" class="nav-chapters previous" title="You can navigate through the chapters using the arrow keys">
+                    <i class="fa fa-angle-left"></i>
+                </a>
+            
+
+            
+                <a href="guides/views.html" class="nav-chapters next" title="You can navigate through the chapters using the arrow keys">
+                    <i class="fa fa-angle-right"></i>
+                </a>
+            
+
+        </div>
+
+
+        <!-- Local fallback for Font Awesome -->
+        <script>
+            if ($(".fa").css("font-family") !== "FontAwesome") {
+                $('<link rel="stylesheet" type="text/css" href="_FontAwesome/css/font-awesome.css">').prependTo('head');
+            }
+        </script>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        
+
+        
+
+        
+
+        
+
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS script -->
+        
+
+    </body>
+</html>

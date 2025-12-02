@@ -1,0 +1,964 @@
+<!DOCTYPE HTML>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Schemas &amp; Definitions - RustF Framework Documentation</title>
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="Complete guide to the RustF MVC web framework for Rust">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <base href="../">
+
+        <link rel="stylesheet" href="book.css">
+        <link href="https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800" rel="stylesheet" type="text/css">
+        <link href="https://fonts.googleapis.com/css?family=Source+Code+Pro:500" rel="stylesheet" type="text/css">
+
+        <link rel="shortcut icon" href="favicon.png">
+
+        <!-- Font Awesome -->
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
+
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme -->
+        
+
+        
+
+        <!-- Fetch Clipboard.js from CDN but have a local fallback -->
+        <script src="https://cdn.jsdelivr.net/clipboard.js/1.6.1/clipboard.min.js"></script>
+        <script>
+            if (typeof Clipboard == 'undefined') {
+                document.write(unescape("%3Cscript src='clipboard.min.js'%3E%3C/script%3E"));
+            }
+        </script>
+
+        <!-- Fetch JQuery from CDN but have a local fallback -->
+        <script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+        <script>
+            if (typeof jQuery == 'undefined') {
+                document.write(unescape("%3Cscript src='jquery.js'%3E%3C/script%3E"));
+            }
+        </script>
+
+        <!-- Fetch store.js from local - TODO add CDN when 2.x.x is available on cdnjs -->
+        <script src="store.js"></script>
+
+    </head>
+    <body class="light">
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme = store.get('mdbook-theme');
+            if (theme === null || theme === undefined) { theme = 'light'; }
+            $('body').removeClass().addClass(theme);
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var sidebar = store.get('mdbook-sidebar');
+            if (sidebar === "hidden") { $("html").addClass("sidebar-hidden") }
+            else if (sidebar === "visible") { $("html").addClass("sidebar-visible") }
+        </script>
+
+        <div id="sidebar" class="sidebar">
+            <ul class="chapter"><li class="affix"><a href="README.html">Introduction</a></li><li><a href="getting-started/README.html"><strong>1.</strong> Quick Start</a></li><li><a href="getting-started/installation.html"><strong>2.</strong> Installation</a></li><li><a href="getting-started/hello-world.html"><strong>3.</strong> Hello World</a></li><li><a href="getting-started/project-structure.html"><strong>4.</strong> Project Structure</a></li><li><a href="guides/controllers.html"><strong>5.</strong> Controllers &amp; Routing</a></li><li><a href="guides/views.html"><strong>6.</strong> Views &amp; Templates</a></li><li><a href="guides/middleware.html"><strong>7.</strong> Middleware</a></li><li><a href="guides/sessions.html"><strong>8.</strong> Sessions</a></li><li><a href="guides/database.html"><strong>9.</strong> Database Integration</a></li><li><a href="guides/configuration.html"><strong>10.</strong> Configuration</a></li><li><a href="guides/security.html"><strong>11.</strong> Security</a></li><li><a href="guides/error-handling.html"><strong>12.</strong> Error Handling</a></li><li><a href="guides/schemas.html" class="active"><strong>13.</strong> Schemas &amp; Definitions</a></li><li><a href="advanced/README.html"><strong>14.</strong> Overview</a></li><li><a href="advanced/performance.html"><strong>15.</strong> Performance Optimization</a></li><li><a href="advanced/workers.html"><strong>16.</strong> Workers</a></li><li><a href="advanced/events.html"><strong>17.</strong> Events</a></li><li><a href="advanced/modules.html"><strong>18.</strong> Modules</a></li><li><a href="advanced/cli.html"><strong>19.</strong> CLI Tool</a></li><li><a href="api-reference/README.html"><strong>20.</strong> Overview</a></li><li><a href="api-reference/context.html"><strong>21.</strong> Context API</a></li><li><a href="api-reference/models.html"><strong>22.</strong> Model API</a></li><li><a href="api-reference/routing.html"><strong>23.</strong> Routing API</a></li><li><a href="api-reference/utilities.html"><strong>24.</strong> Utilities</a></li><li><a href="examples/README.html"><strong>25.</strong> Overview</a></li><li><a href="examples/rest-api.html"><strong>26.</strong> Building a REST API</a></li><li><a href="examples/authentication.html"><strong>27.</strong> Authentication</a></li><li><a href="examples/real-world-app.html"><strong>28.</strong> Real-World Application</a></li><li><a href="deployment/production.html"><strong>29.</strong> Production Deployment</a></li><li><a href="deployment/docker.html"><strong>30.</strong> Docker</a></li></ul>
+        </div>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page" tabindex="-1">
+                
+                <div id="menu-bar" class="menu-bar">
+                    <div class="left-buttons">
+                        <i id="sidebar-toggle" class="fa fa-bars" title="Toggle sidebar"></i>
+                        <i id="theme-toggle" class="fa fa-paint-brush" title="Change theme"></i>
+                    </div>
+
+                    <h1 class="menu-title">RustF Framework Documentation</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html">
+                            <i id="print-button" class="fa fa-print" title="Print this book"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <div id="content" class="content">
+                    <a class="header" href="guides/schemas.html#rustf-definitions-system-documentation" id="rustf-definitions-system-documentation"><h1>RustF Definitions System Documentation</h1></a>
+<a class="header" href="guides/schemas.html#overview" id="overview"><h2>Overview</h2></a>
+<p>The RustF Definitions System provides a powerful, convention-based framework for extending RustF with custom functionality. Inspired by modern web frameworks like Rails and Laravel, it enables developers to customize framework behavior through simple, discoverable patterns without modifying core code.</p>
+<a class="header" href="guides/schemas.html#core-philosophy" id="core-philosophy"><h2>Core Philosophy</h2></a>
+<p>The definitions system follows these principles:</p>
+<ol>
+<li><strong>Convention Over Configuration</strong> - Place files in expected locations, and they're automatically discovered</li>
+<li><strong>Type Safety</strong> - All extensions are type-checked at compile time</li>
+<li><strong>Zero Boilerplate</strong> - No registration code needed with auto-discovery</li>
+<li><strong>Composable</strong> - Mix and match different definition types as needed</li>
+<li><strong>Framework Integration</strong> - Definitions integrate seamlessly with RustF's core systems</li>
+</ol>
+<a class="header" href="guides/schemas.html#what-are-definitions" id="what-are-definitions"><h2>What Are Definitions?</h2></a>
+<p>Definitions are modular extensions that customize framework behavior:</p>
+<ul>
+<li><strong>Helpers</strong> - Custom template functions for views</li>
+<li><strong>Validators</strong> - Data validation logic for forms and APIs</li>
+<li><strong>Session Storage</strong> - Custom session backend implementations</li>
+</ul>
+<a class="header" href="guides/schemas.html#quick-start" id="quick-start"><h2>Quick Start</h2></a>
+<a class="header" href="guides/schemas.html#1-create-a-definitions-module" id="1-create-a-definitions-module"><h3>1. Create a Definitions Module</h3></a>
+<p>Create a file in <code>src/definitions/</code> directory:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// src/definitions/app.rs
+use rustf::definitions::{Definitions, Helper, Validator};
+use rustf::error::Result;
+use serde_json::Value;
+
+/// Install function called by auto-discovery
+/// This function MUST be named 'install' and have this exact signature
+pub fn install(defs: &amp;mut Definitions) {
+    // Register a custom helper
+    defs.register_helper(&quot;format_money&quot;, FormatMoneyHelper);
+    
+    // Register a custom validator
+    defs.register_validator(&quot;email&quot;, EmailValidator);
+}
+
+// Helper implementation
+struct FormatMoneyHelper;
+
+impl Helper for FormatMoneyHelper {
+    fn call(&amp;self, args: &amp;[Value], _context: Option&lt;&amp;Value&gt;) -&gt; Result&lt;Value&gt; {
+        if let Some(Value::Number(n)) = args.first() {
+            if let Some(amount) = n.as_f64() {
+                return Ok(Value::String(format!(&quot;${:.2}&quot;, amount)));
+            }
+        }
+        Ok(Value::Null)
+    }
+    
+    fn name(&amp;self) -&gt; &amp;str { &quot;format_money&quot; }
+    fn description(&amp;self) -&gt; &amp;str { &quot;Formats numbers as currency&quot; }
+}
+
+// Validator implementation
+struct EmailValidator;
+
+impl Validator for EmailValidator {
+    fn validate(&amp;self, value: &amp;Value, _options: Option&lt;&amp;Value&gt;) -&gt; Result&lt;()&gt; {
+        if let Some(email) = value.as_str() {
+            if !email.contains('@') || !email.contains('.') {
+                return Err(rustf::error::Error::validation(&quot;Invalid email format&quot;));
+            }
+        }
+        Ok(())
+    }
+    
+    fn name(&amp;self) -&gt; &amp;str { &quot;email&quot; }
+    fn description(&amp;self) -&gt; &amp;str { &quot;Validates email addresses&quot; }
+}
+#}</code></pre></pre>
+<a class="header" href="guides/schemas.html#2-register-definitions-in-your-app" id="2-register-definitions-in-your-app"><h3>2. Register Definitions in Your App</h3></a>
+<p>Use auto-discovery in <code>main.rs</code>:</p>
+<pre><pre class="playpen"><code class="language-rust">use rustf::prelude::*;
+
+#[rustf::auto_discover]
+#[tokio::main]
+async fn main() -&gt; rustf::Result&lt;()&gt; {
+    let app = RustF::new()
+        .definitions_from(auto_definitions!())  // Auto-discovers all definitions
+        .controllers(auto_controllers!());
+    
+    app.start().await
+}
+</code></pre></pre>
+<a class="header" href="guides/schemas.html#3-use-your-definitions" id="3-use-your-definitions"><h3>3. Use Your Definitions</h3></a>
+<p>In views (for helpers):</p>
+<pre><code class="language-html">&lt;!-- Price: {{ price | format_money }} --&gt;
+&lt;!-- Outputs: Price: $99.99 --&gt;
+</code></pre>
+<p>In controllers (for validators):</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+async fn create_user(ctx: Context) -&gt; Result&lt;Response&gt; {
+    let email = ctx.param(&quot;email&quot;)?;
+    
+    // Get validators from global definitions
+    let definitions = rustf::definitions::get().await;
+    let defs = definitions.read().await;
+    let validator = defs.validators.get(&quot;email&quot;)?;
+    validator.validate(&amp;json!(email), None)?;
+    
+    // Proceed with user creation...
+    ctx.json(json!({&quot;status&quot;: &quot;user created&quot;}))
+}
+#}</code></pre></pre>
+<a class="header" href="guides/schemas.html#component-types" id="component-types"><h2>Component Types</h2></a>
+<a class="header" href="guides/schemas.html#template-helpers" id="template-helpers"><h3>Template Helpers</h3></a>
+<p>Helpers are functions that transform data in views. They're perfect for formatting, calculations, and generating HTML snippets.</p>
+<a class="header" href="guides/schemas.html#creating-a-helper" id="creating-a-helper"><h4>Creating a Helper</h4></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use rustf::definitions::Helper;
+use rustf::error::Result;
+use serde_json::Value;
+
+struct DateFormatHelper;
+
+impl Helper for DateFormatHelper {
+    fn call(&amp;self, args: &amp;[Value], _context: Option&lt;&amp;Value&gt;) -&gt; Result&lt;Value&gt; {
+        // args[0] = date string/timestamp
+        // args[1] = format string (optional)
+        
+        if let Some(date_value) = args.first() {
+            let format = args.get(1)
+                .and_then(|v| v.as_str())
+                .unwrap_or(&quot;%Y-%m-%d&quot;);
+            
+            // Format the date...
+            let formatted = format_date(date_value, format)?;
+            return Ok(Value::String(formatted));
+        }
+        
+        Ok(Value::Null)
+    }
+    
+    fn name(&amp;self) -&gt; &amp;str { &quot;date_format&quot; }
+    
+    fn description(&amp;self) -&gt; &amp;str { 
+        &quot;Formats dates according to strftime patterns&quot; 
+    }
+}
+#}</code></pre></pre>
+<a class="header" href="guides/schemas.html#using-helpers-in-views" id="using-helpers-in-views"><h4>Using Helpers in Views</h4></a>
+<pre><code class="language-html">&lt;!-- TotalJS syntax --&gt;
+@{date_format(user.created_at, &quot;%B %d, %Y&quot;)}
+
+&lt;!-- Tera syntax --&gt;
+{{ user.created_at | date_format(&quot;%B %d, %Y&quot;) }}
+
+&lt;!-- With default format --&gt;
+{{ timestamp | date_format }}
+</code></pre>
+<a class="header" href="guides/schemas.html#built-in-helper-registry" id="built-in-helper-registry"><h4>Built-in Helper Registry</h4></a>
+<p>RustF provides a <code>HelperRegistry</code> with several built-in helpers:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+pub struct HelperRegistry {
+    helpers: HashMap&lt;String, Box&lt;dyn Helper&gt;&gt;,
+}
+
+impl HelperRegistry {
+    pub fn new() -&gt; Self {
+        let mut registry = Self { helpers: HashMap::new() };
+        
+        // Register built-in helpers
+        registry.register(&quot;format_currency&quot;, FormatCurrencyHelper);
+        registry.register(&quot;truncate&quot;, TruncateHelper);
+        registry.register(&quot;pluralize&quot;, PluralizeHelper);
+        registry.register(&quot;time_ago&quot;, TimeAgoHelper);
+        registry.register(&quot;format_date&quot;, FormatDateHelper);
+        registry.register(&quot;url_encode&quot;, UrlEncodeHelper);
+        registry.register(&quot;url_decode&quot;, UrlDecodeHelper);
+        registry.register(&quot;json&quot;, JsonHelper);
+        registry.register(&quot;default&quot;, DefaultHelper);
+        
+        registry
+    }
+}
+#}</code></pre></pre>
+<a class="header" href="guides/schemas.html#validators" id="validators"><h3>Validators</h3></a>
+<p>Validators ensure data integrity before processing. They're essential for form validation, API input validation, and business rule enforcement.</p>
+<a class="header" href="guides/schemas.html#creating-a-validator" id="creating-a-validator"><h4>Creating a Validator</h4></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use rustf::definitions::Validator;
+use rustf::error::{Result, Error};
+use serde_json::Value;
+
+struct PasswordStrengthValidator;
+
+impl Validator for PasswordStrengthValidator {
+    fn validate(&amp;self, value: &amp;Value, options: Option&lt;&amp;Value&gt;) -&gt; Result&lt;()&gt; {
+        let min_length = options
+            .and_then(|o| o.get(&quot;min_length&quot;))
+            .and_then(|v| v.as_u64())
+            .unwrap_or(8) as usize;
+        
+        if let Some(password) = value.as_str() {
+            if password.len() &lt; min_length {
+                return Err(Error::validation(
+                    format!(&quot;Password must be at least {} characters&quot;, min_length)
+                ));
+            }
+            
+            let has_upper = password.chars().any(|c| c.is_uppercase());
+            let has_lower = password.chars().any(|c| c.is_lowercase());
+            let has_digit = password.chars().any(|c| c.is_numeric());
+            let has_special = password.chars().any(|c| !c.is_alphanumeric());
+            
+            if !(has_upper &amp;&amp; has_lower &amp;&amp; has_digit &amp;&amp; has_special) {
+                return Err(Error::validation(
+                    &quot;Password must contain uppercase, lowercase, digit, and special character&quot;
+                ));
+            }
+        }
+        
+        Ok(())
+    }
+    
+    fn name(&amp;self) -&gt; &amp;str { &quot;password_strength&quot; }
+    
+    fn description(&amp;self) -&gt; &amp;str { 
+        &quot;Validates password meets security requirements&quot; 
+    }
+}
+#}</code></pre></pre>
+<a class="header" href="guides/schemas.html#using-validators" id="using-validators"><h4>Using Validators</h4></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+async fn update_password(ctx: Context) -&gt; Result&lt;Response&gt; {
+    let new_password = ctx.param(&quot;new_password&quot;)?;
+    
+    // Get validator from global definitions
+    let definitions = rustf::definitions::get().await;
+    let defs = definitions.read().await;
+    let validator = defs.validators.get(&quot;password_strength&quot;)?;
+    
+    // Validate with options
+    let options = json!({
+        &quot;min_length&quot;: 12,
+        &quot;require_special&quot;: true
+    });
+    
+    validator.validate(&amp;json!(new_password), Some(&amp;options))?;
+    
+    // Password is valid, proceed with update
+    update_user_password(&amp;new_password).await?;
+    
+    ctx.json(json!({&quot;status&quot;: &quot;password updated&quot;}))
+}
+#}</code></pre></pre>
+<a class="header" href="guides/schemas.html#custom-session-storage" id="custom-session-storage"><h3>Custom Session Storage</h3></a>
+<p>The definitions system enables custom session storage backends through a factory pattern. This is the modern, recommended approach for implementing database or custom storage backends.</p>
+<a class="header" href="guides/schemas.html#creating-custom-session-storage" id="creating-custom-session-storage"><h4>Creating Custom Session Storage</h4></a>
+<p>Create <code>src/definitions/session_storage.rs</code>:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use rustf::definitions::Definitions;
+use rustf::session::{SessionStorage, SessionData, StorageStats};
+use rustf::config::SessionConfig;
+use rustf::error::Result;
+use async_trait::async_trait;
+use sqlx::PgPool;
+use std::sync::Arc;
+use std::time::Duration;
+
+/// Install function called by auto-discovery
+/// This registers our custom session storage factory with the definitions system
+pub fn install(defs: &amp;mut Definitions) {
+    log::info!(&quot;Installing custom session storage from definitions&quot;);
+    defs.set_session_storage_factory(create_session_storage);
+}
+
+/// Factory function that creates our custom session storage
+/// This is called by the framework when initializing sessions
+fn create_session_storage(config: &amp;SessionConfig) -&gt; Result&lt;Arc&lt;dyn SessionStorage&gt;&gt; {
+    log::info!(&quot;Creating custom PostgreSQL session storage&quot;);
+    
+    // You can access configuration here
+    let database_url = std::env::var(&quot;DATABASE_URL&quot;)
+        .unwrap_or_else(|_| &quot;postgresql://localhost/myapp&quot;.to_string());
+    
+    // Create and return your custom storage
+    let storage = PostgresSessionStorage::new(&amp;database_url)?;
+    Ok(Arc::new(storage))
+}
+
+/// PostgreSQL session storage implementation
+pub struct PostgresSessionStorage {
+    pool: PgPool,
+}
+
+impl PostgresSessionStorage {
+    pub fn new(database_url: &amp;str) -&gt; Result&lt;Self&gt; {
+        // Note: For simplicity, using block_on here
+        // In production, consider initializing the pool elsewhere
+        let pool = futures::executor::block_on(
+            PgPool::connect(database_url)
+        ).map_err(|e| rustf::error::Error::internal(
+            format!(&quot;Failed to connect to database: {}&quot;, e)
+        ))?;
+        
+        // Create table if needed
+        futures::executor::block_on(async {
+            sqlx::query(
+                &quot;CREATE TABLE IF NOT EXISTS sessions (
+                    id VARCHAR(64) PRIMARY KEY,
+                    data JSONB NOT NULL,
+                    expires_at TIMESTAMP NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )&quot;
+            ).execute(&amp;pool).await
+        }).map_err(|e| rustf::error::Error::internal(
+            format!(&quot;Failed to create sessions table: {}&quot;, e)
+        ))?;
+        
+        Ok(Self { pool })
+    }
+}
+
+#[async_trait]
+impl SessionStorage for PostgresSessionStorage {
+    async fn get(&amp;self, session_id: &amp;str) -&gt; Result&lt;Option&lt;SessionData&gt;&gt; {
+        let row = sqlx::query!(
+            &quot;SELECT data FROM sessions 
+             WHERE id = $1 AND expires_at &gt; NOW()&quot;,
+            session_id
+        )
+        .fetch_optional(&amp;self.pool)
+        .await?;
+        
+        match row {
+            Some(row) =&gt; {
+                let mut data: SessionData = serde_json::from_value(row.data)?;
+                data.touch(); // Update last accessed
+                
+                // Update timestamp in database
+                sqlx::query!(
+                    &quot;UPDATE sessions SET updated_at = NOW() WHERE id = $1&quot;,
+                    session_id
+                )
+                .execute(&amp;self.pool)
+                .await?;
+                
+                Ok(Some(data))
+            }
+            None =&gt; Ok(None)
+        }
+    }
+    
+    async fn set(
+        &amp;self, 
+        session_id: &amp;str, 
+        data: &amp;SessionData, 
+        ttl: Duration
+    ) -&gt; Result&lt;()&gt; {
+        let expires_at = chrono::Utc::now() + 
+            chrono::Duration::seconds(ttl.as_secs() as i64);
+        let json_data = serde_json::to_value(data)?;
+        
+        sqlx::query!(
+            &quot;INSERT INTO sessions (id, data, expires_at, updated_at)
+             VALUES ($1, $2, $3, NOW())
+             ON CONFLICT (id) DO UPDATE
+             SET data = $2, expires_at = $3, updated_at = NOW()&quot;,
+            session_id,
+            json_data,
+            expires_at
+        )
+        .execute(&amp;self.pool)
+        .await?;
+        
+        Ok(())
+    }
+    
+    async fn delete(&amp;self, session_id: &amp;str) -&gt; Result&lt;()&gt; {
+        sqlx::query!(
+            &quot;DELETE FROM sessions WHERE id = $1&quot;,
+            session_id
+        )
+        .execute(&amp;self.pool)
+        .await?;
+        Ok(())
+    }
+    
+    async fn exists(&amp;self, session_id: &amp;str) -&gt; Result&lt;bool&gt; {
+        let exists = sqlx::query!(
+            &quot;SELECT 1 as exists FROM sessions 
+             WHERE id = $1 AND expires_at &gt; NOW()&quot;,
+            session_id
+        )
+        .fetch_optional(&amp;self.pool)
+        .await?
+        .is_some();
+        
+        Ok(exists)
+    }
+    
+    async fn cleanup_expired(&amp;self) -&gt; Result&lt;usize&gt; {
+        let result = sqlx::query!(
+            &quot;DELETE FROM sessions WHERE expires_at &lt;= NOW()&quot;
+        )
+        .execute(&amp;self.pool)
+        .await?;
+        
+        Ok(result.rows_affected() as usize)
+    }
+    
+    fn backend_name(&amp;self) -&gt; &amp;'static str {
+        &quot;postgresql&quot;
+    }
+    
+    async fn stats(&amp;self) -&gt; Result&lt;StorageStats&gt; {
+        let total: i64 = sqlx::query_scalar!(
+            &quot;SELECT COUNT(*) FROM sessions&quot;
+        )
+        .fetch_one(&amp;self.pool)
+        .await?;
+        
+        let active: i64 = sqlx::query_scalar!(
+            &quot;SELECT COUNT(*) FROM sessions WHERE expires_at &gt; NOW()&quot;
+        )
+        .fetch_one(&amp;self.pool)
+        .await?;
+        
+        Ok(StorageStats {
+            total_sessions: total as usize,
+            active_sessions: active as usize,
+            expired_sessions: (total - active) as usize,
+            backend_metrics: HashMap::new(),
+        })
+    }
+}
+#}</code></pre></pre>
+<a class="header" href="guides/schemas.html#integration-with-auto-discovery" id="integration-with-auto-discovery"><h4>Integration with Auto-Discovery</h4></a>
+<p>The session storage factory is automatically discovered and used when you include it in your definitions:</p>
+<pre><pre class="playpen"><code class="language-rust">// main.rs
+#[rustf::auto_discover]
+#[tokio::main]
+async fn main() -&gt; rustf::Result&lt;()&gt; {
+    let app = RustF::new()
+        .definitions_from(auto_definitions!())  // Discovers session_storage.rs
+        .controllers(auto_controllers!());
+    
+    // Your custom session storage is now active!
+    app.start().await
+}
+</code></pre></pre>
+<a class="header" href="guides/schemas.html#auto-discovery-system" id="auto-discovery-system"><h2>Auto-Discovery System</h2></a>
+<a class="header" href="guides/schemas.html#how-auto-discovery-works" id="how-auto-discovery-works"><h3>How Auto-Discovery Works</h3></a>
+<p>The <code>auto_definitions!()</code> macro scans your <code>src/definitions/</code> directory and automatically:</p>
+<ol>
+<li>Finds all <code>.rs</code> files with an <code>install</code> function</li>
+<li>Generates the necessary module declarations</li>
+<li>Calls each <code>install</code> function to register definitions</li>
+<li>Makes them available throughout your application</li>
+</ol>
+<p><strong>IMPORTANT</strong>: Every file in <code>src/definitions/</code> must export a public <code>install</code> function with this exact signature:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+pub fn install(defs: &amp;mut Definitions) {
+    // Register your definitions here
+}
+#}</code></pre></pre>
+<p>This function is where you register all your helpers, validators, or storage factories. The auto-discovery system will call this function during application initialization.</p>
+<a class="header" href="guides/schemas.html#file-convention" id="file-convention"><h3>File Convention</h3></a>
+<p>Place definition files in <code>src/definitions/</code>:</p>
+<pre><code>src/
+  definitions/
+    app.rs           # General helpers and validators
+    helpers.rs       # Template helpers only
+    validators.rs    # Validators only
+    session_storage.rs  # Custom session storage factory
+</code></pre>
+<p>Each file should export an <code>install</code> function:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+pub fn install(defs: &amp;mut Definitions) {
+    // Register your definitions here
+}
+#}</code></pre></pre>
+<a class="header" href="guides/schemas.html#manual-registration" id="manual-registration"><h3>Manual Registration</h3></a>
+<p>If you prefer explicit control, register definitions manually:</p>
+<pre><pre class="playpen"><code class="language-rust">// main.rs
+use my_app::definitions;
+
+#[tokio::main]
+async fn main() -&gt; rustf::Result&lt;()&gt; {
+    let app = RustF::new()
+        .definitions_from(definitions::app::install)
+        .definitions_from(definitions::auth::install)
+        .controllers(auto_controllers!());
+    
+    app.start().await
+}
+</code></pre></pre>
+<a class="header" href="guides/schemas.html#advanced-topics" id="advanced-topics"><h2>Advanced Topics</h2></a>
+<a class="header" href="guides/schemas.html#accessing-definitions-in-code" id="accessing-definitions-in-code"><h3>Accessing Definitions in Code</h3></a>
+<a class="header" href="guides/schemas.html#in-controllers" id="in-controllers"><h4>In Controllers</h4></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+async fn my_controller(ctx: Context) -&gt; Result&lt;Response&gt; {
+    // Get definitions from global registry
+    let definitions = rustf::definitions::get().await;
+    let defs = definitions.read().await;
+    
+    // Access helpers
+    let helper = defs.helpers.get(&quot;format_money&quot;)?;
+    let formatted = helper.call(&amp;[json!(99.99)], None)?;
+    
+    // Access validators  
+    let validator = defs.validators.get(&quot;email&quot;)?;
+    validator.validate(&amp;json!(&quot;user@example.com&quot;), None)?;
+    
+    ctx.json(json!({&quot;formatted&quot;: formatted}))
+}
+#}</code></pre></pre>
+<a class="header" href="guides/schemas.html#in-middleware" id="in-middleware"><h4>In Middleware</h4></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use rustf::middleware::{InboundMiddleware, InboundAction};
+use rustf::context::Context;
+use rustf::error::Result;
+
+pub struct ValidationMiddleware;
+
+impl InboundMiddleware for ValidationMiddleware {
+    fn process_request(&amp;self, ctx: &amp;mut Context) -&gt; Result&lt;InboundAction&gt; {
+        // Get email from request
+        let email = ctx.param(&quot;email&quot;)?;
+        
+        // Get validator from global definitions
+        // Note: Using block_on since middleware is synchronous
+        let definitions = futures::executor::block_on(
+            rustf::definitions::get()
+        );
+        let defs = futures::executor::block_on(definitions.read());
+        let validator = defs.validators.get(&quot;email&quot;)?;
+        validator.validate(&amp;json!(email), None)?;
+        
+        Ok(InboundAction::Continue)
+    }
+}
+#}</code></pre></pre>
+<a class="header" href="guides/schemas.html#testing-definitions" id="testing-definitions"><h3>Testing Definitions</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rustf::definitions::Definitions;
+    
+    #[test]
+    fn test_format_money_helper() {
+        let mut defs = Definitions::new();
+        super::install(&amp;mut defs);
+        
+        let helper = defs.helpers.get(&quot;format_money&quot;).unwrap();
+        let result = helper.call(&amp;[json!(42.50)], None).unwrap();
+        
+        assert_eq!(result, json!(&quot;$42.50&quot;));
+    }
+    
+    #[test]
+    fn test_email_validator() {
+        let mut defs = Definitions::new();
+        super::install(&amp;mut defs);
+        
+        let validator = defs.validators.get(&quot;email&quot;).unwrap();
+        
+        // Valid email
+        assert!(validator.validate(&amp;json!(&quot;user@example.com&quot;), None).is_ok());
+        
+        // Invalid email
+        assert!(validator.validate(&amp;json!(&quot;invalid&quot;), None).is_err());
+    }
+}
+#}</code></pre></pre>
+<a class="header" href="guides/schemas.html#async-helpers-and-validators" id="async-helpers-and-validators"><h3>Async Helpers and Validators</h3></a>
+<p>For async operations, wrap them appropriately:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+struct AsyncDataHelper;
+
+impl Helper for AsyncDataHelper {
+    fn call(&amp;self, args: &amp;[Value], _context: Option&lt;&amp;Value&gt;) -&gt; Result&lt;Value&gt; {
+        // For async operations, you might need to use block_on
+        // or restructure to handle async differently
+        let data = futures::executor::block_on(async {
+            fetch_async_data().await
+        })?;
+        
+        Ok(json!(data))
+    }
+    
+    fn name(&amp;self) -&gt; &amp;str { &quot;async_data&quot; }
+    fn description(&amp;self) -&gt; &amp;str { &quot;Fetches async data&quot; }
+}
+#}</code></pre></pre>
+<a class="header" href="guides/schemas.html#best-practices" id="best-practices"><h2>Best Practices</h2></a>
+<a class="header" href="guides/schemas.html#1-keep-definitions-focused" id="1-keep-definitions-focused"><h3>1. Keep Definitions Focused</h3></a>
+<p>Each definition should have a single, clear purpose:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Good: Specific, reusable
+struct FormatCurrencyHelper;
+struct ValidateEmailValidator;
+
+// Less ideal: Too generic
+struct GeneralHelper;
+struct DoEverythingValidator;
+#}</code></pre></pre>
+<a class="header" href="guides/schemas.html#2-use-descriptive-names" id="2-use-descriptive-names"><h3>2. Use Descriptive Names</h3></a>
+<p>Names should clearly indicate function:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Good
+&quot;format_date&quot;
+&quot;validate_phone&quot;
+&quot;sanitize_html&quot;
+
+// Less clear
+&quot;process&quot;
+&quot;check&quot;
+&quot;helper1&quot;
+#}</code></pre></pre>
+<a class="header" href="guides/schemas.html#3-handle-errors-gracefully" id="3-handle-errors-gracefully"><h3>3. Handle Errors Gracefully</h3></a>
+<p>Always provide helpful error messages:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+impl Validator for PhoneValidator {
+    fn validate(&amp;self, value: &amp;Value, _options: Option&lt;&amp;Value&gt;) -&gt; Result&lt;()&gt; {
+        if let Some(phone) = value.as_str() {
+            if !is_valid_phone(phone) {
+                return Err(Error::validation(
+                    format!(&quot;'{}' is not a valid phone number. Expected format: +1-555-555-5555&quot;, phone)
+                ));
+            }
+        } else {
+            return Err(Error::validation(
+                &quot;Phone number must be a string&quot;
+            ));
+        }
+        Ok(())
+    }
+}
+#}</code></pre></pre>
+<a class="header" href="guides/schemas.html#4-document-your-definitions" id="4-document-your-definitions"><h3>4. Document Your Definitions</h3></a>
+<p>Always implement the <code>description()</code> method:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+impl Helper for MyHelper {
+    fn name(&amp;self) -&gt; &amp;str { &quot;my_helper&quot; }
+    
+    fn description(&amp;self) -&gt; &amp;str {
+        &quot;Formats user data for display. \
+         Usage: {{ user | my_helper }} or {{ my_helper(user, 'option') }}&quot;
+    }
+}
+#}</code></pre></pre>
+<a class="header" href="guides/schemas.html#5-make-definitions-testable" id="5-make-definitions-testable"><h3>5. Make Definitions Testable</h3></a>
+<p>Design definitions to be easily testable:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Separate business logic from the definition
+fn format_phone_number(phone: &amp;str) -&gt; String {
+    // Formatting logic here
+}
+
+struct FormatPhoneHelper;
+
+impl Helper for FormatPhoneHelper {
+    fn call(&amp;self, args: &amp;[Value], _context: Option&lt;&amp;Value&gt;) -&gt; Result&lt;Value&gt; {
+        if let Some(Value::String(phone)) = args.first() {
+            Ok(Value::String(format_phone_number(phone)))
+        } else {
+            Ok(Value::Null)
+        }
+    }
+    // ...
+}
+
+#[test]
+fn test_phone_formatting() {
+    assert_eq!(format_phone_number(&quot;5555555555&quot;), &quot;+1 (555) 555-5555&quot;);
+}
+#}</code></pre></pre>
+<a class="header" href="guides/schemas.html#integration-with-rustf-systems" id="integration-with-rustf-systems"><h2>Integration with RustF Systems</h2></a>
+<a class="header" href="guides/schemas.html#view-system-integration" id="view-system-integration"><h3>View System Integration</h3></a>
+<p>Helpers are automatically available in both TotalJS and Tera templates:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Registered in definitions
+defs.register_helper(&quot;user_avatar&quot;, UserAvatarHelper);
+
+// Available in TotalJS views
+// @{user_avatar(user.email, 200)}
+
+// Available in Tera templates
+// {{ user.email | user_avatar(200) }}
+#}</code></pre></pre>
+<a class="header" href="guides/schemas.html#validation-system-integration" id="validation-system-integration"><h3>Validation System Integration</h3></a>
+<p>Validators work with RustF's error handling:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+async fn api_endpoint(ctx: Context) -&gt; Result&lt;Response&gt; {
+    let data = ctx.json_body()?;
+    
+    // Get validators from global definitions
+    let definitions = rustf::definitions::get().await;
+    let defs = definitions.read().await;
+    
+    // Validate multiple fields
+    defs.validators.get(&quot;email&quot;)?.validate(&amp;data[&quot;email&quot;], None)?;
+    defs.validators.get(&quot;password&quot;)?.validate(&amp;data[&quot;password&quot;], None)?;
+    defs.validators.get(&quot;age&quot;)?.validate(&amp;data[&quot;age&quot;], Some(&amp;json!({&quot;min&quot;: 18})))?;
+    
+    // All validations passed
+    process_data(data).await?;
+    
+    ctx.json(json!({&quot;status&quot;: &quot;success&quot;}))
+}
+#}</code></pre></pre>
+<a class="header" href="guides/schemas.html#session-system-integration" id="session-system-integration"><h3>Session System Integration</h3></a>
+<p>Custom session storage integrates seamlessly with RustF's session middleware:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Your custom storage is automatically used when defined
+// src/definitions/session_storage.rs exists and has an install() function
+
+// In controllers, sessions work normally
+async fn login(ctx: Context) -&gt; Result&lt;Response&gt; {
+    ctx.session_set(&quot;user_id&quot;, user.id)?;
+    ctx.session_set(&quot;username&quot;, user.username)?;
+    
+    // Your custom storage handles persistence
+    ctx.json(json!({&quot;status&quot;: &quot;logged in&quot;}))
+}
+#}</code></pre></pre>
+<a class="header" href="guides/schemas.html#troubleshooting" id="troubleshooting"><h2>Troubleshooting</h2></a>
+<a class="header" href="guides/schemas.html#definitions-not-found" id="definitions-not-found"><h3>Definitions Not Found</h3></a>
+<p>If your definitions aren't being discovered:</p>
+<ol>
+<li>Ensure files are in <code>src/definitions/</code></li>
+<li>Check that files have an <code>install</code> function</li>
+<li>Verify you're using <code>auto_definitions!()</code> or manual registration</li>
+<li>Make sure the function signature matches: <code>pub fn install(defs: &amp;mut Definitions)</code></li>
+</ol>
+<a class="header" href="guides/schemas.html#helper-not-available-in-views" id="helper-not-available-in-views"><h3>Helper Not Available in Views</h3></a>
+<ol>
+<li>Confirm the helper is registered in <code>install()</code></li>
+<li>Check the helper name matches exactly (case-sensitive)</li>
+<li>Verify the view engine is configured correctly</li>
+<li>Check helper's <code>name()</code> method returns the expected string</li>
+</ol>
+<a class="header" href="guides/schemas.html#validator-errors-not-showing" id="validator-errors-not-showing"><h3>Validator Errors Not Showing</h3></a>
+<ol>
+<li>Ensure you're returning proper <code>Error::validation()</code> errors</li>
+<li>Check that error messages are descriptive</li>
+<li>Verify the validator is registered with the correct name</li>
+<li>Test the validator independently to ensure it works</li>
+</ol>
+<a class="header" href="guides/schemas.html#session-storage-not-being-used" id="session-storage-not-being-used"><h3>Session Storage Not Being Used</h3></a>
+<ol>
+<li>Verify <code>src/definitions/session_storage.rs</code> exists</li>
+<li>Check the file has an <code>install(defs: &amp;mut Definitions)</code> function</li>
+<li>Ensure <code>install()</code> calls <code>defs.set_session_storage_factory(your_factory_fn)</code></li>
+<li>Verify your factory function signature matches: <code>fn(&amp;SessionConfig) -&gt; Result&lt;Arc&lt;dyn SessionStorage&gt;&gt;</code></li>
+<li>Confirm auto-discovery is enabled with <code>auto_definitions!()</code> in main.rs</li>
+<li>Check that session middleware is enabled in configuration</li>
+<li>Look for log messages: &quot;Using custom session storage from definitions&quot;</li>
+</ol>
+<p><strong>Important</strong>: The <code>SessionConfig</code> parameter is from <code>rustf::config::SessionConfig</code>, not <code>rustf::session::manager::SessionConfig</code></p>
+<a class="header" href="guides/schemas.html#examples-repository" id="examples-repository"><h2>Examples Repository</h2></a>
+<p>For complete working examples of all definition types, see the RustF examples repository:</p>
+<ul>
+<li><strong>Basic Definitions</strong>: Simple helpers and validators</li>
+<li><strong>Advanced Helpers</strong>: Complex formatting and HTML generation</li>
+<li><strong>Custom Validators</strong>: Business rule validation</li>
+<li><strong>Database Session Storage</strong>: PostgreSQL, MySQL implementations</li>
+<li><strong>Redis Session Storage</strong>: High-performance session storage</li>
+<li><strong>Multi-tenant Definitions</strong>: Per-tenant customization</li>
+</ul>
+<a class="header" href="guides/schemas.html#summary" id="summary"><h2>Summary</h2></a>
+<p>The RustF Definitions System provides a powerful, type-safe way to extend the framework with custom functionality. By following conventions and using auto-discovery, you can build modular, reusable extensions that integrate seamlessly with RustF's core systems.</p>
+<p>Key takeaways:</p>
+<ol>
+<li><strong>Use conventions</strong> - Place files in <code>src/definitions/</code> for auto-discovery</li>
+<li><strong>Implement traits</strong> - <code>Helper</code>, <code>Validator</code>, and <code>SessionStorage</code> provide the contracts</li>
+<li><strong>Leverage auto-discovery</strong> - Let the framework handle registration</li>
+<li><strong>Keep it simple</strong> - Each definition should do one thing well</li>
+<li><strong>Test thoroughly</strong> - Definitions are easy to unit test</li>
+</ol>
+<p>With definitions, you can build powerful, customized applications while keeping your code organized, maintainable, and reusable across projects.</p>
+
+                </div>
+
+                <!-- Mobile navigation buttons -->
+                
+                    <a rel="prev" href="guides/error-handling.html" class="mobile-nav-chapters previous" title="Previous chapter">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                
+
+                
+                    <a rel="next" href="advanced/README.html" class="mobile-nav-chapters next" title="Next chapter">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+                
+
+            </div>
+
+            
+                <a href="guides/error-handling.html" class="nav-chapters previous" title="You can navigate through the chapters using the arrow keys">
+                    <i class="fa fa-angle-left"></i>
+                </a>
+            
+
+            
+                <a href="advanced/README.html" class="nav-chapters next" title="You can navigate through the chapters using the arrow keys">
+                    <i class="fa fa-angle-right"></i>
+                </a>
+            
+
+        </div>
+
+
+        <!-- Local fallback for Font Awesome -->
+        <script>
+            if ($(".fa").css("font-family") !== "FontAwesome") {
+                $('<link rel="stylesheet" type="text/css" href="_FontAwesome/css/font-awesome.css">').prependTo('head');
+            }
+        </script>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        
+
+        
+
+        
+
+        
+
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS script -->
+        
+
+    </body>
+</html>

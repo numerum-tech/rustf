@@ -1,0 +1,1173 @@
+<!DOCTYPE HTML>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Events - RustF Framework Documentation</title>
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="Complete guide to the RustF MVC web framework for Rust">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <base href="../">
+
+        <link rel="stylesheet" href="book.css">
+        <link href="https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800" rel="stylesheet" type="text/css">
+        <link href="https://fonts.googleapis.com/css?family=Source+Code+Pro:500" rel="stylesheet" type="text/css">
+
+        <link rel="shortcut icon" href="favicon.png">
+
+        <!-- Font Awesome -->
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
+
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme -->
+        
+
+        
+
+        <!-- Fetch Clipboard.js from CDN but have a local fallback -->
+        <script src="https://cdn.jsdelivr.net/clipboard.js/1.6.1/clipboard.min.js"></script>
+        <script>
+            if (typeof Clipboard == 'undefined') {
+                document.write(unescape("%3Cscript src='clipboard.min.js'%3E%3C/script%3E"));
+            }
+        </script>
+
+        <!-- Fetch JQuery from CDN but have a local fallback -->
+        <script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+        <script>
+            if (typeof jQuery == 'undefined') {
+                document.write(unescape("%3Cscript src='jquery.js'%3E%3C/script%3E"));
+            }
+        </script>
+
+        <!-- Fetch store.js from local - TODO add CDN when 2.x.x is available on cdnjs -->
+        <script src="store.js"></script>
+
+    </head>
+    <body class="light">
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme = store.get('mdbook-theme');
+            if (theme === null || theme === undefined) { theme = 'light'; }
+            $('body').removeClass().addClass(theme);
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var sidebar = store.get('mdbook-sidebar');
+            if (sidebar === "hidden") { $("html").addClass("sidebar-hidden") }
+            else if (sidebar === "visible") { $("html").addClass("sidebar-visible") }
+        </script>
+
+        <div id="sidebar" class="sidebar">
+            <ul class="chapter"><li class="affix"><a href="README.html">Introduction</a></li><li><a href="getting-started/README.html"><strong>1.</strong> Quick Start</a></li><li><a href="getting-started/installation.html"><strong>2.</strong> Installation</a></li><li><a href="getting-started/hello-world.html"><strong>3.</strong> Hello World</a></li><li><a href="getting-started/project-structure.html"><strong>4.</strong> Project Structure</a></li><li><a href="guides/controllers.html"><strong>5.</strong> Controllers &amp; Routing</a></li><li><a href="guides/views.html"><strong>6.</strong> Views &amp; Templates</a></li><li><a href="guides/middleware.html"><strong>7.</strong> Middleware</a></li><li><a href="guides/sessions.html"><strong>8.</strong> Sessions</a></li><li><a href="guides/database.html"><strong>9.</strong> Database Integration</a></li><li><a href="guides/configuration.html"><strong>10.</strong> Configuration</a></li><li><a href="guides/security.html"><strong>11.</strong> Security</a></li><li><a href="guides/error-handling.html"><strong>12.</strong> Error Handling</a></li><li><a href="guides/schemas.html"><strong>13.</strong> Schemas &amp; Definitions</a></li><li><a href="advanced/README.html"><strong>14.</strong> Overview</a></li><li><a href="advanced/performance.html"><strong>15.</strong> Performance Optimization</a></li><li><a href="advanced/workers.html"><strong>16.</strong> Workers</a></li><li><a href="advanced/events.html" class="active"><strong>17.</strong> Events</a></li><li><a href="advanced/modules.html"><strong>18.</strong> Modules</a></li><li><a href="advanced/cli.html"><strong>19.</strong> CLI Tool</a></li><li><a href="api-reference/README.html"><strong>20.</strong> Overview</a></li><li><a href="api-reference/context.html"><strong>21.</strong> Context API</a></li><li><a href="api-reference/models.html"><strong>22.</strong> Model API</a></li><li><a href="api-reference/routing.html"><strong>23.</strong> Routing API</a></li><li><a href="api-reference/utilities.html"><strong>24.</strong> Utilities</a></li><li><a href="examples/README.html"><strong>25.</strong> Overview</a></li><li><a href="examples/rest-api.html"><strong>26.</strong> Building a REST API</a></li><li><a href="examples/authentication.html"><strong>27.</strong> Authentication</a></li><li><a href="examples/real-world-app.html"><strong>28.</strong> Real-World Application</a></li><li><a href="deployment/production.html"><strong>29.</strong> Production Deployment</a></li><li><a href="deployment/docker.html"><strong>30.</strong> Docker</a></li></ul>
+        </div>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page" tabindex="-1">
+                
+                <div id="menu-bar" class="menu-bar">
+                    <div class="left-buttons">
+                        <i id="sidebar-toggle" class="fa fa-bars" title="Toggle sidebar"></i>
+                        <i id="theme-toggle" class="fa fa-paint-brush" title="Change theme"></i>
+                    </div>
+
+                    <h1 class="menu-title">RustF Framework Documentation</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html">
+                            <i id="print-button" class="fa fa-print" title="Print this book"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <div id="content" class="content">
+                    <a class="header" href="advanced/events.html#rustf-event-system-guide" id="rustf-event-system-guide"><h1>RustF Event System Guide</h1></a>
+<p>🎯 <strong>Total.js-Inspired Event-Driven Architecture</strong></p>
+<p>This guide covers RustF's comprehensive event system, designed to provide Total.js-style <code>ON('ready', function())</code> patterns for application lifecycle management and extensible startup code execution.</p>
+<a class="header" href="advanced/events.html#table-of-contents" id="table-of-contents"><h2>Table of Contents</h2></a>
+<ul>
+<li><a href="advanced/events.html#overview">Overview</a></li>
+<li><a href="advanced/events.html#quick-start">Quick Start</a></li>
+<li><a href="advanced/events.html#application-lifecycle-events">Application Lifecycle Events</a></li>
+<li><a href="advanced/events.html#event-registration">Event Registration</a></li>
+<li><a href="advanced/events.html#parallel-execution">Parallel Execution</a></li>
+<li><a href="advanced/events.html#performance-configuration">Performance Configuration</a></li>
+<li><a href="advanced/events.html#built-in-event-handlers">Built-in Event Handlers</a></li>
+<li><a href="advanced/events.html#custom-event-handlers">Custom Event Handlers</a></li>
+<li><a href="advanced/events.html#event-context">Event Context</a></li>
+<li><a href="advanced/events.html#priority-system">Priority System</a></li>
+<li><a href="advanced/events.html#auto-discovery">Auto-Discovery</a></li>
+<li><a href="advanced/events.html#common-patterns">Common Patterns</a></li>
+<li><a href="advanced/events.html#performance-considerations">Performance Considerations</a></li>
+<li><a href="advanced/events.html#best-practices">Best Practices</a></li>
+<li><a href="advanced/events.html#troubleshooting">Troubleshooting</a></li>
+</ul>
+<a class="header" href="advanced/events.html#overview" id="overview"><h2>Overview</h2></a>
+<p>RustF's event system enables developers to hook into application lifecycle events using a familiar, Total.js-inspired pattern. This system provides:</p>
+<a class="header" href="advanced/events.html#key-features" id="key-features"><h3>Key Features</h3></a>
+<p>✅ <strong>Total.js-Style Syntax</strong> - Familiar <code>ON('ready', handler)</code> pattern<br />
+✅ <strong>Lifecycle Events</strong> - Built-in events for all major application stages<br />
+✅ <strong>Priority-Based Execution</strong> - Control handler execution order<br />
+✅ <strong>Parallel Execution</strong> - Concurrent handler execution within priority groups for optimal performance<br />
+✅ <strong>Built-in Handlers</strong> - Ready-to-use handlers for common tasks<br />
+✅ <strong>Event Context</strong> - Rich context with app config, environment, and utilities<br />
+✅ <strong>Auto-Discovery</strong> - Automatic event handler registration<br />
+✅ <strong>Type Safety</strong> - Full compile-time type checking<br />
+✅ <strong>Async Native</strong> - Built for async/await from the ground up<br />
+✅ <strong>Performance Optimized</strong> - Fast-path execution, configurable timeouts, and error isolation</p>
+<a class="header" href="advanced/events.html#event-driven-benefits" id="event-driven-benefits"><h3>Event-Driven Benefits</h3></a>
+<ul>
+<li><strong>Decoupled Code</strong>: Event handlers don't need to know about each other</li>
+<li><strong>Extensible</strong>: Easy to add new functionality without modifying core code</li>
+<li><strong>Testable</strong>: Individual event handlers can be tested in isolation</li>
+<li><strong>Organized</strong>: Clean separation between initialization logic</li>
+<li><strong>Flexible</strong>: Conditional execution based on environment or configuration</li>
+</ul>
+<a class="header" href="advanced/events.html#quick-start" id="quick-start"><h2>Quick Start</h2></a>
+<a class="header" href="advanced/events.html#basic-event-registration" id="basic-event-registration"><h3>Basic Event Registration</h3></a>
+<pre><pre class="playpen"><code class="language-rust">use rustf::prelude::*;
+
+#[tokio::main]
+async fn main() -&gt; rustf::Result&lt;()&gt; {
+    let app = RustF::new()
+        // Register event handlers using familiar Total.js syntax
+        .on(&quot;ready&quot;, |ctx| Box::pin(async move {
+            println!(&quot;🚀 Application ready in {} mode!&quot;, ctx.env());
+            Ok(())
+        }))
+        
+        .on(&quot;startup&quot;, |ctx| Box::pin(async move {
+            println!(&quot;⚡ Startup tasks executing...&quot;);
+            // Database seeding, directory creation, etc.
+            Ok(())
+        }))
+        
+        .controllers(auto_controllers!());
+    
+    app.start().await
+}
+</code></pre></pre>
+<a class="header" href="advanced/events.html#using-built-in-handlers" id="using-built-in-handlers"><h3>Using Built-in Handlers</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use rustf::prelude::*;
+
+let app = RustF::new()
+    // Built-in handlers for common tasks
+    .on(&quot;startup&quot;, builtin::directory_setup(&amp;[&quot;uploads&quot;, &quot;temp&quot;, &quot;logs&quot;]))
+    .on(&quot;startup&quot;, builtin::cleanup_manager(&quot;temp/&quot;, Duration::from_secs(3600)))
+    .on(&quot;config.loaded&quot;, builtin::configuration_validator)
+    .on(&quot;ready&quot;, builtin::health_check)
+    
+    .controllers(auto_controllers!());
+#}</code></pre></pre>
+<a class="header" href="advanced/events.html#application-lifecycle-events" id="application-lifecycle-events"><h2>Application Lifecycle Events</h2></a>
+<p>RustF emits events automatically during application startup, providing hooks for every stage of initialization:</p>
+<a class="header" href="advanced/events.html#core-lifecycle-events" id="core-lifecycle-events"><h3>Core Lifecycle Events</h3></a>
+<table><thead><tr><th> Event </th><th> When Emitted </th><th> Use Case </th></tr></thead><tbody>
+<tr><td> <code>config.loaded</code> </td><td> Configuration loaded and validated </td><td> Config validation, environment checks </td></tr>
+<tr><td> <code>database.ready</code> </td><td> Database connection established </td><td> Database seeding, migration checks </td></tr>
+<tr><td> <code>modules.ready</code> </td><td> Shared modules initialized </td><td> Module-dependent initialization </td></tr>
+<tr><td> <code>middleware.ready</code> </td><td> Middleware chain configured </td><td> Middleware-dependent setup </td></tr>
+<tr><td> <code>routes.ready</code> </td><td> Routes registered </td><td> Route-dependent initialization </td></tr>
+<tr><td> <code>startup</code> </td><td> Before server starts listening </td><td> Final startup tasks </td></tr>
+<tr><td> <code>ready</code> </td><td> Framework fully initialized </td><td> Application ready notifications </td></tr>
+</tbody></table>
+<a class="header" href="advanced/events.html#event-execution-order" id="event-execution-order"><h3>Event Execution Order</h3></a>
+<pre><code>1. config.loaded    ← Configuration loaded
+2. database.ready   ← Database connected  
+3. modules.ready    ← Shared modules initialized
+4. middleware.ready ← Middleware configured
+5. routes.ready     ← Routes registered
+6. startup          ← Pre-server startup tasks
+7. ready            ← Application fully ready
+   ↓
+   Server starts listening
+</code></pre>
+<a class="header" href="advanced/events.html#custom-events" id="custom-events"><h3>Custom Events</h3></a>
+<p>You can also emit custom events from within handlers:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+.on(&quot;ready&quot;, |ctx| Box::pin(async move {
+    println!(&quot;Application ready!&quot;);
+    
+    // Emit a custom event
+    ctx.emit(&quot;custom.initialization&quot;, Some(json!({
+        &quot;timestamp&quot;: chrono::Utc::now().to_rfc3339(),
+        &quot;environment&quot;: ctx.env()
+    }))).await?;
+    
+    Ok(())
+}))
+
+.on(&quot;custom.initialization&quot;, |ctx| Box::pin(async move {
+    if let Some(data) = &amp;ctx.data {
+        println!(&quot;Custom event data: {}&quot;, data);
+    }
+    Ok(())
+}))
+#}</code></pre></pre>
+<a class="header" href="advanced/events.html#event-registration" id="event-registration"><h2>Event Registration</h2></a>
+<a class="header" href="advanced/events.html#registration-methods" id="registration-methods"><h3>Registration Methods</h3></a>
+<a class="header" href="advanced/events.html#onevent-handler---basic-registration" id="onevent-handler---basic-registration"><h4><code>.on(event, handler)</code> - Basic Registration</h4></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+app.on(&quot;ready&quot;, |ctx| Box::pin(async move {
+    println!(&quot;Application ready!&quot;);
+    Ok(())
+}))
+#}</code></pre></pre>
+<a class="header" href="advanced/events.html#on_priorityevent-priority-handler---priority-based" id="on_priorityevent-priority-handler---priority-based"><h4><code>.on_priority(event, priority, handler)</code> - Priority-Based</h4></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+app.on_priority(&quot;startup&quot;, -100, |ctx| Box::pin(async move {
+    println!(&quot;High priority task (runs first)&quot;);
+    Ok(())
+}))
+
+.on_priority(&quot;startup&quot;, 100, |ctx| Box::pin(async move {
+    println!(&quot;Low priority task (runs last)&quot;);
+    Ok(())
+}))
+#}</code></pre></pre>
+<a class="header" href="advanced/events.html#events_fromregister_fn---bulk-registration" id="events_fromregister_fn---bulk-registration"><h4><code>.events_from(register_fn)</code> - Bulk Registration</h4></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+app.events_from(|emitter| {
+    emitter.on(&quot;ready&quot;, startup_logger);
+    emitter.on(&quot;database.ready&quot;, database_seeder);
+    emitter.once(&quot;ready&quot;, one_time_setup);
+})
+#}</code></pre></pre>
+<a class="header" href="advanced/events.html#onceevent-handler---one-time-handlers" id="onceevent-handler---one-time-handlers"><h4><code>.once(event, handler)</code> - One-Time Handlers</h4></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// This handler will only execute once, even if the event is emitted multiple times
+emitter.once(&quot;ready&quot;, |ctx| Box::pin(async move {
+    println!(&quot;This runs only once!&quot;);
+    Ok(())
+}))
+#}</code></pre></pre>
+<a class="header" href="advanced/events.html#parallel-execution" id="parallel-execution"><h2>Parallel Execution</h2></a>
+<p>RustF's event system features high-performance parallel execution of handlers within the same priority group, while maintaining strict priority ordering between groups.</p>
+<a class="header" href="advanced/events.html#how-parallel-execution-works" id="how-parallel-execution-works"><h3>How Parallel Execution Works</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Multiple handlers at the same priority execute in parallel
+app.on(&quot;ready&quot;, |_ctx| Box::pin(async move {
+    println!(&quot;Handler 1 starting...&quot;);
+    tokio::time::sleep(Duration::from_millis(100)).await; // Simulated work
+    println!(&quot;Handler 1 done&quot;);
+    Ok(())
+}))
+
+.on(&quot;ready&quot;, |_ctx| Box::pin(async move {
+    println!(&quot;Handler 2 starting...&quot;);
+    tokio::time::sleep(Duration::from_millis(100)).await; // Simulated work  
+    println!(&quot;Handler 2 done&quot;);
+    Ok(())
+}))
+
+.on(&quot;ready&quot;, |_ctx| Box::pin(async move {
+    println!(&quot;Handler 3 starting...&quot;);
+    tokio::time::sleep(Duration::from_millis(100)).await; // Simulated work
+    println!(&quot;Handler 3 done&quot;);
+    Ok(())
+}));
+
+// All 3 handlers execute concurrently!
+// Total execution time: ~100ms (instead of ~300ms sequential)
+#}</code></pre></pre>
+<a class="header" href="advanced/events.html#priority-groups-and-parallel-execution" id="priority-groups-and-parallel-execution"><h3>Priority Groups and Parallel Execution</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+app
+    // Priority -100: Infrastructure handlers (execute first, in parallel)
+    .on_priority(&quot;startup&quot;, -100, database_init_handler)    // Runs in parallel
+    .on_priority(&quot;startup&quot;, -100, cache_init_handler)       // with this one
+    .on_priority(&quot;startup&quot;, -100, logging_init_handler)     // and this one
+    
+    // Wait for all priority -100 handlers to complete...
+    
+    // Priority 0: Application handlers (execute second, in parallel)  
+    .on(&quot;startup&quot;, user_service_init)     // Runs in parallel
+    .on(&quot;startup&quot;, email_service_init)    // with this one
+    .on(&quot;startup&quot;, file_service_init)     // and this one
+    
+    // Wait for all priority 0 handlers to complete...
+    
+    // Priority 100: Cleanup handlers (execute last, in parallel)
+    .on_priority(&quot;startup&quot;, 100, temp_cleanup)         // Runs in parallel
+    .on_priority(&quot;startup&quot;, 100, session_cleanup)      // with this one
+#}</code></pre></pre>
+<a class="header" href="advanced/events.html#performance-benefits" id="performance-benefits"><h3>Performance Benefits</h3></a>
+<p><strong>Example Performance Improvement:</strong></p>
+<ul>
+<li>4 handlers, each taking 100ms</li>
+<li><strong>Sequential execution</strong>: 400ms total</li>
+<li><strong>Parallel execution</strong>: 100ms total (<strong>4x faster!</strong>)</li>
+</ul>
+<a class="header" href="advanced/events.html#performance-configuration" id="performance-configuration"><h2>Performance Configuration</h2></a>
+<p>Configure event system performance settings for optimal behavior:</p>
+<a class="header" href="advanced/events.html#basic-configuration" id="basic-configuration"><h3>Basic Configuration</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use rustf::events::EventEmitterConfig;
+use std::time::Duration;
+
+let app = RustF::new()
+    .event_config(EventEmitterConfig::parallel() // Enable parallel execution
+        .with_timeout(Duration::from_secs(30))    // Handler timeout protection
+        .with_debug_logging(false)                // Disable debug logging for performance
+        .with_max_concurrent(8))                  // Limit concurrent handlers
+#}</code></pre></pre>
+<a class="header" href="advanced/events.html#configuration-presets" id="configuration-presets"><h3>Configuration Presets</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// High-performance configuration (production)
+let config = EventEmitterConfig::parallel()
+    .with_timeout(Duration::from_secs(60))
+    .with_debug_logging(false);
+
+// Debug-friendly configuration (development)
+let config = EventEmitterConfig::sequential()
+    .with_timeout(Duration::from_secs(10))
+    .with_debug_logging(true);
+
+let app = RustF::new().event_config(config);
+#}</code></pre></pre>
+<a class="header" href="advanced/events.html#configuration-options" id="configuration-options"><h3>Configuration Options</h3></a>
+<table><thead><tr><th> Option </th><th> Description </th><th> Default </th><th> Recommendation </th></tr></thead><tbody>
+<tr><td> <code>parallel_execution</code> </td><td> Enable parallel handler execution </td><td> <code>true</code> </td><td> <code>true</code> for production, <code>false</code> for debugging </td></tr>
+<tr><td> <code>handler_timeout</code> </td><td> Maximum handler execution time </td><td> 30 seconds </td><td> 30-60s for production, 10s for development </td></tr>
+<tr><td> <code>debug_logging</code> </td><td> Enable detailed execution logging </td><td> <code>cfg!(debug_assertions)</code> </td><td> <code>false</code> for production (performance) </td></tr>
+<tr><td> <code>max_concurrent_handlers</code> </td><td> Limit concurrent handlers per priority </td><td> <code>0</code> (unlimited) </td><td> 4-12 based on workload </td></tr>
+</tbody></table>
+<a class="header" href="advanced/events.html#built-in-event-handlers" id="built-in-event-handlers"><h2>Built-in Event Handlers</h2></a>
+<p>RustF provides ready-to-use event handlers for common startup tasks:</p>
+<a class="header" href="advanced/events.html#database-seeder" id="database-seeder"><h3>Database Seeder</h3></a>
+<p>Automatically runs SQL seed files from a directory:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+.on(&quot;database.ready&quot;, builtin::database_seeder(&quot;seeds/&quot;))
+#}</code></pre></pre>
+<p><strong>Features:</strong></p>
+<ul>
+<li>Executes SQL files in alphabetical order</li>
+<li>Only runs in development by default</li>
+<li>Handles multiple database types</li>
+<li>Continues on individual file failures</li>
+</ul>
+<a class="header" href="advanced/events.html#directory-setup" id="directory-setup"><h3>Directory Setup</h3></a>
+<p>Ensures required directories exist with proper permissions:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+.on(&quot;startup&quot;, builtin::directory_setup(&amp;[
+    &quot;uploads&quot;, &quot;temp&quot;, &quot;logs&quot;, &quot;cache&quot;, &quot;sessions&quot;
+]))
+#}</code></pre></pre>
+<p><strong>Features:</strong></p>
+<ul>
+<li>Creates missing directories</li>
+<li>Sets appropriate permissions (755 on Unix)</li>
+<li>Logs creation status</li>
+<li>Safe for repeated execution</li>
+</ul>
+<a class="header" href="advanced/events.html#cleanup-manager" id="cleanup-manager"><h3>Cleanup Manager</h3></a>
+<p>Removes old temporary files and performs cleanup:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+.on(&quot;startup&quot;, builtin::cleanup_manager(&quot;temp/&quot;, Duration::from_secs(86400)))
+#}</code></pre></pre>
+<p><strong>Features:</strong></p>
+<ul>
+<li>Removes files older than specified duration</li>
+<li>Handles both files and directories</li>
+<li>Logs cleanup statistics</li>
+<li>Safe error handling</li>
+</ul>
+<a class="header" href="advanced/events.html#configuration-validator" id="configuration-validator"><h3>Configuration Validator</h3></a>
+<p>Validates critical configuration settings:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+.on(&quot;config.loaded&quot;, builtin::configuration_validator)
+#}</code></pre></pre>
+<p><strong>Features:</strong></p>
+<ul>
+<li>Validates production-specific settings</li>
+<li>Checks for default/insecure values</li>
+<li>Environment-specific validation rules</li>
+<li>Fails fast on critical issues</li>
+</ul>
+<a class="header" href="advanced/events.html#health-check" id="health-check"><h3>Health Check</h3></a>
+<p>Performs basic application health checks:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+.on(&quot;ready&quot;, builtin::health_check)
+#}</code></pre></pre>
+<p><strong>Features:</strong></p>
+<ul>
+<li>Database connectivity check</li>
+<li>System resource validation</li>
+<li>Environment-specific checks</li>
+<li>Detailed health reporting</li>
+</ul>
+<a class="header" href="advanced/events.html#environment-check" id="environment-check"><h3>Environment Check</h3></a>
+<p>Validates the application is running in the expected environment:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+.on(&quot;startup&quot;, builtin::environment_check(&quot;production&quot;))
+#}</code></pre></pre>
+<p><strong>Features:</strong></p>
+<ul>
+<li>Environment validation</li>
+<li>Fails in production if mismatch detected</li>
+<li>Configurable expected environment</li>
+<li>Detailed error reporting</li>
+</ul>
+<a class="header" href="advanced/events.html#custom-event-handlers" id="custom-event-handlers"><h2>Custom Event Handlers</h2></a>
+<a class="header" href="advanced/events.html#creating-custom-handlers" id="creating-custom-handlers"><h3>Creating Custom Handlers</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Simple handler function
+async fn database_migration_check(ctx: EventContext) -&gt; rustf::Result&lt;()&gt; {
+    if ctx.is_production() {
+        println!(&quot;Checking database migrations in production...&quot;);
+        // Check migration status
+        run_migration_check().await?;
+    }
+    Ok(())
+}
+
+// Register the handler
+app.on(&quot;database.ready&quot;, |ctx| Box::pin(database_migration_check(ctx)))
+#}</code></pre></pre>
+<a class="header" href="advanced/events.html#handler-functions-vs-closures" id="handler-functions-vs-closures"><h3>Handler Functions vs Closures</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Function-based handler (reusable)
+async fn reusable_handler(ctx: EventContext) -&gt; rustf::Result&lt;()&gt; {
+    println!(&quot;Handler executed for: {}&quot;, ctx.event);
+    Ok(())
+}
+
+app.on(&quot;ready&quot;, |ctx| Box::pin(reusable_handler(ctx)))
+
+// Closure-based handler (inline)
+app.on(&quot;startup&quot;, |ctx| Box::pin(async move {
+    println!(&quot;Inline handler for {}&quot;, ctx.event);
+    // Access closure variables
+    let config = &amp;ctx.config;
+    Ok(())
+}))
+#}</code></pre></pre>
+<a class="header" href="advanced/events.html#conditional-handlers" id="conditional-handlers"><h3>Conditional Handlers</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+app.on(&quot;ready&quot;, |ctx| Box::pin(async move {
+    match ctx.env() {
+        &quot;development&quot; =&gt; {
+            println!(&quot;Development setup&quot;);
+            setup_dev_data().await?;
+        }
+        &quot;production&quot; =&gt; {
+            println!(&quot;Production validation&quot;);
+            validate_production_config(&amp;ctx.config)?;
+        }
+        _ =&gt; {
+            println!(&quot;Default environment setup&quot;);
+        }
+    }
+    Ok(())
+}))
+#}</code></pre></pre>
+<a class="header" href="advanced/events.html#event-context" id="event-context"><h2>Event Context</h2></a>
+<p>The <code>EventContext</code> provides rich information and utilities for event handlers:</p>
+<a class="header" href="advanced/events.html#context-properties" id="context-properties"><h3>Context Properties</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+async fn handler_example(ctx: EventContext) -&gt; rustf::Result&lt;()&gt; {
+    // Event information
+    println!(&quot;Event: {}&quot;, ctx.event);
+    println!(&quot;Environment: {}&quot;, ctx.env());
+    
+    // Environment checks
+    if ctx.is_development() {
+        println!(&quot;Running in development mode&quot;);
+    }
+    
+    if ctx.is_production() {
+        println!(&quot;Running in production mode&quot;);
+    }
+    
+    // Configuration access
+    let server_port = ctx.config.server.port;
+    let database_url = &amp;ctx.config.database.url;
+    
+    // Event data (if provided)
+    if let Some(data) = &amp;ctx.data {
+        println!(&quot;Event data: {}&quot;, data);
+    }
+    
+    // Emit other events
+    ctx.emit(&quot;custom.event&quot;, Some(json!({&quot;from&quot;: ctx.event}))).await?;
+    
+    Ok(())
+}
+#}</code></pre></pre>
+<a class="header" href="advanced/events.html#available-context-methods" id="available-context-methods"><h3>Available Context Methods</h3></a>
+<table><thead><tr><th> Method </th><th> Description </th><th> Example </th></tr></thead><tbody>
+<tr><td> <code>ctx.event</code> </td><td> Current event name </td><td> <code>&quot;ready&quot;</code> </td></tr>
+<tr><td> <code>ctx.env()</code> </td><td> Current environment </td><td> <code>&quot;development&quot;</code> </td></tr>
+<tr><td> <code>ctx.is_development()</code> </td><td> Development check </td><td> <code>true</code> </td></tr>
+<tr><td> <code>ctx.is_production()</code> </td><td> Production check </td><td> <code>false</code> </td></tr>
+<tr><td> <code>ctx.config</code> </td><td> Application config </td><td> <code>ctx.config.server.port</code> </td></tr>
+<tr><td> <code>ctx.data</code> </td><td> Event data </td><td> <code>json!({&quot;key&quot;: &quot;value&quot;})</code> </td></tr>
+<tr><td> <code>ctx.emit(event, data)</code> </td><td> Emit another event </td><td> Custom event emission </td></tr>
+</tbody></table>
+<a class="header" href="advanced/events.html#priority-system" id="priority-system"><h2>Priority System</h2></a>
+<p>Control the execution order of event handlers using priorities:</p>
+<a class="header" href="advanced/events.html#priority-values" id="priority-values"><h3>Priority Values</h3></a>
+<ul>
+<li><strong>-200 to -100</strong>: Infrastructure (database, core systems)</li>
+<li><strong>-99 to -50</strong>: Security and authentication</li>
+<li><strong>-49 to -1</strong>: Business logic prerequisites</li>
+<li><strong>0</strong>: Default priority (recommended for most handlers)</li>
+<li><strong>1 to 99</strong>: Business logic</li>
+<li><strong>100+</strong>: Post-processing and cleanup</li>
+</ul>
+<a class="header" href="advanced/events.html#priority-examples" id="priority-examples"><h3>Priority Examples</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+app
+    // Critical infrastructure (runs first)
+    .on_priority(&quot;startup&quot;, -100, builtin::directory_setup(&amp;[&quot;logs&quot;]))
+    
+    // Security setup
+    .on_priority(&quot;startup&quot;, -50, security_initialization)
+    
+    // Default priority (most handlers)
+    .on(&quot;startup&quot;, application_setup)
+    
+    // Cleanup tasks (runs last)
+    .on_priority(&quot;startup&quot;, 100, final_cleanup)
+#}</code></pre></pre>
+<a class="header" href="advanced/events.html#execution-flow" id="execution-flow"><h3>Execution Flow</h3></a>
+<pre><code>Priority -100: Infrastructure setup
+Priority -50:  Security initialization  
+Priority 0:    Application setup (default)
+Priority 100:  Final cleanup
+</code></pre>
+<a class="header" href="advanced/events.html#auto-discovery" id="auto-discovery"><h2>Auto-Discovery</h2></a>
+<p>RustF can automatically discover and register event handlers from your codebase:</p>
+<a class="header" href="advanced/events.html#file-structure" id="file-structure"><h3>File Structure</h3></a>
+<pre><code>src/
+  events/           ← Event handler modules
+    database.rs     ← Database-related events
+    filesystem.rs   ← File system events
+    security.rs     ← Security events
+    custom.rs       ← Custom application events
+</code></pre>
+<a class="header" href="advanced/events.html#event-handler-module" id="event-handler-module"><h3>Event Handler Module</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// src/events/database.rs
+use rustf::events::{EventEmitter, EventContext};
+
+pub fn install(emitter: &amp;mut EventEmitter) {
+    emitter.on(&quot;database.ready&quot;, seed_development_data);
+    emitter.on(&quot;ready&quot;, database_health_check);
+}
+
+async fn seed_development_data(ctx: EventContext) -&gt; rustf::Result&lt;()&gt; {
+    if ctx.is_development() {
+        println!(&quot;Seeding development data...&quot;);
+        // Database seeding logic
+    }
+    Ok(())
+}
+
+async fn database_health_check(ctx: EventContext) -&gt; rustf::Result&lt;()&gt; {
+    println!(&quot;Running database health check...&quot;);
+    // Health check logic
+    Ok(())
+}
+#}</code></pre></pre>
+<a class="header" href="advanced/events.html#auto-discovery-registration" id="auto-discovery-registration"><h3>Auto-Discovery Registration</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// main.rs
+use rustf::prelude::*;
+
+let app = RustF::new()
+    .events_from(auto_events!())  // Auto-discovers src/events/*.rs
+    .controllers(auto_controllers!());
+#}</code></pre></pre>
+<p><strong>Note</strong>: Auto-discovery requires the <code>auto-discovery</code> feature to be enabled.</p>
+<a class="header" href="advanced/events.html#common-patterns" id="common-patterns"><h2>Common Patterns</h2></a>
+<a class="header" href="advanced/events.html#database-initialization-pattern" id="database-initialization-pattern"><h3>Database Initialization Pattern</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+app.on(&quot;database.ready&quot;, |ctx| Box::pin(async move {
+    if ctx.is_development() {
+        // Seed development data
+        println!(&quot;Seeding development database...&quot;);
+        seed_database().await?;
+    } else if ctx.is_production() {
+        // Validate production database
+        println!(&quot;Validating production database...&quot;);
+        validate_database_schema().await?;
+    }
+    Ok(())
+}))
+#}</code></pre></pre>
+<a class="header" href="advanced/events.html#multi-environment-setup" id="multi-environment-setup"><h3>Multi-Environment Setup</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+app.on(&quot;ready&quot;, |ctx| Box::pin(async move {
+    match ctx.env() {
+        &quot;development&quot; =&gt; {
+            setup_debug_tools().await?;
+            enable_hot_reload().await?;
+        }
+        &quot;staging&quot; =&gt; {
+            setup_staging_environment().await?;
+            enable_performance_monitoring().await?;
+        }
+        &quot;production&quot; =&gt; {
+            validate_security_settings(&amp;ctx.config)?;
+            enable_production_monitoring().await?;
+        }
+        env =&gt; {
+            log::warn!(&quot;Unknown environment: {}&quot;, env);
+        }
+    }
+    Ok(())
+}))
+#}</code></pre></pre>
+<a class="header" href="advanced/events.html#dependency-chain-pattern" id="dependency-chain-pattern"><h3>Dependency Chain Pattern</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+app
+    // Step 1: Initialize core services
+    .on_priority(&quot;startup&quot;, -100, |ctx| Box::pin(async move {
+        initialize_core_services().await?;
+        ctx.emit(&quot;services.ready&quot;, None).await?;
+        Ok(())
+    }))
+    
+    // Step 2: Setup dependent services
+    .on(&quot;services.ready&quot;, |ctx| Box::pin(async move {
+        setup_dependent_services().await?;
+        ctx.emit(&quot;dependencies.ready&quot;, None).await?;
+        Ok(())
+    }))
+    
+    // Step 3: Final application setup
+    .on(&quot;dependencies.ready&quot;, |ctx| Box::pin(async move {
+        finalize_application_setup().await?;
+        Ok(())
+    }))
+#}</code></pre></pre>
+<a class="header" href="advanced/events.html#error-recovery-pattern" id="error-recovery-pattern"><h3>Error Recovery Pattern</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+app.on(&quot;database.ready&quot;, |ctx| Box::pin(async move {
+    match connect_to_database().await {
+        Ok(()) =&gt; {
+            println!(&quot;✅ Database connected&quot;);
+            ctx.emit(&quot;database.connected&quot;, None).await?;
+        }
+        Err(e) =&gt; {
+            log::error!(&quot;❌ Database connection failed: {}&quot;, e);
+            
+            if ctx.is_production() {
+                // Fail fast in production
+                return Err(e);
+            } else {
+                // Try fallback in development
+                setup_fallback_database().await?;
+                ctx.emit(&quot;database.fallback&quot;, None).await?;
+            }
+        }
+    }
+    Ok(())
+}))
+#}</code></pre></pre>
+<a class="header" href="advanced/events.html#best-practices" id="best-practices"><h2>Best Practices</h2></a>
+<a class="header" href="advanced/events.html#1-use-descriptive-event-names" id="1-use-descriptive-event-names"><h3>1. Use Descriptive Event Names</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Good: Clear and descriptive
+.on(&quot;database.schema.validated&quot;, handler)
+.on(&quot;security.certificates.loaded&quot;, handler)
+.on(&quot;cache.warmed&quot;, handler)
+
+// Avoid: Generic or unclear
+.on(&quot;done&quot;, handler)
+.on(&quot;init&quot;, handler)
+.on(&quot;setup&quot;, handler)
+#}</code></pre></pre>
+<a class="header" href="advanced/events.html#2-leverage-priority-system" id="2-leverage-priority-system"><h3>2. Leverage Priority System</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Good: Logical priority ordering
+.on_priority(&quot;startup&quot;, -100, create_directories)    // Infrastructure
+.on_priority(&quot;startup&quot;, -50, load_certificates)      // Security
+.on_priority(&quot;startup&quot;, 0, initialize_services)      // Business logic
+.on_priority(&quot;startup&quot;, 100, warm_caches)           // Optimization
+#}</code></pre></pre>
+<a class="header" href="advanced/events.html#3-handle-errors-gracefully" id="3-handle-errors-gracefully"><h3>3. Handle Errors Gracefully</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+.on(&quot;ready&quot;, |ctx| Box::pin(async move {
+    match risky_operation().await {
+        Ok(()) =&gt; {
+            log::info!(&quot;✅ Operation completed successfully&quot;);
+        }
+        Err(e) =&gt; {
+            log::error!(&quot;❌ Operation failed: {}&quot;, e);
+            
+            // Don't fail the entire application for non-critical errors
+            if is_critical_error(&amp;e) {
+                return Err(e);
+            }
+            
+            // Try fallback or continue
+            attempt_fallback().await.ok();
+        }
+    }
+    Ok(())
+}))
+#}</code></pre></pre>
+<a class="header" href="advanced/events.html#4-use-environment-specific-logic" id="4-use-environment-specific-logic"><h3>4. Use Environment-Specific Logic</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+.on(&quot;ready&quot;, |ctx| Box::pin(async move {
+    if ctx.is_development() {
+        setup_development_tools().await?;
+        seed_test_data().await?;
+    }
+    
+    if ctx.is_production() {
+        validate_production_config(&amp;ctx.config)?;
+        setup_monitoring().await?;
+    }
+    
+    Ok(())
+}))
+#}</code></pre></pre>
+<a class="header" href="advanced/events.html#5-emit-custom-events-for-extension-points" id="5-emit-custom-events-for-extension-points"><h3>5. Emit Custom Events for Extension Points</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+.on(&quot;ready&quot;, |ctx| Box::pin(async move {
+    initialize_core_application().await?;
+    
+    // Emit custom event for plugins/extensions
+    ctx.emit(&quot;application.plugins.load&quot;, None).await?;
+    
+    finalize_initialization().await?;
+    Ok(())
+}))
+
+// Extensions can hook into the custom event
+.on(&quot;application.plugins.load&quot;, |ctx| Box::pin(async move {
+    load_custom_plugins().await?;
+    Ok(())
+}))
+#}</code></pre></pre>
+<a class="header" href="advanced/events.html#6-document-event-contracts" id="6-document-event-contracts"><h3>6. Document Event Contracts</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+/// Emitted when the user authentication system is fully initialized
+/// 
+/// Context Data: None
+/// Prerequisites: database.ready, security.certificates.loaded
+/// Guarantees: User authentication is available for requests
+.on(&quot;auth.system.ready&quot;, auth_system_handler)
+#}</code></pre></pre>
+<a class="header" href="advanced/events.html#troubleshooting" id="troubleshooting"><h2>Troubleshooting</h2></a>
+<a class="header" href="advanced/events.html#common-issues" id="common-issues"><h3>Common Issues</h3></a>
+<a class="header" href="advanced/events.html#1-handlers-not-executing" id="1-handlers-not-executing"><h4>1. Handlers Not Executing</h4></a>
+<p><strong>Problem</strong>: Event handlers don't seem to run.</p>
+<p><strong>Solutions</strong>:</p>
+<ul>
+<li>Verify event names match exactly (case-sensitive)</li>
+<li>Check that events are being emitted by the framework</li>
+<li>Ensure handler registration happens before <code>app.start()</code></li>
+</ul>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// ❌ Incorrect event name
+.on(&quot;readdy&quot;, handler)  // Typo
+
+// ✅ Correct event name  
+.on(&quot;ready&quot;, handler)
+#}</code></pre></pre>
+<a class="header" href="advanced/events.html#2-handler-execution-order-issues" id="2-handler-execution-order-issues"><h4>2. Handler Execution Order Issues</h4></a>
+<p><strong>Problem</strong>: Handlers run in unexpected order.</p>
+<p><strong>Solutions</strong>:</p>
+<ul>
+<li>Use priority system to control execution order</li>
+<li>Check priority values (lower = earlier execution)</li>
+<li>Avoid depending on registration order</li>
+</ul>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// ❌ Relying on registration order
+.on(&quot;startup&quot;, handler_a)  // Might run second
+.on(&quot;startup&quot;, handler_b)  // Might run first
+
+// ✅ Using explicit priorities
+.on_priority(&quot;startup&quot;, 10, handler_a)  // Runs first
+.on_priority(&quot;startup&quot;, 20, handler_b)  // Runs second
+#}</code></pre></pre>
+<a class="header" href="advanced/events.html#3-async-handler-issues" id="3-async-handler-issues"><h4>3. Async Handler Issues</h4></a>
+<p><strong>Problem</strong>: Async operations not completing or compiler errors.</p>
+<p><strong>Solutions</strong>:</p>
+<ul>
+<li>Always wrap handlers with <code>Box::pin(async move { ... })</code></li>
+<li>Ensure all async operations are awaited</li>
+<li>Return <code>rustf::Result&lt;()&gt;</code> from handlers</li>
+</ul>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// ❌ Missing Box::pin
+.on(&quot;ready&quot;, |ctx| async move {  // Compiler error
+    Ok(())
+})
+
+// ✅ Proper async handler
+.on(&quot;ready&quot;, |ctx| Box::pin(async move {
+    some_async_operation().await?;
+    Ok(())
+}))
+#}</code></pre></pre>
+<a class="header" href="advanced/events.html#4-context-data-not-available" id="4-context-data-not-available"><h4>4. Context Data Not Available</h4></a>
+<p><strong>Problem</strong>: <code>ctx.data</code> is always <code>None</code>.</p>
+<p><strong>Solutions</strong>:</p>
+<ul>
+<li>Check that events are emitted with data</li>
+<li>Verify JSON serialization of event data</li>
+<li>Use built-in events with expected data structure</li>
+</ul>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Emitting event with data
+ctx.emit(&quot;custom.event&quot;, Some(json!({
+    &quot;message&quot;: &quot;Hello&quot;,
+    &quot;timestamp&quot;: chrono::Utc::now()
+}))).await?;
+
+// Receiving event data
+.on(&quot;custom.event&quot;, |ctx| Box::pin(async move {
+    if let Some(data) = &amp;ctx.data {
+        println!(&quot;Received: {}&quot;, data);
+    }
+    Ok(())
+}))
+#}</code></pre></pre>
+<a class="header" href="advanced/events.html#5-environment-detection-issues" id="5-environment-detection-issues"><h4>5. Environment Detection Issues</h4></a>
+<p><strong>Problem</strong>: Environment methods return unexpected values.</p>
+<p><strong>Solutions</strong>:</p>
+<ul>
+<li>Set environment variables properly</li>
+<li>Check supported environment variable names</li>
+<li>Use explicit environment checks</li>
+</ul>
+<pre><code class="language-bash"># Set environment (choose one)
+export NODE_ENV=production
+export RUST_ENV=production  
+export APP_ENV=production
+</code></pre>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Debug environment detection
+.on(&quot;ready&quot;, |ctx| Box::pin(async move {
+    println!(&quot;Environment: {}&quot;, ctx.env());
+    println!(&quot;Is development: {}&quot;, ctx.is_development());
+    println!(&quot;Is production: {}&quot;, ctx.is_production());
+    Ok(())
+}))
+#}</code></pre></pre>
+<a class="header" href="advanced/events.html#debugging-events" id="debugging-events"><h3>Debugging Events</h3></a>
+<p>Enable debug logging to see event execution:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// In main.rs
+env_logger::Builder::from_env(env_logger::Env::default().default_filter_or(&quot;debug&quot;)).init();
+
+// Events will log execution details:
+// [DEBUG] Registered event handler for 'ready' with priority 0 (id: 1)
+// [INFO]  Emitting event: 'ready'
+// [DEBUG] Executing handler 1 for 'ready' (priority: 0)
+// [INFO]  Event 'ready' executed 1 handler(s)
+#}</code></pre></pre>
+<a class="header" href="advanced/events.html#performance-considerations" id="performance-considerations"><h2>Performance Considerations</h2></a>
+<a class="header" href="advanced/events.html#parallel-vs-sequential-execution" id="parallel-vs-sequential-execution"><h3>Parallel vs Sequential Execution</h3></a>
+<p>RustF automatically optimizes event handler execution for maximum performance:</p>
+<p><strong>Parallel Execution (Default)</strong>:</p>
+<ul>
+<li>Handlers within the same priority group execute concurrently</li>
+<li>Significantly faster for I/O bound tasks (database calls, file operations)</li>
+<li>Optimal for production environments</li>
+<li>Example: 4 handlers × 100ms each = <strong>100ms total</strong> (4x speedup)</li>
+</ul>
+<p><strong>Sequential Execution (Debug Mode)</strong>:</p>
+<ul>
+<li>Handlers execute one after another</li>
+<li>Easier to debug and trace execution</li>
+<li>Recommended for development and testing</li>
+<li>Example: 4 handlers × 100ms each = <strong>400ms total</strong></li>
+</ul>
+<a class="header" href="advanced/events.html#performance-optimization-tips" id="performance-optimization-tips"><h3>Performance Optimization Tips</h3></a>
+<a class="header" href="advanced/events.html#1-enable-parallel-execution-in-production" id="1-enable-parallel-execution-in-production"><h4>1. <strong>Enable Parallel Execution in Production</strong></h4></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+let app = RustF::new()
+    .event_config(EventEmitterConfig::parallel()
+        .with_debug_logging(false));  // Disable debug logging for performance
+#}</code></pre></pre>
+<a class="header" href="advanced/events.html#2-use-priority-groups-strategically" id="2-use-priority-groups-strategically"><h4>2. <strong>Use Priority Groups Strategically</strong></h4></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// ✅ Good: Group related handlers by priority
+.on_priority(&quot;startup&quot;, -100, database_init)     // Infrastructure first
+.on_priority(&quot;startup&quot;, -100, cache_init)        // (parallel with above)
+.on_priority(&quot;startup&quot;, 0, service_init)         // Services second
+.on_priority(&quot;startup&quot;, 0, api_init)             // (parallel with above)
+
+// ❌ Avoid: Mixed priorities force sequential execution
+.on_priority(&quot;startup&quot;, -100, database_init)
+.on_priority(&quot;startup&quot;, 0, service_init)         // Must wait for database_init
+.on_priority(&quot;startup&quot;, -99, cache_init)         // Must wait for service_init
+#}</code></pre></pre>
+<a class="header" href="advanced/events.html#3-configure-timeouts-appropriately" id="3-configure-timeouts-appropriately"><h4>3. <strong>Configure Timeouts Appropriately</strong></h4></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Production: Longer timeouts for complex operations
+.event_config(EventEmitterConfig::parallel()
+    .with_timeout(Duration::from_secs(60)))
+
+// Development: Shorter timeouts to catch hung handlers
+.event_config(EventEmitterConfig::sequential()
+    .with_timeout(Duration::from_secs(10)))
+#}</code></pre></pre>
+<a class="header" href="advanced/events.html#4-optimize-handler-design" id="4-optimize-handler-design"><h4>4. <strong>Optimize Handler Design</strong></h4></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// ✅ Good: Fast, focused handlers
+.on(&quot;ready&quot;, |ctx| Box::pin(async move {
+    log::info!(&quot;Application ready in {} mode&quot;, ctx.env());
+    Ok(())
+}))
+
+// ✅ Good: Async I/O operations benefit from parallel execution
+.on(&quot;startup&quot;, |_ctx| Box::pin(async move {
+    database::migrate().await?;  // Can run in parallel with other I/O
+    Ok(())
+}))
+
+// ❌ Avoid: CPU-intensive work that doesn't benefit from parallelism
+.on(&quot;startup&quot;, |_ctx| Box::pin(async move {
+    // Heavy CPU work - consider moving to background task
+    expensive_computation();
+    Ok(())
+}))
+#}</code></pre></pre>
+<a class="header" href="advanced/events.html#performance-monitoring" id="performance-monitoring"><h3>Performance Monitoring</h3></a>
+<a class="header" href="advanced/events.html#runtime-performance-metrics" id="runtime-performance-metrics"><h4>Runtime Performance Metrics</h4></a>
+<p>Enable debug logging to monitor handler performance:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+let app = RustF::new()
+    .event_config(EventEmitterConfig::parallel()
+        .with_debug_logging(true));  // Enable in development
+
+// Console output:
+// [INFO]  Emitting event: 'startup' (parallel: true)
+// [DEBUG] Executing 3 handler(s) for 'startup' at priority -100 (parallel: true)
+// [DEBUG] Handler 1 completed in 145ms
+// [DEBUG] Handler 2 completed in 203ms 
+// [DEBUG] Event 'startup' executed 3 handler(s) with 0 error(s)
+#}</code></pre></pre>
+<a class="header" href="advanced/events.html#production-monitoring" id="production-monitoring"><h4>Production Monitoring</h4></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+.on(&quot;ready&quot;, |ctx| Box::pin(async move {
+    let start = std::time::Instant::now();
+    
+    // Your handler logic here
+    initialize_services().await?;
+    
+    let duration = start.elapsed();
+    if duration &gt; Duration::from_millis(1000) {
+        log::warn!(&quot;Slow handler execution: {}ms&quot;, duration.as_millis());
+    }
+    
+    Ok(())
+}))
+#}</code></pre></pre>
+<a class="header" href="advanced/events.html#performance-best-practices" id="performance-best-practices"><h3>Performance Best Practices</h3></a>
+<ol>
+<li><strong>Keep Handlers Fast</strong>: Event handlers block application startup</li>
+<li><strong>Use Parallel Execution</strong>: Default configuration optimizes for production</li>
+<li><strong>Group by Priority</strong>: Related handlers at same priority execute concurrently</li>
+<li><strong>Set Appropriate Timeouts</strong>: Prevent runaway handlers from hanging startup</li>
+<li><strong>Monitor in Production</strong>: Track handler execution times</li>
+<li><strong>Defer Heavy Work</strong>: Move non-essential tasks to background jobs</li>
+<li><strong>Disable Debug Logging</strong>: Reduces overhead in production</li>
+</ol>
+<a class="header" href="advanced/events.html#performance-anti-patterns" id="performance-anti-patterns"><h3>Performance Anti-Patterns</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// ❌ Bad: Synchronous blocking operations
+.on(&quot;startup&quot;, |_ctx| Box::pin(async move {
+    std::thread::sleep(Duration::from_secs(5));  // Blocks executor!
+    Ok(())
+}))
+
+// ✅ Good: Async operations
+.on(&quot;startup&quot;, |_ctx| Box::pin(async move {
+    tokio::time::sleep(Duration::from_secs(5)).await;  // Non-blocking
+    Ok(())
+}))
+
+// ❌ Bad: Sequential chains that could be parallel
+.on_priority(&quot;startup&quot;, 1, handler_a)
+.on_priority(&quot;startup&quot;, 2, handler_b)  // Must wait for handler_a
+.on_priority(&quot;startup&quot;, 3, handler_c)  // Must wait for handler_b
+
+// ✅ Good: Parallel execution when possible
+.on(&quot;startup&quot;, handler_a)  // All execute in parallel
+.on(&quot;startup&quot;, handler_b)  
+.on(&quot;startup&quot;, handler_c)
+#}</code></pre></pre>
+<hr />
+<a class="header" href="advanced/events.html#summary" id="summary"><h2>Summary</h2></a>
+<p>RustF's event system provides a powerful, Total.js-inspired approach to application lifecycle management with advanced parallel execution capabilities:</p>
+<p>✅ <strong>Familiar Syntax</strong> - Total.js-style <code>ON('ready', handler)</code> patterns<br />
+✅ <strong>Complete Lifecycle</strong> - Events for every stage of application startup<br />
+✅ <strong>Parallel Execution</strong> - Concurrent handler execution with 4x+ performance improvements<br />
+✅ <strong>Built-in Handlers</strong> - Ready-to-use handlers for common tasks<br />
+✅ <strong>Priority Control</strong> - Fine-grained execution order management with parallel optimization<br />
+✅ <strong>Performance Optimized</strong> - Fast-path execution, timeout protection, and error isolation<br />
+✅ <strong>Type Safety</strong> - Full compile-time checking with excellent error messages<br />
+✅ <strong>Auto-Discovery</strong> - Automatic handler registration from your codebase<br />
+✅ <strong>Rich Context</strong> - Comprehensive context with config, environment, and utilities<br />
+✅ <strong>Production Ready</strong> - Configurable performance settings and comprehensive monitoring</p>
+<a class="header" href="advanced/events.html#related-topics" id="related-topics"><h2>Related Topics</h2></a>
+<ul>
+<li><a href="../api-reference/context.md">API Reference: Context</a> - Context API documentation</li>
+<li><a href="../examples/README.md">Examples</a> - Practical examples and tutorials</li>
+<li><a href="workers.md">Workers</a> - Background job processing</li>
+<li><a href="modules.md">Modules</a> - Shared business logic modules</li>
+</ul>
+
+                </div>
+
+                <!-- Mobile navigation buttons -->
+                
+                    <a rel="prev" href="advanced/workers.html" class="mobile-nav-chapters previous" title="Previous chapter">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                
+
+                
+                    <a rel="next" href="advanced/modules.html" class="mobile-nav-chapters next" title="Next chapter">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+                
+
+            </div>
+
+            
+                <a href="advanced/workers.html" class="nav-chapters previous" title="You can navigate through the chapters using the arrow keys">
+                    <i class="fa fa-angle-left"></i>
+                </a>
+            
+
+            
+                <a href="advanced/modules.html" class="nav-chapters next" title="You can navigate through the chapters using the arrow keys">
+                    <i class="fa fa-angle-right"></i>
+                </a>
+            
+
+        </div>
+
+
+        <!-- Local fallback for Font Awesome -->
+        <script>
+            if ($(".fa").css("font-family") !== "FontAwesome") {
+                $('<link rel="stylesheet" type="text/css" href="_FontAwesome/css/font-awesome.css">').prependTo('head');
+            }
+        </script>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        
+
+        
+
+        
+
+        
+
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS script -->
+        
+
+    </body>
+</html>

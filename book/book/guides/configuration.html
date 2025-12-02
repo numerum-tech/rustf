@@ -1,0 +1,971 @@
+<!DOCTYPE HTML>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Configuration - RustF Framework Documentation</title>
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="Complete guide to the RustF MVC web framework for Rust">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <base href="../">
+
+        <link rel="stylesheet" href="book.css">
+        <link href="https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800" rel="stylesheet" type="text/css">
+        <link href="https://fonts.googleapis.com/css?family=Source+Code+Pro:500" rel="stylesheet" type="text/css">
+
+        <link rel="shortcut icon" href="favicon.png">
+
+        <!-- Font Awesome -->
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
+
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme -->
+        
+
+        
+
+        <!-- Fetch Clipboard.js from CDN but have a local fallback -->
+        <script src="https://cdn.jsdelivr.net/clipboard.js/1.6.1/clipboard.min.js"></script>
+        <script>
+            if (typeof Clipboard == 'undefined') {
+                document.write(unescape("%3Cscript src='clipboard.min.js'%3E%3C/script%3E"));
+            }
+        </script>
+
+        <!-- Fetch JQuery from CDN but have a local fallback -->
+        <script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+        <script>
+            if (typeof jQuery == 'undefined') {
+                document.write(unescape("%3Cscript src='jquery.js'%3E%3C/script%3E"));
+            }
+        </script>
+
+        <!-- Fetch store.js from local - TODO add CDN when 2.x.x is available on cdnjs -->
+        <script src="store.js"></script>
+
+    </head>
+    <body class="light">
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme = store.get('mdbook-theme');
+            if (theme === null || theme === undefined) { theme = 'light'; }
+            $('body').removeClass().addClass(theme);
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var sidebar = store.get('mdbook-sidebar');
+            if (sidebar === "hidden") { $("html").addClass("sidebar-hidden") }
+            else if (sidebar === "visible") { $("html").addClass("sidebar-visible") }
+        </script>
+
+        <div id="sidebar" class="sidebar">
+            <ul class="chapter"><li class="affix"><a href="README.html">Introduction</a></li><li><a href="getting-started/README.html"><strong>1.</strong> Quick Start</a></li><li><a href="getting-started/installation.html"><strong>2.</strong> Installation</a></li><li><a href="getting-started/hello-world.html"><strong>3.</strong> Hello World</a></li><li><a href="getting-started/project-structure.html"><strong>4.</strong> Project Structure</a></li><li><a href="guides/controllers.html"><strong>5.</strong> Controllers &amp; Routing</a></li><li><a href="guides/views.html"><strong>6.</strong> Views &amp; Templates</a></li><li><a href="guides/middleware.html"><strong>7.</strong> Middleware</a></li><li><a href="guides/sessions.html"><strong>8.</strong> Sessions</a></li><li><a href="guides/database.html"><strong>9.</strong> Database Integration</a></li><li><a href="guides/configuration.html" class="active"><strong>10.</strong> Configuration</a></li><li><a href="guides/security.html"><strong>11.</strong> Security</a></li><li><a href="guides/error-handling.html"><strong>12.</strong> Error Handling</a></li><li><a href="guides/schemas.html"><strong>13.</strong> Schemas &amp; Definitions</a></li><li><a href="advanced/README.html"><strong>14.</strong> Overview</a></li><li><a href="advanced/performance.html"><strong>15.</strong> Performance Optimization</a></li><li><a href="advanced/workers.html"><strong>16.</strong> Workers</a></li><li><a href="advanced/events.html"><strong>17.</strong> Events</a></li><li><a href="advanced/modules.html"><strong>18.</strong> Modules</a></li><li><a href="advanced/cli.html"><strong>19.</strong> CLI Tool</a></li><li><a href="api-reference/README.html"><strong>20.</strong> Overview</a></li><li><a href="api-reference/context.html"><strong>21.</strong> Context API</a></li><li><a href="api-reference/models.html"><strong>22.</strong> Model API</a></li><li><a href="api-reference/routing.html"><strong>23.</strong> Routing API</a></li><li><a href="api-reference/utilities.html"><strong>24.</strong> Utilities</a></li><li><a href="examples/README.html"><strong>25.</strong> Overview</a></li><li><a href="examples/rest-api.html"><strong>26.</strong> Building a REST API</a></li><li><a href="examples/authentication.html"><strong>27.</strong> Authentication</a></li><li><a href="examples/real-world-app.html"><strong>28.</strong> Real-World Application</a></li><li><a href="deployment/production.html"><strong>29.</strong> Production Deployment</a></li><li><a href="deployment/docker.html"><strong>30.</strong> Docker</a></li></ul>
+        </div>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page" tabindex="-1">
+                
+                <div id="menu-bar" class="menu-bar">
+                    <div class="left-buttons">
+                        <i id="sidebar-toggle" class="fa fa-bars" title="Toggle sidebar"></i>
+                        <i id="theme-toggle" class="fa fa-paint-brush" title="Change theme"></i>
+                    </div>
+
+                    <h1 class="menu-title">RustF Framework Documentation</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html">
+                            <i id="print-button" class="fa fa-print" title="Print this book"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <div id="content" class="content">
+                    <a class="header" href="guides/configuration.html#rustf-configuration-guide" id="rustf-configuration-guide"><h1>RustF Configuration Guide</h1></a>
+<p><strong>Complete documentation for configuration management in RustF</strong></p>
+<a class="header" href="guides/configuration.html#overview" id="overview"><h2>Overview</h2></a>
+<p>RustF provides a comprehensive configuration system inspired by Total.js, with a global <code>CONF</code> accessor that allows uniform configuration access throughout your application. Configuration can be loaded from TOML files, environment variables, or programmatically, with support for environment-specific settings and hot-reloading during development.</p>
+<a class="header" href="guides/configuration.html#key-features" id="key-features"><h3>Key Features</h3></a>
+<ul>
+<li><strong>Global CONF Access</strong> - Single, uniform way to access configuration anywhere</li>
+<li><strong>Dot Notation Paths</strong> - Access nested values with <code>&quot;server.port&quot;</code> syntax</li>
+<li><strong>Environment Support</strong> - Development and production environments</li>
+<li><strong>Multiple Sources</strong> - TOML files, environment variables, and defaults</li>
+<li><strong>Type-Safe Access</strong> - Typed getters for strings, integers, booleans, and floats</li>
+<li><strong>Custom Settings</strong> - Extensible with application-specific configuration</li>
+</ul>
+<a class="header" href="guides/configuration.html#global-configuration-access-conf" id="global-configuration-access-conf"><h2>Global Configuration Access (CONF)</h2></a>
+<p>RustF provides a global <code>CONF</code> singleton that gives uniform access to configuration values using dot notation paths. This is the <strong>ONLY</strong> way to access configuration in RustF - there is no configuration access through Context or other means.</p>
+<a class="header" href="guides/configuration.html#basic-usage" id="basic-usage"><h3>Basic Usage</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use rustf::prelude::*;  // CONF is included in the prelude
+
+// Access configuration values with dot notation
+let port = CONF::get_int(&quot;server.port&quot;).unwrap_or(8000);
+let host = CONF::get_string(&quot;server.host&quot;).unwrap_or_else(|| &quot;127.0.0.1&quot;.to_string());
+let db_url = CONF::get_string(&quot;database.url&quot;);
+
+// Check if a configuration path exists
+if CONF::has(&quot;database.url&quot;) {
+    // Database is configured
+}
+
+// Get values with defaults
+let timeout = CONF::get_or(&quot;server.timeout&quot;, 30);
+let max_files = CONF::get_or(&quot;uploads.max_files&quot;, 5);
+
+// Environment helpers
+if CONF::is_production() {
+    // Enable production optimizations
+}
+
+if CONF::is_development() {
+    // Enable development features
+}
+#}</code></pre></pre>
+<a class="header" href="guides/configuration.html#conf-methods" id="conf-methods"><h3>CONF Methods</h3></a>
+<table><thead><tr><th> Method </th><th> Description </th><th> Example </th></tr></thead><tbody>
+<tr><td> <code>get&lt;T&gt;(path)</code> </td><td> Get typed value at path </td><td> <code>CONF::get::&lt;u16&gt;(&quot;server.port&quot;)</code> </td></tr>
+<tr><td> <code>get_string(path)</code> </td><td> Get string value </td><td> <code>CONF::get_string(&quot;database.url&quot;)</code> </td></tr>
+<tr><td> <code>get_int(path)</code> </td><td> Get integer value </td><td> <code>CONF::get_int(&quot;server.port&quot;)</code> </td></tr>
+<tr><td> <code>get_bool(path)</code> </td><td> Get boolean value </td><td> <code>CONF::get_bool(&quot;server.ssl_enabled&quot;)</code> </td></tr>
+<tr><td> <code>get_float(path)</code> </td><td> Get float value </td><td> <code>CONF::get_float(&quot;custom.rate&quot;)</code> </td></tr>
+<tr><td> <code>get_or(path, default)</code> </td><td> Get with default </td><td> <code>CONF::get_or(&quot;server.port&quot;, 8000)</code> </td></tr>
+<tr><td> <code>has(path)</code> </td><td> Check if path exists </td><td> <code>CONF::has(&quot;database.url&quot;)</code> </td></tr>
+<tr><td> <code>env()</code> </td><td> Get current environment </td><td> <code>CONF::env()</code> </td></tr>
+<tr><td> <code>is_production()</code> </td><td> Check if production </td><td> <code>CONF::is_production()</code> </td></tr>
+<tr><td> <code>is_development()</code> </td><td> Check if development </td><td> <code>CONF::is_development()</code> </td></tr>
+<tr><td> <code>all()</code> </td><td> Get entire config </td><td> <code>CONF::all()</code> </td></tr>
+</tbody></table>
+<a class="header" href="guides/configuration.html#accessing-configuration-in-different-contexts" id="accessing-configuration-in-different-contexts"><h3>Accessing Configuration in Different Contexts</h3></a>
+<a class="header" href="guides/configuration.html#in-controllers" id="in-controllers"><h4>In Controllers</h4></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use rustf::prelude::*;  // CONF is included in the prelude
+
+async fn handler(ctx: Context) -&gt; Result&lt;Response&gt; {
+    // Configuration is accessed via CONF, not through ctx
+    let upload_dir = CONF::get_string(&quot;uploads.directory&quot;).unwrap_or_else(|| &quot;uploads&quot;.to_string());
+    let max_size = CONF::get_int(&quot;uploads.max_file_size&quot;).unwrap_or(10485760);
+    
+    // Use configuration values
+    if file.size &gt; max_size as usize {
+        return ctx.throw400(Some(&quot;File too large&quot;));
+    }
+    
+    // Save file to upload_dir...
+    Ok(Response::ok())
+}
+#}</code></pre></pre>
+<a class="header" href="guides/configuration.html#in-modulesservices" id="in-modulesservices"><h4>In Modules/Services</h4></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use rustf::prelude::*;  // CONF is included in the prelude
+
+pub struct EmailService;
+
+impl EmailService {
+    pub fn send_email(&amp;self, to: &amp;str, subject: &amp;str, body: &amp;str) {
+        // Access custom configuration sections via CONF
+        // All sections (framework or custom) use the same dot notation
+        let smtp_host = CONF::get_string(&quot;smtp.host&quot;).unwrap_or_else(|| &quot;localhost&quot;.to_string());
+        let smtp_port = CONF::get_int(&quot;smtp.port&quot;).unwrap_or(25);
+        let from_email = CONF::get_string(&quot;smtp.user&quot;).unwrap_or_else(|| &quot;noreply@example.com&quot;.to_string());
+        
+        // Send email using configuration...
+    }
+}
+#}</code></pre></pre>
+<a class="header" href="guides/configuration.html#in-event-handlers" id="in-event-handlers"><h4>In Event Handlers</h4></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use rustf::prelude::*;  // CONF is included in the prelude
+
+app.on(&quot;startup&quot;, |ctx| Box::pin(async move {
+    // Access configuration during startup
+    let db_url = CONF::get_string(&quot;database.url&quot;);
+    let pool_size = CONF::get_int(&quot;database.max_connections&quot;).unwrap_or(10);
+    
+    if let Some(url) = db_url {
+        // Initialize database with configuration
+        initialize_database(&amp;url, pool_size).await?;
+    }
+    
+    Ok(())
+}))
+#}</code></pre></pre>
+<a class="header" href="guides/configuration.html#in-middleware" id="in-middleware"><h4>In Middleware</h4></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use rustf::prelude::*;  // CONF is included in the prelude
+
+pub struct RateLimitMiddleware;
+
+impl Middleware for RateLimitMiddleware {
+    fn handle(&amp;self, ctx: &amp;mut Context, next: Next) -&gt; MiddlewareResult {
+        // Access rate limit configuration
+        let max_requests = CONF::get_int(&quot;custom.rate_limit_max&quot;).unwrap_or(100);
+        let window_seconds = CONF::get_int(&quot;custom.rate_limit_window&quot;).unwrap_or(60);
+        
+        // Apply rate limiting...
+        next.run(ctx)
+    }
+}
+#}</code></pre></pre>
+<a class="header" href="guides/configuration.html#configuration-structure" id="configuration-structure"><h2>Configuration Structure</h2></a>
+<a class="header" href="guides/configuration.html#appconfig-schema" id="appconfig-schema"><h3>AppConfig Schema</h3></a>
+<p>The main configuration structure in RustF:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+pub struct AppConfig {
+    pub environment: Environment,        // development, staging, production, testing
+    pub server: ServerConfig,           // Server settings
+    pub views: ViewConfig,              // Template engine settings
+    pub session: SessionConfig,         // Session management
+    pub static_files: StaticConfig,    // Static file serving
+    pub database: DatabaseConfig,      // Database connection
+    pub cors: CorsConfig,              // CORS settings
+    pub logging: LoggingConfig,        // Logging configuration
+    pub uploads: UploadConfig,         // File upload settings
+    pub sections: HashMap&lt;String, toml::Value&gt;, // User-defined configuration sections
+}
+#}</code></pre></pre>
+<p>Framework sections (above) are strongly typed for IDE support and compile-time checking. User-defined sections are stored as TOML values and can be deserialized on-demand using <code>config.section::&lt;T&gt;(&quot;name&quot;)</code>.</p>
+<a class="header" href="guides/configuration.html#configuration-sections" id="configuration-sections"><h3>Configuration Sections</h3></a>
+<a class="header" href="guides/configuration.html#server-configuration" id="server-configuration"><h4>Server Configuration</h4></a>
+<pre><code class="language-toml">[server]
+host = &quot;127.0.0.1&quot;          # Server bind address
+port = 8000                 # Server port
+timeout = 30                # Request timeout in seconds
+ssl_enabled = false         # Enable HTTPS
+ssl_cert = &quot;cert.pem&quot;       # SSL certificate path (if ssl_enabled)
+ssl_key = &quot;key.pem&quot;         # SSL private key path (if ssl_enabled)
+max_connections = 1000      # Maximum concurrent connections
+</code></pre>
+<a class="header" href="guides/configuration.html#views-configuration" id="views-configuration"><h4>Views Configuration</h4></a>
+<pre><code class="language-toml">[views]
+directory = &quot;views&quot;         # Template directory path
+default_layout = &quot;layouts/default&quot;  # Default layout template
+cache_enabled = false       # Enable template caching
+extension = &quot;html&quot;          # Template file extension
+storage = &quot;filesystem&quot;      # Storage method: &quot;filesystem&quot; or &quot;embedded&quot;
+</code></pre>
+<a class="header" href="guides/configuration.html#session-configuration" id="session-configuration"><h4>Session Configuration</h4></a>
+<pre><code class="language-toml">[session]
+secret = &quot;change-me-in-production&quot;  # Session encryption secret
+timeout = 3600              # Session timeout in seconds
+cookie_name = &quot;rustf_session&quot;       # Session cookie name
+secure = false              # Secure cookies (HTTPS only)
+http_only = true            # HttpOnly flag for cookies
+
+[session.storage]
+type = &quot;memory&quot;             # Storage backend: &quot;memory&quot;, &quot;redis&quot;, or &quot;database&quot;
+cleanup_interval = 300      # Cleanup interval in seconds (for memory storage)
+</code></pre>
+<a class="header" href="guides/configuration.html#database-configuration" id="database-configuration"><h4>Database Configuration</h4></a>
+<pre><code class="language-toml">[database]
+url = &quot;postgresql://user:pass@localhost/myapp&quot;  # Database connection URL
+max_connections = 10        # Connection pool size
+timeout = 5000              # Connection timeout in milliseconds
+</code></pre>
+<a class="header" href="guides/configuration.html#static-files-configuration" id="static-files-configuration"><h4>Static Files Configuration</h4></a>
+<pre><code class="language-toml">[static_files]
+directory = &quot;public&quot;        # Static files directory
+url_prefix = &quot;/static&quot;      # URL prefix for static files
+cache_enabled = true        # Enable caching headers
+cache_max_age = 86400       # Cache max-age in seconds
+</code></pre>
+<a class="header" href="guides/configuration.html#cors-configuration" id="cors-configuration"><h4>CORS Configuration</h4></a>
+<pre><code class="language-toml">[cors]
+enabled = false             # Enable CORS
+allowed_origins = [&quot;*&quot;]     # Allowed origins
+allowed_methods = [&quot;GET&quot;, &quot;POST&quot;]  # Allowed HTTP methods
+allowed_headers = [&quot;Content-Type&quot;] # Allowed headers
+</code></pre>
+<a class="header" href="guides/configuration.html#logging-configuration" id="logging-configuration"><h4>Logging Configuration</h4></a>
+<pre><code class="language-toml">[logging]
+level = &quot;info&quot;              # Log level: debug, info, warn, error
+file = &quot;logs/app.log&quot;       # Optional log file path
+</code></pre>
+<a class="header" href="guides/configuration.html#upload-configuration" id="upload-configuration"><h4>Upload Configuration</h4></a>
+<pre><code class="language-toml">[uploads]
+directory = &quot;uploads&quot;       # Upload directory
+max_file_size = 10485760    # Max file size in bytes (10MB)
+max_files = 5               # Max files per upload
+allowed_extensions = []     # Allowed file extensions (empty = all)
+blocked_extensions = [&quot;exe&quot;, &quot;bat&quot;, &quot;sh&quot;, &quot;cmd&quot;]  # Blocked extensions
+create_directories = true   # Auto-create upload directories
+</code></pre>
+<a class="header" href="guides/configuration.html#custom-application-configuration" id="custom-application-configuration"><h4>Custom Application Configuration</h4></a>
+<p>Any sections you define in config.toml are automatically available as configuration sections:</p>
+<pre><code class="language-toml">[app]
+name = &quot;MyApplication&quot;
+version = &quot;1.0.0&quot;
+debug_mode = false
+
+[payment]
+stripe_key = &quot;sk_test_xxxxx&quot;
+paypal_email = &quot;business@example.com&quot;
+
+[smtp]
+host = &quot;smtp.gmail.com&quot;
+port = 587
+user = &quot;noreply@example.com&quot;
+password = &quot;${SMTP_PASSWORD}&quot;
+</code></pre>
+<p>Access custom sections in Rust code using the <code>section()</code> method:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use rustf::prelude::*;
+use serde::Deserialize;
+
+#[derive(Deserialize)]
+struct AppConfig {
+    name: String,
+    version: String,
+    debug_mode: bool,
+}
+
+#[derive(Deserialize)]
+struct PaymentConfig {
+    stripe_key: String,
+    paypal_email: String,
+}
+
+// Get typed access to custom sections
+let app_cfg = config.section::&lt;AppConfig&gt;(&quot;app&quot;)?;
+println!(&quot;App: {} v{}&quot;, app_cfg.name, app_cfg.version);
+
+let payment = config.section::&lt;PaymentConfig&gt;(&quot;payment&quot;)?;
+println!(&quot;Stripe key: {}&quot;, payment.stripe_key);
+
+// Or use CONF global for uniform access
+let app_name = CONF::get_string(&quot;app.name&quot;)?;
+let stripe_key = CONF::get_string(&quot;payment.stripe_key&quot;)?;
+#}</code></pre></pre>
+<a class="header" href="guides/configuration.html#configuration-files" id="configuration-files"><h2>Configuration Files</h2></a>
+<a class="header" href="guides/configuration.html#file-locations-and-loading-order" id="file-locations-and-loading-order"><h3>File Locations and Loading Order</h3></a>
+<ol>
+<li><strong>Base Configuration</strong>: <code>config.toml</code></li>
+<li><strong>Environment-Specific</strong>: <code>config.{environment}.toml</code></li>
+<li><strong>Environment Variables</strong>: <code>RUSTF_*</code> prefixed variables</li>
+<li><strong>CLI Arguments</strong>: <code>--config</code> flag</li>
+</ol>
+<a class="header" href="guides/configuration.html#example-configtoml" id="example-configtoml"><h3>Example config.toml</h3></a>
+<pre><code class="language-toml"># Base configuration for all environments
+environment = &quot;development&quot;
+
+[server]
+host = &quot;127.0.0.1&quot;
+port = 8000
+timeout = 30
+
+[views]
+directory = &quot;views&quot;
+default_layout = &quot;layouts/default&quot;
+cache_enabled = false
+extension = &quot;html&quot;
+
+[session]
+secret = &quot;dev-secret-change-in-production&quot;
+timeout = 3600
+cookie_name = &quot;rustf_session&quot;
+
+[database]
+url = &quot;postgresql://localhost/myapp_dev&quot;
+max_connections = 5
+
+[static_files]
+directory = &quot;public&quot;
+url_prefix = &quot;/static&quot;
+
+[uploads]
+directory = &quot;uploads&quot;
+max_file_size = 10485760
+
+[custom]
+api_endpoint = &quot;http://localhost:3000/api&quot;
+feature_x_enabled = &quot;false&quot;
+</code></pre>
+<a class="header" href="guides/configuration.html#environment-specific-overrides" id="environment-specific-overrides"><h3>Environment-Specific Overrides</h3></a>
+<a class="header" href="guides/configuration.html#configprodtoml" id="configprodtoml"><h4>config.prod.toml</h4></a>
+<pre><code class="language-toml"># Production-specific overrides
+environment = &quot;production&quot;
+
+[server]
+host = &quot;0.0.0.0&quot;
+port = 80
+ssl_enabled = true
+ssl_cert = &quot;/etc/ssl/certs/app.crt&quot;
+ssl_key = &quot;/etc/ssl/private/app.key&quot;
+max_connections = 2000
+
+[views]
+cache_enabled = true
+
+[session]
+secret = &quot;${RUSTF_SESSION_SECRET}&quot;  # Read from environment
+secure = true
+
+[database]
+url = &quot;${DATABASE_URL}&quot;  # Read from environment
+max_connections = 20
+
+[logging]
+level = &quot;warn&quot;
+file = &quot;/var/log/rustf/app.log&quot;
+
+[custom]
+api_endpoint = &quot;https://api.production.com&quot;
+feature_x_enabled = &quot;true&quot;
+</code></pre>
+<a class="header" href="guides/configuration.html#environment-variables" id="environment-variables"><h2>Environment Variables</h2></a>
+<p>All configuration values can be overridden using environment variables with the <code>RUSTF_</code> prefix:</p>
+<a class="header" href="guides/configuration.html#server-settings" id="server-settings"><h3>Server Settings</h3></a>
+<pre><code class="language-bash">RUSTF_ENV=production              # Set environment
+RUSTF_HOST=0.0.0.0               # Server host
+RUSTF_PORT=3000                  # Server port
+RUSTF_TIMEOUT=60                 # Request timeout
+RUSTF_SSL_ENABLED=true           # Enable SSL
+RUSTF_SSL_CERT=/path/to/cert    # SSL certificate
+RUSTF_SSL_KEY=/path/to/key      # SSL private key
+RUSTF_MAX_CONNECTIONS=5000       # Max connections
+</code></pre>
+<a class="header" href="guides/configuration.html#database-settings" id="database-settings"><h3>Database Settings</h3></a>
+<pre><code class="language-bash">DATABASE_URL=postgresql://user:pass@host/db  # Database URL (standard)
+RUSTF_DATABASE_URL=postgresql://...          # Alternative prefix
+RUSTF_DB_MAX_CONNECTIONS=20                  # Pool size
+RUSTF_DB_TIMEOUT=10000                       # Timeout in ms
+</code></pre>
+<a class="header" href="guides/configuration.html#session-settings" id="session-settings"><h3>Session Settings</h3></a>
+<pre><code class="language-bash">RUSTF_SESSION_SECRET=very-secret-key         # Session secret
+RUSTF_SESSION_TIMEOUT=7200                   # Session timeout
+RUSTF_SESSION_COOKIE_NAME=my_session         # Cookie name
+RUSTF_SESSION_SECURE=true                    # Secure cookies
+RUSTF_SESSION_HTTP_ONLY=true                 # HttpOnly cookies
+</code></pre>
+<a class="header" href="guides/configuration.html#view-settings" id="view-settings"><h3>View Settings</h3></a>
+<pre><code class="language-bash">RUSTF_VIEWS_DIR=/app/templates               # Views directory
+RUSTF_DEFAULT_LAYOUT=layouts/main            # Default layout
+RUSTF_VIEW_CACHE=true                        # Enable caching
+RUSTF_TEMPLATE_STORAGE=embedded              # Storage method
+</code></pre>
+<a class="header" href="guides/configuration.html#custom-settings" id="custom-settings"><h3>Custom Settings</h3></a>
+<pre><code class="language-bash"># Custom settings are accessed with &quot;custom.&quot; prefix in CONF
+export RUSTF_CUSTOM_API_KEY=&quot;secret-key&quot;
+export RUSTF_CUSTOM_FEATURE_FLAG=&quot;true&quot;
+
+# In code:
+let api_key = CONF::get_string(&quot;custom.api_key&quot;);
+</code></pre>
+<a class="header" href="guides/configuration.html#loading-configuration" id="loading-configuration"><h2>Loading Configuration</h2></a>
+<a class="header" href="guides/configuration.html#application-startup" id="application-startup"><h3>Application Startup</h3></a>
+<p>Configuration is automatically initialized during application startup:</p>
+<pre><pre class="playpen"><code class="language-rust">use rustf::prelude::*;
+
+#[rustf::auto_discover]
+#[tokio::main]
+async fn main() -&gt; Result&lt;()&gt; {
+    // Configuration is loaded and CONF is initialized automatically
+    let app = RustF::with_args()?;  // Loads config with CLI support
+    
+    // Alternative loading methods:
+    // let app = RustF::new();                    // Default config
+    // let app = RustF::from_file(&quot;config.toml&quot;)?; // Specific file
+    // let app = RustF::from_env()?;              // Environment only
+    // let app = RustF::with_config(my_config);   // Programmatic
+    
+    app.start().await
+}
+</code></pre></pre>
+<a class="header" href="guides/configuration.html#cli-arguments" id="cli-arguments"><h3>CLI Arguments</h3></a>
+<p>The framework supports configuration via command-line arguments:</p>
+<pre><code class="language-bash"># Use default configuration loading
+./myapp
+
+# Specify custom config file
+./myapp --config /path/to/config.toml
+./myapp -c config.prod.toml
+
+# Override views directory (if using filesystem storage)
+./myapp --views /path/to/templates
+</code></pre>
+<a class="header" href="guides/configuration.html#programmatic-configuration" id="programmatic-configuration"><h3>Programmatic Configuration</h3></a>
+<pre><pre class="playpen"><code class="language-rust">use rustf::prelude::*;
+use rustf::config::AppConfig;
+
+fn main() -&gt; Result&lt;()&gt; {
+    // Create configuration programmatically
+    let mut config = AppConfig::default();
+    config.server.port = 3000;
+    config.server.host = &quot;0.0.0.0&quot;.to_string();
+    config.database.url = Some(&quot;postgresql://localhost/mydb&quot;.to_string());
+    config.custom.insert(&quot;api_key&quot;.to_string(), &quot;secret&quot;.to_string());
+    
+    // Use the configuration
+    let app = RustF::with_config(config);
+    app.start().await
+}
+</code></pre></pre>
+<a class="header" href="guides/configuration.html#environment-detection" id="environment-detection"><h2>Environment Detection</h2></a>
+<p>RustF automatically detects the environment from these sources (in order):</p>
+<ol>
+<li><code>RUSTF_ENV</code> environment variable</li>
+<li><code>RAILS_ENV</code> environment variable (Rails compatibility)</li>
+<li><code>NODE_ENV</code> environment variable (Node.js compatibility)</li>
+<li>Default: <code>development</code></li>
+</ol>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+pub enum Environment {
+    Development,  // Default for local development
+    Production,   // Live production environment
+}
+#}</code></pre></pre>
+<a class="header" href="guides/configuration.html#environment-specific-behavior" id="environment-specific-behavior"><h3>Environment-Specific Behavior</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Check environment in code
+let env = CONF::env();  // Returns &quot;development&quot;, &quot;production&quot;, etc.
+
+if CONF::is_production() {
+    // Production-specific code
+    enable_caching();
+    disable_debug_endpoints();
+}
+
+if CONF::is_development() {
+    // Development-specific code
+    enable_hot_reload();
+    show_detailed_errors();
+}
+#}</code></pre></pre>
+<a class="header" href="guides/configuration.html#configuration-validation" id="configuration-validation"><h2>Configuration Validation</h2></a>
+<p>RustF validates configuration during startup:</p>
+<a class="header" href="guides/configuration.html#automatic-validation" id="automatic-validation"><h3>Automatic Validation</h3></a>
+<ul>
+<li>
+<p><strong>Required in Production</strong>:</p>
+<ul>
+<li>Session secret must not be default value</li>
+<li>SSL certificate/key paths must exist if SSL is enabled</li>
+<li>Database URL is recommended (warns if missing)</li>
+</ul>
+</li>
+<li>
+<p><strong>Path Validation</strong>:</p>
+<ul>
+<li>Views directory should exist (warns if missing)</li>
+<li>Static files directory must exist</li>
+<li>Upload directory is created if missing</li>
+</ul>
+</li>
+<li>
+<p><strong>Type Validation</strong>:</p>
+<ul>
+<li>Port must be valid (1-65535)</li>
+<li>Timeouts must be positive</li>
+<li>File sizes must be reasonable</li>
+</ul>
+</li>
+</ul>
+<a class="header" href="guides/configuration.html#custom-validation" id="custom-validation"><h3>Custom Validation</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use rustf::prelude::*;
+
+app.on(&quot;config.loaded&quot;, |ctx| Box::pin(async move {
+    // Validate custom configuration
+    if !CONF::has(&quot;custom.api_key&quot;) {
+        return Err(Error::internal(&quot;API key is required in configuration&quot;));
+    }
+    
+    let api_key = CONF::get_string(&quot;custom.api_key&quot;).unwrap();
+    if api_key.len() &lt; 32 {
+        return Err(Error::internal(&quot;API key must be at least 32 characters&quot;));
+    }
+    
+    Ok(())
+}))
+#}</code></pre></pre>
+<a class="header" href="guides/configuration.html#unified-configuration-access" id="unified-configuration-access"><h2>Unified Configuration Access</h2></a>
+<p>RustF provides a completely unified approach to configuration access - all configuration sections (framework-defined and user-defined) can be accessed using the same patterns:</p>
+<a class="header" href="guides/configuration.html#three-ways-to-access-configuration" id="three-ways-to-access-configuration"><h3>Three Ways to Access Configuration</h3></a>
+<a class="header" href="guides/configuration.html#1-global-conf-singleton-recommended-for-runtime-access" id="1-global-conf-singleton-recommended-for-runtime-access"><h4>1. Global CONF Singleton (Recommended for Runtime Access)</h4></a>
+<p>The CONF singleton provides dot-notation access to ANY configuration section:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use rustf::prelude::*;
+
+// Framework sections
+let port = CONF::get_int(&quot;server.port&quot;)?;
+let cache_enabled = CONF::get_bool(&quot;views.cache_enabled&quot;)?;
+
+// Custom app sections - same syntax!
+let app_name = CONF::get_string(&quot;app.name&quot;)?;
+let stripe_key = CONF::get_string(&quot;payment.stripe_key&quot;)?;
+let smtp_port = CONF::get_int(&quot;smtp.port&quot;)?;
+#}</code></pre></pre>
+<a class="header" href="guides/configuration.html#2-appconfigsection-method-type-safe-access" id="2-appconfigsection-method-type-safe-access"><h4>2. AppConfig.section() Method (Type-Safe Access)</h4></a>
+<p>For custom sections, use the <code>section()</code> method to get type-safe deserialized access:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use rustf::prelude::*;
+use serde::Deserialize;
+
+#[derive(Deserialize)]
+struct SmtpConfig {
+    host: String,
+    port: u16,
+    user: String,
+    password: String,
+}
+
+// Get the full section as a typed struct
+let smtp = config.section::&lt;SmtpConfig&gt;(&quot;smtp&quot;)?;
+println!(&quot;SMTP: {}:{}&quot;, smtp.host, smtp.port);
+#}</code></pre></pre>
+<a class="header" href="guides/configuration.html#3-templates-automatic-json-serialization" id="3-templates-automatic-json-serialization"><h4>3. Templates (Automatic JSON Serialization)</h4></a>
+<p>Templates automatically have access to all configuration sections through the CONF global:</p>
+<pre><code class="language-html">&lt;!-- Framework sections --&gt;
+&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width&quot;&gt;
+&lt;script&gt;
+    const port = @{CONF.server.port};
+    const cacheEnabled = @{CONF.views.cache_enabled};
+&lt;/script&gt;
+
+&lt;!-- Custom app sections - same access pattern --&gt;
+&lt;h1&gt;@{CONF.app.name} v@{CONF.app.version}&lt;/h1&gt;
+&lt;script&gt;
+    const stripeKey = '@{CONF.payment.stripe_key}';
+    const smtpHost = '@{CONF.smtp.host}';
+&lt;/script&gt;
+</code></pre>
+<a class="header" href="guides/configuration.html#why-unified-access-matters" id="why-unified-access-matters"><h3>Why Unified Access Matters</h3></a>
+<p>The unified approach eliminates cognitive overhead:</p>
+<ul>
+<li><strong>No special buckets</strong>: Custom sections aren't forced into <code>custom</code> or <code>extra</code> maps</li>
+<li><strong>One pattern</strong>: Whether accessing <code>server.port</code> or <code>app.name</code>, the syntax is identical</li>
+<li><strong>IDE support</strong>: Framework sections have typed IDE support; app sections work with runtime access</li>
+<li><strong>Template consistency</strong>: Templates access all sections uniformly</li>
+<li><strong>AI-friendly</strong>: One way to do things reduces confusion for human developers and AI assistants</li>
+</ul>
+<a class="header" href="guides/configuration.html#best-practices" id="best-practices"><h2>Best Practices</h2></a>
+<a class="header" href="guides/configuration.html#1-use-environment-variables-for-secrets" id="1-use-environment-variables-for-secrets"><h3>1. Use Environment Variables for Secrets</h3></a>
+<pre><code class="language-toml"># config.production.toml
+[session]
+secret = &quot;${RUSTF_SESSION_SECRET}&quot;  # Never hardcode production secrets
+
+[database]
+url = &quot;${DATABASE_URL}&quot;              # Use environment variable
+
+[custom]
+api_key = &quot;${API_KEY}&quot;               # External service credentials
+</code></pre>
+<a class="header" href="guides/configuration.html#2-environment-specific-files" id="2-environment-specific-files"><h3>2. Environment-Specific Files</h3></a>
+<pre><code>config.toml          # Base configuration
+config.dev.toml      # Development overrides
+config.prod.toml     # Production settings
+</code></pre>
+<a class="header" href="guides/configuration.html#3-custom-settings-organization" id="3-custom-settings-organization"><h3>3. Custom Settings Organization</h3></a>
+<pre><code class="language-toml">[custom]
+# Group related settings with prefixes
+smtp_host = &quot;smtp.gmail.com&quot;
+smtp_port = &quot;587&quot;
+smtp_user = &quot;user@gmail.com&quot;
+smtp_password = &quot;${SMTP_PASSWORD}&quot;
+
+redis_url = &quot;redis://localhost:6379&quot;
+redis_prefix = &quot;myapp:&quot;
+
+feature_new_ui = &quot;false&quot;
+feature_beta_api = &quot;true&quot;
+</code></pre>
+<a class="header" href="guides/configuration.html#4-access-patterns" id="4-access-patterns"><h3>4. Access Patterns</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// ✅ Good: Use CONF for all configuration access (available in prelude)
+use rustf::prelude::*;
+
+let port = CONF::get_int(&quot;server.port&quot;).unwrap_or(8000);
+let db_url = CONF::get_string(&quot;database.url&quot;);
+
+// ❌ Bad: Don't try to access config through Context
+// ctx.config() // This method no longer exists!
+
+// ✅ Good: Check existence before accessing
+if CONF::has(&quot;custom.smtp_host&quot;) {
+    setup_email_service();
+}
+
+// ✅ Good: Use typed getters for safety
+let enabled = CONF::get_bool(&quot;custom.feature_enabled&quot;).unwrap_or(false);
+let timeout = CONF::get_int(&quot;server.timeout&quot;).unwrap_or(30);
+
+// ✅ Good: Use defaults for optional settings
+let cache_size = CONF::get_or(&quot;custom.cache_size&quot;, 100);
+#}</code></pre></pre>
+<a class="header" href="guides/configuration.html#5-testing-configuration" id="5-testing-configuration"><h3>5. Testing Configuration</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rustf::config::AppConfig;
+    
+    #[test]
+    fn test_configuration_loading() {
+        let config = AppConfig::from_file(&quot;config.test.toml&quot;).unwrap();
+        
+        // Initialize CONF for testing
+        CONF::init(config).unwrap();
+        
+        // Test configuration values
+        assert_eq!(CONF::get_int(&quot;server.port&quot;), Some(8080));
+        assert_eq!(CONF::env(), Some(&quot;testing&quot;.to_string()));
+        assert!(CONF::has(&quot;database.url&quot;));
+    }
+}
+#}</code></pre></pre>
+<a class="header" href="guides/configuration.html#migration-from-context-config" id="migration-from-context-config"><h2>Migration from Context Config</h2></a>
+<p>If you're migrating from an older version of RustF that had <code>ctx.config()</code>:</p>
+<a class="header" href="guides/configuration.html#before-old-way" id="before-old-way"><h3>Before (Old Way)</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+async fn handler(ctx: Context) -&gt; Result&lt;Response&gt; {
+    let upload_dir = ctx.config().uploads.directory.clone();
+    let max_size = ctx.config().uploads.max_file_size;
+    // ...
+}
+#}</code></pre></pre>
+<a class="header" href="guides/configuration.html#after-new-way" id="after-new-way"><h3>After (New Way)</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use rustf::prelude::*;  // CONF is included in the prelude
+
+async fn handler(ctx: Context) -&gt; Result&lt;Response&gt; {
+    let upload_dir = CONF::get_string(&quot;uploads.directory&quot;).unwrap_or_else(|| &quot;uploads&quot;.to_string());
+    let max_size = CONF::get_int(&quot;uploads.max_file_size&quot;).unwrap_or(10485760);
+    // ...
+}
+#}</code></pre></pre>
+<a class="header" href="guides/configuration.html#configuration-examples" id="configuration-examples"><h2>Configuration Examples</h2></a>
+<a class="header" href="guides/configuration.html#minimal-configuration" id="minimal-configuration"><h3>Minimal Configuration</h3></a>
+<pre><code class="language-toml"># config.toml - Minimal configuration using defaults
+[server]
+port = 3000
+
+[database]
+url = &quot;postgresql://localhost/myapp&quot;
+</code></pre>
+<a class="header" href="guides/configuration.html#full-production-configuration" id="full-production-configuration"><h3>Full Production Configuration</h3></a>
+<pre><code class="language-toml"># config.prod.toml
+environment = &quot;production&quot;
+
+[server]
+host = &quot;0.0.0.0&quot;
+port = 443
+timeout = 60
+ssl_enabled = true
+ssl_cert = &quot;/etc/letsencrypt/live/example.com/fullchain.pem&quot;
+ssl_key = &quot;/etc/letsencrypt/live/example.com/privkey.pem&quot;
+max_connections = 5000
+
+[views]
+directory = &quot;/app/views&quot;
+default_layout = &quot;layouts/default&quot;
+cache_enabled = true
+storage = &quot;embedded&quot;  # Use embedded templates in production
+
+[session]
+secret = &quot;${SESSION_SECRET}&quot;  # From environment
+timeout = 86400  # 24 hours
+cookie_name = &quot;app_session&quot;
+secure = true
+http_only = true
+
+[session.storage]
+type = &quot;redis&quot;
+url = &quot;${REDIS_URL}&quot;
+prefix = &quot;session:&quot;
+pool_size = 10
+
+[database]
+url = &quot;${DATABASE_URL}&quot;
+max_connections = 50
+timeout = 10000
+
+[static_files]
+directory = &quot;/app/public&quot;
+url_prefix = &quot;/static&quot;
+cache_enabled = true
+cache_max_age = 2592000  # 30 days
+
+[cors]
+enabled = true
+allowed_origins = [&quot;https://example.com&quot;, &quot;https://app.example.com&quot;]
+allowed_methods = [&quot;GET&quot;, &quot;POST&quot;, &quot;PUT&quot;, &quot;DELETE&quot;, &quot;OPTIONS&quot;]
+allowed_headers = [&quot;Content-Type&quot;, &quot;Authorization&quot;, &quot;X-Requested-With&quot;]
+
+[logging]
+level = &quot;info&quot;
+file = &quot;/var/log/app/production.log&quot;
+
+[uploads]
+directory = &quot;/app/storage/uploads&quot;
+max_file_size = 52428800  # 50MB
+max_files = 10
+allowed_extensions = [&quot;jpg&quot;, &quot;jpeg&quot;, &quot;png&quot;, &quot;gif&quot;, &quot;pdf&quot;, &quot;doc&quot;, &quot;docx&quot;]
+create_directories = true
+
+[custom]
+cdn_url = &quot;https://cdn.example.com&quot;
+api_endpoint = &quot;https://api.example.com/v1&quot;
+smtp_host = &quot;smtp.sendgrid.net&quot;
+smtp_port = &quot;587&quot;
+smtp_user = &quot;apikey&quot;
+smtp_password = &quot;${SENDGRID_API_KEY}&quot;
+from_email = &quot;noreply@example.com&quot;
+support_email = &quot;support@example.com&quot;
+google_analytics_id = &quot;UA-XXXXXXXXX-X&quot;
+stripe_public_key = &quot;${STRIPE_PUBLIC_KEY}&quot;
+stripe_secret_key = &quot;${STRIPE_SECRET_KEY}&quot;
+redis_url = &quot;${REDIS_URL}&quot;
+elasticsearch_url = &quot;${ELASTICSEARCH_URL}&quot;
+feature_new_dashboard = &quot;true&quot;
+feature_beta_api = &quot;false&quot;
+maintenance_mode = &quot;false&quot;
+rate_limit_requests = &quot;1000&quot;
+rate_limit_window = &quot;3600&quot;
+</code></pre>
+<a class="header" href="guides/configuration.html#troubleshooting" id="troubleshooting"><h2>Troubleshooting</h2></a>
+<a class="header" href="guides/configuration.html#configuration-not-loading" id="configuration-not-loading"><h3>Configuration Not Loading</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Check if CONF is initialized
+if !CONF::is_initialized() {
+    panic!(&quot;Configuration not initialized!&quot;);
+}
+
+// Check what environment is loaded
+let env = CONF::env().unwrap_or_else(|| &quot;unknown&quot;.to_string());
+println!(&quot;Running in {} environment&quot;, env);
+
+// Debug configuration values
+if let Some(config) = CONF::all() {
+    println!(&quot;Server port: {}&quot;, config.server.port);
+    println!(&quot;Database URL: {:?}&quot;, config.database.url);
+}
+#}</code></pre></pre>
+<a class="header" href="guides/configuration.html#environment-variables-not-working" id="environment-variables-not-working"><h3>Environment Variables Not Working</h3></a>
+<pre><code class="language-bash"># Make sure to export variables
+export RUSTF_PORT=3000
+export DATABASE_URL=&quot;postgresql://localhost/mydb&quot;
+
+# Or set them when running
+RUSTF_ENV=production DATABASE_URL=&quot;...&quot; cargo run
+</code></pre>
+<a class="header" href="guides/configuration.html#custom-values-not-accessible" id="custom-values-not-accessible"><h3>Custom Values Not Accessible</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Custom values must be in [custom] section
+// config.toml:
+// [custom]
+// my_value = &quot;test&quot;
+
+// Access with &quot;custom.&quot; prefix:
+let value = CONF::get_string(&quot;custom.my_value&quot;);  // ✅ Correct
+let value = CONF::get_string(&quot;my_value&quot;);         // ❌ Wrong
+#}</code></pre></pre>
+<a class="header" href="guides/configuration.html#summary" id="summary"><h2>Summary</h2></a>
+<p>RustF's configuration system provides:</p>
+<p>✅ <strong>Single Access Point</strong> - Global CONF for uniform configuration access<br />
+✅ <strong>Dot Notation</strong> - Clean path-based access to nested values<br />
+✅ <strong>Multiple Sources</strong> - Files, environment variables, and code<br />
+✅ <strong>Environment Support</strong> - Development and production configs<br />
+✅ <strong>Type Safety</strong> - Typed getters for different value types<br />
+✅ <strong>Validation</strong> - Automatic validation for production requirements<br />
+✅ <strong>Extensibility</strong> - Custom settings for application-specific config<br />
+✅ <strong>AI-Friendly</strong> - One way to do things reduces confusion</p>
+<p>The configuration system follows the principle of &quot;convention over configuration&quot; while still providing the flexibility needed for complex applications. By using the global CONF accessor exclusively, the codebase remains consistent and easy to understand for both humans and AI assistants.</p>
+
+                </div>
+
+                <!-- Mobile navigation buttons -->
+                
+                    <a rel="prev" href="guides/database.html" class="mobile-nav-chapters previous" title="Previous chapter">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                
+
+                
+                    <a rel="next" href="guides/security.html" class="mobile-nav-chapters next" title="Next chapter">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+                
+
+            </div>
+
+            
+                <a href="guides/database.html" class="nav-chapters previous" title="You can navigate through the chapters using the arrow keys">
+                    <i class="fa fa-angle-left"></i>
+                </a>
+            
+
+            
+                <a href="guides/security.html" class="nav-chapters next" title="You can navigate through the chapters using the arrow keys">
+                    <i class="fa fa-angle-right"></i>
+                </a>
+            
+
+        </div>
+
+
+        <!-- Local fallback for Font Awesome -->
+        <script>
+            if ($(".fa").css("font-family") !== "FontAwesome") {
+                $('<link rel="stylesheet" type="text/css" href="_FontAwesome/css/font-awesome.css">').prependTo('head');
+            }
+        </script>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        
+
+        
+
+        
+
+        
+
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS script -->
+        
+
+    </body>
+</html>

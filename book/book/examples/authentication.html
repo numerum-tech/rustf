@@ -1,0 +1,424 @@
+<!DOCTYPE HTML>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Authentication - RustF Framework Documentation</title>
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="Complete guide to the RustF MVC web framework for Rust">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <base href="../">
+
+        <link rel="stylesheet" href="book.css">
+        <link href="https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800" rel="stylesheet" type="text/css">
+        <link href="https://fonts.googleapis.com/css?family=Source+Code+Pro:500" rel="stylesheet" type="text/css">
+
+        <link rel="shortcut icon" href="favicon.png">
+
+        <!-- Font Awesome -->
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
+
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme -->
+        
+
+        
+
+        <!-- Fetch Clipboard.js from CDN but have a local fallback -->
+        <script src="https://cdn.jsdelivr.net/clipboard.js/1.6.1/clipboard.min.js"></script>
+        <script>
+            if (typeof Clipboard == 'undefined') {
+                document.write(unescape("%3Cscript src='clipboard.min.js'%3E%3C/script%3E"));
+            }
+        </script>
+
+        <!-- Fetch JQuery from CDN but have a local fallback -->
+        <script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+        <script>
+            if (typeof jQuery == 'undefined') {
+                document.write(unescape("%3Cscript src='jquery.js'%3E%3C/script%3E"));
+            }
+        </script>
+
+        <!-- Fetch store.js from local - TODO add CDN when 2.x.x is available on cdnjs -->
+        <script src="store.js"></script>
+
+    </head>
+    <body class="light">
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme = store.get('mdbook-theme');
+            if (theme === null || theme === undefined) { theme = 'light'; }
+            $('body').removeClass().addClass(theme);
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var sidebar = store.get('mdbook-sidebar');
+            if (sidebar === "hidden") { $("html").addClass("sidebar-hidden") }
+            else if (sidebar === "visible") { $("html").addClass("sidebar-visible") }
+        </script>
+
+        <div id="sidebar" class="sidebar">
+            <ul class="chapter"><li class="affix"><a href="README.html">Introduction</a></li><li><a href="getting-started/README.html"><strong>1.</strong> Quick Start</a></li><li><a href="getting-started/installation.html"><strong>2.</strong> Installation</a></li><li><a href="getting-started/hello-world.html"><strong>3.</strong> Hello World</a></li><li><a href="getting-started/project-structure.html"><strong>4.</strong> Project Structure</a></li><li><a href="guides/controllers.html"><strong>5.</strong> Controllers &amp; Routing</a></li><li><a href="guides/views.html"><strong>6.</strong> Views &amp; Templates</a></li><li><a href="guides/middleware.html"><strong>7.</strong> Middleware</a></li><li><a href="guides/sessions.html"><strong>8.</strong> Sessions</a></li><li><a href="guides/database.html"><strong>9.</strong> Database Integration</a></li><li><a href="guides/configuration.html"><strong>10.</strong> Configuration</a></li><li><a href="guides/security.html"><strong>11.</strong> Security</a></li><li><a href="guides/error-handling.html"><strong>12.</strong> Error Handling</a></li><li><a href="guides/schemas.html"><strong>13.</strong> Schemas &amp; Definitions</a></li><li><a href="advanced/README.html"><strong>14.</strong> Overview</a></li><li><a href="advanced/performance.html"><strong>15.</strong> Performance Optimization</a></li><li><a href="advanced/workers.html"><strong>16.</strong> Workers</a></li><li><a href="advanced/events.html"><strong>17.</strong> Events</a></li><li><a href="advanced/modules.html"><strong>18.</strong> Modules</a></li><li><a href="advanced/cli.html"><strong>19.</strong> CLI Tool</a></li><li><a href="api-reference/README.html"><strong>20.</strong> Overview</a></li><li><a href="api-reference/context.html"><strong>21.</strong> Context API</a></li><li><a href="api-reference/models.html"><strong>22.</strong> Model API</a></li><li><a href="api-reference/routing.html"><strong>23.</strong> Routing API</a></li><li><a href="api-reference/utilities.html"><strong>24.</strong> Utilities</a></li><li><a href="examples/README.html"><strong>25.</strong> Overview</a></li><li><a href="examples/rest-api.html"><strong>26.</strong> Building a REST API</a></li><li><a href="examples/authentication.html" class="active"><strong>27.</strong> Authentication</a></li><li><a href="examples/real-world-app.html"><strong>28.</strong> Real-World Application</a></li><li><a href="deployment/production.html"><strong>29.</strong> Production Deployment</a></li><li><a href="deployment/docker.html"><strong>30.</strong> Docker</a></li></ul>
+        </div>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page" tabindex="-1">
+                
+                <div id="menu-bar" class="menu-bar">
+                    <div class="left-buttons">
+                        <i id="sidebar-toggle" class="fa fa-bars" title="Toggle sidebar"></i>
+                        <i id="theme-toggle" class="fa fa-paint-brush" title="Change theme"></i>
+                    </div>
+
+                    <h1 class="menu-title">RustF Framework Documentation</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html">
+                            <i id="print-button" class="fa fa-print" title="Print this book"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <div id="content" class="content">
+                    <a class="header" href="examples/authentication.html#authentication-implementation" id="authentication-implementation"><h1>Authentication Implementation</h1></a>
+<p>This guide shows how to implement authentication in a RustF application using sessions.</p>
+<a class="header" href="examples/authentication.html#overview" id="overview"><h2>Overview</h2></a>
+<p>We'll implement:</p>
+<ul>
+<li>User login</li>
+<li>User registration</li>
+<li>Session management</li>
+<li>Protected routes</li>
+<li>Logout</li>
+</ul>
+<a class="header" href="examples/authentication.html#setup" id="setup"><h2>Setup</h2></a>
+<a class="header" href="examples/authentication.html#1-create-auth-controller" id="1-create-auth-controller"><h3>1. Create Auth Controller</h3></a>
+<p>Create <code>src/controllers/auth.rs</code>:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use rustf::prelude::*;
+use serde::Deserialize;
+
+pub fn install() -&gt; Vec&lt;Route&gt; {
+    routes![
+        GET  &quot;/auth/login&quot;    =&gt; view_login,
+        POST &quot;/auth/login&quot;    =&gt; do_login,
+        GET  &quot;/auth/register&quot; =&gt; view_register,
+        POST &quot;/auth/register&quot; =&gt; do_register,
+        POST &quot;/auth/logout&quot;   =&gt; do_logout,
+    ]
+}
+#}</code></pre></pre>
+<a class="header" href="examples/authentication.html#2-define-data-structures" id="2-define-data-structures"><h3>2. Define Data Structures</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+#[derive(Deserialize)]
+struct LoginForm {
+    email: String,
+    password: String,
+}
+
+#[derive(Deserialize)]
+struct RegisterForm {
+    name: String,
+    email: String,
+    password: String,
+    password_confirm: String,
+}
+#}</code></pre></pre>
+<a class="header" href="examples/authentication.html#implementation" id="implementation"><h2>Implementation</h2></a>
+<a class="header" href="examples/authentication.html#login-view" id="login-view"><h3>Login View</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+async fn view_login(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    // Check if already logged in
+    if ctx.has_session() {
+        if let Some(session) = ctx.session() {
+            if session.is_authenticated() {
+                return ctx.redirect(&quot;/dashboard&quot;);
+            }
+        }
+    }
+    
+    ctx.layout(&quot;&quot;)  // No layout for login page
+       .view(&quot;/auth/login&quot;, json!({
+           &quot;title&quot;: &quot;Login&quot;
+       }))
+}
+#}</code></pre></pre>
+<a class="header" href="examples/authentication.html#login-handler" id="login-handler"><h3>Login Handler</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+async fn do_login(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    let form: LoginForm = ctx.body_form_typed()?;
+    
+    // Validation
+    if form.email.trim().is_empty() {
+        ctx.flash_error(&quot;Email is required&quot;)?;
+        return ctx.redirect(&quot;/auth/login&quot;);
+    }
+    
+    if form.password.is_empty() {
+        ctx.flash_error(&quot;Password is required&quot;)?;
+        return ctx.redirect(&quot;/auth/login&quot;);
+    }
+    
+    // In a real app, verify credentials against database
+    // This is a simplified example
+    if form.email == &quot;admin@example.com&quot; &amp;&amp; form.password == &quot;password123&quot; {
+        // Get or create session
+        let session = ctx.require_session()?;
+        
+        // Store user data in session
+        ctx.session_set(&quot;user&quot;, json!({
+            &quot;id&quot;: 1,
+            &quot;email&quot;: form.email,
+            &quot;name&quot;: &quot;Admin User&quot;,
+            &quot;role&quot;: &quot;admin&quot;
+        }))?;
+        
+        // Mark as authenticated
+        ctx.login(1)?;
+        
+        ctx.flash_success(&quot;Login successful!&quot;)?;
+        ctx.redirect(&quot;/dashboard&quot;)
+    } else {
+        ctx.flash_error(&quot;Invalid email or password&quot;)?;
+        ctx.redirect(&quot;/auth/login&quot;)
+    }
+}
+#}</code></pre></pre>
+<a class="header" href="examples/authentication.html#registration-view" id="registration-view"><h3>Registration View</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+async fn view_register(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    ctx.layout(&quot;&quot;)
+       .view(&quot;/auth/register&quot;, json!({
+           &quot;title&quot;: &quot;Create Account&quot;
+       }))
+}
+#}</code></pre></pre>
+<a class="header" href="examples/authentication.html#registration-handler" id="registration-handler"><h3>Registration Handler</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+async fn do_register(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    let form: RegisterForm = ctx.body_form_typed()?;
+    
+    // Validation
+    if form.name.trim().is_empty() {
+        ctx.flash_error(&quot;Name is required&quot;)?;
+        return ctx.redirect(&quot;/auth/register&quot;);
+    }
+    
+    if form.email.trim().is_empty() || !form.email.contains('@') {
+        ctx.flash_error(&quot;Valid email is required&quot;)?;
+        return ctx.redirect(&quot;/auth/register&quot;);
+    }
+    
+    if form.password.len() &lt; 8 {
+        ctx.flash_error(&quot;Password must be at least 8 characters&quot;)?;
+        return ctx.redirect(&quot;/auth/register&quot;);
+    }
+    
+    if form.password != form.password_confirm {
+        ctx.flash_error(&quot;Passwords do not match&quot;)?;
+        return ctx.redirect(&quot;/auth/register&quot;);
+    }
+    
+    // In a real app, create user in database
+    // Hash password before storing
+    
+    ctx.flash_success(&quot;Account created successfully! Please login.&quot;)?;
+    ctx.redirect(&quot;/auth/login&quot;)
+}
+#}</code></pre></pre>
+<a class="header" href="examples/authentication.html#logout-handler" id="logout-handler"><h3>Logout Handler</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+async fn do_logout(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    ctx.logout()?;
+    ctx.flash_info(&quot;You have been logged out&quot;)?;
+    ctx.redirect(&quot;/auth/login&quot;)
+}
+#}</code></pre></pre>
+<a class="header" href="examples/authentication.html#protected-routes" id="protected-routes"><h2>Protected Routes</h2></a>
+<a class="header" href="examples/authentication.html#create-auth-middleware" id="create-auth-middleware"><h3>Create Auth Middleware</h3></a>
+<p>Create <code>src/middleware/auth.rs</code>:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use rustf::prelude::*;
+
+pub struct AuthMiddleware;
+
+impl InboundMiddleware for AuthMiddleware {
+    fn handle(&amp;self, ctx: &amp;mut Context) -&gt; MiddlewareResult {
+        // Check if route requires authentication
+        let path = ctx.path();
+        let protected_paths = [&quot;/dashboard&quot;, &quot;/profile&quot;, &quot;/settings&quot;];
+        
+        if protected_paths.iter().any(|p| path.starts_with(p)) {
+            if let Some(session) = ctx.session() {
+                if session.is_authenticated() {
+                    return MiddlewareResult::Continue;
+                }
+            }
+            
+            // Not authenticated, redirect to login
+            ctx.flash_error(&quot;Please login to access this page&quot;)?;
+            if let Err(e) = ctx.redirect(&quot;/auth/login&quot;) {
+                return MiddlewareResult::Error(e);
+            }
+            return MiddlewareResult::Stop;
+        }
+        
+        MiddlewareResult::Continue
+    }
+}
+
+pub fn install(registry: &amp;mut MiddlewareRegistry) {
+    registry.register(&quot;auth&quot;, AuthMiddleware);
+}
+#}</code></pre></pre>
+<a class="header" href="examples/authentication.html#register-middleware" id="register-middleware"><h3>Register Middleware</h3></a>
+<p>In <code>src/main.rs</code>:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+let app = RustF::new()
+    .controllers(auto_controllers!())
+    .middleware_from(auto_middleware!());
+#}</code></pre></pre>
+<a class="header" href="examples/authentication.html#accessing-user-data" id="accessing-user-data"><h2>Accessing User Data</h2></a>
+<a class="header" href="examples/authentication.html#in-controllers" id="in-controllers"><h3>In Controllers</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+async fn dashboard(ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+    // Get user from session
+    let user: Option&lt;serde_json::Value&gt; = ctx.session_get(&quot;user&quot;);
+    
+    if let Some(user_data) = user {
+        ctx.repository_set(&quot;user&quot;, user_data.clone());
+        ctx.view(&quot;/dashboard/index&quot;, json!({
+            &quot;title&quot;: &quot;Dashboard&quot;
+        }))
+    } else {
+        ctx.throw401(Some(&quot;Not authenticated&quot;))
+    }
+}
+#}</code></pre></pre>
+<a class="header" href="examples/authentication.html#in-templates" id="in-templates"><h3>In Templates</h3></a>
+<pre><code class="language-html">&lt;!-- views/dashboard/index.html --&gt;
+@{if repository.user}
+    &lt;h1&gt;Welcome, @{repository.user.name}!&lt;/h1&gt;
+    &lt;p&gt;Email: @{repository.user.email}&lt;/p&gt;
+    &lt;p&gt;Role: @{repository.user.role}&lt;/p&gt;
+@{fi}
+</code></pre>
+<a class="header" href="examples/authentication.html#security-best-practices" id="security-best-practices"><h2>Security Best Practices</h2></a>
+<ol>
+<li>
+<p><strong>Password Hashing</strong>: Always hash passwords before storing</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use bcrypt;
+let hashed = bcrypt::hash(password, bcrypt::DEFAULT_COST)?;
+#}</code></pre></pre>
+</li>
+<li>
+<p><strong>Session Security</strong>: Use secure, HTTP-only cookies in production</p>
+<pre><code class="language-toml">[session]
+secure = true
+http_only = true
+</code></pre>
+</li>
+<li>
+<p><strong>CSRF Protection</strong>: Enable CSRF protection - See <a href="../guides/security.md">Security Guide</a></p>
+</li>
+<li>
+<p><strong>Rate Limiting</strong>: Add rate limiting to login endpoints</p>
+</li>
+<li>
+<p><strong>Input Validation</strong>: Always validate and sanitize user input</p>
+</li>
+</ol>
+<a class="header" href="examples/authentication.html#next-steps" id="next-steps"><h2>Next Steps</h2></a>
+<ul>
+<li>Add password reset functionality</li>
+<li>Add email verification</li>
+<li>Add two-factor authentication</li>
+<li>Add role-based access control (RBAC)</li>
+<li>Integrate with OAuth providers</li>
+</ul>
+
+                </div>
+
+                <!-- Mobile navigation buttons -->
+                
+                    <a rel="prev" href="examples/rest-api.html" class="mobile-nav-chapters previous" title="Previous chapter">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                
+
+                
+                    <a rel="next" href="examples/real-world-app.html" class="mobile-nav-chapters next" title="Next chapter">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+                
+
+            </div>
+
+            
+                <a href="examples/rest-api.html" class="nav-chapters previous" title="You can navigate through the chapters using the arrow keys">
+                    <i class="fa fa-angle-left"></i>
+                </a>
+            
+
+            
+                <a href="examples/real-world-app.html" class="nav-chapters next" title="You can navigate through the chapters using the arrow keys">
+                    <i class="fa fa-angle-right"></i>
+                </a>
+            
+
+        </div>
+
+
+        <!-- Local fallback for Font Awesome -->
+        <script>
+            if ($(".fa").css("font-family") !== "FontAwesome") {
+                $('<link rel="stylesheet" type="text/css" href="_FontAwesome/css/font-awesome.css">').prependTo('head');
+            }
+        </script>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        
+
+        
+
+        
+
+        
+
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS script -->
+        
+
+    </body>
+</html>

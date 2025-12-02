@@ -1,0 +1,872 @@
+<!DOCTYPE HTML>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Middleware - RustF Framework Documentation</title>
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="Complete guide to the RustF MVC web framework for Rust">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <base href="../">
+
+        <link rel="stylesheet" href="book.css">
+        <link href="https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800" rel="stylesheet" type="text/css">
+        <link href="https://fonts.googleapis.com/css?family=Source+Code+Pro:500" rel="stylesheet" type="text/css">
+
+        <link rel="shortcut icon" href="favicon.png">
+
+        <!-- Font Awesome -->
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
+
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme -->
+        
+
+        
+
+        <!-- Fetch Clipboard.js from CDN but have a local fallback -->
+        <script src="https://cdn.jsdelivr.net/clipboard.js/1.6.1/clipboard.min.js"></script>
+        <script>
+            if (typeof Clipboard == 'undefined') {
+                document.write(unescape("%3Cscript src='clipboard.min.js'%3E%3C/script%3E"));
+            }
+        </script>
+
+        <!-- Fetch JQuery from CDN but have a local fallback -->
+        <script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+        <script>
+            if (typeof jQuery == 'undefined') {
+                document.write(unescape("%3Cscript src='jquery.js'%3E%3C/script%3E"));
+            }
+        </script>
+
+        <!-- Fetch store.js from local - TODO add CDN when 2.x.x is available on cdnjs -->
+        <script src="store.js"></script>
+
+    </head>
+    <body class="light">
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme = store.get('mdbook-theme');
+            if (theme === null || theme === undefined) { theme = 'light'; }
+            $('body').removeClass().addClass(theme);
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var sidebar = store.get('mdbook-sidebar');
+            if (sidebar === "hidden") { $("html").addClass("sidebar-hidden") }
+            else if (sidebar === "visible") { $("html").addClass("sidebar-visible") }
+        </script>
+
+        <div id="sidebar" class="sidebar">
+            <ul class="chapter"><li class="affix"><a href="README.html">Introduction</a></li><li><a href="getting-started/README.html"><strong>1.</strong> Quick Start</a></li><li><a href="getting-started/installation.html"><strong>2.</strong> Installation</a></li><li><a href="getting-started/hello-world.html"><strong>3.</strong> Hello World</a></li><li><a href="getting-started/project-structure.html"><strong>4.</strong> Project Structure</a></li><li><a href="guides/controllers.html"><strong>5.</strong> Controllers &amp; Routing</a></li><li><a href="guides/views.html"><strong>6.</strong> Views &amp; Templates</a></li><li><a href="guides/middleware.html" class="active"><strong>7.</strong> Middleware</a></li><li><a href="guides/sessions.html"><strong>8.</strong> Sessions</a></li><li><a href="guides/database.html"><strong>9.</strong> Database Integration</a></li><li><a href="guides/configuration.html"><strong>10.</strong> Configuration</a></li><li><a href="guides/security.html"><strong>11.</strong> Security</a></li><li><a href="guides/error-handling.html"><strong>12.</strong> Error Handling</a></li><li><a href="guides/schemas.html"><strong>13.</strong> Schemas &amp; Definitions</a></li><li><a href="advanced/README.html"><strong>14.</strong> Overview</a></li><li><a href="advanced/performance.html"><strong>15.</strong> Performance Optimization</a></li><li><a href="advanced/workers.html"><strong>16.</strong> Workers</a></li><li><a href="advanced/events.html"><strong>17.</strong> Events</a></li><li><a href="advanced/modules.html"><strong>18.</strong> Modules</a></li><li><a href="advanced/cli.html"><strong>19.</strong> CLI Tool</a></li><li><a href="api-reference/README.html"><strong>20.</strong> Overview</a></li><li><a href="api-reference/context.html"><strong>21.</strong> Context API</a></li><li><a href="api-reference/models.html"><strong>22.</strong> Model API</a></li><li><a href="api-reference/routing.html"><strong>23.</strong> Routing API</a></li><li><a href="api-reference/utilities.html"><strong>24.</strong> Utilities</a></li><li><a href="examples/README.html"><strong>25.</strong> Overview</a></li><li><a href="examples/rest-api.html"><strong>26.</strong> Building a REST API</a></li><li><a href="examples/authentication.html"><strong>27.</strong> Authentication</a></li><li><a href="examples/real-world-app.html"><strong>28.</strong> Real-World Application</a></li><li><a href="deployment/production.html"><strong>29.</strong> Production Deployment</a></li><li><a href="deployment/docker.html"><strong>30.</strong> Docker</a></li></ul>
+        </div>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page" tabindex="-1">
+                
+                <div id="menu-bar" class="menu-bar">
+                    <div class="left-buttons">
+                        <i id="sidebar-toggle" class="fa fa-bars" title="Toggle sidebar"></i>
+                        <i id="theme-toggle" class="fa fa-paint-brush" title="Change theme"></i>
+                    </div>
+
+                    <h1 class="menu-title">RustF Framework Documentation</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html">
+                            <i id="print-button" class="fa fa-print" title="Print this book"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <div id="content" class="content">
+                    <a class="header" href="guides/middleware.html#rustf-middleware-system-documentation" id="rustf-middleware-system-documentation"><h1>RustF Middleware System Documentation</h1></a>
+<a class="header" href="guides/middleware.html#overview" id="overview"><h2>Overview</h2></a>
+<p>RustF provides a comprehensive dual-phase middleware system that separates request processing from response modification. This architecture provides clear separation of concerns and predictable execution order, making it highly suitable for AI-assisted development.</p>
+<a class="header" href="guides/middleware.html#core-architecture" id="core-architecture"><h2>Core Architecture</h2></a>
+<a class="header" href="guides/middleware.html#dual-phase-processing" id="dual-phase-processing"><h3>Dual-Phase Processing</h3></a>
+<p>The middleware system operates in two distinct phases:</p>
+<ol>
+<li><strong>Inbound Phase</strong> - Processes incoming requests before they reach controllers</li>
+<li><strong>Outbound Phase</strong> - Modifies responses after controllers have executed</li>
+</ol>
+<p>This separation allows middleware to cleanly handle both request validation/transformation and response enhancement without complex state management.</p>
+<a class="header" href="guides/middleware.html#core-components" id="core-components"><h2>Core Components</h2></a>
+<a class="header" href="guides/middleware.html#inboundmiddleware-trait" id="inboundmiddleware-trait"><h3>InboundMiddleware Trait</h3></a>
+<p>Processes requests before they reach controllers:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use async_trait::async_trait;
+
+#[async_trait]
+pub trait InboundMiddleware: Send + Sync + 'static {
+    async fn process_request(&amp;self, ctx: &amp;mut Context) -&gt; Result&lt;InboundAction&gt;;
+    
+    fn name(&amp;self) -&gt; &amp;'static str { &quot;unnamed&quot; }
+    fn priority(&amp;self) -&gt; i32 { 0 }
+    fn should_run(&amp;self, ctx: &amp;Context) -&gt; bool { true }
+}
+#}</code></pre></pre>
+<p><strong>Key Methods:</strong></p>
+<ul>
+<li><code>process_request()</code> - Main processing logic for incoming requests</li>
+<li><code>name()</code> - Identifies the middleware for debugging/logging</li>
+<li><code>priority()</code> - Execution order (lower numbers run first, -1000 to 1000)</li>
+<li><code>should_run()</code> - Conditional execution based on request context</li>
+</ul>
+<a class="header" href="guides/middleware.html#inboundaction-enum" id="inboundaction-enum"><h3>InboundAction Enum</h3></a>
+<p>Inbound middleware returns one of three actions:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+pub enum InboundAction {
+    Continue,           // Continue to next middleware
+    Stop,               // Stop chain and return response set on context
+    Capture,           // Continue but process response later
+}
+#}</code></pre></pre>
+<ul>
+<li><code>Continue</code> - Pass request to next middleware without capturing response</li>
+<li><code>Stop</code> - Stop processing and return the response that was set on context using response helpers</li>
+<li><code>Capture</code> - Continue processing but ensure outbound phase runs</li>
+</ul>
+<a class="header" href="guides/middleware.html#outboundmiddleware-trait" id="outboundmiddleware-trait"><h3>OutboundMiddleware Trait</h3></a>
+<p>Modifies responses after controllers execute:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use async_trait::async_trait;
+
+#[async_trait]
+pub trait OutboundMiddleware: Send + Sync + 'static {
+    async fn process_response(&amp;self, ctx: &amp;mut Context) -&gt; Result&lt;()&gt;;
+}
+#}</code></pre></pre>
+<p><strong>Important Change:</strong> The outbound middleware now receives <code>&amp;mut Context</code> instead of separate context and response parameters. The response is accessed and modified through <code>ctx.response</code> field.</p>
+<a class="header" href="guides/middleware.html#dualphasemiddleware-trait" id="dualphasemiddleware-trait"><h3>DualPhaseMiddleware Trait</h3></a>
+<p>For middleware that needs both phases:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+pub trait DualPhaseMiddleware: InboundMiddleware + OutboundMiddleware {}
+#}</code></pre></pre>
+<p>Any type implementing both traits automatically implements <code>DualPhaseMiddleware</code>.</p>
+<a class="header" href="guides/middleware.html#-critical-async-middleware-requirements" id="-critical-async-middleware-requirements"><h2>⚠️ Critical: Async Middleware Requirements</h2></a>
+<p><strong>IMPORTANT</strong>: All middleware in RustF MUST be async to prevent application hangs:</p>
+<ol>
+<li><strong>Always use <code>#[async_trait]</code></strong> - Required for all middleware trait implementations</li>
+<li><strong>Never use <code>block_on</code></strong> - Using <code>futures::executor::block_on</code> will cause the application to hang, especially with database storage</li>
+<li><strong>All I/O operations must be async</strong> - Session operations, database queries, and network calls must use async/await</li>
+</ol>
+<a class="header" href="guides/middleware.html#why-this-matters" id="why-this-matters"><h3>Why This Matters</h3></a>
+<p>The middleware system was redesigned to be fully async to fix a critical issue where applications would hang when using database-backed session storage. The previous implementation used <code>block_on</code> which blocked the async runtime, causing deadlocks with connection pools and async I/O operations.</p>
+<a class="header" href="guides/middleware.html#writing-middleware" id="writing-middleware"><h2>Writing Middleware</h2></a>
+<a class="header" href="guides/middleware.html#simple-inbound-middleware" id="simple-inbound-middleware"><h3>Simple Inbound Middleware</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use rustf::middleware::{InboundMiddleware, InboundAction};
+use rustf::context::Context;
+use rustf::error::Result;
+use async_trait::async_trait;
+
+pub struct AuthMiddleware {
+    required_role: String,
+}
+
+#[async_trait]
+impl InboundMiddleware for AuthMiddleware {
+    async fn process_request(&amp;self, ctx: &amp;mut Context) -&gt; Result&lt;InboundAction&gt; {
+        // Check authentication
+        if let Some(user) = ctx.session_get::&lt;User&gt;(&quot;user&quot;) {
+            if user.role == self.required_role {
+                return Ok(InboundAction::Continue);
+            }
+        }
+        
+        // Not authorized - use context helpers to set response
+        ctx.throw403(Some(&quot;Unauthorized&quot;))?;
+        Ok(InboundAction::Stop)
+    }
+    
+    fn name(&amp;self) -&gt; &amp;'static str {
+        &quot;auth&quot;
+    }
+    
+    fn priority(&amp;self) -&gt; i32 {
+        -500  // Run early (lower numbers execute first)
+    }
+}
+#}</code></pre></pre>
+<a class="header" href="guides/middleware.html#simple-outbound-middleware" id="simple-outbound-middleware"><h3>Simple Outbound Middleware</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use rustf::middleware::OutboundMiddleware;
+use rustf::context::Context;
+use rustf::error::Result;
+use async_trait::async_trait;
+
+pub struct CompressionMiddleware;
+
+#[async_trait]
+impl OutboundMiddleware for CompressionMiddleware {
+    async fn process_response(&amp;self, ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+        // Access the response through ctx.response
+        if let Some(response) = ctx.response.as_mut() {
+            // Add compression headers
+            response.headers.push((
+                &quot;Content-Encoding&quot;.to_string(),
+                &quot;gzip&quot;.to_string()
+            ));
+            
+            // Compress body (simplified)
+            // response.body = compress(response.body);
+        }
+        
+        Ok(())
+    }
+}
+#}</code></pre></pre>
+<a class="header" href="guides/middleware.html#dual-phase-middleware" id="dual-phase-middleware"><h3>Dual-Phase Middleware</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use rustf::middleware::{InboundMiddleware, OutboundMiddleware, InboundAction};
+use async_trait::async_trait;
+use std::time::Instant;
+
+pub struct TimingMiddleware;
+
+#[async_trait]
+impl InboundMiddleware for TimingMiddleware {
+    async fn process_request(&amp;self, ctx: &amp;mut Context) -&gt; Result&lt;InboundAction&gt; {
+        // Store start time
+        ctx.set(&quot;request_start&quot;, Instant::now());
+        
+        // Capture response to add timing header
+        Ok(InboundAction::Capture)
+    }
+}
+
+#[async_trait]
+impl OutboundMiddleware for TimingMiddleware {
+    async fn process_response(&amp;self, ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+        if let Some(start) = ctx.get::&lt;Instant&gt;(&quot;request_start&quot;) {
+            let duration = start.elapsed();
+            
+            // Access response through ctx.response
+            if let Some(response) = ctx.response.as_mut() {
+                response.headers.push((
+                    &quot;X-Response-Time&quot;.to_string(),
+                    format!(&quot;{}ms&quot;, duration.as_millis())
+                ));
+            }
+        }
+        Ok(())
+    }
+}
+#}</code></pre></pre>
+<a class="header" href="guides/middleware.html#registration" id="registration"><h2>Registration</h2></a>
+<a class="header" href="guides/middleware.html#basic-registration" id="basic-registration"><h3>Basic Registration</h3></a>
+<p>There are three ways to register middleware in RustF:</p>
+<a class="header" href="guides/middleware.html#method-1-auto-discovery-recommended-for-custom-middleware" id="method-1-auto-discovery-recommended-for-custom-middleware"><h4>Method 1: Auto-Discovery (Recommended for custom middleware)</h4></a>
+<p>Place your middleware in <code>src/middleware/*.rs</code> with an <code>install</code> function:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// src/middleware/auth.rs
+pub fn install(registry: &amp;mut MiddlewareRegistry) {
+    registry.register_inbound(&quot;auth&quot;, AuthMiddleware::new());
+}
+
+// In main.rs
+let app = RustF::new()
+    .middleware_from(auto_middleware!()); // Auto-discovers all middleware
+#}</code></pre></pre>
+<a class="header" href="guides/middleware.html#method-2-manual-registration-with-middleware_from" id="method-2-manual-registration-with-middleware_from"><h4>Method 2: Manual Registration with middleware_from</h4></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+let app = RustF::new()
+    .middleware_from(|registry| {
+        // Register inbound middleware
+        registry.register_inbound(&quot;auth&quot;, AuthMiddleware::new());
+        
+        // Register outbound middleware  
+        registry.register_outbound(&quot;compression&quot;, CompressionMiddleware);
+        
+        // Register dual-phase middleware
+        registry.register_dual(&quot;timing&quot;, TimingMiddleware);
+    });
+#}</code></pre></pre>
+<a class="header" href="guides/middleware.html#method-3-direct-registration-advanced---requires-mutable-app" id="method-3-direct-registration-advanced---requires-mutable-app"><h4>Method 3: Direct Registration (Advanced - requires mutable app)</h4></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Register inbound middleware
+app.middleware.register_inbound(&quot;auth&quot;, AuthMiddleware::new());
+
+// Register outbound middleware  
+app.middleware.register_outbound(&quot;compression&quot;, CompressionMiddleware);
+
+// Register dual-phase middleware
+app.middleware.register_dual(&quot;timing&quot;, TimingMiddleware);
+#}</code></pre></pre>
+<a class="header" href="guides/middleware.html#setting-middleware-priority" id="setting-middleware-priority"><h3>Setting Middleware Priority</h3></a>
+<p>Priority is set by implementing the <code>priority()</code> method in your middleware trait implementation. Lower numbers execute first (range: -1000 to 1000).</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use async_trait::async_trait;
+
+#[async_trait]
+impl InboundMiddleware for AuthMiddleware {
+    async fn process_request(&amp;self, ctx: &amp;mut Context) -&gt; Result&lt;InboundAction&gt; {
+        // Your middleware logic here
+        Ok(InboundAction::Continue)
+    }
+    
+    fn priority(&amp;self) -&gt; i32 {
+        -500  // Runs early in the chain
+    }
+}
+
+// Example: Multiple middleware with different priorities
+#[async_trait]
+impl InboundMiddleware for LoggingMiddleware {
+    async fn process_request(&amp;self, ctx: &amp;mut Context) -&gt; Result&lt;InboundAction&gt; {
+        // Log request
+        Ok(InboundAction::Continue)
+    }
+    
+    fn priority(&amp;self) -&gt; i32 {
+        -1000  // Highest priority, runs first
+    }
+}
+
+#[async_trait]
+impl InboundMiddleware for RateLimitMiddleware {
+    async fn process_request(&amp;self, ctx: &amp;mut Context) -&gt; Result&lt;InboundAction&gt; {
+        // Check rate limits
+        Ok(InboundAction::Continue)
+    }
+    
+    fn priority(&amp;self) -&gt; i32 {
+        -900  // Runs after logging but before auth
+    }
+}
+#}</code></pre></pre>
+<a class="header" href="guides/middleware.html#default-security-middleware" id="default-security-middleware"><h3>Default Security Middleware</h3></a>
+<p>RustF provides built-in security middleware that can be enabled with one call:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+let app = RustF::new()
+    .with_default_security();  // Enables security headers, input validation, CSP
+#}</code></pre></pre>
+<p>Or configure individually using middleware_from:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+let app = RustF::new()
+    .middleware_from(|registry| {
+        registry.register_outbound(&quot;security_headers&quot;, SecurityHeadersMiddleware::new());
+        registry.register_inbound(&quot;input_validation&quot;, InputValidationMiddleware::new());
+        registry.register_dual(&quot;csp&quot;, CspMiddleware::permissive());
+        registry.register_inbound(&quot;rate_limit&quot;, RateLimitMiddleware::new());
+    });
+#}</code></pre></pre>
+<a class="header" href="guides/middleware.html#built-in-middleware" id="built-in-middleware"><h2>Built-in Middleware</h2></a>
+<p><strong>Note</strong>: All built-in middleware properly implement async traits without any blocking operations. They are safe to use with database-backed session storage and other async I/O operations.</p>
+<a class="header" href="guides/middleware.html#security-middleware" id="security-middleware"><h3>Security Middleware</h3></a>
+<ol>
+<li>
+<p><strong>SecurityHeadersMiddleware</strong> (Outbound)</p>
+<ul>
+<li>Adds comprehensive security headers (X-Frame-Options, X-Content-Type-Options, etc.)</li>
+<li>Configurable for development/production environments</li>
+</ul>
+</li>
+<li>
+<p><strong>InputValidationMiddleware</strong> (Inbound)</p>
+<ul>
+<li>Validates input for SQL injection, XSS, path traversal</li>
+<li>Configurable patterns and exclusions</li>
+</ul>
+</li>
+<li>
+<p><strong>CspMiddleware</strong> (Dual-Phase)</p>
+<ul>
+<li>Content Security Policy with nonce generation</li>
+<li>Inbound: generates nonces for inline scripts/styles</li>
+<li>Outbound: adds CSP headers with nonces</li>
+</ul>
+</li>
+<li>
+<p><strong>RateLimitMiddleware</strong> (Inbound)</p>
+<ul>
+<li>IP-based rate limiting with configurable windows</li>
+<li>DashMap-based for thread-safe operation</li>
+<li>Automatic cleanup of old entries</li>
+</ul>
+</li>
+</ol>
+<a class="header" href="guides/middleware.html#utility-middleware" id="utility-middleware"><h3>Utility Middleware</h3></a>
+<ol>
+<li>
+<p><strong>LoggingMiddleware</strong> (Dual-Phase)</p>
+<ul>
+<li>Logs requests with timing information</li>
+<li>Inbound: logs incoming request</li>
+<li>Outbound: logs response with duration</li>
+</ul>
+</li>
+<li>
+<p><strong>CorsMiddleware</strong> (Dual-Phase)</p>
+<ul>
+<li>Handles CORS preflight and headers</li>
+<li>Inbound: responds to OPTIONS requests</li>
+<li>Outbound: adds CORS headers to responses</li>
+</ul>
+</li>
+<li>
+<p><strong>SessionMiddleware</strong> (Dual-Phase)</p>
+<ul>
+<li>Session management with cookie handling</li>
+<li>Inbound: loads session from cookie (async, no blocking)</li>
+<li>Outbound: saves session to cookie (async, no blocking)</li>
+<li><strong>Fixed</strong>: Previously used <code>block_on</code> causing hangs with database storage - now fully async</li>
+</ul>
+</li>
+<li>
+<p><strong>ValidationMiddleware</strong> (Inbound)</p>
+<ul>
+<li>Form validation with configurable rules</li>
+<li>CSRF protection integration</li>
+<li>Automatic error response generation</li>
+</ul>
+</li>
+</ol>
+<a class="header" href="guides/middleware.html#execution-order" id="execution-order"><h2>Execution Order</h2></a>
+<a class="header" href="guides/middleware.html#priority-system" id="priority-system"><h3>Priority System</h3></a>
+<p>Middleware executes based on priority (lower numbers first):</p>
+<pre><code>-1000: Logging (capture everything)
+ -900: Rate limiting (block early)
+ -800: Security headers
+ -700: CSP 
+ -600: Input validation
+ -500: CORS
+ -400: Authentication
+ -300: Session loading
+    0: Default priority
+ +100: Business logic
+ +500: Caching
++1000: Final cleanup
+</code></pre>
+<a class="header" href="guides/middleware.html#phase-execution" id="phase-execution"><h3>Phase Execution</h3></a>
+<ol>
+<li>
+<p><strong>Inbound Phase</strong> (before controller):</p>
+<ul>
+<li>Middleware sorted by priority (ascending)</li>
+<li>Each middleware's <code>should_run()</code> checked</li>
+<li><code>process_request()</code> called sequentially</li>
+<li>Chain stops if any returns <code>Stop</code> (using response set on context)</li>
+</ul>
+</li>
+<li>
+<p><strong>Controller Execution</strong>:</p>
+<ul>
+<li>Only if all inbound middleware returned <code>Continue</code> or <code>Capture</code></li>
+</ul>
+</li>
+<li>
+<p><strong>Outbound Phase</strong> (after controller):</p>
+<ul>
+<li>Only for middleware that returned <code>Capture</code> or registered as outbound</li>
+<li>Executes in reverse order of inbound</li>
+<li>Each modifies response in place</li>
+</ul>
+</li>
+</ol>
+<a class="header" href="guides/middleware.html#accessing-response-in-outbound-phase" id="accessing-response-in-outbound-phase"><h2>Accessing Response in Outbound Phase</h2></a>
+<p>With the new architecture, outbound middleware accesses the response through the Context's <code>response</code> field:</p>
+<a class="header" href="guides/middleware.html#response-access-pattern" id="response-access-pattern"><h3>Response Access Pattern</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+impl OutboundMiddleware for MyMiddleware {
+    fn process_response(&amp;self, ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+        // The response might be None if an error occurred
+        if let Some(response) = ctx.response.as_mut() {
+            // Modify response headers
+            response.headers.push((&quot;X-Custom&quot;.to_string(), &quot;value&quot;.to_string()));
+            
+            // Check status
+            if response.status.is_server_error() {
+                // Handle error responses differently
+                response.headers.push((&quot;X-Error&quot;.to_string(), &quot;true&quot;.to_string()));
+            }
+            
+            // Modify body if needed
+            if response.status == StatusCode::OK {
+                // Can inspect or modify response.body
+            }
+        }
+        Ok(())
+    }
+}
+#}</code></pre></pre>
+<a class="header" href="guides/middleware.html#when-response-might-be-none" id="when-response-might-be-none"><h3>When Response Might Be None</h3></a>
+<p>The response field will be <code>None</code> in rare cases:</p>
+<ul>
+<li>If a panic occurred before the response was set</li>
+<li>If middleware or handler failed to set any response</li>
+</ul>
+<p>In practice, the framework ensures a response is always set, even for errors.</p>
+<a class="header" href="guides/middleware.html#important-notes" id="important-notes"><h3>Important Notes</h3></a>
+<ol>
+<li><strong>InboundAction::Stop</strong> - Uses the response set on context via helpers like <code>ctx.json()</code>, <code>ctx.throw403()</code>, etc.</li>
+<li><strong>Handler Responses</strong> - Controllers set response via <code>ctx.json()</code>, <code>ctx.view()</code>, etc.</li>
+<li><strong>Error Responses</strong> - Error methods like <code>ctx.throw404()</code> also set the response</li>
+<li><strong>Middleware Order</strong> - Outbound middleware runs in reverse order of inbound</li>
+<li><strong>Context Initialization</strong> - Context now initializes with a default 200 OK response, enabling response helpers everywhere</li>
+</ol>
+<a class="header" href="guides/middleware.html#advanced-patterns" id="advanced-patterns"><h2>Advanced Patterns</h2></a>
+<a class="header" href="guides/middleware.html#conditional-middleware" id="conditional-middleware"><h3>Conditional Middleware</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use async_trait::async_trait;
+
+#[async_trait]
+impl InboundMiddleware for ApiAuthMiddleware {
+    fn should_run(&amp;self, ctx: &amp;Context) -&gt; bool {
+        // Only run for API routes
+        ctx.request.uri.starts_with(&quot;/api/&quot;)
+    }
+    
+    async fn process_request(&amp;self, ctx: &amp;mut Context) -&gt; Result&lt;InboundAction&gt; {
+        // API authentication logic
+        Ok(InboundAction::Continue)
+    }
+}
+#}</code></pre></pre>
+<a class="header" href="guides/middleware.html#state-sharing-between-phases" id="state-sharing-between-phases"><h3>State Sharing Between Phases</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use async_trait::async_trait;
+
+#[async_trait]
+impl InboundMiddleware for MetricsMiddleware {
+    async fn process_request(&amp;self, ctx: &amp;mut Context) -&gt; Result&lt;InboundAction&gt; {
+        // Store request data for metrics
+        ctx.set(&quot;metrics_start&quot;, Instant::now());
+        ctx.set(&quot;metrics_path&quot;, ctx.request.uri.clone());
+        
+        Ok(InboundAction::Capture)
+    }
+}
+
+#[async_trait]
+impl OutboundMiddleware for MetricsMiddleware {
+    async fn process_response(&amp;self, ctx: &amp;mut Context) -&gt; Result&lt;()&gt; {
+        if let Some(start) = ctx.get::&lt;Instant&gt;(&quot;metrics_start&quot;) {
+            let path = ctx.get::&lt;String&gt;(&quot;metrics_path&quot;).unwrap_or_default();
+            let duration = start.elapsed();
+            
+            // Get status from response
+            let status = ctx.response.as_ref()
+                .map(|r| r.status.as_u16())
+                .unwrap_or(500);
+            
+            // Record metrics
+            record_metric(&amp;path, status, duration);
+        }
+        Ok(())
+    }
+}
+#}</code></pre></pre>
+<a class="header" href="guides/middleware.html#early-response-pattern" id="early-response-pattern"><h3>Early Response Pattern</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use async_trait::async_trait;
+
+#[async_trait]
+impl InboundMiddleware for CacheMiddleware {
+    async fn process_request(&amp;self, ctx: &amp;mut Context) -&gt; Result&lt;InboundAction&gt; {
+        let cache_key = generate_cache_key(&amp;ctx.request);
+        
+        if let Some(cached) = self.cache.get(&amp;cache_key) {
+            // Return cached response immediately
+            ctx.set_response(cached);
+            return Ok(InboundAction::Stop);
+        }
+        
+        // Store key for outbound phase
+        ctx.set(&quot;cache_key&quot;, cache_key);
+        Ok(InboundAction::Capture)
+    }
+}
+#}</code></pre></pre>
+<a class="header" href="guides/middleware.html#testing-middleware" id="testing-middleware"><h2>Testing Middleware</h2></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rustf::http::Request;
+    use rustf::views::ViewEngine;
+    use std::sync::Arc;
+    
+    #[tokio::test]
+    async fn test_auth_middleware() {
+        let middleware = AuthMiddleware::new(&quot;admin&quot;);
+        
+        // Create test context
+        let request = Request::default();
+        let views = Arc::new(ViewEngine::from_directory(&quot;views&quot;));
+        let mut ctx = Context::new(request, views);
+        
+        // Test without auth
+        let action = middleware.process_request(&amp;mut ctx).await.unwrap();
+        assert!(matches!(action, InboundAction::Stop));
+        // Check that response was set on context
+        assert!(ctx.response.is_some());
+        
+        // Test with auth
+        ctx.session_set(&quot;user&quot;, User { role: &quot;admin&quot;.into() });
+        let action = middleware.process_request(&amp;mut ctx).await.unwrap();
+        assert!(matches!(action, InboundAction::Continue));
+    }
+    
+    #[tokio::test]
+    async fn test_outbound_middleware() {
+        let middleware = CompressionMiddleware;
+        
+        // Create test context with response
+        let request = Request::default();
+        let views = Arc::new(ViewEngine::from_directory(&quot;views&quot;));
+        let mut ctx = Context::new(request, views);
+        
+        // Process response
+        middleware.process_response(&amp;mut ctx).await.unwrap();
+        
+        // Verify headers were added
+        if let Some(response) = &amp;ctx.response {
+            let has_encoding = response.headers.iter()
+                .any(|(k, _)| k == &quot;Content-Encoding&quot;);
+            assert!(has_encoding);
+        }
+    }
+}
+#}</code></pre></pre>
+<a class="header" href="guides/middleware.html#best-practices" id="best-practices"><h2>Best Practices</h2></a>
+<ol>
+<li>
+<p><strong>Use appropriate phase</strong>:</p>
+<ul>
+<li>Input validation → Inbound</li>
+<li>Response headers → Outbound</li>
+<li>Timing/metrics → Dual-phase</li>
+</ul>
+</li>
+<li>
+<p><strong>Set meaningful priorities</strong>:</p>
+<ul>
+<li>Security checks: -900 to -500</li>
+<li>Business logic: -100 to +100</li>
+<li>Response modification: +500 to +900</li>
+</ul>
+</li>
+<li>
+<p><strong>Minimize state in middleware</strong>:</p>
+<ul>
+<li>Use context for request-scoped data</li>
+<li>Use Arc for shared immutable data</li>
+</ul>
+</li>
+<li>
+<p><strong>Handle errors gracefully</strong>:</p>
+<ul>
+<li>Return appropriate HTTP status codes</li>
+<li>Log errors for debugging</li>
+</ul>
+</li>
+<li>
+<p><strong>Keep middleware focused</strong>:</p>
+<ul>
+<li>Single responsibility principle</li>
+<li>Compose multiple middleware for complex logic</li>
+</ul>
+</li>
+</ol>
+<a class="header" href="guides/middleware.html#migration-from-expresstotaljs" id="migration-from-expresstotaljs"><h2>Migration from Express/Total.js</h2></a>
+<table><thead><tr><th> Express/Total.js </th><th> RustF Equivalent </th></tr></thead><tbody>
+<tr><td> <code>app.use(middleware)</code> </td><td> <code>registry.register_inbound()</code> or <code>registry.register_dual()</code> </td></tr>
+<tr><td> <code>next()</code> </td><td> <code>Ok(InboundAction::Continue)</code> </td></tr>
+<tr><td> <code>res.send()</code> in middleware </td><td> Set response on context, return <code>Ok(InboundAction::Stop)</code> </td></tr>
+<tr><td> Error middleware </td><td> Implement error handling in middleware </td></tr>
+<tr><td> Route-specific middleware </td><td> Use <code>should_run()</code> method </td></tr>
+<tr><td> Middleware priority/order </td><td> Implement <code>priority()</code> method (lower = earlier) </td></tr>
+<tr><td> Synchronous middleware </td><td> <strong>All middleware MUST be async in RustF</strong> </td></tr>
+</tbody></table>
+<a class="header" href="guides/middleware.html#migration-from-old-rustf-blocking-middleware" id="migration-from-old-rustf-blocking-middleware"><h2>Migration from Old RustF Blocking Middleware</h2></a>
+<p>If you have existing RustF middleware using the old blocking pattern:</p>
+<a class="header" href="guides/middleware.html#old-pattern-deprecated---will-cause-hangs" id="old-pattern-deprecated---will-cause-hangs"><h3>Old Pattern (DEPRECATED - Will cause hangs)</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// DON'T DO THIS - Will cause application hangs
+impl InboundMiddleware for MyMiddleware {
+    fn process_request(&amp;self, ctx: &amp;mut Context) -&gt; Result&lt;InboundAction&gt; {
+        // This would use block_on internally for async operations
+        let session = futures::executor::block_on(load_session()); // WRONG!
+        Ok(InboundAction::Continue)
+    }
+}
+#}</code></pre></pre>
+<a class="header" href="guides/middleware.html#new-async-pattern-required" id="new-async-pattern-required"><h3>New Async Pattern (REQUIRED)</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use async_trait::async_trait;
+
+#[async_trait]
+impl InboundMiddleware for MyMiddleware {
+    async fn process_request(&amp;self, ctx: &amp;mut Context) -&gt; Result&lt;InboundAction&gt; {
+        // Properly await async operations
+        let session = load_session().await?; // CORRECT!
+        Ok(InboundAction::Continue)
+    }
+}
+#}</code></pre></pre>
+<a class="header" href="guides/middleware.html#key-changes" id="key-changes"><h3>Key Changes</h3></a>
+<ol>
+<li>Add <code>#[async_trait]</code> to all middleware implementations</li>
+<li>Change <code>fn</code> to <code>async fn</code> for process methods</li>
+<li>Replace any <code>block_on</code> calls with <code>.await</code></li>
+<li>Ensure all I/O operations use async versions</li>
+</ol>
+<a class="header" href="guides/middleware.html#ai-development-guidelines" id="ai-development-guidelines"><h2>AI Development Guidelines</h2></a>
+<p>When developing middleware with AI assistance:</p>
+<ol>
+<li>
+<p><strong>Always use async traits</strong>:</p>
+<ul>
+<li>Include <code>use async_trait::async_trait;</code> at the top</li>
+<li>Add <code>#[async_trait]</code> before every middleware impl block</li>
+<li>Use <code>async fn</code> for <code>process_request()</code> and <code>process_response()</code></li>
+</ul>
+</li>
+<li>
+<p><strong>Never use blocking operations</strong>:</p>
+<ul>
+<li><strong>CRITICAL</strong>: Never use <code>futures::executor::block_on</code> - it will hang the application</li>
+<li>All I/O operations must be async (database, file system, network)</li>
+<li>Session operations are async - use <code>.await</code> properly</li>
+</ul>
+</li>
+<li>
+<p><strong>Specify the phase</strong>: Clearly indicate if middleware should be inbound, outbound, or dual-phase</p>
+</li>
+<li>
+<p><strong>Define the action</strong>: Specify when to Continue, Stop, or Capture</p>
+</li>
+<li>
+<p><strong>Set priorities</strong>: Indicate relative execution order needs (-1000 to 1000)</p>
+</li>
+<li>
+<p><strong>Handle errors</strong>: Specify error response formats</p>
+</li>
+<li>
+<p><strong>Use built-in middleware</strong>: Leverage existing security middleware when applicable</p>
+</li>
+<li>
+<p><strong>Test thoroughly</strong>:</p>
+<ul>
+<li>Use <code>#[tokio::test]</code> for async tests</li>
+<li>Test both phases if dual-phase</li>
+<li>Verify <code>.await</code> is used for all async operations</li>
+</ul>
+</li>
+</ol>
+<a class="header" href="guides/middleware.html#example-ai-prompt" id="example-ai-prompt"><h3>Example AI Prompt</h3></a>
+<pre><code>Create an authentication middleware that:
+- Runs in the inbound phase only
+- Checks for JWT token in Authorization header
+- Uses async database queries to validate user
+- Returns 401 if unauthorized
+- Has priority -400 (after rate limiting)
+- MUST use async/await pattern
+</code></pre>
+<a class="header" href="guides/middleware.html#conclusion" id="conclusion"><h2>Conclusion</h2></a>
+<p>The RustF dual-phase middleware system provides a clean, predictable architecture for request/response processing. The separation of inbound and outbound phases eliminates complex state management while maintaining the flexibility needed for sophisticated middleware implementations.</p>
+
+                </div>
+
+                <!-- Mobile navigation buttons -->
+                
+                    <a rel="prev" href="guides/views.html" class="mobile-nav-chapters previous" title="Previous chapter">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                
+
+                
+                    <a rel="next" href="guides/sessions.html" class="mobile-nav-chapters next" title="Next chapter">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+                
+
+            </div>
+
+            
+                <a href="guides/views.html" class="nav-chapters previous" title="You can navigate through the chapters using the arrow keys">
+                    <i class="fa fa-angle-left"></i>
+                </a>
+            
+
+            
+                <a href="guides/sessions.html" class="nav-chapters next" title="You can navigate through the chapters using the arrow keys">
+                    <i class="fa fa-angle-right"></i>
+                </a>
+            
+
+        </div>
+
+
+        <!-- Local fallback for Font Awesome -->
+        <script>
+            if ($(".fa").css("font-family") !== "FontAwesome") {
+                $('<link rel="stylesheet" type="text/css" href="_FontAwesome/css/font-awesome.css">').prependTo('head');
+            }
+        </script>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        
+
+        
+
+        
+
+        
+
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS script -->
+        
+
+    </body>
+</html>

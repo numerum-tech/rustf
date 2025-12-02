@@ -1,0 +1,307 @@
+<!DOCTYPE HTML>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Model API - RustF Framework Documentation</title>
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="Complete guide to the RustF MVC web framework for Rust">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <base href="../">
+
+        <link rel="stylesheet" href="book.css">
+        <link href="https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800" rel="stylesheet" type="text/css">
+        <link href="https://fonts.googleapis.com/css?family=Source+Code+Pro:500" rel="stylesheet" type="text/css">
+
+        <link rel="shortcut icon" href="favicon.png">
+
+        <!-- Font Awesome -->
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
+
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme -->
+        
+
+        
+
+        <!-- Fetch Clipboard.js from CDN but have a local fallback -->
+        <script src="https://cdn.jsdelivr.net/clipboard.js/1.6.1/clipboard.min.js"></script>
+        <script>
+            if (typeof Clipboard == 'undefined') {
+                document.write(unescape("%3Cscript src='clipboard.min.js'%3E%3C/script%3E"));
+            }
+        </script>
+
+        <!-- Fetch JQuery from CDN but have a local fallback -->
+        <script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+        <script>
+            if (typeof jQuery == 'undefined') {
+                document.write(unescape("%3Cscript src='jquery.js'%3E%3C/script%3E"));
+            }
+        </script>
+
+        <!-- Fetch store.js from local - TODO add CDN when 2.x.x is available on cdnjs -->
+        <script src="store.js"></script>
+
+    </head>
+    <body class="light">
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme = store.get('mdbook-theme');
+            if (theme === null || theme === undefined) { theme = 'light'; }
+            $('body').removeClass().addClass(theme);
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var sidebar = store.get('mdbook-sidebar');
+            if (sidebar === "hidden") { $("html").addClass("sidebar-hidden") }
+            else if (sidebar === "visible") { $("html").addClass("sidebar-visible") }
+        </script>
+
+        <div id="sidebar" class="sidebar">
+            <ul class="chapter"><li class="affix"><a href="README.html">Introduction</a></li><li><a href="getting-started/README.html"><strong>1.</strong> Quick Start</a></li><li><a href="getting-started/installation.html"><strong>2.</strong> Installation</a></li><li><a href="getting-started/hello-world.html"><strong>3.</strong> Hello World</a></li><li><a href="getting-started/project-structure.html"><strong>4.</strong> Project Structure</a></li><li><a href="guides/controllers.html"><strong>5.</strong> Controllers &amp; Routing</a></li><li><a href="guides/views.html"><strong>6.</strong> Views &amp; Templates</a></li><li><a href="guides/middleware.html"><strong>7.</strong> Middleware</a></li><li><a href="guides/sessions.html"><strong>8.</strong> Sessions</a></li><li><a href="guides/database.html"><strong>9.</strong> Database Integration</a></li><li><a href="guides/configuration.html"><strong>10.</strong> Configuration</a></li><li><a href="guides/security.html"><strong>11.</strong> Security</a></li><li><a href="guides/error-handling.html"><strong>12.</strong> Error Handling</a></li><li><a href="guides/schemas.html"><strong>13.</strong> Schemas &amp; Definitions</a></li><li><a href="advanced/README.html"><strong>14.</strong> Overview</a></li><li><a href="advanced/performance.html"><strong>15.</strong> Performance Optimization</a></li><li><a href="advanced/workers.html"><strong>16.</strong> Workers</a></li><li><a href="advanced/events.html"><strong>17.</strong> Events</a></li><li><a href="advanced/modules.html"><strong>18.</strong> Modules</a></li><li><a href="advanced/cli.html"><strong>19.</strong> CLI Tool</a></li><li><a href="api-reference/README.html"><strong>20.</strong> Overview</a></li><li><a href="api-reference/context.html"><strong>21.</strong> Context API</a></li><li><a href="api-reference/models.html" class="active"><strong>22.</strong> Model API</a></li><li><a href="api-reference/routing.html"><strong>23.</strong> Routing API</a></li><li><a href="api-reference/utilities.html"><strong>24.</strong> Utilities</a></li><li><a href="examples/README.html"><strong>25.</strong> Overview</a></li><li><a href="examples/rest-api.html"><strong>26.</strong> Building a REST API</a></li><li><a href="examples/authentication.html"><strong>27.</strong> Authentication</a></li><li><a href="examples/real-world-app.html"><strong>28.</strong> Real-World Application</a></li><li><a href="deployment/production.html"><strong>29.</strong> Production Deployment</a></li><li><a href="deployment/docker.html"><strong>30.</strong> Docker</a></li></ul>
+        </div>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page" tabindex="-1">
+                
+                <div id="menu-bar" class="menu-bar">
+                    <div class="left-buttons">
+                        <i id="sidebar-toggle" class="fa fa-bars" title="Toggle sidebar"></i>
+                        <i id="theme-toggle" class="fa fa-paint-brush" title="Change theme"></i>
+                    </div>
+
+                    <h1 class="menu-title">RustF Framework Documentation</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html">
+                            <i id="print-button" class="fa fa-print" title="Print this book"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <div id="content" class="content">
+                    <a class="header" href="api-reference/models.html#model-api-reference" id="model-api-reference"><h1>Model API Reference</h1></a>
+<p>RustF provides a database model system with query builders and type-safe database access.</p>
+<a class="header" href="api-reference/models.html#model-traits" id="model-traits"><h2>Model Traits</h2></a>
+<a class="header" href="api-reference/models.html#databasemodel" id="databasemodel"><h3>DatabaseModel</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+pub trait DatabaseModel: Send + Sync {
+    fn table_name(&amp;self) -&gt; &amp;str;
+    fn primary_key(&amp;self) -&gt; &amp;str;
+}
+#}</code></pre></pre>
+<a class="header" href="api-reference/models.html#modelquery" id="modelquery"><h3>ModelQuery</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+pub trait ModelQuery {
+    fn find_by_id(&amp;self, id: i64) -&gt; Result&lt;Option&lt;Self&gt;&gt;;
+    fn find_all(&amp;self) -&gt; Result&lt;Vec&lt;Self&gt;&gt;;
+    fn create(&amp;mut self) -&gt; Result&lt;()&gt;;
+    fn update(&amp;mut self) -&gt; Result&lt;()&gt;;
+    fn delete(&amp;self) -&gt; Result&lt;()&gt;;
+}
+#}</code></pre></pre>
+<a class="header" href="api-reference/models.html#query-builder" id="query-builder"><h2>Query Builder</h2></a>
+<a class="header" href="api-reference/models.html#basic-queries" id="basic-queries"><h3>Basic Queries</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use rustf::models::ModelQuery;
+
+// Find by ID
+let user = Users::find_by_id(1)?;
+
+// Find all
+let users = Users::find_all()?;
+
+// Find with conditions
+let active_users = Users::query()
+    .where_eq(&quot;is_active&quot;, true)
+    .find()?;
+#}</code></pre></pre>
+<a class="header" href="api-reference/models.html#where-clauses" id="where-clauses"><h3>Where Clauses</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+Users::query()
+    .where_eq(&quot;status&quot;, &quot;active&quot;)
+    .where_ne(&quot;deleted&quot;, true)
+    .where_gt(&quot;age&quot;, 18)
+    .where_lt(&quot;created_at&quot;, &quot;2024-01-01&quot;)
+    .where_like(&quot;name&quot;, &quot;%john%&quot;)
+    .where_in(&quot;id&quot;, vec![1, 2, 3])
+    .find()?;
+#}</code></pre></pre>
+<a class="header" href="api-reference/models.html#ordering" id="ordering"><h3>Ordering</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+Users::query()
+    .order_by(&quot;created_at&quot;, OrderDirection::Desc)
+    .find()?;
+#}</code></pre></pre>
+<a class="header" href="api-reference/models.html#pagination" id="pagination"><h3>Pagination</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+Users::query()
+    .limit(10)
+    .offset(20)
+    .find()?;
+#}</code></pre></pre>
+<a class="header" href="api-reference/models.html#aggregations" id="aggregations"><h3>Aggregations</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+let count = Users::query().count()?;
+let max_age = Users::query().max(&quot;age&quot;)?;
+let avg_score = Users::query().avg(&quot;score&quot;)?;
+#}</code></pre></pre>
+<a class="header" href="api-reference/models.html#model-operations" id="model-operations"><h2>Model Operations</h2></a>
+<a class="header" href="api-reference/models.html#create" id="create"><h3>Create</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+let mut user = User {
+    name: &quot;John&quot;.to_string(),
+    email: &quot;john@example.com&quot;.to_string(),
+    ..Default::default()
+};
+user.create()?;
+#}</code></pre></pre>
+<a class="header" href="api-reference/models.html#update" id="update"><h3>Update</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+let mut user = Users::find_by_id(1)?;
+user.name = &quot;Jane&quot;.to_string();
+user.update()?;
+#}</code></pre></pre>
+<a class="header" href="api-reference/models.html#delete" id="delete"><h3>Delete</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+let user = Users::find_by_id(1)?;
+user.delete()?;
+#}</code></pre></pre>
+<a class="header" href="api-reference/models.html#global-database-access" id="global-database-access"><h2>Global Database Access</h2></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+use rustf::db::DB;
+
+// Execute raw SQL
+DB::query(&quot;SELECT * FROM users WHERE id = ?&quot;, &amp;[&amp;1])?;
+
+// Transaction
+DB::transaction(|| {
+    // ... operations ...
+})?;
+#}</code></pre></pre>
+<a class="header" href="api-reference/models.html#model-registration" id="model-registration"><h2>Model Registration</h2></a>
+<p>Models are auto-discovered:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+let app = RustF::new()
+    .models(auto_models!());
+#}</code></pre></pre>
+<a class="header" href="api-reference/models.html#examples" id="examples"><h2>Examples</h2></a>
+<a class="header" href="api-reference/models.html#complete-model-usage" id="complete-model-usage"><h3>Complete Model Usage</h3></a>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// Find user
+let user = Users::find_by_id(1)?;
+
+// Query with conditions
+let active_users = Users::query()
+    .where_eq(&quot;is_active&quot;, true)
+    .order_by(&quot;created_at&quot;, OrderDirection::Desc)
+    .limit(10)
+    .find()?;
+
+// Create new user
+let mut new_user = User {
+    name: &quot;Alice&quot;.to_string(),
+    email: &quot;alice@example.com&quot;.to_string(),
+    is_active: true,
+    ..Default::default()
+};
+new_user.create()?;
+
+// Update user
+let mut user = Users::find_by_id(1)?;
+user.name = &quot;Bob&quot;.to_string();
+user.update()?;
+
+// Delete user
+let user = Users::find_by_id(1)?;
+user.delete()?;
+#}</code></pre></pre>
+
+                </div>
+
+                <!-- Mobile navigation buttons -->
+                
+                    <a rel="prev" href="api-reference/context.html" class="mobile-nav-chapters previous" title="Previous chapter">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                
+
+                
+                    <a rel="next" href="api-reference/routing.html" class="mobile-nav-chapters next" title="Next chapter">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+                
+
+            </div>
+
+            
+                <a href="api-reference/context.html" class="nav-chapters previous" title="You can navigate through the chapters using the arrow keys">
+                    <i class="fa fa-angle-left"></i>
+                </a>
+            
+
+            
+                <a href="api-reference/routing.html" class="nav-chapters next" title="You can navigate through the chapters using the arrow keys">
+                    <i class="fa fa-angle-right"></i>
+                </a>
+            
+
+        </div>
+
+
+        <!-- Local fallback for Font Awesome -->
+        <script>
+            if ($(".fa").css("font-family") !== "FontAwesome") {
+                $('<link rel="stylesheet" type="text/css" href="_FontAwesome/css/font-awesome.css">').prependTo('head');
+            }
+        </script>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        
+
+        
+
+        
+
+        
+
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS script -->
+        
+
+    </body>
+</html>
