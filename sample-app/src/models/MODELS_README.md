@@ -810,4 +810,4 @@ When creating models:
 
 ---
 
-### 📚 Generated at 2025-10-30T14:52:34Z by RustF CLI v0.1.0
+### 📚 Generated at 2025-12-02T20:18:51Z by RustF CLI v0.1.0

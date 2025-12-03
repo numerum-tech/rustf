@@ -1031,13 +1031,30 @@ fn prepare_base_model_variables(
         sorted_fields.iter().map(|f| &f.name).collect::<Vec<_>>()
     );
 
-    // Determine ID type and whether this model has an id field
-    let has_id_field = table.fields.values().any(|f| f.name == "id");
-    let id_type = if let Some(id_field) = table.fields.values().find(|f| f.name == "id") {
-        if let Some(ref lang_type) = id_field.lang_type {
+    // Determine primary key field (detect early for use throughout generation)
+    let primary_key = table
+        .fields
+        .values()
+        .find(|f| f.constraints.primary_key.unwrap_or(false))
+        .map(|f| f.name.clone())
+        .unwrap_or_else(|| "id".to_string());
+    vars.insert("primary_key".to_string(), primary_key.clone());
+
+    // Determine ID type and whether this model has a primary key field
+    let has_primary_key = table
+        .fields
+        .values()
+        .any(|f| f.constraints.primary_key.unwrap_or(false));
+    
+    let id_type = if let Some(pk_field) = table
+        .fields
+        .values()
+        .find(|f| f.constraints.primary_key.unwrap_or(false))
+    {
+        if let Some(ref lang_type) = pk_field.lang_type {
             lang_type.clone()
         } else {
-            match id_field.field_type.base_type() {
+            match pk_field.field_type.base_type() {
                 "int" | "integer" => "i32",
                 "bigint" => "i64",
                 "string" => "String",
@@ -1046,20 +1063,22 @@ fn prepare_base_model_variables(
             .to_string()
         }
     } else {
-        "i32".to_string() // Default type for models without id
+        "i32".to_string() // Default type for models without primary key
     };
     vars.insert("id_type".to_string(), id_type.clone());
 
-    // Generate id method implementation based on whether id field exists
-    let id_method_impl = if has_id_field {
+    // Generate id method implementation based on whether primary key field exists
+    let id_method_impl = if has_primary_key {
+        // Use the primary key field name dynamically
+        let escaped_pk_field = escape_rust_keyword(&primary_key);
         // Clone String IDs to avoid move out of borrowed content
         if id_type == "String" {
-            "        self.id.clone()".to_string()
+            format!("        self.{}.clone()", escaped_pk_field)
         } else {
-            "        self.id".to_string()
+            format!("        self.{}", escaped_pk_field)
         }
     } else {
-        "        panic!(\"This model does not have an id field - it is likely a database view or composite entity\")".to_string()
+        "        panic!(\"This model does not have a primary key field - it is likely a database view or composite entity\")".to_string()
     };
     vars.insert("id_method_impl".to_string(), id_method_impl);
 
@@ -2159,9 +2178,9 @@ fn prepare_base_model_variables(
     let mut required_fields_names = Vec::new();
     for field in &sorted_fields {
         let is_auto = field.constraints.auto.is_some();
-        // Skip auto fields AND UUID id fields (which are auto-generated)
-        let is_uuid_id = field.name == "id" && field.field_type.base_type() == "uuid";
-        if is_auto || is_uuid_id {
+        // Skip auto fields AND UUID primary key fields (which are auto-generated)
+        let is_uuid_pk = field.constraints.primary_key.unwrap_or(false) && field.field_type.base_type() == "uuid";
+        if is_auto || is_uuid_pk {
             continue;
         }
         let is_nullable = field.constraints.nullable.unwrap_or(false);
@@ -2223,8 +2242,8 @@ fn prepare_base_model_variables(
         let is_auto = field.constraints.auto.is_some();
         let escaped_field_name = escape_rust_keyword(&field.name);
 
-        if field.name == "id" {
-            // Handle id field specially - usually auto-generated
+        if field.constraints.primary_key.unwrap_or(false) {
+            // Handle primary key field specially - usually auto-generated
             // Check if it's a UUID field that needs special handling
             let is_uuid = field.field_type.base_type() == "uuid";
             if is_uuid {
@@ -2290,8 +2309,8 @@ fn prepare_base_model_variables(
     // Generate insert field mapping for create_internal method
     let mut insert_field_mappings = Vec::new();
     for field in &sorted_fields {
-        // Skip auto-increment ID fields
-        if field.name == "id" && field.constraints.auto.is_some() {
+        // Skip auto-increment primary key fields
+        if field.constraints.primary_key.unwrap_or(false) && field.constraints.auto.is_some() {
             continue;
         }
         let escaped_field_name = escape_rust_keyword(&field.name);
@@ -2345,8 +2364,8 @@ fn prepare_base_model_variables(
     // Generate field setters with change tracking
     let mut field_setters = Vec::new();
     for field in &sorted_fields {
-        // Skip ID field - usually immutable
-        if field.name == "id" {
+        // Skip primary key field - usually immutable
+        if field.constraints.primary_key.unwrap_or(false) {
             continue;
         }
 
@@ -3119,13 +3138,30 @@ fn prepare_wrapper_model_variables(
         any_database_variant.to_string(),
     );
 
-    // Determine ID type and whether this model has an id field
-    let has_id_field = table.fields.values().any(|f| f.name == "id");
-    let id_type = if let Some(id_field) = table.fields.values().find(|f| f.name == "id") {
-        if let Some(ref lang_type) = id_field.lang_type {
+    // Determine primary key field (detect early for use throughout generation)
+    let primary_key = table
+        .fields
+        .values()
+        .find(|f| f.constraints.primary_key.unwrap_or(false))
+        .map(|f| f.name.clone())
+        .unwrap_or_else(|| "id".to_string());
+    vars.insert("primary_key".to_string(), primary_key.clone());
+
+    // Determine ID type and whether this model has a primary key field
+    let has_primary_key = table
+        .fields
+        .values()
+        .any(|f| f.constraints.primary_key.unwrap_or(false));
+    
+    let id_type = if let Some(pk_field) = table
+        .fields
+        .values()
+        .find(|f| f.constraints.primary_key.unwrap_or(false))
+    {
+        if let Some(ref lang_type) = pk_field.lang_type {
             lang_type.clone()
         } else {
-            match id_field.field_type.base_type() {
+            match pk_field.field_type.base_type() {
                 "int" | "integer" => "i32",
                 "bigint" => "i64",
                 "string" => "String",
@@ -3134,20 +3170,22 @@ fn prepare_wrapper_model_variables(
             .to_string()
         }
     } else {
-        "i32".to_string() // Default type for models without id
+        "i32".to_string() // Default type for models without primary key
     };
     vars.insert("id_type".to_string(), id_type.clone());
 
     // Generate id method implementation for wrapper
-    let id_method_impl = if has_id_field {
+    let id_method_impl = if has_primary_key {
+        // Use the primary key field name dynamically
+        let escaped_pk_field = escape_rust_keyword(&primary_key);
         // Clone String IDs to avoid move out of borrowed content
         if id_type == "String" {
-            " self.base.id.clone() ".to_string()
+            format!(" self.base.{}.clone() ", escaped_pk_field)
         } else {
-            " self.base.id ".to_string()
+            format!(" self.base.{} ", escaped_pk_field)
         }
     } else {
-        " panic!(\"This model does not have an id field - it is likely a database view or composite entity\") ".to_string()
+        " panic!(\"This model does not have a primary key field - it is likely a database view or composite entity\") ".to_string()
     };
     vars.insert("id_method_impl".to_string(), id_method_impl);
 
@@ -3227,8 +3265,8 @@ fn prepare_wrapper_model_variables(
     let _field_accessors = Vec::<String>::new();
 
     for field in &sorted_fields {
-        if field.name == "id" {
-            continue; // ID is handled separately
+        if field.constraints.primary_key.unwrap_or(false) {
+            continue; // Primary key is handled separately
         }
 
         let escaped_field_name = escape_rust_keyword(&field.name);
