@@ -184,6 +184,7 @@ impl ChangeTracking for {{model_name}} {
 impl BaseModel for {{model_name}} {
     type IdType = {{id_type}};
     const TABLE_NAME: &'static str = "{{table_name}}";
+    const PRIMARY_KEY: &'static str = "{{primary_key}}";
     
     fn id(&self) -> Self::IdType {
         {{id_method_impl}}

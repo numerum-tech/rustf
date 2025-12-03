@@ -398,7 +398,7 @@ impl<T: BaseModel> ModelQuery<T> {
     /// * `Ok(None)` - If no record with that ID exists
     /// * `Err(Error)` - If query execution fails
     pub async fn get_by_id(mut self, id: T::IdType) -> Result<Option<T>> {
-        self.query_builder = self.query_builder.where_eq("id", id.into());
+        self.query_builder = self.query_builder.where_eq(T::PRIMARY_KEY, id.into());
         self.get_first().await
     }
 

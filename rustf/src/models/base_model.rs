@@ -131,6 +131,9 @@ where
     /// The name of the database table
     const TABLE_NAME: &'static str;
 
+    /// The name of the primary key field (e.g., "id", "user_id", "uuid")
+    const PRIMARY_KEY: &'static str;
+
     /// Get the ID value of this model instance
     fn id(&self) -> Self::IdType;
 
@@ -406,7 +409,7 @@ where
 
         let query_builder = QueryBuilder::new(backend)
             .from(Self::TABLE_NAME)
-            .where_eq("id", self.id().into()); // Use .into() to convert IdType to SqlValue
+            .where_eq(Self::PRIMARY_KEY, self.id().into()); // Use .into() to convert IdType to SqlValue
 
         let (sql, params) = query_builder.build_update(&update_data).map_err(|e| {
             crate::error::Error::template(format!("Failed to build update query: {}", e))
@@ -442,7 +445,7 @@ where
         // Build parameterized select query
         let query = QueryBuilder::new(backend)
             .from(Self::TABLE_NAME)
-            .where_eq("id", id.into());
+            .where_eq(Self::PRIMARY_KEY, id.into());
 
         let (sql, params) = query
             .build()

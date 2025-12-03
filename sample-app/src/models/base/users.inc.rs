@@ -19,7 +19,7 @@
 // 📊 Generation information:
 // - Generated from: schemas/users.yaml
 // - Schema checksum: e633ba05badee0d7
-// - Generated on: 2025-10-30T14:52:34Z
+// - Generated on: 2025-12-02T20:18:51Z
 // - RustF CLI version: 0.1.0
 // =============================================================================
 
@@ -802,6 +802,7 @@ impl ChangeTracking for Users {
 impl BaseModel for Users {
     type IdType = i32;
     const TABLE_NAME: &'static str = "users";
+    const PRIMARY_KEY: &'static str = "id";
     
     fn id(&self) -> Self::IdType {
                 self.id
