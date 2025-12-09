@@ -456,3 +456,6 @@ Le framework utilise un modèle **last-write-wins** sans coordination, ce qui pe
 
 **Recommandation:** Implémenter les transactions Redis (Solution 1) pour garantir la cohérence dans un environnement cluster.
 
+
+
+

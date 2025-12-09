@@ -160,3 +160,6 @@ if session.is_dirty() {
 
 Cette optimisation est maintenant implémentée dans le code !
 
+
+
+
