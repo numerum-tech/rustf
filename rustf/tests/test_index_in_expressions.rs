@@ -96,9 +96,6 @@ fn test_index_comparison_operations() {
 
     let html = result.unwrap();
     
-    // Debug: print the HTML to see what was generated
-    eprintln!("Comparison operations test HTML:\n{}", html);
-    
     // Check that conditional logic works with index
     assert!(html.contains(r#"class="first""#), "Index 0 should match first condition");
     assert!(html.contains(r#"class="second""#), "Index 1 should match second condition");
