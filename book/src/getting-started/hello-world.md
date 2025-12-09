@@ -237,3 +237,6 @@ A: No, handlers require `&mut Context` because they need to modify the response 
 A: Return `Err(Error::...)` from your handler. The framework will handle it appropriately based on the error type.
 
 
+
+
+

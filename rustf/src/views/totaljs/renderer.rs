@@ -489,7 +489,12 @@ impl RenderContext {
             // Check special variables first
             if name == "index" {
                 if let Some(idx) = self.get_loop_index() {
+                    eprintln!("DEBUG: resolve_variable('index') in loop context, returning {}", idx);
                     return Value::Number(serde_json::Number::from(idx));
+                } else {
+                    eprintln!("DEBUG: resolve_variable('index') - no loop context");
+                    // Return 0 if index is not available (outside loop)
+                    return Value::Number(serde_json::Number::from(0));
                 }
             }
 
@@ -818,8 +823,24 @@ impl RenderContext {
         right: &Value,
     ) -> Result<Value> {
         match op {
-            BinaryOperator::Equal => Ok(Value::Bool(left == right)),
-            BinaryOperator::NotEqual => Ok(Value::Bool(left != right)),
+            BinaryOperator::Equal => {
+                // For numbers, compare numeric values, not types
+                let result = if let (Value::Number(l), Value::Number(r)) = (left, right) {
+                    l.as_f64().unwrap_or(0.0) == r.as_f64().unwrap_or(0.0)
+                } else {
+                    left == right
+                };
+                Ok(Value::Bool(result))
+            },
+            BinaryOperator::NotEqual => {
+                // For numbers, compare numeric values, not types
+                let result = if let (Value::Number(l), Value::Number(r)) = (left, right) {
+                    l.as_f64().unwrap_or(0.0) != r.as_f64().unwrap_or(0.0)
+                } else {
+                    left != right
+                };
+                Ok(Value::Bool(result))
+            },
 
             BinaryOperator::LessThan => {
                 if let (Value::Number(l), Value::Number(r)) = (left, right) {
