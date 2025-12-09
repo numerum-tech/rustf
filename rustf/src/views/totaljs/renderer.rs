@@ -489,10 +489,8 @@ impl RenderContext {
             // Check special variables first
             if name == "index" {
                 if let Some(idx) = self.get_loop_index() {
-                    eprintln!("DEBUG: resolve_variable('index') in loop context, returning {}", idx);
                     return Value::Number(serde_json::Number::from(idx));
                 } else {
-                    eprintln!("DEBUG: resolve_variable('index') - no loop context");
                     // Return 0 if index is not available (outside loop)
                     return Value::Number(serde_json::Number::from(0));
                 }
