@@ -3,7 +3,7 @@ title = "RustF Framework Documentation"
 description = "Complete guide to the RustF MVC web framework for Rust"
 authors = ["RustF Team"]
 language = "en"
-multilingual = false
+
 
 [build]
 build-dir = "book"
