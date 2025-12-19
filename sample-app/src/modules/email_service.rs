@@ -5,7 +5,6 @@
 
 use anyhow::Result;
 use rustf::impl_shared_service;
-use rustf::prelude::*;
 
 /// EmailService with different configurations (e.g., multiple sender accounts)
 #[derive(Clone)]
@@ -44,6 +43,7 @@ impl EmailService {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rustf::{SharedModule, SharedModuleType};
 
     #[tokio::test]
     async fn test_email_service_creation() {
