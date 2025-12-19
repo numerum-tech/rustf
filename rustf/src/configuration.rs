@@ -309,10 +309,20 @@ mod tests {
     #[test]
     fn test_conf_initialization_and_access() {
         // Create a test config
-        let mut config = AppConfig::default();
-        config.server.port = 3000;
-        config.server.host = "localhost".to_string();
-        config.views.directory = "/test/views".to_string();
+        // Create a test config using TOML to ensure correct section flattening
+        let config_toml = r#"
+            [server]
+            port = 3000
+            host = "localhost"
+
+            [views]
+            directory = "/test/views"
+
+            [custom]
+            api_key = "secret"
+        "#;
+
+        let config: AppConfig = toml::from_str(config_toml).unwrap();
         // Note: App-defined sections are now accessed via config.section() or CONF::get_string()
         // with unified access patterns, not via a separate .custom field
 

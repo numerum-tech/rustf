@@ -27,12 +27,11 @@
 // All imports should be at the module level where this is included
 
 use serde::{Deserialize, Serialize};
-use sqlx::{Pool, MySql};
 use anyhow::Result;
 use chrono::{DateTime, Utc, NaiveDate};
 use serde_json;
 use rustf::models::{BaseModel, ChangeTracking};
-use rustf::models::query_builder::{DatabaseBackend, SqlValue};
+use rustf::models::query_builder::SqlValue;
 use async_trait::async_trait;
 use std::collections::HashSet;
 
@@ -188,13 +187,13 @@ impl Users {
     /// X value for gender field
     pub const GENDER_X: &'static str = "X";
     /// Email value for notification_preference field
-    pub const NOTIFICATION_PREFERENCE_Email: &'static str = "Email";
+    pub const NOTIFICATION_PREFERENCE_EMAIL: &'static str = "email";
     /// InApp value for notification_preference field
-    pub const NOTIFICATION_PREFERENCE_InApp: &'static str = "InApp";
+    pub const NOTIFICATION_PREFERENCE_IN_APP: &'static str = "in_app";
     /// SMS value for notification_preference field
     pub const NOTIFICATION_PREFERENCE_SMS: &'static str = "SMS";
     /// Both value for notification_preference field
-    pub const NOTIFICATION_PREFERENCE_Both: &'static str = "Both";
+    pub const NOTIFICATION_PREFERENCE_BOTH: &'static str = "both";
 
     // =========================================================================
     // 🔧 ENUM CONVERTER METHODS
@@ -675,6 +674,7 @@ impl sqlx::FromRow<'_, sqlx::mysql::MySqlRow> for Users {
 /// schema-aware code without hardcoding types.
 /// 
 /// Example: Users::types::Email resolves to Option<String>
+#[allow(dead_code, non_camel_case_types)]
 pub mod types {
     use chrono::{DateTime, Utc, NaiveDate};
     
@@ -723,6 +723,7 @@ pub mod types {
 ///     .get_all()
 ///     .await?;
 /// ```
+#[allow(dead_code)]
 pub mod columns {
     pub const ACCOUNT_LOCKED_UNTIL: &'static str = "account_locked_until";
     pub const ADDRESS: &'static str = "address";

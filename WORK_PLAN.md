@@ -1,14 +1,30 @@
 # Work Plan - RustF Framework Development
 
-**Last Updated**: 2025-11-05  
-**Current Sprint**: Framework Performance Optimization  
-**Branch**: `dev`
+**Last Updated**: 2025-12-10  
+**Current Sprint**: Release Candidate 1 Polishing  
+**Branch**: `main`
 
 ---
 
 ## Completed Tasks ✅
 
-### Session 2025-11-05 (Current Session - Log Cleanup)
+### Session 2025-12-10 (Release Readiness)
+
+- [x] **Fix Initial Configuration Test**
+  - Fixed failing `test_conf_initialization_and_access` in `rustf/src/configuration.rs`
+  - Refactored test to use `toml::from_str` for proper section flattening and cleaner initialization
+- [x] **Fix Sample App Compilation & Tests**
+  - Addressed 200+ compilation warnings in `sample-app`
+  - Fixed missing dependencies (`toml`) in `Cargo.toml`
+  - Fixed missing imports in `email_service.rs` tests
+  - Suppressed dead code warnings in generated model code
+- [x] **Documentation**
+  - Created `CHANGELOG.md` for v1.0.0-rc1
+  - Updated `WORK_PLAN.md` status
+- [x] **Fix Deployment Scripts**
+  - Removed invalid `multilingual = false` from `book/book.toml` to fix GitHub deployment job
+
+### Session 2025-11-05 (Log Cleanup)
 
 - [x] **Database Layer Log Cleanup** (~1.5 hours)
   - Removed 44 debug logs from database adapters and type converters
