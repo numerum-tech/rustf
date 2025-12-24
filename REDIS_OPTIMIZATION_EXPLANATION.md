@@ -163,3 +163,5 @@ Cette optimisation est maintenant implémentée dans le code !
 
 
 
+
+
