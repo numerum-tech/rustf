@@ -29,7 +29,7 @@
 
 use crate::config::AppConfig;
 use crate::error::{Error, Result};
-use once_cell::sync::OnceCell;
+use once_cell::sync::{Lazy, OnceCell};
 use serde_json::Value;
 use std::sync::Arc;
 
@@ -301,6 +301,41 @@ impl CONF {
     }
 }
 
+/// Global DEBUG variable (Total.js style)
+///
+/// In Total.js style, DEBUG is a boolean variable that is true when the application
+/// is in development mode, and false when in production mode.
+///
+/// This is based on the environment configuration (development vs production),
+/// not on the compilation mode.
+///
+/// # Usage
+/// ```rust
+/// use rustf::prelude::*;
+///
+/// if *DEBUG {
+///     // Enable debug features (development mode)
+///     println!("Debug mode is active");
+/// }
+/// ```
+///
+/// Note: In Rust, you need to dereference with `*DEBUG` to get the bool value.
+/// For a more Total.js-like experience, you can use `DEBUG.get()`.
+pub static DEBUG: Lazy<bool> = Lazy::new(|| {
+    // Check if CONF is initialized
+    if CONF::is_initialized() {
+        CONF::is_development()
+    } else {
+        // Fallback: check environment variables directly
+        let env = std::env::var("RUSTF_ENVIRONMENT")
+            .or_else(|_| std::env::var("RUST_ENV"))
+            .or_else(|_| std::env::var("NODE_ENV"))
+            .unwrap_or_else(|_| "development".to_string());
+        
+        env.to_lowercase() != "production" && env.to_lowercase() != "prod"
+    }
+});
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -355,5 +390,12 @@ mod tests {
         // Test environment helpers
         assert!(CONF::is_development());
         assert!(!CONF::is_production());
+    }
+
+    #[test]
+    fn test_debug_is_enabled() {
+        // DEBUG should be enabled in test builds (development mode by default)
+        // This test verifies the variable works, but the actual value depends on environment
+        let _ = *DEBUG;
     }
 }

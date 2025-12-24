@@ -279,8 +279,8 @@ impl DatabaseIntrospector for MySqlIntrospector {
         let query = if metadata {
             r#"
             SELECT 
-                t.TABLE_NAME as table_name,
-                t.TABLE_SCHEMA as table_schema,
+                CAST(t.TABLE_NAME AS CHAR) as table_name,
+                CAST(t.TABLE_SCHEMA AS CHAR) as table_schema,
                 CAST(t.TABLE_TYPE AS CHAR) as table_type,
                 t.TABLE_ROWS as row_count,
                 (t.DATA_LENGTH + t.INDEX_LENGTH) as size_bytes,
@@ -292,8 +292,8 @@ impl DatabaseIntrospector for MySqlIntrospector {
         } else {
             r#"
             SELECT 
-                TABLE_NAME as table_name,
-                TABLE_SCHEMA as table_schema,
+                CAST(TABLE_NAME AS CHAR) as table_name,
+                CAST(TABLE_SCHEMA AS CHAR) as table_schema,
                 CAST(TABLE_TYPE AS CHAR) as table_type,
                 NULL as row_count,
                 NULL as size_bytes,
@@ -329,8 +329,8 @@ impl DatabaseIntrospector for MySqlIntrospector {
         let table_row = sqlx::query(
             r#"
             SELECT 
-                TABLE_NAME as table_name,
-                TABLE_SCHEMA as table_schema,
+                CAST(TABLE_NAME AS CHAR) as table_name,
+                CAST(TABLE_SCHEMA AS CHAR) as table_schema,
                 CAST(TABLE_TYPE AS CHAR) as table_type,
                 TABLE_ROWS as row_count,
                 (DATA_LENGTH + INDEX_LENGTH) as size_bytes,
@@ -360,7 +360,7 @@ impl DatabaseIntrospector for MySqlIntrospector {
         let column_rows = sqlx::query(
             r#"
             SELECT 
-                c.COLUMN_NAME as column_name,
+                CAST(c.COLUMN_NAME AS CHAR) as column_name,
                 CAST(c.DATA_TYPE AS CHAR) as data_type,
                 CAST(c.COLUMN_TYPE AS CHAR) as column_type,
                 c.IS_NULLABLE as is_nullable,
@@ -385,11 +385,11 @@ impl DatabaseIntrospector for MySqlIntrospector {
         let fk_rows = sqlx::query(
             r#"
             SELECT 
-                kcu.COLUMN_NAME as column_name,
-                kcu.REFERENCED_TABLE_NAME as referenced_table_name,
-                kcu.REFERENCED_COLUMN_NAME as referenced_column_name,
-                rc.DELETE_RULE as on_delete,
-                rc.UPDATE_RULE as on_update
+                CAST(kcu.COLUMN_NAME AS CHAR) as column_name,
+                CAST(kcu.REFERENCED_TABLE_NAME AS CHAR) as referenced_table_name,
+                CAST(kcu.REFERENCED_COLUMN_NAME AS CHAR) as referenced_column_name,
+                CAST(rc.DELETE_RULE AS CHAR) as on_delete,
+                CAST(rc.UPDATE_RULE AS CHAR) as on_update
             FROM information_schema.key_column_usage kcu
             LEFT JOIN information_schema.REFERENTIAL_CONSTRAINTS rc
                 ON rc.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME
@@ -467,8 +467,8 @@ impl DatabaseIntrospector for MySqlIntrospector {
         let index_rows = sqlx::query(
             r#"
             SELECT 
-                s.INDEX_NAME as index_name,
-                s.COLUMN_NAME as column_name,
+                CAST(s.INDEX_NAME AS CHAR) as index_name,
+                CAST(s.COLUMN_NAME AS CHAR) as column_name,
                 s.NON_UNIQUE as non_unique,
                 s.SEQ_IN_INDEX as seq_in_index
             FROM information_schema.statistics s
@@ -503,12 +503,12 @@ impl DatabaseIntrospector for MySqlIntrospector {
         let trigger_rows = sqlx::query(
             r#"
             SELECT 
-                TRIGGER_NAME as trigger_name,
-                EVENT_MANIPULATION as event,
-                ACTION_TIMING as timing,
-                ACTION_ORIENTATION as for_each,
-                ACTION_CONDITION as condition_expr,
-                ACTION_STATEMENT as body
+                CAST(TRIGGER_NAME AS CHAR) as trigger_name,
+                CAST(EVENT_MANIPULATION AS CHAR) as event,
+                CAST(ACTION_TIMING AS CHAR) as timing,
+                CAST(ACTION_ORIENTATION AS CHAR) as for_each,
+                CAST(ACTION_CONDITION AS CHAR) as condition_expr,
+                CAST(ACTION_STATEMENT AS CHAR) as body
             FROM information_schema.TRIGGERS
             WHERE EVENT_OBJECT_TABLE = ? AND EVENT_OBJECT_SCHEMA = ?
             "#

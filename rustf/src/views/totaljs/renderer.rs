@@ -493,6 +493,11 @@ impl RenderContext {
             }
 
             // Check for framework globals
+            if name == "DEBUG" {
+                // DEBUG is true in development mode, false in production
+                use crate::configuration::DEBUG;
+                return Value::Bool(*DEBUG);
+            }
             if name == "CONF" {
                 return self.conf.clone();
             }
