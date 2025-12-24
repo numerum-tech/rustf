@@ -95,3 +95,69 @@ impl Pagination {
         })
     }
 }
+
+/// Convert a `PagedResult` from database queries to a `Pagination` for template rendering
+///
+/// This function bridges the gap between database pagination results (`PagedResult`)
+/// and template pagination helpers (`Pagination`). It separates database concerns
+/// from template rendering concerns.
+///
+/// # Arguments
+/// * `paged_result` - The paginated result from a database query
+/// * `url_pattern` - URL pattern with `{0}` placeholder for page number
+///   (e.g., `/users?page={0}` or `/posts/{0}`)
+///
+/// # Returns
+/// A `Pagination` object ready for template rendering
+///
+/// # Example
+///
+/// ```rust
+/// use rustf::prelude::*;
+///
+/// // Get paginated results from database
+/// let result = Users::query()?
+///     .where_eq("is_active", true)
+///     .get_paginated(2, 20)
+///     .await?;
+///
+/// // Convert to Pagination for templates (separation of concerns)
+/// let pagination = pagination_from_paged_result(&result, "/users?page={0}");
+///
+/// // Use in view
+/// ctx.view("users/list", json!({
+///     "users": result.rows,
+///     "pagination": pagination.to_json()
+/// }))
+/// ```
+///
+/// # Template Usage
+///
+/// The resulting `Pagination` can be used in templates exactly like
+/// `U::paginate()` results:
+///
+/// ```html
+/// @{if pagination.isPrev}
+///     <a href="@{pagination.prev.url}">Previous</a>
+/// @{fi}
+///
+/// @{foreach page in pagination.range}
+///     @{if page.selected}
+///         <span class="current">@{page.page}</span>
+///     @{else}
+///         <a href="@{page.url}">@{page.page}</a>
+///     @{fi}
+/// @{end}
+///
+/// @{if pagination.isNext}
+///     <a href="@{pagination.next.url}">Next</a>
+/// @{fi}
+/// ```
+pub fn pagination_from_paged_result<T>(paged_result: &crate::models::PagedResult<T>, url_pattern: impl Into<String>) -> Pagination {
+    Pagination::new(
+        paged_result.total_rows,
+        paged_result.page,
+        paged_result.per_page,
+        url_pattern.into(),
+    )
+}

@@ -59,8 +59,10 @@ These are the most commonly used functions available directly through `U::`:
 | **Geographic** | `U::distance(lat1, lon1, lat2, lon2)` | Distance in kilometers | `U::distance(40.7, -74.0, 34.0, -118.2)` → `3944.42` |
 | **Crypto** | `U::md5(str)` | MD5 hash ⚠️ Not secure | `U::md5("hello world")` → `"5eb63bbbe01..."` |
 | | `U::sha256(str)` | SHA256 hash (secure) | `U::sha256("hello world")` → `"b94d27b993..."` |
+| **Pagination** | `U::paginate(total, page, per_page, url_pattern)` | Create pagination object | `U::paginate(100, 2, 20, "/users?page={0}")` |
+| | `U::pagination_from_paged_result(paged_result, url_pattern)` | Convert PagedResult to Pagination | `U::pagination_from_paged_result(&result, "/users?page={0}")` |
 
-**Total: 20 direct access functions**
+**Total: 22 direct access functions**
 
 ### Namespaced Access Functions (U::Module::function())
 Extended functionality is available through nested modules:

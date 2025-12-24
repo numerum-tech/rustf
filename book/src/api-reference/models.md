@@ -68,10 +68,28 @@ Users::query()
 ### Pagination
 
 ```rust
+// Simple pagination (legacy)
 Users::query()
     .limit(10)
     .offset(20)
-    .find()?;
+    .get_all()
+    .await?;
+
+// Pagination with metadata (recommended)
+let result = Users::query()?
+    .where_eq("is_active", true)
+    .get_paginated(2, 20)
+    .await?;
+
+// Access data and metadata
+for user in &result.rows {
+    println!("User: {}", user.name);
+}
+println!("Page {} of {}", result.page, result.total_pages);
+println!("Total: {}", result.total_rows);
+
+// Convert to Pagination for templates
+let pagination = U::pagination_from_paged_result(&result, "/users?page={0}");
 ```
 
 ### Aggregations
