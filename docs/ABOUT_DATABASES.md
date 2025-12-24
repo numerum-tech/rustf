@@ -910,6 +910,10 @@ let has_admins = Users::query()?
 
 ## Pagination
 
+RustF provides two approaches to pagination:
+
+### 1. Simple Pagination (Legacy)
+
 ```rust
 // Simple pagination
 let page = 2;
@@ -921,16 +925,97 @@ let active_users = Users::query()?
     .where_eq("is_active", true)
     .order_by("created_at", OrderDirection::Desc)
     .paginate(page, per_page)
-    .get()
+    .get_all()
     .await?;
 
 // Manual limit/offset
 let users = Users::query()?
     .limit(20)
     .offset(40)  // Skip first 40
-    .get()
+    .get_all()
     .await?;
 ```
+
+### 2. Pagination with Metadata (Recommended)
+
+The `.get_paginated()` method returns a `PagedResult<T>` that includes both the data and pagination metadata:
+
+```rust
+use rustf::prelude::*;
+
+// Get paginated results with metadata
+let result = Users::query()?
+    .where_eq("is_active", true)
+    .order_by("created_at", OrderDirection::Desc)
+    .get_paginated(2, 20)
+    .await?;
+
+// Access the data
+for user in &result.rows {
+    println!("User: {}", user.name);
+}
+
+// Access pagination metadata
+println!("Page {} of {}", result.page, result.total_pages);
+println!("Total rows: {}", result.total_rows);
+println!("Has next page: {}", result.has_next);
+println!("Has previous page: {}", result.has_prev);
+
+// Convert to Pagination for templates
+let pagination = U::pagination_from_paged_result(&result, "/users?page={0}");
+
+// Use in view
+ctx.view("users/list", json!({
+    "users": result.rows,
+    "pagination": pagination.to_json()
+}))
+```
+
+#### PagedResult Structure
+
+```rust
+pub struct PagedResult<T> {
+    pub rows: Vec<T>,           // The actual data rows for the current page
+    pub page: u32,              // Current page number (1-based)
+    pub per_page: u32,          // Number of items per page
+    pub total_rows: i64,         // Total number of rows matching the query
+    pub total_pages: u32,       // Total number of pages
+    pub has_next: bool,         // Whether there is a next page
+    pub has_prev: bool,         // Whether there is a previous page
+}
+```
+
+#### Helper Methods
+
+```rust
+// Check if first/last page
+if result.is_first() { /* ... */ }
+if result.is_last() { /* ... */ }
+
+// Get next/previous page numbers
+if let Some(next_page) = result.next_page() {
+    println!("Next page: {}", next_page);
+}
+
+if let Some(prev_page) = result.prev_page() {
+    println!("Previous page: {}", prev_page);
+}
+```
+
+#### Converting to Template Pagination
+
+To use with templates, convert `PagedResult` to `Pagination`:
+
+```rust
+// Convert for template rendering
+let pagination = U::pagination_from_paged_result(&result, "/users?page={0}");
+
+// Or use the direct function
+use rustf::utils::pagination;
+let pagination = pagination::pagination_from_paged_result(&result, "/users?page={0}");
+```
+
+This separation keeps database concerns (`PagedResult`) separate from template concerns (`Pagination`).
 
 ## Error Handling
 

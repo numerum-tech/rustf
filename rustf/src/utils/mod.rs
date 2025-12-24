@@ -436,6 +436,43 @@ pub mod U {
     ) -> pagination::Pagination {
         pagination::Pagination::new(total, page, per_page, url_pattern)
     }
+
+    /// Convert a `PagedResult` from database queries to a `Pagination` for template rendering
+    ///
+    /// This is a convenience wrapper around `pagination::pagination_from_paged_result()` that
+    /// separates database concerns from template rendering concerns.
+    ///
+    /// # Arguments
+    /// * `paged_result` - The paginated result from a database query (e.g., from `.get_paginated()`)
+    /// * `url_pattern` - URL pattern with `{0}` placeholder for page number
+    ///
+    /// # Returns
+    /// A `Pagination` object ready for template rendering
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// use rustf::prelude::*;
+    ///
+    /// let result = Users::query()?
+    ///     .where_eq("is_active", true)
+    ///     .get_paginated(2, 20)
+    ///     .await?;
+    ///
+    /// // Convert to Pagination for templates
+    /// let pagination = U::pagination_from_paged_result(&result, "/users?page={0}");
+    ///
+    /// ctx.view("users/list", json!({
+    ///     "users": result.rows,
+    ///     "pagination": pagination.to_json()
+    /// }))
+    /// ```
+    pub fn pagination_from_paged_result<T>(
+        paged_result: &crate::models::PagedResult<T>,
+        url_pattern: StdString,
+    ) -> pagination::Pagination {
+        pagination::pagination_from_paged_result(paged_result, url_pattern)
+    }
 }
 
 /// Alias for the global utilities module (for compatibility)

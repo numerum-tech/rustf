@@ -26,8 +26,17 @@ let active_count = Users::query()?
     .count()
     .await?;
 
-// Get paginated results
+// Get paginated results (simple)
 let users = Users::paginate(1, 20).await?;
+
+// Get paginated results with metadata (recommended)
+let result = Users::query()?
+    .where_eq("is_active", true)
+    .get_paginated(1, 20)
+    .await?;
+// result.rows - the data
+// result.total_rows - total count
+// result.total_pages - total pages
 
 // Delete a record
 if let Some(user) = Users::find(456).await? {
@@ -910,6 +919,10 @@ let has_admins = Users::query()?
 
 ## Pagination
 
+RustF provides two approaches to pagination:
+
+### 1. Simple Pagination (Legacy)
+
 ```rust
 // Simple pagination
 let page = 2;
@@ -921,16 +934,97 @@ let active_users = Users::query()?
     .where_eq("is_active", true)
     .order_by("created_at", OrderDirection::Desc)
     .paginate(page, per_page)
-    .get()
+    .get_all()
     .await?;
 
 // Manual limit/offset
 let users = Users::query()?
     .limit(20)
     .offset(40)  // Skip first 40
-    .get()
+    .get_all()
     .await?;
 ```
+
+### 2. Pagination with Metadata (Recommended)
+
+The `.get_paginated()` method returns a `PagedResult<T>` that includes both the data and pagination metadata:
+
+```rust
+use rustf::prelude::*;
+
+// Get paginated results with metadata
+let result = Users::query()?
+    .where_eq("is_active", true)
+    .order_by("created_at", OrderDirection::Desc)
+    .get_paginated(2, 20)
+    .await?;
+
+// Access the data
+for user in &result.rows {
+    println!("User: {}", user.name);
+}
+
+// Access pagination metadata
+println!("Page {} of {}", result.page, result.total_pages);
+println!("Total rows: {}", result.total_rows);
+println!("Has next page: {}", result.has_next);
+println!("Has previous page: {}", result.has_prev);
+
+// Convert to Pagination for templates
+let pagination = U::pagination_from_paged_result(&result, "/users?page={0}");
+
+// Use in view
+ctx.view("users/list", json!({
+    "users": result.rows,
+    "pagination": pagination.to_json()
+}))
+```
+
+#### PagedResult Structure
+
+```rust
+pub struct PagedResult<T> {
+    pub rows: Vec<T>,           // The actual data rows for the current page
+    pub page: u32,              // Current page number (1-based)
+    pub per_page: u32,          // Number of items per page
+    pub total_rows: i64,         // Total number of rows matching the query
+    pub total_pages: u32,       // Total number of pages
+    pub has_next: bool,         // Whether there is a next page
+    pub has_prev: bool,         // Whether there is a previous page
+}
+```
+
+#### Helper Methods
+
+```rust
+// Check if first/last page
+if result.is_first() { /* ... */ }
+if result.is_last() { /* ... */ }
+
+// Get next/previous page numbers
+if let Some(next_page) = result.next_page() {
+    println!("Next page: {}", next_page);
+}
+
+if let Some(prev_page) = result.prev_page() {
+    println!("Previous page: {}", prev_page);
+}
+```
+
+#### Converting to Template Pagination
+
+To use with templates, convert `PagedResult` to `Pagination` using `U::pagination_from_paged_result()`:
+
+```rust
+// Convert for template rendering
+let pagination = U::pagination_from_paged_result(&result, "/users?page={0}");
+
+// Or use the direct function
+use rustf::utils::pagination;
+let pagination = pagination::pagination_from_paged_result(&result, "/users?page={0}");
+```
+
+This separation keeps database concerns (`PagedResult`) separate from template concerns (`Pagination`).
 
 ## Error Handling
 
@@ -1753,7 +1847,7 @@ The pagination helper creates a complete pagination object with:
 
 ## Basic Usage
 
-### In Controllers
+### In Controllers (Legacy Approach)
 
 ```rust
 use rustf::prelude::*;
@@ -1787,6 +1881,43 @@ async fn list_users(ctx: &mut Context) -> Result<()> {
     }))
 }
 ```
+
+### In Controllers (Recommended: Using PagedResult)
+
+```rust
+use rustf::prelude::*;
+
+async fn list_users(ctx: &mut Context) -> Result<()> {
+    // Parse page from query parameters
+    let page = ctx.query("page")
+        .and_then(|p| p.parse::<u32>().ok())
+        .unwrap_or(1);
+    
+    let per_page = 20;
+    
+    // Get paginated results with metadata (single method call)
+    let result = Users::query()?
+        .where_eq("is_active", true)
+        .order_by("created_at", OrderDirection::Desc)
+        .get_paginated(page, per_page)
+        .await?;
+    
+    // Convert to Pagination for templates
+    let pagination = U::pagination_from_paged_result(&result, "/users?page={0}");
+    
+    // Pass to view
+    ctx.view("users/list", json!({
+        "users": result.rows,
+        "pagination": pagination.to_json()
+    }))
+}
+```
+
+**Advantages of the recommended approach:**
+- Single method call (`.get_paginated()`) instead of separate count + query
+- Automatic metadata calculation (total_rows, total_pages, has_next, has_prev)
+- Better separation of concerns (database vs template)
+- More efficient (parallel execution of COUNT and SELECT queries)
 
 ### In Templates (Total.js Syntax)
 
@@ -2008,6 +2139,38 @@ pub fn paginate(
 ) -> Pagination
 ```
 
+### U::pagination_from_paged_result()
+
+Convert a `PagedResult` from database queries to a `Pagination` for template rendering:
+
+```rust
+pub fn pagination_from_paged_result<T>(
+    paged_result: &PagedResult<T>,  // Paginated result from database query
+    url_pattern: &str               // URL pattern with {0} placeholder
+) -> Pagination
+```
+
+**Example:**
+
+```rust
+// Get paginated results from database
+let result = Users::query()?
+    .where_eq("is_active", true)
+    .get_paginated(2, 20)
+    .await?;
+
+// Convert to Pagination for templates
+let pagination = U::pagination_from_paged_result(&result, "/users?page={0}");
+
+// Use in view
+ctx.view("users/list", json!({
+    "users": result.rows,
+    "pagination": pagination.to_json()
+}))
+```
+
+This function separates database concerns (`PagedResult`) from template rendering concerns (`Pagination`).
+
 ### Pagination Methods
 
 - `to_json()` - Convert to JSON for template use
@@ -2020,6 +2183,13 @@ pub fn paginate(
 - `prev_url()` - Get URL for previous page
 - `next_url()` - Get URL for next page
 - `range(max_items)` - Get page number range for display
+
+### PagedResult Methods
+
+- `is_first()` - Check if this is the first page
+- `is_last()` - Check if this is the last page
+- `next_page()` - Get the next page number (if available)
+- `prev_page()` - Get the previous page number (if available)
 
 ## Best Practices
 

@@ -254,6 +254,31 @@ async fn search_posts(ctx: &mut Context) -> Result<()> {
 }
 ```
 
+## Converting from PagedResult
+
+If you're using `.get_paginated()` which returns a `PagedResult<T>`, you can convert it to a `Pagination` for template rendering:
+
+```rust
+use rustf::prelude::*;
+
+// Get paginated results from database
+let result = Users::query()?
+    .where_eq("is_active", true)
+    .get_paginated(2, 20)
+    .await?;
+
+// Convert to Pagination for templates
+let pagination = U::pagination_from_paged_result(&result, "/users?page={0}");
+
+// Use in view
+ctx.view("users/list", json!({
+    "users": result.rows,
+    "pagination": pagination.to_json()
+}))
+```
+
+This approach separates database concerns (`PagedResult`) from template rendering concerns (`Pagination`).
+
 ## API Reference
 
 ### U::paginate()
@@ -266,6 +291,17 @@ pub fn paginate(
     url_pattern: &str     // URL pattern with {0} placeholder
 ) -> Pagination
 ```
+
+### U::pagination_from_paged_result()
+
+```rust
+pub fn pagination_from_paged_result<T>(
+    paged_result: &PagedResult<T>,  // Paginated result from database query
+    url_pattern: &str               // URL pattern with {0} placeholder
+) -> Pagination
+```
+
+Converts a `PagedResult` from `.get_paginated()` to a `Pagination` for template rendering.
 
 ### Pagination Methods
 

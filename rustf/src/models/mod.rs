@@ -5,6 +5,7 @@ use std::sync::Arc;
 pub mod base_model;
 pub mod filter;
 pub mod model_query;
+pub mod paged_result;
 pub mod query_builder;
 /// pub mod macros;
 
@@ -74,6 +75,9 @@ pub use query_builder::{
 
 // Re-export model query builder
 pub use model_query::ModelQuery;
+
+// Re-export paginated result
+pub use paged_result::PagedResult;
 
 // Re-export filter for reusable query filters
 pub use filter::ModelFilter;

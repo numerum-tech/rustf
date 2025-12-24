@@ -134,7 +134,7 @@ pub mod prelude {
     pub use crate::events::{builtin, EventContext, EventEmitter};
 
     // Database model traits for generated models
-    pub use crate::models::{DatabaseModel, ModelQuery, OrderDirection, SqlValue};
+    pub use crate::models::{DatabaseModel, ModelQuery, OrderDirection, PagedResult, SqlValue};
 
     // Global database access
     pub use crate::db::DB;
