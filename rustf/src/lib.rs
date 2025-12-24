@@ -69,7 +69,7 @@ pub use middleware::{InboundAction, InboundMiddleware, MiddlewareResult, Outboun
 pub use routing::{Route, RouteHandler};
 
 // Re-export database access for backward compatibility
-pub use configuration::CONF;
+pub use configuration::{CONF, DEBUG};
 pub use db::DB;
 pub use events::{builtin, EventContext, EventEmitter};
 pub use pool::{global_request_pool, PooledRequest, RequestPool};
@@ -116,7 +116,7 @@ pub mod prelude {
     pub use std::collections::HashMap;
 
     // Global utilities for Total.js-style development
-    pub use crate::configuration::CONF;
+    pub use crate::configuration::{CONF, DEBUG};
     pub use crate::repository::{APP, MAIN};
     pub use crate::shared::MODULE;
     pub use crate::utils::{Utils, U};
