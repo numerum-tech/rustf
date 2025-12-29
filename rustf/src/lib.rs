@@ -64,7 +64,7 @@ pub use app::RustF;
 pub use config::AppConfig;
 pub use context::Context;
 pub use error::{Error, Result};
-pub use http::{Request, Response};
+pub use http::{FileCollection, Request, Response, UploadedFile};
 pub use middleware::{InboundAction, InboundMiddleware, MiddlewareResult, OutboundMiddleware};
 pub use routing::{Route, RouteHandler};
 
@@ -138,6 +138,9 @@ pub mod prelude {
 
     // Global database access
     pub use crate::db::DB;
+
+    // File upload types
+    pub use crate::http::{FileCollection, UploadedFile};
 
     // Re-export auto-discovery macros for convenience
     pub use rustf_macros::{
