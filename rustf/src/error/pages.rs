@@ -9,7 +9,6 @@ use crate::http::Response;
 use crate::views::ViewEngine;
 use hyper::StatusCode;
 use serde_json::{json, Value};
-use simd_json;
 use std::sync::Arc;
 
 /// Error page configuration and rendering
