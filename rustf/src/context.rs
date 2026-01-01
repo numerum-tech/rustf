@@ -687,14 +687,21 @@ impl Context {
     }
 
     /// Get request body as form data with array support (field[] syntax)
-    pub fn body_form_data(&mut self) -> Result<HashMap<String, FormValue>> {
+    /// Returns a reference to cached data to avoid cloning overhead
+    pub fn body_form_data(&mut self) -> Result<&HashMap<String, FormValue>> {
         if self.cached_form_data_arrays.is_none() {
             self.cached_form_data_arrays = Some(self.req.body_as_form_data());
         }
         match self.cached_form_data_arrays.as_ref().unwrap() {
-            Ok(data) => Ok(data.clone()),
+            Ok(data) => Ok(data),
             Err(e) => Err(Error::InvalidInput(e.to_string())),
         }
+    }
+
+    /// Get request body as form data with array support (cloned)
+    /// Use this only when you need ownership of the data
+    pub fn body_form_data_cloned(&mut self) -> Result<HashMap<String, FormValue>> {
+        self.body_form_data().map(|data| data.clone())
     }
 
     /// Parse form data into a typed structure
@@ -703,14 +710,14 @@ impl Context {
 
         // Convert HashMap<String, FormValue> to serde_json::Value for deserialization
         let mut json_map = serde_json::Map::new();
-        for (key, value) in form_data {
+        for (key, value) in form_data.iter() {
             let json_value = match value {
-                FormValue::Single(s) => serde_json::Value::String(s),
+                FormValue::Single(s) => serde_json::Value::String(s.clone()),
                 FormValue::Multiple(v) => {
-                    serde_json::Value::Array(v.into_iter().map(serde_json::Value::String).collect())
+                    serde_json::Value::Array(v.iter().map(|s| serde_json::Value::String(s.clone())).collect())
                 }
             };
-            json_map.insert(key, json_value);
+            json_map.insert(key.clone(), json_value);
         }
 
         let json_value = serde_json::Value::Object(json_map);
@@ -723,8 +730,9 @@ impl Context {
     pub fn str_body(&mut self, key: &str) -> Result<String> {
         self.body_form_data()?
             .get(key)
-            .map(|v| v.as_string().to_string())
+            .map(|v| v.as_string())
             .filter(|s| !s.is_empty())
+            .map(|s| s.to_string())
             .ok_or_else(|| Error::InvalidInput(format!("Field '{}' is required", key)))
     }
 
@@ -777,7 +785,7 @@ impl Context {
         {
             // Convert form data to JSON
             let form_data = self.body_form_data()?;
-            Ok(Self::form_to_json(&form_data))
+            Ok(Self::form_to_json(form_data))
         } else {
             // Try to parse text as JSON
             let text = self.req.body_as_string();
@@ -863,7 +871,7 @@ impl Context {
             || content_type.contains("multipart/form-data")
         {
             match self.body_form_data() {
-                Ok(form) => BodyData::Form(form),
+                Ok(form) => BodyData::Form(form.clone()),
                 Err(_) => BodyData::Empty,
             }
         } else {
