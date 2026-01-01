@@ -324,8 +324,6 @@ impl RenderContext {
         functions.insert(
             "range".to_string(),
             Box::new(|args| {
-                eprintln!("DEBUG: range() called with {} args", args.len());
-                eprintln!("DEBUG: range() args: {:?}", args);
                 let (start, stop, step) = match args.len() {
                     0 => return Value::Array(vec![]),
                     1 => {
@@ -337,7 +335,6 @@ impl RenderContext {
                                     .unwrap_or_else(|| n.as_f64().unwrap_or(0.0) as i64)
                             }
                             _ => {
-                                eprintln!("DEBUG: range() arg[0] is not a number: {:?}", args[0]);
                                 return Value::Array(vec![]);
                             }
                         };
@@ -399,7 +396,6 @@ impl RenderContext {
                     }
                 }
 
-                eprintln!("DEBUG: range() returning array with {} items", result.len());
                 Value::Array(result)
             }),
         );
@@ -794,7 +790,6 @@ impl RenderContext {
 
             Expression::FunctionCall { name, args } => {
                 // Evaluate built-in functions
-                eprintln!("DEBUG: evaluate_expression - FunctionCall: {}", name);
                 self.evaluate_function_call(name, args)
             }
 
@@ -829,7 +824,7 @@ impl RenderContext {
                     left == right
                 };
                 Ok(Value::Bool(result))
-            },
+            }
             BinaryOperator::NotEqual => {
                 // For numbers, compare numeric values, not types
                 let result = if let (Value::Number(l), Value::Number(r)) = (left, right) {
@@ -838,7 +833,7 @@ impl RenderContext {
                     left != right
                 };
                 Ok(Value::Bool(result))
-            },
+            }
 
             BinaryOperator::LessThan => {
                 if let (Value::Number(l), Value::Number(r)) = (left, right) {
@@ -895,10 +890,15 @@ impl RenderContext {
             BinaryOperator::Add => match (left, right) {
                 (Value::Number(l), Value::Number(r)) => {
                     let sum = l.as_f64().unwrap_or(0.0) + r.as_f64().unwrap_or(0.0);
-                    Ok(Value::Number(
-                        serde_json::Number::from_f64(sum)
-                            .unwrap_or_else(|| serde_json::Number::from(0)),
-                    ))
+                    // Return integer if result is a whole number
+                    if sum.fract() == 0.0 && sum.is_finite() {
+                        Ok(Value::Number(serde_json::Number::from(sum as i64)))
+                    } else {
+                        Ok(Value::Number(
+                            serde_json::Number::from_f64(sum)
+                                .unwrap_or_else(|| serde_json::Number::from(0)),
+                        ))
+                    }
                 }
                 (Value::String(l), Value::String(r)) => Ok(Value::String(format!("{}{}", l, r))),
                 _ => Ok(Value::Null),
@@ -907,10 +907,15 @@ impl RenderContext {
             BinaryOperator::Subtract => {
                 if let (Value::Number(l), Value::Number(r)) = (left, right) {
                     let diff = l.as_f64().unwrap_or(0.0) - r.as_f64().unwrap_or(0.0);
-                    Ok(Value::Number(
-                        serde_json::Number::from_f64(diff)
-                            .unwrap_or_else(|| serde_json::Number::from(0)),
-                    ))
+                    // Return integer if result is a whole number
+                    if diff.fract() == 0.0 && diff.is_finite() {
+                        Ok(Value::Number(serde_json::Number::from(diff as i64)))
+                    } else {
+                        Ok(Value::Number(
+                            serde_json::Number::from_f64(diff)
+                                .unwrap_or_else(|| serde_json::Number::from(0)),
+                        ))
+                    }
                 } else {
                     Ok(Value::Null)
                 }
@@ -919,10 +924,15 @@ impl RenderContext {
             BinaryOperator::Multiply => {
                 if let (Value::Number(l), Value::Number(r)) = (left, right) {
                     let product = l.as_f64().unwrap_or(0.0) * r.as_f64().unwrap_or(0.0);
-                    Ok(Value::Number(
-                        serde_json::Number::from_f64(product)
-                            .unwrap_or_else(|| serde_json::Number::from(0)),
-                    ))
+                    // Return integer if result is a whole number
+                    if product.fract() == 0.0 && product.is_finite() {
+                        Ok(Value::Number(serde_json::Number::from(product as i64)))
+                    } else {
+                        Ok(Value::Number(
+                            serde_json::Number::from_f64(product)
+                                .unwrap_or_else(|| serde_json::Number::from(0)),
+                        ))
+                    }
                 } else {
                     Ok(Value::Null)
                 }
@@ -935,10 +945,15 @@ impl RenderContext {
                         Ok(Value::Null)
                     } else {
                         let quotient = l.as_f64().unwrap_or(0.0) / divisor;
-                        Ok(Value::Number(
-                            serde_json::Number::from_f64(quotient)
-                                .unwrap_or_else(|| serde_json::Number::from(0)),
-                        ))
+                        // Return integer if result is a whole number
+                        if quotient.fract() == 0.0 && quotient.is_finite() {
+                            Ok(Value::Number(serde_json::Number::from(quotient as i64)))
+                        } else {
+                            Ok(Value::Number(
+                                serde_json::Number::from_f64(quotient)
+                                    .unwrap_or_else(|| serde_json::Number::from(0)),
+                            ))
+                        }
                     }
                 } else {
                     Ok(Value::Null)
@@ -1205,7 +1220,11 @@ impl Renderer {
         match node {
             Node::Text(text) => Ok(text.clone()),
 
-            Node::Variable { name, raw, expression } => {
+            Node::Variable {
+                name,
+                raw,
+                expression,
+            } => {
                 let value = if let Some(expr) = expression {
                     // Evaluate the expression
                     self.context.evaluate_expression(expr)?
@@ -1213,7 +1232,7 @@ impl Renderer {
                     // Resolve as variable name
                     self.context.resolve_variable(name)
                 };
-                
+
                 // Don't escape certain system variables that contain safe paths/URLs
                 let should_escape = if !raw {
                     match name.as_str() {
@@ -1359,17 +1378,7 @@ impl Renderer {
 
                     Ok(output)
                 } else {
-                    // Log warning about non-iterable collection
-                    eprintln!("WARNING: Loop collection '@{{foreach {} in ...}}' is not iterable. Type: {}, Value: {:?}",
-                              item_name,
-                              match &collection_value {
-                                  Value::Null => "null",
-                                  Value::Bool(_) => "boolean",
-                                  Value::Number(_) => "number",
-                                  Value::String(_) => "string",
-                                  _ => "unknown"
-                              },
-                              collection_value);
+                    // Non-iterable collection - return empty string
                     Ok(String::new())
                 }
             }
@@ -2126,7 +2135,7 @@ mod tests {
         }));
         let mut renderer = Renderer::new(context);
         let result = renderer.render(&template).unwrap();
-        
+
         // Should return empty string (Null value converted to string)
         assert_eq!(result, "");
     }
@@ -2149,7 +2158,7 @@ mod tests {
         }));
         let mut renderer = Renderer::new(context);
         let result = renderer.render(&template).unwrap();
-        
+
         assert_eq!(result, "accessible via model");
     }
 
@@ -2171,7 +2180,7 @@ mod tests {
         }));
         let mut renderer = Renderer::new(context);
         let result = renderer.render(&template).unwrap();
-        
+
         assert_eq!(result, "accessible via M");
     }
 
@@ -2188,13 +2197,12 @@ mod tests {
             helpers: HashMap::new(),
         };
 
-        let context = RenderContext::new(json!({}))
-            .with_repository(json!({
-                "key": "repository value"
-            }));
+        let context = RenderContext::new(json!({})).with_repository(json!({
+            "key": "repository value"
+        }));
         let mut renderer = Renderer::new(context);
         let result = renderer.render(&template).unwrap();
-        
+
         assert_eq!(result, "repository value");
     }
 
@@ -2211,13 +2219,12 @@ mod tests {
             helpers: HashMap::new(),
         };
 
-        let context = RenderContext::new(json!({}))
-            .with_repository(json!({
-                "key": "R alias value"
-            }));
+        let context = RenderContext::new(json!({})).with_repository(json!({
+            "key": "R alias value"
+        }));
         let mut renderer = Renderer::new(context);
         let result = renderer.render(&template).unwrap();
-        
+
         assert_eq!(result, "R alias value");
     }
 
@@ -2234,13 +2241,12 @@ mod tests {
             helpers: HashMap::new(),
         };
 
-        let context = RenderContext::new(json!({}))
-            .with_session(json!({
-                "key": "session value"
-            }));
+        let context = RenderContext::new(json!({})).with_session(json!({
+            "key": "session value"
+        }));
         let mut renderer = Renderer::new(context);
         let result = renderer.render(&template).unwrap();
-        
+
         assert_eq!(result, "session value");
     }
 
@@ -2270,7 +2276,7 @@ mod tests {
             .with_hostname("example.com".to_string());
         let mut renderer = Renderer::new(context);
         let result = renderer.render(&template).unwrap();
-        
+
         assert_eq!(result, "/test example.com");
     }
 
@@ -2300,7 +2306,7 @@ mod tests {
         let context = RenderContext::new(json!({}));
         let mut renderer = Renderer::new(context);
         let result = renderer.render(&template).unwrap();
-        
+
         assert_eq!(result, "A B ");
     }
 
@@ -2324,7 +2330,7 @@ mod tests {
         }));
         let mut renderer = Renderer::new(context);
         let result = renderer.render(&template).unwrap();
-        
+
         // Should return empty string (Null value)
         assert_eq!(result, "");
     }

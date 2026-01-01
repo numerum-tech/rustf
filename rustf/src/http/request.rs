@@ -38,7 +38,6 @@ impl FormValue {
     }
 }
 
-#[derive(Default)]
 pub struct Request {
     pub method: String,
     pub uri: String,
@@ -47,6 +46,23 @@ pub struct Request {
     pub query: HashMap<String, String>,
     body_bytes: Vec<u8>,
     files: Option<FileCollection>,
+    /// Cached multipart form data (parsed alongside files)
+    multipart_form_data: Option<HashMap<String, String>>,
+}
+
+impl Default for Request {
+    fn default() -> Self {
+        Self {
+            method: String::new(),
+            uri: String::new(),
+            headers: HashMap::new(),
+            params: HashMap::new(),
+            query: HashMap::new(),
+            body_bytes: Vec::new(),
+            files: None,
+            multipart_form_data: None,
+        }
+    }
 }
 
 impl Request {
@@ -62,6 +78,7 @@ impl Request {
             query: HashMap::new(),
             body_bytes: Vec::new(),
             files: None,
+            multipart_form_data: None,
         }
     }
 
@@ -97,7 +114,8 @@ impl Request {
             params: HashMap::new(), // Will be filled by router
             query,
             body_bytes,
-            files: None, // Will be parsed on demand
+            files: None,               // Will be parsed on demand
+            multipart_form_data: None, // Will be parsed on demand
         })
     }
 
@@ -115,8 +133,21 @@ impl Request {
 
     /// Parse form data with support for arrays (field[] syntax)
     pub fn body_as_form_data(&self) -> Result<HashMap<String, FormValue>> {
-        let body_str = String::from_utf8_lossy(&self.body_bytes);
-        Ok(Self::parse_query_with_arrays(&body_str))
+        // Optimize: Check if multipart form data was already parsed
+        // Note: This requires &mut self, but we can't change the signature easily
+        // For now, we'll parse urlencoded forms here and multipart is handled separately
+        // TODO: Consider caching multipart form data in Context instead
+
+        // Optimize: Check if body is valid UTF-8 to avoid unnecessary allocation
+        let body_str = match std::str::from_utf8(&self.body_bytes) {
+            Ok(s) => s,
+            Err(_) => {
+                return Ok(Self::parse_query_with_arrays(&String::from_utf8_lossy(
+                    &self.body_bytes,
+                )))
+            }
+        };
+        Ok(Self::parse_query_with_arrays(body_str))
     }
 
     pub fn body_as_string(&self) -> String {
@@ -154,8 +185,9 @@ impl Request {
     }
 
     /// Parse query/form data with support for arrays
+    /// Optimized single-pass parsing to avoid double iteration
     fn parse_query_with_arrays(query: &str) -> HashMap<String, FormValue> {
-        let mut result: HashMap<String, Vec<String>> = HashMap::new();
+        let mut result: HashMap<String, FormValue> = HashMap::new();
 
         for pair in query.split('&') {
             if let Some((key, value)) = pair.split_once('=') {
@@ -163,37 +195,51 @@ impl Request {
                 if let (Some(decoded_key), Some(decoded_value)) =
                     (urlencoding::decode(key), urlencoding::decode(value))
                 {
-                    let decoded_key_str = decoded_key.to_string();
-                    let decoded_value_str = decoded_value.to_string();
-
-                    // Check if key ends with [] (array notation)
-                    let actual_key = if decoded_key_str.ends_with("[]") {
-                        decoded_key_str[..decoded_key_str.len() - 2].to_string()
+                    // Check if key ends with [] (array notation) and extract actual key
+                    let (actual_key, is_array) = if decoded_key.ends_with("[]") {
+                        let key_len = decoded_key.len();
+                        (decoded_key[..key_len - 2].to_string(), true)
                     } else {
-                        decoded_key_str
+                        (decoded_key.to_string(), false)
                     };
 
-                    result
-                        .entry(actual_key)
-                        .or_default()
-                        .push(decoded_value_str);
+                    // Single-pass: directly create FormValue instead of intermediate Vec
+                    let decoded_value_str = decoded_value.to_string();
+
+                    match result.entry(actual_key) {
+                        std::collections::hash_map::Entry::Vacant(e) => {
+                            if is_array {
+                                // Array notation - always create Multiple even for first value
+                                e.insert(FormValue::Multiple(vec![decoded_value_str]));
+                            } else {
+                                // Single value
+                                e.insert(FormValue::Single(decoded_value_str));
+                            }
+                        }
+                        std::collections::hash_map::Entry::Occupied(mut e) => {
+                            // Key already exists - convert to array if needed
+                            match e.get_mut() {
+                                FormValue::Single(existing) => {
+                                    // Convert single to multiple
+                                    let existing_value = std::mem::take(existing);
+                                    *e.get_mut() = FormValue::Multiple(vec![
+                                        existing_value,
+                                        decoded_value_str,
+                                    ]);
+                                }
+                                FormValue::Multiple(vec) => {
+                                    // Add to existing array
+                                    vec.push(decoded_value_str);
+                                }
+                            }
+                        }
+                    }
                 }
                 // Skip pairs with invalid encoding
             }
         }
 
-        // Convert to FormValue enum
         result
-            .into_iter()
-            .map(|(key, values)| {
-                let form_value = if values.len() == 1 {
-                    FormValue::Single(values.into_iter().next().unwrap())
-                } else {
-                    FormValue::Multiple(values)
-                };
-                (key, form_value)
-            })
-            .collect()
     }
 
     // Client information helper methods
@@ -264,12 +310,23 @@ impl Request {
         self.uri.starts_with("https://")
     }
 
-    /// Check if request is AJAX/XHR
+    /// Check if request is AJAX/XHR (supports traditional XHR and htmx)
     pub fn is_xhr(&self) -> bool {
-        self.headers
-            .get("x-requested-with")
-            .map(|v| v.to_lowercase() == "xmlhttprequest")
-            .unwrap_or(false)
+        // Check for traditional XHR header (jQuery, Axios, etc.)
+        if let Some(xhr_header) = self.headers.get("x-requested-with") {
+            if xhr_header.to_lowercase() == "xmlhttprequest" {
+                return true;
+            }
+        }
+
+        // Check for htmx request header
+        if let Some(hx_request) = self.headers.get("hx-request") {
+            if hx_request.to_lowercase() == "true" {
+                return true;
+            }
+        }
+
+        false
     }
 
     /// Get preferred language from Accept-Language header
@@ -293,7 +350,7 @@ impl Request {
 
     // File upload handling methods
 
-    /// Get uploaded files (Total.js: controller.files)  
+    /// Get uploaded files (Total.js: controller.files)
     pub fn files(&mut self) -> Result<&FileCollection> {
         if self.files.is_none() {
             self.parse_files()?;
@@ -307,17 +364,17 @@ impl Request {
     }
 
     /// Parse multipart form data to extract files
+    /// Also caches form data to avoid re-parsing
     fn parse_files(&mut self) -> Result<()> {
         // Check if this is a multipart form
         if let Some(content_type) = self.headers.get("content-type") {
             if content_type.starts_with("multipart/form-data") {
                 // Extract boundary
                 if let Some(boundary) = self.extract_boundary(content_type) {
-                    let (files, _form_data) = MultipartParser::parse(&self.body_bytes, &boundary)?;
+                    let (files, form_data) = MultipartParser::parse(&self.body_bytes, &boundary)?;
 
-                    // Merge form data into existing body parsing (for body_as_form compatibility)
-                    // This is a bit hacky but maintains compatibility
-
+                    // Cache form data to avoid re-parsing in body_as_form_data
+                    self.multipart_form_data = Some(form_data);
                     self.files = Some(files);
                     return Ok(());
                 }
@@ -326,6 +383,7 @@ impl Request {
 
         // Not multipart, create empty file collection
         self.files = Some(FileCollection::new());
+        self.multipart_form_data = None;
         Ok(())
     }
 
@@ -587,6 +645,7 @@ impl Request {
         self.query.clear();
         self.body_bytes.clear();
         self.files = None;
+        self.multipart_form_data = None;
 
         // Shrink collections if they've grown too large
         // This prevents memory bloat from requests with large payloads

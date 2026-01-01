@@ -83,8 +83,8 @@ impl Parser {
             }
 
             TokenKind::Variable(name) => {
-                // Check if the variable name contains a ternary operator
-                let expression = if self.contains_ternary_operator(name) {
+                // Check if the variable name contains any expression operators
+                let expression = if self.contains_expression_operators(name) {
                     // Parse as expression
                     match self.parse_expression(name) {
                         Ok(expr) => Some(expr),
@@ -93,7 +93,7 @@ impl Parser {
                 } else {
                     None
                 };
-                
+
                 let node = Node::Variable {
                     name: name.clone(),
                     raw: false,
@@ -114,7 +114,7 @@ impl Parser {
                 } else {
                     None
                 };
-                
+
                 let node = Node::Variable {
                     name: name.clone(),
                     raw: true,
@@ -298,8 +298,7 @@ impl Parser {
 
             _ => Err(Error::template(format!(
                 "Unexpected token: {} at line {}",
-                self.current_token.kind,
-                self.current_token.line
+                self.current_token.kind, self.current_token.line
             ))),
         }
     }
@@ -455,16 +454,16 @@ impl Parser {
         if let Some(ternary_pos) = self.find_ternary_operator(trimmed) {
             let condition_str = trimmed[..ternary_pos].trim();
             let rest = &trimmed[ternary_pos + 1..];
-            
+
             // Find the colon that separates then and else
             if let Some(colon_pos) = self.find_ternary_colon(rest) {
                 let then_str = rest[..colon_pos].trim();
                 let else_str = rest[colon_pos + 1..].trim();
-                
+
                 let condition = Box::new(self.parse_expression(condition_str)?);
                 let then_expr = Box::new(self.parse_expression(then_str)?);
                 let else_expr = Box::new(self.parse_expression(else_str)?);
-                
+
                 return Ok(Expression::Ternary {
                     condition,
                     then_expr,
@@ -704,6 +703,82 @@ impl Parser {
         self.find_ternary_operator(expr).is_some()
     }
 
+    /// Check if expression contains any operators (ternary, binary, etc.)
+    fn contains_expression_operators(&self, expr: &str) -> bool {
+        // Check for ternary operator first
+        if self.contains_ternary_operator(expr) {
+            return true;
+        }
+
+        // Check for binary operators: +, -, *, /, %, ==, !=, <, >, <=, >=, &&, ||
+        // Need to respect quotes and parentheses
+        let mut paren_depth = 0;
+        let mut in_quote = false;
+        let mut quote_char = ' ';
+        let chars: Vec<char> = expr.chars().collect();
+
+        let mut i = 0;
+        while i < chars.len() {
+            let c = chars[i];
+
+            // Track quotes
+            if (c == '"' || c == '\'') && (i == 0 || chars[i - 1] != '\\') {
+                if !in_quote {
+                    in_quote = true;
+                    quote_char = c;
+                } else if c == quote_char {
+                    in_quote = false;
+                }
+                i += 1;
+                continue;
+            }
+
+            if in_quote {
+                i += 1;
+                continue;
+            }
+
+            // Track parentheses
+            if c == '(' {
+                paren_depth += 1;
+                i += 1;
+                continue;
+            }
+            if c == ')' {
+                paren_depth -= 1;
+                i += 1;
+                continue;
+            }
+
+            // Check for operators at paren depth 0
+            if paren_depth == 0 {
+                // Single char operators
+                if c == '+' || c == '-' || c == '*' || c == '/' || c == '%' || c == '<' || c == '>'
+                {
+                    return true;
+                }
+
+                // Two char operators
+                if i < chars.len() - 1 {
+                    let next = chars[i + 1];
+                    if (c == '=' && next == '=')
+                        || (c == '!' && next == '=')
+                        || (c == '<' && next == '=')
+                        || (c == '>' && next == '=')
+                        || (c == '&' && next == '&')
+                        || (c == '|' && next == '|')
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            i += 1;
+        }
+
+        false
+    }
+
     /// Find the ternary operator (?) in an expression, respecting quotes and parentheses
     fn find_ternary_operator(&self, expr: &str) -> Option<usize> {
         let mut paren_depth = 0;
@@ -917,7 +992,11 @@ mod tests {
 
         assert_eq!(template.nodes.len(), 3);
         match &template.nodes[1] {
-            Node::Variable { name, raw, expression } => {
+            Node::Variable {
+                name,
+                raw,
+                expression,
+            } => {
                 assert_eq!(name, "name");
                 assert!(!raw);
                 assert!(expression.is_none());
@@ -1015,17 +1094,21 @@ mod tests {
         // Test simple ternary
         let expr = parser.parse_expression("true ? 'yes' : 'no'").unwrap();
         match expr {
-            Expression::Ternary { condition, then_expr, else_expr } => {
+            Expression::Ternary {
+                condition,
+                then_expr,
+                else_expr,
+            } => {
                 match *condition {
-                    Expression::Boolean(true) => {},
+                    Expression::Boolean(true) => {}
                     _ => panic!("Expected boolean true condition"),
                 }
                 match *then_expr {
-                    Expression::String(ref s) if s == "yes" => {},
+                    Expression::String(ref s) if s == "yes" => {}
                     _ => panic!("Expected 'yes' as then expression"),
                 }
                 match *else_expr {
-                    Expression::String(ref s) if s == "no" => {},
+                    Expression::String(ref s) if s == "no" => {}
                     _ => panic!("Expected 'no' as else expression"),
                 }
             }
@@ -1042,11 +1125,13 @@ mod tests {
 
         assert_eq!(template.nodes.len(), 1);
         match &template.nodes[0] {
-            Node::Variable { name, expression, .. } => {
+            Node::Variable {
+                name, expression, ..
+            } => {
                 assert!(name.contains('?'));
                 assert!(expression.is_some());
                 match expression.as_ref().unwrap() {
-                    Expression::Ternary { .. } => {},
+                    Expression::Ternary { .. } => {}
                     _ => panic!("Expected ternary expression in variable"),
                 }
             }
