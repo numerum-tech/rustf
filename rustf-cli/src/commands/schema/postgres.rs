@@ -2118,7 +2118,7 @@ fn prepare_base_model_variables(
                 if is_nullable {
                     // Nullable enum field
                     builder_methods.push(format!(
-                        "    /// {}\n    pub fn {}(mut self, value: Option<impl Into<String>>) -> Self {{\n        let processed_value = value.map(|v| {{\n            let s = v.into();\n            // Auto-append PostgreSQL type cast if not present\n            if !s.contains(\"::\") {{\n                format!(\"{{}}::{}\", s)\n            }} else {{\n                s\n            }}\n        }});\n        self.{} = Some(processed_value);\n        self\n    }}",
+                        "    /// {}\n    pub fn {}(mut self, value: Option<String>) -> Self {{\n        let processed_value = value.map(|s| {{\n            // Auto-append PostgreSQL type cast if not present\n            if !s.contains(\"::\") {{\n                format!(\"{{}}::{}\", s)\n            }} else {{\n                s\n            }}\n        }});\n        self.{} = Some(processed_value);\n        self\n    }}",
                         field_doc, escaped_field_name, pg_type, escaped_field_name
                     ));
                 } else {
@@ -2137,7 +2137,7 @@ fn prepare_base_model_variables(
                 // Generate without type casting
                 if is_nullable {
                     builder_methods.push(format!(
-                        "    /// {}\n    pub fn {}(mut self, value: Option<impl Into<String>>) -> Self {{\n        self.{} = Some(value.map(|v| v.into()));\n        self\n    }}",
+                        "    /// {}\n    pub fn {}(mut self, value: Option<String>) -> Self {{\n        self.{} = Some(value);\n        self\n    }}",
                         field_doc, escaped_field_name, escaped_field_name
                     ));
                 } else {
@@ -2150,10 +2150,10 @@ fn prepare_base_model_variables(
         } else {
             // Non-enum fields - existing logic
             // For String types in non-Option fields, use impl Into<String> for convenience
-            // For Option fields, handle Option<String> specially to accept Option<impl Into<String>>
+            // For Option fields, handle Option<String> specially to use Option<String> directly
             let (param_type, value_expr) = if rust_type == "Option<String>" {
-                // Optional String field - accept Option<impl Into<String>>
-                ("Option<impl Into<String>>", "value.map(|v| v.into())")
+                // Optional String field - use Option<String> directly to allow None without type annotations
+                ("Option<String>", "value")
             } else if rust_type.starts_with("Option") {
                 // Other optional fields - accept the Option<T> type directly
                 (rust_type.as_str(), "value")
@@ -2324,6 +2324,20 @@ fn prepare_base_model_variables(
                 "        insert_data.insert(\"{}\".to_string(), model.{}.as_ref().map(|s| {{\n            // Parse CIDR string \"ip/prefix\" into (IpAddr, u8)\n            if let Some((ip_str, prefix_str)) = s.split_once('/') {{\n                if let (Ok(ip), Ok(prefix)) = (ip_str.parse::<IpAddr>(), prefix_str.parse::<u8>()) {{\n                    SqlValue::Cidr(ip, prefix)\n                }} else {{\n                    SqlValue::String(s.clone())\n                }}\n            }} else {{\n                SqlValue::String(s.clone())\n            }}\n        }}).unwrap_or(SqlValue::Null));",
                 field_name, escaped_field_name
             ));
+        } else if base_type.starts_with("array") {
+            // For array fields, convert Vec<T> to Vec<SqlValue> before wrapping in SqlValue::Array
+            let is_nullable = field.constraints.nullable.unwrap_or(false);
+            if is_nullable {
+                insert_field_mappings.push(format!(
+                    "        insert_data.insert(\"{}\".to_string(), model.{}.as_ref().map(|v| SqlValue::Array(v.iter().map(|item| SqlValue::from(item.clone())).collect())).unwrap_or(SqlValue::Null));",
+                    field_name, escaped_field_name
+                ));
+            } else {
+                insert_field_mappings.push(format!(
+                    "        insert_data.insert(\"{}\".to_string(), SqlValue::Array(model.{}.iter().map(|item| SqlValue::from(item.clone())).collect()));",
+                    field_name, escaped_field_name
+                ));
+            }
         } else {
             // All other fields use SqlValue::from - enum constants already contain type info (e.g., "ADMIN::user_role")
             // INET types with IpAddr will use From<IpAddr> implementation
@@ -2610,10 +2624,10 @@ fn prepare_base_model_variables(
             // For String types, use Into trait for flexibility
             if is_nullable {
                 // For nullable fields, accept Option<T> and use our clean 2-line approach
-                // For Option<String>, accept Option<impl Into<String>> for flexibility
+                // For Option<String>, use Option<String> directly to allow None without type annotations
                 if rust_type.starts_with("Option<String>") {
                     field_setters.push(format!(
-                        "    /// {}\n    pub fn set_{}(&mut self, value: Option<impl Into<String>>) {{\n        self.{} = value.map(|v| v.into());\n        self.mark_changed(\"{}\", self.{}.is_none());\n    }}",
+                        "    /// {}\n    pub fn set_{}(&mut self, value: Option<String>) {{\n        self.{} = value;\n        self.mark_changed(\"{}\", self.{}.is_none());\n    }}",
                         field_doc, escaped_field_name, field.name, field.name, field.name
                     ));
                 } else {
@@ -2910,6 +2924,10 @@ fn prepare_base_model_variables(
             field.field_type,
             rustf_schema::types::FieldType::Enum { .. }
         );
+        
+        // Check if this is an array field
+        let is_array = field.field_type.base_type().starts_with("array");
+        
         if is_enum {
             // For enum fields, check if it's optional
             let is_nullable = field.constraints.nullable.unwrap_or(false);
@@ -2924,6 +2942,20 @@ fn prepare_base_model_variables(
             } else {
                 get_field_cases.push(format!(
                     "            \"{}\" => Ok(SqlValue::Enum(self.{}.clone())),",
+                    field_name, escaped_field_name
+                ));
+            }
+        } else if is_array {
+            // For array fields, convert Vec<T> to Vec<SqlValue> before wrapping in SqlValue::Array
+            let is_nullable = field.constraints.nullable.unwrap_or(false);
+            if is_nullable {
+                get_field_cases.push(format!(
+                    "            \"{}\" => Ok(self.{}.clone().map(|v| SqlValue::Array(v.into_iter().map(SqlValue::from).collect())).unwrap_or(SqlValue::Null)),",
+                    field_name, escaped_field_name
+                ));
+            } else {
+                get_field_cases.push(format!(
+                    "            \"{}\" => Ok(SqlValue::Array(self.{}.clone().into_iter().map(SqlValue::from).collect())),",
                     field_name, escaped_field_name
                 ));
             }
@@ -3062,10 +3094,15 @@ fn prepare_base_model_variables(
         let is_auto = field.constraints.auto.is_some();
         if !is_auto {
             // Check if this is an enum field
-            let value_expr = if matches!(
+            let is_enum = matches!(
                 &field.field_type,
                 rustf_schema::types::FieldType::Enum { .. }
-            ) {
+            );
+            
+            // Check if this is an array field
+            let is_array = field.field_type.base_type().starts_with("array");
+            
+            let value_expr = if is_enum {
                 // For enum fields, check if it's optional
                 let is_nullable = field.constraints.nullable.unwrap_or(false);
 
@@ -3088,6 +3125,20 @@ fn prepare_base_model_variables(
                     format!("SqlValue::Enum(model.{}.clone())", escaped_field_name)
                 };
                 enum_value
+            } else if is_array {
+                // For array fields, convert Vec<T> to Vec<SqlValue> before wrapping in SqlValue::Array
+                let is_nullable = field.constraints.nullable.unwrap_or(false);
+                if is_nullable {
+                    format!(
+                        "model.{}.as_ref().map(|v| SqlValue::Array(v.iter().map(|item| SqlValue::from(item.clone())).collect())).unwrap_or(SqlValue::Null)",
+                        escaped_field_name
+                    )
+                } else {
+                    format!(
+                        "SqlValue::Array(model.{}.iter().map(|item| SqlValue::from(item.clone())).collect())",
+                        escaped_field_name
+                    )
+                }
             } else {
                 // For other fields, use SqlValue::from
                 format!("SqlValue::from(model.{})", escaped_field_name)
