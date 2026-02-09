@@ -18,6 +18,16 @@ use std::sync::Arc;
 /// Context handles only HTTP-related concerns following clean architecture principles.
 /// Models and modules are accessed directly via imports, not through service locators.
 /// Configuration is accessed through the global CONF, not through Context.
+///
+/// ## Typed Parameter Access
+///
+/// For typed query/route/body parameter access, prefer **source-first** method names for better discoverability:
+/// - Query parameters: [`query_str`](Self::query_str), [`query_int`](Self::query_int), [`query_bool`](Self::query_bool)
+/// - Route parameters: [`param_str`](Self::param_str), [`param_int`](Self::param_int)
+/// - Body fields: [`body_str`](Self::body_str), [`body_int`](Self::body_int), [`body_bool`](Self::body_bool)
+///
+/// These methods are easier to find when exploring the API (e.g., searching for "query" shows `query_int`).
+/// Type-first names (`int_query`, `str_param`, `str_body`) are still available but delegate to the source-first methods.
 pub struct Context {
     pub req: Request,
     pub res: Option<Response>,
@@ -601,10 +611,11 @@ impl Context {
         self.req.query.get(key).map(|s| s.as_str())
     }
 
-    // New typed query parameter methods
+    // Source-first query parameter methods (canonical implementation)
 
-    /// Get a query parameter (returns error if missing)
-    pub fn str_query(&self, key: &str) -> Result<String> {
+    /// Get a query parameter as string (returns error if missing).
+    /// Preferred discoverable name for query parameter access.
+    pub fn query_str(&self, key: &str) -> Result<String> {
         self.req
             .query
             .get(key)
@@ -613,38 +624,82 @@ impl Context {
             .ok_or_else(|| Error::InvalidInput(format!("Query parameter '{}' is required", key)))
     }
 
-    /// Get a query parameter as integer
-    pub fn int_query(&self, key: &str) -> Result<i32> {
-        self.str_query(key)?.parse().map_err(|_| {
+    /// Get a query parameter as integer (returns error if missing or invalid).
+    /// Preferred discoverable name for query parameter access.
+    pub fn query_int(&self, key: &str) -> Result<i32> {
+        self.query_str(key)?.parse().map_err(|_| {
             Error::InvalidInput(format!("Query parameter '{}' must be a valid integer", key))
         })
     }
 
-    /// Get a query parameter as boolean
-    pub fn bool_query(&self, key: &str) -> Result<bool> {
-        let value = self.str_query(key)?;
+    /// Get a query parameter as boolean (returns error if missing).
+    /// Preferred discoverable name for query parameter access.
+    pub fn query_bool(&self, key: &str) -> Result<bool> {
+        let value = self.query_str(key)?;
         Ok(matches!(value.as_str(), "true" | "1" | "yes" | "on"))
     }
 
+    /// Get a query parameter as string with default value.
+    /// Preferred discoverable name for query parameter access.
+    pub fn query_str_or(&self, key: &str, default: &str) -> String {
+        self.query_str(key).unwrap_or_else(|_| default.to_string())
+    }
+
+    /// Get a query parameter as integer with default value.
+    /// Preferred discoverable name for query parameter access.
+    pub fn query_int_or(&self, key: &str, default: i32) -> i32 {
+        self.query_int(key).unwrap_or(default)
+    }
+
+    /// Get a query parameter as boolean with default value.
+    /// Preferred discoverable name for query parameter access.
+    pub fn query_bool_or(&self, key: &str, default: bool) -> bool {
+        self.query_bool(key).unwrap_or(default)
+    }
+
+    // Type-first query parameter methods (delegate to source-first)
+
+    /// Get a query parameter (returns error if missing)
+    /// Prefer [`query_str`](Self::query_str) for discoverability.
+    pub fn str_query(&self, key: &str) -> Result<String> {
+        self.query_str(key)
+    }
+
+    /// Get a query parameter as integer
+    /// Prefer [`query_int`](Self::query_int) for discoverability.
+    pub fn int_query(&self, key: &str) -> Result<i32> {
+        self.query_int(key)
+    }
+
+    /// Get a query parameter as boolean
+    /// Prefer [`query_bool`](Self::query_bool) for discoverability.
+    pub fn bool_query(&self, key: &str) -> Result<bool> {
+        self.query_bool(key)
+    }
+
     /// Get a query parameter with default
+    /// Prefer [`query_str_or`](Self::query_str_or) for discoverability.
     pub fn str_query_or(&self, key: &str, default: &str) -> String {
-        self.str_query(key).unwrap_or_else(|_| default.to_string())
+        self.query_str_or(key, default)
     }
 
     /// Get a query parameter as integer with default
+    /// Prefer [`query_int_or`](Self::query_int_or) for discoverability.
     pub fn int_query_or(&self, key: &str, default: i32) -> i32 {
-        self.int_query(key).unwrap_or(default)
+        self.query_int_or(key, default)
     }
 
     /// Get a query parameter as boolean with default
+    /// Prefer [`query_bool_or`](Self::query_bool_or) for discoverability.
     pub fn bool_query_or(&self, key: &str, default: bool) -> bool {
-        self.bool_query(key).unwrap_or(default)
+        self.query_bool_or(key, default)
     }
 
-    // New typed route parameter methods
+    // Source-first route parameter methods (canonical implementation)
 
-    /// Get a route parameter (returns error if missing)
-    pub fn str_param(&self, key: &str) -> Result<String> {
+    /// Get a route parameter as string (returns error if missing).
+    /// Preferred discoverable name for route parameter access.
+    pub fn param_str(&self, key: &str) -> Result<String> {
         self.req
             .params
             .get(key)
@@ -653,21 +708,50 @@ impl Context {
             .ok_or_else(|| Error::InvalidInput(format!("Route parameter '{}' is required", key)))
     }
 
-    /// Get a route parameter as integer
-    pub fn int_param(&self, key: &str) -> Result<i32> {
-        self.str_param(key)?.parse().map_err(|_| {
+    /// Get a route parameter as integer (returns error if missing or invalid).
+    /// Preferred discoverable name for route parameter access.
+    pub fn param_int(&self, key: &str) -> Result<i32> {
+        self.param_str(key)?.parse().map_err(|_| {
             Error::InvalidInput(format!("Route parameter '{}' must be a valid integer", key))
         })
     }
 
+    /// Get a route parameter as string with default value.
+    /// Preferred discoverable name for route parameter access.
+    pub fn param_str_or(&self, key: &str, default: &str) -> String {
+        self.param_str(key).unwrap_or_else(|_| default.to_string())
+    }
+
+    /// Get a route parameter as integer with default value.
+    /// Preferred discoverable name for route parameter access.
+    pub fn param_int_or(&self, key: &str, default: i32) -> i32 {
+        self.param_int(key).unwrap_or(default)
+    }
+
+    // Type-first route parameter methods (delegate to source-first)
+
+    /// Get a route parameter (returns error if missing)
+    /// Prefer [`param_str`](Self::param_str) for discoverability.
+    pub fn str_param(&self, key: &str) -> Result<String> {
+        self.param_str(key)
+    }
+
+    /// Get a route parameter as integer
+    /// Prefer [`param_int`](Self::param_int) for discoverability.
+    pub fn int_param(&self, key: &str) -> Result<i32> {
+        self.param_int(key)
+    }
+
     /// Get a route parameter with default
+    /// Prefer [`param_str_or`](Self::param_str_or) for discoverability.
     pub fn str_param_or(&self, key: &str, default: &str) -> String {
-        self.str_param(key).unwrap_or_else(|_| default.to_string())
+        self.param_str_or(key, default)
     }
 
     /// Get a route parameter as integer with default
+    /// Prefer [`param_int_or`](Self::param_int_or) for discoverability.
     pub fn int_param_or(&self, key: &str, default: i32) -> i32 {
-        self.int_param(key).unwrap_or(default)
+        self.param_int_or(key, default)
     }
 
     /// Get request body as JSON
@@ -725,10 +809,11 @@ impl Context {
         serde_json::from_value(json_value).map_err(Error::Json)
     }
 
-    // New typed body field methods
+    // Source-first body field methods (canonical implementation)
 
-    /// Get a field from body (returns error if missing)
-    pub fn str_body(&mut self, key: &str) -> Result<String> {
+    /// Get a field from body as string (returns error if missing).
+    /// Preferred discoverable name for body field access.
+    pub fn body_str(&mut self, key: &str) -> Result<String> {
         self.body_form_data()?
             .get(key)
             .map(|v| v.as_string())
@@ -737,35 +822,78 @@ impl Context {
             .ok_or_else(|| Error::InvalidInput(format!("Field '{}' is required", key)))
     }
 
-    /// Get a field from body as integer
-    pub fn int_body(&mut self, key: &str) -> Result<i32> {
-        self.str_body(key)?
+    /// Get a field from body as integer (returns error if missing or invalid).
+    /// Preferred discoverable name for body field access.
+    pub fn body_int(&mut self, key: &str) -> Result<i32> {
+        self.body_str(key)?
             .parse()
             .map_err(|_| Error::InvalidInput(format!("Field '{}' must be a valid integer", key)))
     }
 
-    /// Get a field from body as boolean
-    pub fn bool_body(&mut self, key: &str) -> Result<bool> {
-        let value = self.str_body(key)?;
+    /// Get a field from body as boolean (returns error if missing).
+    /// Preferred discoverable name for body field access.
+    pub fn body_bool(&mut self, key: &str) -> Result<bool> {
+        let value = self.body_str(key)?;
         Ok(matches!(
             value.as_str(),
             "true" | "1" | "yes" | "on" | "checked"
         ))
     }
 
+    /// Get a field from body as string with default value.
+    /// Preferred discoverable name for body field access.
+    pub fn body_str_or(&mut self, key: &str, default: &str) -> String {
+        self.body_str(key).unwrap_or_else(|_| default.to_string())
+    }
+
+    /// Get a field from body as integer with default value.
+    /// Preferred discoverable name for body field access.
+    pub fn body_int_or(&mut self, key: &str, default: i32) -> i32 {
+        self.body_int(key).unwrap_or(default)
+    }
+
+    /// Get a field from body as boolean with default value.
+    /// Preferred discoverable name for body field access.
+    pub fn body_bool_or(&mut self, key: &str, default: bool) -> bool {
+        self.body_bool(key).unwrap_or(default)
+    }
+
+    // Type-first body field methods (delegate to source-first)
+
+    /// Get a field from body (returns error if missing)
+    /// Prefer [`body_str`](Self::body_str) for discoverability.
+    pub fn str_body(&mut self, key: &str) -> Result<String> {
+        self.body_str(key)
+    }
+
+    /// Get a field from body as integer
+    /// Prefer [`body_int`](Self::body_int) for discoverability.
+    pub fn int_body(&mut self, key: &str) -> Result<i32> {
+        self.body_int(key)
+    }
+
+    /// Get a field from body as boolean
+    /// Prefer [`body_bool`](Self::body_bool) for discoverability.
+    pub fn bool_body(&mut self, key: &str) -> Result<bool> {
+        self.body_bool(key)
+    }
+
     /// Get a field from body with default
+    /// Prefer [`body_str_or`](Self::body_str_or) for discoverability.
     pub fn str_body_or(&mut self, key: &str, default: &str) -> String {
-        self.str_body(key).unwrap_or_else(|_| default.to_string())
+        self.body_str_or(key, default)
     }
 
     /// Get a field from body as integer with default
+    /// Prefer [`body_int_or`](Self::body_int_or) for discoverability.
     pub fn int_body_or(&mut self, key: &str, default: i32) -> i32 {
-        self.int_body(key).unwrap_or(default)
+        self.body_int_or(key, default)
     }
 
     /// Get a field from body as boolean with default
+    /// Prefer [`body_bool_or`](Self::body_bool_or) for discoverability.
     pub fn bool_body_or(&mut self, key: &str, default: bool) -> bool {
-        self.bool_body(key).unwrap_or(default)
+        self.body_bool_or(key, default)
     }
 
     /// Get the full body data as JSON (converts form data to JSON if needed)
@@ -1278,6 +1406,82 @@ mod tests {
         assert!(err
             .to_string()
             .contains("Route parameter 'slug' must be a valid integer"));
+    }
+
+    #[test]
+    fn test_source_first_query_methods() {
+        let ctx = create_test_context();
+
+        // Test source-first query methods (canonical API)
+        assert_eq!(ctx.query_str("page").unwrap(), "2");
+        assert_eq!(ctx.query_int("page").unwrap(), 2);
+        assert_eq!(ctx.query_bool("active").unwrap(), true);
+
+        // Test missing required query param
+        assert!(ctx.query_str("missing").is_err());
+        assert!(ctx.query_int("missing").is_err());
+
+        // Test optional query methods
+        assert_eq!(ctx.query_str_or("page", "1"), "2");
+        assert_eq!(ctx.query_int_or("page", 1), 2);
+        assert_eq!(ctx.query_bool_or("active", false), true);
+
+        // Test defaults for missing params
+        assert_eq!(ctx.query_str_or("missing", "default"), "default");
+        assert_eq!(ctx.query_int_or("missing", 99), 99);
+        assert_eq!(ctx.query_bool_or("missing", true), true);
+    }
+
+    #[test]
+    fn test_source_first_param_methods() {
+        let ctx = create_test_context();
+
+        // Test source-first param methods (canonical API)
+        assert_eq!(ctx.param_str("id").unwrap(), "123");
+        assert_eq!(ctx.param_int("id").unwrap(), 123);
+        assert_eq!(ctx.param_str("slug").unwrap(), "test-post");
+
+        // Test missing required param
+        assert!(ctx.param_str("missing").is_err());
+        assert!(ctx.param_int("missing").is_err());
+
+        // Test optional param methods
+        assert_eq!(ctx.param_str_or("id", "0"), "123");
+        assert_eq!(ctx.param_int_or("id", 0), 123);
+        assert_eq!(ctx.param_str_or("missing", "default"), "default");
+        assert_eq!(ctx.param_int_or("missing", 42), 42);
+    }
+
+    #[test]
+    fn test_source_first_body_methods() {
+        let mut request = Request::new("POST", "/test", "1.1");
+        request.headers.insert(
+            "content-type".to_string(),
+            "application/x-www-form-urlencoded".to_string(),
+        );
+
+        let form_data = "name=Alice&age=30&active=true";
+        request.set_body(form_data.as_bytes().to_vec());
+
+        let views = Arc::new(ViewEngine::new());
+        let mut ctx = Context::new(request, views);
+
+        // Test source-first body methods (canonical API)
+        assert_eq!(ctx.body_str("name").unwrap(), "Alice");
+        assert_eq!(ctx.body_int("age").unwrap(), 30);
+        assert_eq!(ctx.body_bool("active").unwrap(), true);
+
+        // Test missing required body field
+        assert!(ctx.body_str("missing").is_err());
+        assert!(ctx.body_int("missing").is_err());
+
+        // Test optional body methods
+        assert_eq!(ctx.body_str_or("name", "Bob"), "Alice");
+        assert_eq!(ctx.body_int_or("age", 0), 30);
+        assert_eq!(ctx.body_bool_or("active", false), true);
+        assert_eq!(ctx.body_str_or("missing", "default"), "default");
+        assert_eq!(ctx.body_int_or("missing", 99), 99);
+        assert_eq!(ctx.body_bool_or("missing", true), true);
     }
 
     #[test]
