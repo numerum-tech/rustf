@@ -38,6 +38,79 @@ impl FormValue {
     }
 }
 
+/// Parsed form data with typed getters (e.g. `get_int`, `get_str`).
+///
+/// Returned by [`Context::body_form`](crate::Context::body_form). Implements
+/// `Deref<Target = HashMap<String, String>>` so you can use `.get("key")` and
+/// iteration as with a plain map.
+#[derive(Debug, Clone, Default, Serialize)]
+#[serde(transparent)]
+pub struct FormData(HashMap<String, String>);
+
+impl std::ops::Deref for FormData {
+    type Target = HashMap<String, String>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl FormData {
+    /// Create from a parsed form map (used by `Context::body_form`).
+    pub fn new(map: HashMap<String, String>) -> Self {
+        Self(map)
+    }
+
+    /// Get a required string field (errors if missing or empty).
+    pub fn get_str(&self, key: &str) -> Result<String> {
+        self.0
+            .get(key)
+            .filter(|s| !s.is_empty())
+            .cloned()
+            .ok_or_else(|| Error::InvalidInput(format!("Field '{}' is required", key)))
+    }
+
+    /// Get a required integer field (errors if missing or invalid).
+    pub fn get_int(&self, key: &str) -> Result<i32> {
+        self.get_str(key)?
+            .parse()
+            .map_err(|_| Error::InvalidInput(format!("Field '{}' must be a valid integer", key)))
+    }
+
+    /// Get a required boolean field (errors if missing). Accepts "true", "1", "yes", "on", "checked".
+    pub fn get_bool(&self, key: &str) -> Result<bool> {
+        let value = self.get_str(key)?;
+        Ok(matches!(
+            value.as_str(),
+            "true" | "1" | "yes" | "on" | "checked"
+        ))
+    }
+
+    /// Get a string field, or a default if missing or empty.
+    pub fn get_str_or(&self, key: &str, default: &str) -> String {
+        self.0
+            .get(key)
+            .filter(|s| !s.is_empty())
+            .cloned()
+            .unwrap_or_else(|| default.to_string())
+    }
+
+    /// Get an integer field, or a default if missing or invalid.
+    pub fn get_int_or(&self, key: &str, default: i32) -> i32 {
+        self.get_str(key)
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(default)
+    }
+
+    /// Get a boolean field, or a default if missing. Accepts "true", "1", "yes", "on", "checked".
+    pub fn get_bool_or(&self, key: &str, default: bool) -> bool {
+        self.get_str(key)
+            .map(|s| matches!(s.as_str(), "true" | "1" | "yes" | "on" | "checked"))
+            .unwrap_or(default)
+    }
+}
+
 pub struct Request {
     pub method: String,
     pub uri: String,
@@ -126,7 +199,25 @@ impl Request {
             .map_err(|e| Error::internal(format!("Failed to parse JSON: {}", e)))
     }
 
-    pub fn body_as_form(&self) -> Result<HashMap<String, String>> {
+    /// Parse request body as form (application/x-www-form-urlencoded or multipart/form-data).
+    /// For multipart requests, parses on first call and uses cached fields so fields like `oldid` are present.
+    pub fn body_as_form(&mut self) -> Result<HashMap<String, String>> {
+        // Use cached multipart form fields if already parsed (e.g. by files())
+        if let Some(ref form) = self.multipart_form_data {
+            return Ok(form.clone());
+        }
+        // Parse multipart on first use so body_form() sees all fields
+        if self
+            .headers
+            .get("content-type")
+            .map(|v| v.starts_with("multipart/form-data"))
+            == Some(true)
+        {
+            self.parse_files()?;
+            if let Some(ref form) = self.multipart_form_data {
+                return Ok(form.clone());
+            }
+        }
         let body_str = String::from_utf8_lossy(&self.body_bytes);
         Ok(Self::parse_query(&body_str))
     }
@@ -950,6 +1041,46 @@ mod tests {
 
         assert_eq!(query.get("param"), Some(&"value".to_string()));
         assert_eq!(query.get("other"), Some(&"test".to_string()));
+    }
+
+    #[test]
+    fn test_form_data_getters() {
+        let mut map = HashMap::new();
+        map.insert("name".to_string(), "Alice".to_string());
+        map.insert("age".to_string(), "30".to_string());
+        map.insert("active".to_string(), "true".to_string());
+        map.insert("empty".to_string(), "".to_string());
+        let form = FormData::new(map);
+
+        assert_eq!(form.get_str("name").unwrap(), "Alice");
+        assert_eq!(form.get_int("age").unwrap(), 30);
+        assert!(form.get_bool("active").unwrap());
+
+        assert!(form.get_str("missing").is_err());
+        assert!(form.get_str("empty").is_err());
+        assert!(form.get_int("name").is_err());
+
+        assert_eq!(form.get_str_or("name", "default"), "Alice");
+        assert_eq!(form.get_str_or("missing", "default"), "default");
+        assert_eq!(form.get_str_or("empty", "default"), "default");
+        assert_eq!(form.get_int_or("age", 0), 30);
+        assert_eq!(form.get_int_or("missing", 42), 42);
+        assert_eq!(form.get_bool_or("active", false), true);
+        assert_eq!(form.get_bool_or("missing", true), true);
+    }
+
+    #[test]
+    fn test_form_data_deref() {
+        let mut map = HashMap::new();
+        map.insert("k".to_string(), "v".to_string());
+        let form = FormData::new(map);
+        assert_eq!(form.get("k"), Some(&"v".to_string()));
+    }
+
+    #[test]
+    fn test_form_data_default() {
+        let form = FormData::default();
+        assert!(form.is_empty());
     }
 
     #[test]

@@ -1,6 +1,6 @@
 use crate::error::{Error, Result};
 use crate::http::{
-    BodyData, FileCollection, FormValue, Request, RequestData, Response, UploadedFile,
+    BodyData, FileCollection, FormData, FormValue, Request, RequestData, Response, UploadedFile,
 };
 use crate::session::Session;
 use crate::views::ViewEngine;
@@ -675,13 +675,14 @@ impl Context {
         self.req.body_as_json()
     }
 
-    /// Get request body as form data (cached to avoid re-parsing)
-    pub fn body_form(&mut self) -> Result<HashMap<String, String>> {
+    /// Get request body as form data (cached to avoid re-parsing).
+    /// Returns a [`FormData`] wrapper with typed getters: `form.get_int("id")?`, `form.get_str("name")?`, etc.
+    pub fn body_form(&mut self) -> Result<FormData> {
         if self.cached_form_data.is_none() {
             self.cached_form_data = Some(self.req.body_as_form());
         }
         match self.cached_form_data.as_ref().unwrap() {
-            Ok(data) => Ok(data.clone()),
+            Ok(data) => Ok(FormData::new(data.clone())),
             Err(e) => Err(Error::InvalidInput(e.to_string())),
         }
     }
