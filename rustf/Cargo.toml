@@ -104,3 +104,7 @@ harness = false
 [[bench]]
 name = "session"
 harness = false
+
+[[bench]]
+name = "minifier"
+harness = false
