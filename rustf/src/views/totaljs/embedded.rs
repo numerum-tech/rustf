@@ -7,6 +7,7 @@ use super::{
 use crate::config::{AppConfig, ViewConfig};
 use crate::error::{Error, Result};
 use crate::repository::APP;
+use crate::views::minifier::minify_html;
 use crate::views::ViewEngineImpl;
 use rust_embed::RustEmbed;
 use serde_json::Value;
@@ -106,6 +107,8 @@ pub struct EmbeddedTotalJsEngine {
     app_config: Option<Arc<AppConfig>>,
     /// Translation system
     translator: Arc<RwLock<Option<TranslationSystem>>>,
+    /// Whether to minify rendered HTML output
+    minify: bool,
 }
 
 impl EmbeddedTotalJsEngine {
@@ -124,11 +127,14 @@ impl EmbeddedTotalJsEngine {
             cfg!(debug_assertions)
         };
 
+        let minify = view_config.map(|vc| vc.minify).unwrap_or(false);
+
         Self {
             cache: TemplateCache::new(enable_hot_reload),
             config: Arc::new(RwLock::new(HashMap::new())),
             app_config: None,
             translator: Arc::new(RwLock::new(None)),
+            minify,
         }
     }
 
@@ -151,11 +157,14 @@ impl EmbeddedTotalJsEngine {
             app_config.views.cache_enabled.to_string(),
         );
 
+        let minify = app_config.views.minify;
+
         Self {
             cache: TemplateCache::new(enable_hot_reload),
             config: Arc::new(RwLock::new(config)),
             app_config: Some(app_config),
             translator: Arc::new(RwLock::new(None)),
+            minify,
         }
     }
 
@@ -475,13 +484,19 @@ impl ViewEngineImpl for EmbeddedTotalJsEngine {
             None
         };
 
-        self.render_with_layout_and_session(
+        let html = self.render_with_layout_and_session(
             template,
             data,
             layout,
             context_repository,
             session_data,
-        )
+        )?;
+
+        if self.minify {
+            Ok(minify_html(&html))
+        } else {
+            Ok(html)
+        }
     }
 }
 

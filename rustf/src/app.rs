@@ -923,8 +923,17 @@ impl RustF {
         let request_path = request.path().to_string();
         for (prefix, dir) in &self.static_dirs {
             if let Some(relative_suffix) = Self::match_static_prefix(&request_path, prefix) {
+                // Extract conditional request headers before moving `request`
+                let if_none_match = request.headers.get("if-none-match").cloned();
+                let if_modified_since = request.headers.get("if-modified-since").cloned();
                 return self
-                    .serve_static_file(dir, relative_suffix, &request_path)
+                    .serve_static_file(
+                        dir,
+                        relative_suffix,
+                        &request_path,
+                        if_none_match.as_deref(),
+                        if_modified_since.as_deref(),
+                    )
                     .await;
             }
         }
@@ -1052,10 +1061,23 @@ impl RustF {
         base_dir: &PathBuf,
         relative_suffix: &str,
         full_request_path: &str,
+        if_none_match: Option<&str>,
+        if_modified_since: Option<&str>,
     ) -> Result<Response> {
+        let cache_enabled = self.config.static_files.cache_enabled;
+        let cache_max_age = self.config.static_files.cache_max_age;
+
         // Try the suffix after the prefix first (preferred behaviour)
         if let Some(candidate) = Self::sanitize_and_join(base_dir, relative_suffix) {
-            if let Some(response) = Self::try_read_static_file(&candidate).await? {
+            if let Some(response) = Self::try_read_static_file(
+                &candidate,
+                cache_enabled,
+                cache_max_age,
+                if_none_match,
+                if_modified_since,
+            )
+            .await?
+            {
                 return Ok(response);
             }
         }
@@ -1063,7 +1085,15 @@ impl RustF {
         // Fall back to historical behaviour (prefix included) for compatibility
         let trimmed_full = full_request_path.trim_start_matches('/');
         if let Some(candidate) = Self::sanitize_and_join(base_dir, trimmed_full) {
-            if let Some(response) = Self::try_read_static_file(&candidate).await? {
+            if let Some(response) = Self::try_read_static_file(
+                &candidate,
+                cache_enabled,
+                cache_max_age,
+                if_none_match,
+                if_modified_since,
+            )
+            .await?
+            {
                 return Ok(response);
             }
         }
@@ -1119,21 +1149,123 @@ impl RustF {
         Some(base.join(clean))
     }
 
-    async fn try_read_static_file(path: &Path) -> Result<Option<Response>> {
+    async fn try_read_static_file(
+        path: &Path,
+        cache_enabled: bool,
+        cache_max_age: u64,
+        if_none_match: Option<&str>,
+        if_modified_since: Option<&str>,
+    ) -> Result<Option<Response>> {
+        use std::time::{SystemTime, UNIX_EPOCH};
+
         match tokio::fs::metadata(path).await {
             Ok(metadata) if metadata.is_file() => {
-                let content = tokio::fs::read(path).await?;
                 let content_type = Self::infer_content_type(path);
-                Ok(Some(
-                    Response::ok()
-                        .with_header("Content-Type", content_type)
-                        .with_body(content),
-                ))
+
+                if cache_enabled {
+                    // Compute ETag from mtime + size (no content read needed for validation)
+                    let mtime = metadata
+                        .modified()
+                        .unwrap_or(SystemTime::UNIX_EPOCH)
+                        .duration_since(UNIX_EPOCH)
+                        .unwrap_or_default()
+                        .as_secs();
+                    let etag = format!("\"{:x}-{:x}\"", mtime, metadata.len());
+                    let last_modified = Self::format_http_date(mtime);
+
+                    // Check ETag for 304
+                    if let Some(client_etag) = if_none_match {
+                        if client_etag == etag {
+                            return Ok(Some(
+                                Response::not_modified()
+                                    .with_header("ETag", &etag)
+                                    .with_header("Cache-Control", &format!("public, max-age={}", cache_max_age)),
+                            ));
+                        }
+                    }
+
+                    // Check If-Modified-Since for 304
+                    if let Some(ims_header) = if_modified_since {
+                        if let Some(ims_ts) = Self::parse_http_date(ims_header) {
+                            if mtime <= ims_ts {
+                                return Ok(Some(
+                                    Response::not_modified()
+                                        .with_header("ETag", &etag)
+                                        .with_header("Cache-Control", &format!("public, max-age={}", cache_max_age)),
+                                ));
+                            }
+                        }
+                    }
+
+                    let content = tokio::fs::read(path).await?;
+                    Ok(Some(
+                        Response::ok()
+                            .with_header("Content-Type", content_type)
+                            .with_header("Cache-Control", &format!("public, max-age={}", cache_max_age))
+                            .with_header("ETag", &etag)
+                            .with_header("Last-Modified", &last_modified)
+                            .with_header("Content-Length", &content.len().to_string())
+                            .with_body(content),
+                    ))
+                } else {
+                    let content = tokio::fs::read(path).await?;
+                    Ok(Some(
+                        Response::ok()
+                            .with_header("Content-Type", content_type)
+                            .with_header("Cache-Control", "no-store, no-cache")
+                            .with_body(content),
+                    ))
+                }
             }
             Ok(_) => Ok(None),
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
             Err(e) => Err(e.into()),
         }
+    }
+
+    /// Format a Unix timestamp as an RFC 7231 HTTP date string.
+    fn format_http_date(timestamp: u64) -> String {
+        use chrono::{TimeZone, Utc};
+        let dt = Utc
+            .timestamp_opt(timestamp as i64, 0)
+            .single()
+            .unwrap_or_else(chrono::Utc::now);
+        dt.format("%a, %d %b %Y %H:%M:%S GMT").to_string()
+    }
+
+    /// Parse an RFC 7231 HTTP date string to a Unix timestamp.
+    fn parse_http_date(date_str: &str) -> Option<u64> {
+        use chrono::{TimeZone, Utc};
+        // RFC 7231: "Sun, 06 Nov 1994 08:49:37 GMT"
+        if let Some(without_gmt) = date_str.strip_suffix(" GMT") {
+            if let Ok(naive) =
+                chrono::NaiveDateTime::parse_from_str(without_gmt, "%a, %d %b %Y %H:%M:%S")
+            {
+                let ts = Utc.from_utc_datetime(&naive).timestamp();
+                if ts >= 0 {
+                    return Some(ts as u64);
+                }
+            }
+            // RFC 850: "Sunday, 06-Nov-94 08:49:37 GMT"
+            if let Ok(naive) =
+                chrono::NaiveDateTime::parse_from_str(without_gmt, "%A, %d-%b-%y %H:%M:%S")
+            {
+                let ts = Utc.from_utc_datetime(&naive).timestamp();
+                if ts >= 0 {
+                    return Some(ts as u64);
+                }
+            }
+        }
+        // asctime(): "Sun Nov  6 08:49:37 1994"
+        if let Ok(naive) =
+            chrono::NaiveDateTime::parse_from_str(date_str, "%a %b %e %H:%M:%S %Y")
+        {
+            let ts = chrono::Utc.from_utc_datetime(&naive).timestamp();
+            if ts >= 0 {
+                return Some(ts as u64);
+            }
+        }
+        None
     }
 
     fn infer_content_type(path: &Path) -> &'static str {

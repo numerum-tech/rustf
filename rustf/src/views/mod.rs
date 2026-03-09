@@ -4,6 +4,7 @@ use serde_json::Value;
 use std::sync::Arc;
 
 pub mod api;
+pub mod minifier;
 pub mod totaljs; // Total.js is the default built-in template engine // Global VIEW API for inline template rendering
 
 /// Trait for view engine implementations
