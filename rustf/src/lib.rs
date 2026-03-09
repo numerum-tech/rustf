@@ -95,6 +95,16 @@ pub use workers::{WorkerContext, WorkerManager, WORKER};
 // Re-export view system
 pub use views::VIEW;
 
+// Re-export embedded file provider (always available, used by auto_discover macro)
+pub use views::embed_provider::{
+    get_assets_provider, get_views_provider, register_assets_provider, register_views_provider,
+    EmbeddedFileProvider,
+};
+
+// Re-export rust_embed when embedded-views feature is active (user needs RustEmbed derive)
+#[cfg(feature = "embedded-views")]
+pub use rust_embed;
+
 #[cfg(feature = "schema")]
 pub use rustf_schema::{Field, Schema, SchemaError, Table};
 

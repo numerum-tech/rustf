@@ -1067,7 +1067,50 @@ impl RustF {
         let cache_enabled = self.config.static_files.cache_enabled;
         let cache_max_age = self.config.static_files.cache_max_age;
 
-        // Try the suffix after the prefix first (preferred behaviour)
+        // 1. Try the embedded assets provider first (when feature is active)
+        if let Some(provider) = crate::views::embed_provider::get_assets_provider() {
+            // Normalise the lookup key: prefer the suffix without prefix,
+            // fall back to the full path (without leading slash).
+            let candidates: &[&str] = &[
+                relative_suffix,
+                full_request_path.trim_start_matches('/'),
+            ];
+            for key in candidates {
+                if key.is_empty() {
+                    continue;
+                }
+                if let Some(data) = provider.get(key) {
+                    let content_type = Self::infer_content_type(Path::new(key));
+                    let response = if cache_enabled {
+                        use std::collections::hash_map::DefaultHasher;
+                        use std::hash::{Hash, Hasher};
+                        let mut hasher = DefaultHasher::new();
+                        data.hash(&mut hasher);
+                        let etag = format!("\"embed-{:x}\"", hasher.finish());
+                        if if_none_match == Some(etag.as_str()) {
+                            Response::not_modified()
+                                .with_header("ETag", &etag)
+                                .with_header("Cache-Control", &format!("public, max-age={}", cache_max_age))
+                        } else {
+                            Response::ok()
+                                .with_header("Content-Type", content_type)
+                                .with_header("Cache-Control", &format!("public, max-age={}", cache_max_age))
+                                .with_header("ETag", &etag)
+                                .with_header("Content-Length", &data.len().to_string())
+                                .with_body(data)
+                        }
+                    } else {
+                        Response::ok()
+                            .with_header("Content-Type", content_type)
+                            .with_header("Cache-Control", "no-store, no-cache")
+                            .with_body(data)
+                    };
+                    return Ok(response);
+                }
+            }
+        }
+
+        // 2. Try the suffix after the prefix first (preferred behaviour)
         if let Some(candidate) = Self::sanitize_and_join(base_dir, relative_suffix) {
             if let Some(response) = Self::try_read_static_file(
                 &candidate,
@@ -1082,7 +1125,7 @@ impl RustF {
             }
         }
 
-        // Fall back to historical behaviour (prefix included) for compatibility
+        // 3. Fall back to historical behaviour (prefix included) for compatibility
         let trimmed_full = full_request_path.trim_start_matches('/');
         if let Some(candidate) = Self::sanitize_and_join(base_dir, trimmed_full) {
             if let Some(response) = Self::try_read_static_file(

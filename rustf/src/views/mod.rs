@@ -4,6 +4,7 @@ use serde_json::Value;
 use std::sync::Arc;
 
 pub mod api;
+pub mod embed_provider;
 pub mod minifier;
 pub mod totaljs; // Total.js is the default built-in template engine // Global VIEW API for inline template rendering
 
@@ -23,6 +24,12 @@ pub use totaljs::TotalJsEngine;
 
 // Re-export the global VIEW API
 pub use api::VIEW;
+
+// Re-export embedded provider API (always compiled in so user code can reference it)
+pub use embed_provider::{
+    get_assets_provider, get_views_provider, register_assets_provider, register_views_provider,
+    EmbeddedFileProvider,
+};
 
 impl Default for ViewEngine {
     fn default() -> Self {
