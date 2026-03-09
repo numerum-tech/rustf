@@ -1,0 +1,977 @@
+<!DOCTYPE html><html lang="" dir=""><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><meta name="description"
+ content="GovActu - La plateforme officielle de publications gouvernementales pour l'Afrique" /><meta name="keywords" content="gouvernement, publications officielles, transparence, Afrique" /><title>Loi de Finances 2024 - République du Mali - GovActu GovActu - Publications Officielles</title><link rel="stylesheet" href="/assets/bootstrap/css/bootstrap.min.css" /><link rel="stylesheet" href="/assets/govactu.min.css" /><link rel="stylesheet" href="/assets/fontawesome/css/fontawesome.min.css" /><link rel="stylesheet" href="/assets/fontawesome/css/solid.min.css" /><link rel="stylesheet" href="/assets/fontawesome/css/brands.min.css" /><script src="/assets/bootstrap/js/bootstrap.bundle.min.js"></script><meta name="csrf-param" content="authenticity_token" /><meta name="csrf-token" content="" /><style>:root { --gov-topbar-height: 40px; } #mainNavbar.sticky-top { top: var(--gov-topbar-height); z-index: 1030; }</style><link rel="icon" type="image/x-icon" href="" /><link rel="preconnect" href="https://fonts.googleapis.com" /><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin /><link
+ href="https://fonts.googleapis.com/css2?family=Red+Hat+Display:ital,wght@0,300..900;1,300..900&family=Roboto+Slab:wght@100..900&display=swap"
+ rel="stylesheet" /><meta property="og:title" content="" /><meta property="og:description" content="Plateforme officielle de publications gouvernementales" /><meta property="og:type" content="website" /><meta property="og:url" content="" /></head><body class="bg-light text-dark"><div id="govTopBar" class="bg-dark text-white py-2 fixed-top" style="z-index: 1031"><div class="container"><div class="d-flex justify-content-between align-items-center small"><div class="d-flex align-items-center gap-3"><span class="d-none d-sm-inline"><i class="fas fa-shield-alt me-2"></i>Plateforme Officielle de
+ Publications Gouvernementale</span><span class="d-sm-none"><i class="fas fa-shield-alt"></i></span></div><div class="d-flex align-items-center gap-3"><div class="d-flex align-items-center gap-3"><div class="dropdown"><button class="btn btn-link text-white text-decoration-none p-1 d-flex align-items-center gap-2"
+ type="button" data-bs-toggle="dropdown" aria-expanded="false" id="countrySwitcherBtn"><i id="countrySwitcherIcon" class="fas fa-globe"></i><img id="countrySwitcherFlagImg" class="d-none rounded-1" width="20" height="15" alt="" /><span class="d-none d-sm-inline" id="countrySwitcherLabel">Pays</span><i class="fas fa-chevron-down small"></i></button><ul class="dropdown-menu dropdown-menu-end"><li><a class="dropdown-item country-option" href="#" data-country="TG"><span class="me-2"><img src="https://flagcdn.com/tg.svg" alt="Togo" width="20" height="15" class="rounded-sm"></span> Togo
+ </a></li><li><a class="dropdown-item country-option" href="#" data-country="BJ"><span class="me-2"><img src="https://flagcdn.com/bj.svg" alt="Bénin" width="20" height="15" class="rounded-sm"></span> Bénin
+ </a></li><li><a class="dropdown-item country-option" href="#" data-country="SN"><span class="me-2"><img src="https://flagcdn.com/sn.svg" alt="Sénégal" width="20" height="15" class="rounded-sm"></span> Sénégal
+ </a></li><li><a class="dropdown-item country-option" href="#" data-country="CI"><span class="me-2"><img src="https://flagcdn.com/ci.svg" alt="Côte d'Ivoire" width="20" height="15" class="rounded-sm"></span> Côte d'Ivoire
+ </a></li><li><a class="dropdown-item country-option" href="#" data-country="ML"><span class="me-2"><img src="https://flagcdn.com/ml.svg" alt="Mali" width="20" height="15" class="rounded-sm"></span> Mali
+ </a></li><li><a class="dropdown-item country-option" href="#" data-country="BF"><span class="me-2"><img src="https://flagcdn.com/bf.svg" alt="Burkina Faso" width="20" height="15" class="rounded-sm"></span> Burkina Faso
+ </a></li><li><a class="dropdown-item country-option" href="#" data-country="NE"><span class="me-2"><img src="https://flagcdn.com/ne.svg" alt="Niger" width="20" height="15" class="rounded-sm"></span> Niger
+ </a></li><li><a class="dropdown-item country-option" href="#" data-country="GN"><span class="me-2"><img src="https://flagcdn.com/gn.svg" alt="Guinée" width="20" height="15" class="rounded-sm"></span> Guinée
+ </a></li></ul></div><div class="dropdown"><button class="btn btn-link text-white text-decoration-none p-1 d-flex align-items-center gap-2"
+ type="button" data-bs-toggle="dropdown" aria-expanded="false" id="langSwitcherBtn"><span class="text-white" id="langSwitcherLabel">
+ FR </span><i class="fas fa-chevron-down small"></i></button><ul class="dropdown-menu dropdown-menu-end"><li><a class="dropdown-item lang-option active" href="#" data-lang="fr"><span class="me-2"><img src="https://flagcdn.com/fr.svg" alt="Français" width="20" height="15" class="rounded-sm"></span> Français
+ 
+ <i class="fas fa-check ms-auto"></i></a></li><li><a class="dropdown-item lang-option " href="#" data-lang="en"><span class="me-2"><img src="https://flagcdn.com/gb.svg" alt="Anglais" width="20" height="15" class="rounded-sm"></span> Anglais
+ </a></li><li><a class="dropdown-item lang-option " href="#" data-lang="pt"><span class="me-2"><img src="https://flagcdn.com/pt.svg" alt="Português" width="20" height="15" class="rounded-sm"></span> Português
+ </a></li><li><a class="dropdown-item lang-option " href="#" data-lang="ar" dir="rtl"><span class="me-2"><img src="https://flagcdn.com/sa.svg" alt="Arabe" width="20" height="15" class="rounded-sm"></span> العربية
+ </a></li></ul></div></div><script>(function() {
+// Country and language mapping
+const countryNames = {
+'TG': 'Togo',
+'BJ': 'Bénin',
+'SN': 'Sénégal',
+'CI': 'Côte d\'Ivoire',
+'ML': 'Mali',
+'BF': 'Burkina Faso',
+'NE': 'Niger',
+'GN': 'Guinée'
+};
+const langLabels = {
+'fr': 'FR',
+'en': 'EN',
+'pt': 'PT',
+'ar': 'AR'
+};
+const langFlags = {
+'fr': '🇫🇷',
+'en': '🇬🇧',
+'pt': '🇵🇹',
+'ar': '🇸🇦'
+};
+// Get stored filters from localStorage
+function getStoredFilters() {
+return {
+country: localStorage.getItem('govactu_country') || null,
+lang: localStorage.getItem('govactu_lang') || null
+};
+}
+// Store filters in localStorage
+function storeFilters(country, lang) {
+if (country) {
+localStorage.setItem('govactu_country', country);
+}
+if (lang) {
+localStorage.setItem('govactu_lang', lang);
+}
+}
+// Build URL with filters
+function buildUrlWithFilters(baseUrl, country, lang) {
+const url = new URL(baseUrl, window.location.origin);
+if (country) {
+url.searchParams.set('country', country);
+}
+if (lang) {
+url.searchParams.set('lang', lang);
+}
+// Preserve existing query parameters except country and lang
+const currentParams = new URLSearchParams(window.location.search);
+for (const [key, value] of currentParams.entries()) {
+if (key !== 'country' && key !== 'lang') {
+url.searchParams.set(key, value);
+}
+}
+return url.pathname + url.search;
+}
+// Update UI to reflect stored filters
+function updateUI() {
+const filters = getStoredFilters();
+// Update country switcher
+if (filters.country) {
+const countryOption = document.querySelector(`.country-option[data-country="${filters.country}"]`);
+if (countryOption) {
+// Remove active from all
+document.querySelectorAll('.country-option').forEach(opt => {
+opt.classList.remove('active', 'text-white', 'bg-primary', 'bg-secondary');
+const checkIcon = opt.querySelector('.fa-check');
+if (checkIcon) checkIcon.remove();
+});
+// Add active to selected
+countryOption.classList.add('active', 'bg-primary', 'text-white');
+const checkIcon = document.createElement('i');
+checkIcon.className = 'fas fa-check ms-auto';
+countryOption.appendChild(checkIcon);
+// Update button label
+const label = document.getElementById('countrySwitcherLabel');
+if (label) {
+label.textContent = countryNames[filters.country] || 'Pays';
+}
+// Update button flag (show selected country flag)
+const flagImg = document.getElementById('countrySwitcherFlagImg');
+const icon = document.getElementById('countrySwitcherIcon');
+if (flagImg) {
+flagImg.src = `https://flagcdn.com/${String(filters.country).toLowerCase()}.svg`;
+flagImg.alt = countryNames[filters.country] || 'Drapeau';
+flagImg.classList.remove('d-none');
+}
+if (icon) {
+icon.classList.add('d-none');
+}
+}
+} else {
+// No country selected: show globe icon
+const flagImg = document.getElementById('countrySwitcherFlagImg');
+const icon = document.getElementById('countrySwitcherIcon');
+if (flagImg) {
+flagImg.src = '';
+flagImg.alt = '';
+flagImg.classList.add('d-none');
+}
+if (icon) {
+icon.classList.remove('d-none');
+}
+}
+// Update language switcher
+if (filters.lang) {
+const langOption = document.querySelector(`.lang-option[data-lang="${filters.lang}"]`);
+if (langOption) {
+// Remove active from all
+document.querySelectorAll('.lang-option').forEach(opt => {
+opt.classList.remove('active', 'text-white', 'bg-primary', 'bg-secondary');
+const checkIcon = opt.querySelector('.fa-check');
+if (checkIcon) checkIcon.remove();
+});
+// Add active to selected
+langOption.classList.add('active', 'bg-primary', 'text-white');
+const checkIcon = document.createElement('i');
+checkIcon.className = 'fas fa-check ms-auto';
+langOption.appendChild(checkIcon);
+// Update button label
+const label = document.getElementById('langSwitcherLabel');
+if (label) {
+label.textContent = langLabels[filters.lang] || 'FR';
+}
+// Update button flag (replace language icon)
+const flag = document.getElementById('langSwitcherFlag');
+const icon = document.getElementById('langSwitcherIcon');
+if (flag) {
+flag.textContent = langFlags[filters.lang] || '🏳️';
+flag.classList.remove('d-none');
+}
+if (icon) {
+icon.classList.add('d-none');
+}
+}
+} else {
+// No language selected: show icon
+const flag = document.getElementById('langSwitcherFlag');
+const icon = document.getElementById('langSwitcherIcon');
+if (flag) {
+flag.textContent = '';
+flag.classList.add('d-none');
+}
+if (icon) {
+icon.classList.remove('d-none');
+}
+}
+}
+// Handle country selection
+document.addEventListener('DOMContentLoaded', function() {
+// Initialize UI from localStorage
+updateUI();
+// Sync with URL parameters on load
+const urlParams = new URLSearchParams(window.location.search);
+const urlCountry = urlParams.get('country');
+const urlLang = urlParams.get('lang');
+if (urlCountry) {
+storeFilters(urlCountry, null);
+}
+if (urlLang) {
+storeFilters(null, urlLang);
+}
+// Update UI again after syncing with URL
+updateUI();
+// Handle country clicks
+document.querySelectorAll('.country-option').forEach(option => {
+option.addEventListener('click', function(e) {
+e.preventDefault();
+const country = this.getAttribute('data-country');
+const filters = getStoredFilters();
+// Store country
+storeFilters(country, null);
+// Build URL with both country and lang
+const newUrl = buildUrlWithFilters(window.location.pathname, country, filters.lang);
+// Redirect
+window.location.href = newUrl;
+});
+});
+// Handle language clicks
+document.querySelectorAll('.lang-option').forEach(option => {
+option.addEventListener('click', function(e) {
+e.preventDefault();
+const lang = this.getAttribute('data-lang');
+const filters = getStoredFilters();
+// Store language
+storeFilters(null, lang);
+// Build URL with both country and lang
+const newUrl = buildUrlWithFilters(window.location.pathname, filters.country, lang);
+// Redirect
+window.location.href = newUrl;
+});
+});
+});
+// Export functions for use in other scripts
+window.GovActuFilters = {
+getStoredFilters: getStoredFilters,
+addFiltersToUrl: function(url) {
+const filters = getStoredFilters();
+const urlObj = new URL(url, window.location.origin);
+if (filters.country) {
+urlObj.searchParams.set('country', filters.country);
+}
+if (filters.lang) {
+urlObj.searchParams.set('lang', filters.lang);
+}
+return urlObj.pathname + urlObj.search;
+},
+addFiltersToFetch: function(url, options) {
+const filters = getStoredFilters();
+const urlObj = new URL(url, window.location.origin);
+if (filters.country) {
+urlObj.searchParams.set('country', filters.country);
+}
+if (filters.lang) {
+urlObj.searchParams.set('lang', filters.lang);
+}
+return fetch(urlObj.pathname + urlObj.search, options || {});
+}
+};
+})();</script></div></div></div></div><div id="govTopBarSpacer" aria-hidden="true" style="height: 40px"></div><div class="container-fluid p-0"><nav class="navbar navbar-expand-lg navbar-light sticky-top" id="mainNavbar"><div class="container"><a
+ class="navbar-brand d-flex align-items-center gap-2 me-4"
+ href="/"
+ ><div><div class="mb-0"><img
+ src="/assets/images/logo/png/govactu.png"
+ height="48"
+ alt="GovActu"
+ /></div></div></a><div class="d-flex align-items-center gap-2 d-lg-none"><button
+ class="btn btn-link text-secondary p-1"
+ type="button"
+ data-bs-toggle="modal"
+ data-bs-target="#searchModal"
+ aria-label="Rechercher"
+ ><i class="fas fa-search fs-5"></i></button><button
+ class="navbar-toggler border-0"
+ type="button"
+ data-bs-toggle="offcanvas"
+ data-bs-target="#offcanvasNavbar"
+ aria-controls="offcanvasNavbar"
+ aria-label="Toggle navigation"
+ ><span class="navbar-toggler-icon"></span></button></div><div class="collapse navbar-collapse" id="navbarNav"><ul class="navbar-nav mx-auto" id="mainNavLinks"><li class="nav-item"><a class="nav-link text-secondary fw-medium position-relative" href="/" data-nav="home">
+ Accueil <span class="nav-link-underline" aria-hidden="true"></span></a></li><li class="nav-item"><a class="nav-link text-secondary fw-medium position-relative" href="/publications" data-nav="actualites">
+ Actualités <span class="nav-link-underline" aria-hidden="true"></span></a></li><li class="nav-item"><a class="nav-link text-secondary fw-medium position-relative" href="/about" data-nav="about">
+ À propos <span class="nav-link-underline" aria-hidden="true"></span></a></li><li class="nav-item"><a class="nav-link text-secondary fw-medium position-relative" href="/contact" data-nav="contact">
+ Contact <span class="nav-link-underline" aria-hidden="true"></span></a></li></ul><button
+ class="btn btn-link text-secondary p-2 me-3 rounded-pill"
+ type="button"
+ data-bs-toggle="modal"
+ data-bs-target="#searchModal"
+ aria-label="Rechercher"
+ ><i class="fas fa-search fs-5"></i></button><ul class="navbar-nav"><li class="nav-item d-none d-lg-block"><a href="#" class="btn btn-dark btn-sm me-2 rounded-pill px-3 text-white"><i class="fab fa-apple me-1"></i>iOS
+ </a></li><li class="nav-item d-none d-lg-block"><a href="#" class="btn btn-dark btn-sm me-2 rounded-pill px-3 text-white"><i class="fab fa-google-play me-1"></i>Android
+ </a></li><li class="nav-item"><a class="nav-link text-secondary fw-medium" href="/auth/login"><i class="fas fa-sign-in-alt me-1"></i>Connexion
+ </a></li></ul></div><div class="collapse w-100 d-lg-none" id="mobileSearch"><div class="container pb-3 pt-2"><div class="input-group"><span class="input-group-text bg-white"><i class="fas fa-search text-secondary"></i></span><input
+ type="search"
+ class="form-control"
+ placeholder="Rechercher..."
+ /></div></div></div></div></nav><style>#mainNavbar .nav-link.position-relative, #offcanvasNavbar .nav-link.position-relative { display: inline-block; } .nav-link-underline { position: absolute; bottom: 0; left: 15%; width: 70%; height: 2px; background-color: var(--bs-primary); transform: scaleX(0); transform-origin: left; transition: transform 0.25s ease; } #mainNavbar .nav-link:hover .nav-link-underline, #offcanvasNavbar .nav-link:hover .nav-link-underline { transform: scaleX(1); } #mainNavbar .nav-item.active .nav-link .nav-link-underline, #offcanvasNavbar .nav-item.active .nav-link .nav-link-underline { transform: scaleX(1); } #mainNavbar .nav-item.active .nav-link, #offcanvasNavbar .nav-item.active .nav-link { color: var(--bs-primary) !important; }</style><script>(function () {
+var pathname = window.location.pathname || '/';
+var navKey = 'home';
+if (pathname === '/' || pathname === '') {
+navKey = 'home';
+} else if (pathname.startsWith('/publications') || pathname.startsWith('/actualites')) {
+navKey = 'actualites';
+} else if (pathname.startsWith('/about')) {
+navKey = 'about';
+} else if (pathname.startsWith('/contact')) {
+navKey = 'contact';
+}
+[document.getElementById('mainNavLinks'), document.getElementById('offcanvasNavLinks')].forEach(function (list) {
+if (!list) return;
+var items = list.querySelectorAll('.nav-item');
+items.forEach(function (li) {
+var link = li.querySelector('a[data-nav]');
+if (link && link.getAttribute('data-nav') === navKey) {
+li.classList.add('active');
+} else {
+li.classList.remove('active');
+}
+});
+});
+})();</script><div
+ class="offcanvas offcanvas-end"
+ tabindex="-1"
+ id="offcanvasNavbar"
+ aria-labelledby="offcanvasNavbarLabel"
+><div class="offcanvas-header border-bottom"><h5 class="offcanvas-title" id="offcanvasNavbarLabel"><i class="fas fa-landmark text-primary me-2"></i>GovActu Menu
+ </h5><button
+ type="button"
+ class="btn-close"
+ data-bs-dismiss="offcanvas"
+ aria-label="Close"
+ ></button></div><div class="offcanvas-body"><ul class="navbar-nav mb-3" id="offcanvasNavLinks"><li class="nav-item"><a
+ class="nav-link text-secondary fw-medium position-relative"
+ href="/"
+ data-bs-dismiss="offcanvas"
+ data-nav="home"
+ ><i class="fas fa-home me-2"></i>Accueil <span class="nav-link-underline" aria-hidden="true"></span></a></li><li class="nav-item"><a
+ class="nav-link text-secondary fw-medium position-relative"
+ href="/actualites"
+ data-bs-dismiss="offcanvas"
+ data-nav="actualites"
+ ><i class="fas fa-newspaper me-2"></i>Actualités <span class="nav-link-underline" aria-hidden="true"></span></a></li><li class="nav-item"><a
+ class="nav-link text-secondary fw-medium position-relative"
+ href="/about"
+ data-bs-dismiss="offcanvas"
+ data-nav="about"
+ ><i class="fas fa-info-circle me-2"></i>À propos <span class="nav-link-underline" aria-hidden="true"></span></a></li><li class="nav-item"><a
+ class="nav-link text-secondary fw-medium position-relative"
+ href="/contact"
+ data-bs-dismiss="offcanvas"
+ data-nav="contact"
+ ><i class="fas fa-envelope me-2"></i>Contact <span class="nav-link-underline" aria-hidden="true"></span></a></li></ul><hr /><div class="d-grid gap-2"><a
+ href="/auth/login"
+ class="btn btn-primary"
+ data-bs-dismiss="offcanvas"
+ ><i class="fas fa-sign-in-alt me-2"></i>Connexion
+ </a><a
+ href="/auth/register"
+ class="btn btn-outline-primary"
+ data-bs-dismiss="offcanvas"
+ ><i class="fas fa-user-plus me-2"></i>Créer un compte
+ </a></div><hr class="my-4" /><h6 class="text-muted text-uppercase small px-2 mb-3">
+ Télécharger l'application </h6><div class="d-grid gap-2"><a href="#" class="btn btn-dark btn-sm"><i class="fab fa-apple me-2"></i>App Store
+ </a><a href="#" class="btn btn-dark btn-sm"><i class="fab fa-google-play me-2"></i>Google Play
+ </a></div></div></div><div
+ class="modal fade"
+ id="searchModal"
+ tabindex="-1"
+ aria-labelledby="searchModalLabel"
+ aria-hidden="true"
+><div class="modal-dialog modal-dialog-centered modal-lg"><div class="modal-content border-0 shadow-lg"><div class="modal-header border-0 pb-0"><div class="w-100 position-relative"><div class="input-group input-group-lg"><span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-secondary"></i></span><input
+ type="text"
+ class="form-control border-start-0 ps-0"
+ id="searchInput"
+ placeholder="Rechercher une publication, institution..."
+ autocomplete="off"
+ /><button
+ class="btn btn-outline-secondary border-start-0"
+ type="button"
+ id="filterToggle"
+ data-bs-toggle="collapse"
+ data-bs-target="#filterPanel"
+ aria-expanded="false"
+ aria-controls="filterPanel"
+ ><i class="fa fa-filter"></i></button></div><div
+ id="searchSuggestions"
+ class="position-absolute w-100 bg-white border rounded-bottom shadow-lg mt-1"
+ style="
+ display: none;
+ z-index: 1050;
+ max-height: 400px;
+ overflow-y: auto;
+ "
+ ><div id="suggestionsList"></div></div></div><button
+ type="button"
+ class="btn-close"
+ data-bs-dismiss="modal"
+ aria-label="Close"
+ ></button></div><div class="modal-body border-top pt-3 pb-2"><div class="d-flex align-items-center gap-2 mb-3"><span class="small fw-semibold text-muted">Sujets tendances:</span></div><div class="d-flex flex-wrap gap-2" id="quickTopics"><button
+ type="button"
+ class="btn btn-sm btn-outline-primary quick-topic-btn"
+ data-topic="IA"
+ >
+ IA
+ </button><button
+ type="button"
+ class="btn btn-sm btn-outline-primary quick-topic-btn"
+ data-topic="CAN 2025"
+ >
+ CAN 2025
+ </button><button
+ type="button"
+ class="btn btn-sm btn-outline-primary quick-topic-btn"
+ data-topic="Groenland"
+ >
+ Groenland
+ </button><button
+ type="button"
+ class="btn btn-sm btn-outline-primary quick-topic-btn"
+ data-topic="Budget 2026"
+ >
+ Budget 2026
+ </button><button
+ type="button"
+ class="btn btn-sm btn-outline-primary quick-topic-btn"
+ data-topic="Iran"
+ >
+ Iran
+ </button><button
+ type="button"
+ class="btn btn-sm btn-outline-primary quick-topic-btn"
+ data-topic="Gouvernement Lecornu"
+ >
+ Gouvernement Lecornu
+ </button><button
+ type="button"
+ class="btn btn-sm btn-outline-primary quick-topic-btn"
+ data-topic="Procès assistants FN"
+ >
+ Procès assistants FN
+ </button><button
+ type="button"
+ class="btn btn-sm btn-outline-primary quick-topic-btn"
+ data-topic="Guerre Ukraine"
+ >
+ Guerre en Ukraine
+ </button></div></div><div class="modal-body pt-0"><div id="searchResults" class="search-results-container"></div></div></div></div></div><style>#searchModal .modal-content { border-radius: 1rem; } #searchModal .modal-header { padding: 1.5rem; } #searchSuggestions { top: 100%; left: 0; } .suggestion-item { padding: 0.75rem 1rem; cursor: pointer; border-bottom: 1px solid #f0f0f0; transition: background-color 0.2s; } .suggestion-item:hover, .suggestion-item.active { background-color: #f8f9fa; } .suggestion-item:last-child { border-bottom: none; } .suggestion-icon { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; background-color: #f8f9fa; border-radius: 0.5rem; margin-right: 0.75rem; } .suggestion-title { font-weight: 600; font-size: 0.9rem; color: #333; margin-bottom: 0.25rem; } .suggestion-meta { font-size: 0.75rem; color: #6c757d; } #filterToggle.active { background-color: var(--bs-primary); color: white; border-color: var(--bs-primary); } .search-results-container { min-height: 200px; } .search-result-item { padding: 1rem; border-bottom: 1px solid #f0f0f0; transition: background-color 0.2s; } .search-result-item:hover { background-color: #f8f9fa; } .search-result-item:last-child { border-bottom: none; } .quick-topic-btn { transition: all 0.2s ease; border-radius: 1.5rem; font-size: 0.85rem; padding: 0.4rem 0.9rem; } .quick-topic-btn:hover { transform: translateY(-2px); box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); } .quick-topic-btn.active { box-shadow: 0 2px 8px rgba(var(--bs-primary-rgb), 0.3); } .hover-primary:hover { color: var(--bs-primary) !important; } .bg-purple { background-color: #9333ea !important; }</style><script>(function () {
+const searchInput = document.getElementById("searchInput");
+const suggestionsList = document.getElementById("suggestionsList");
+const searchSuggestions = document.getElementById("searchSuggestions");
+const filterToggle = document.getElementById("filterToggle");
+const searchResults = document.getElementById("searchResults");
+let searchTimeout;
+let suggestionsTimeout;
+// Mock suggestions data
+const mockSuggestions = [
+{
+type: "publication",
+title: "Nouveau Décret sur la Transparence",
+meta: "Ministère de la Justice",
+icon: "fa-file-alt",
+},
+{
+type: "publication",
+title: "Mesures Économiques 2024",
+meta: "Ministère de l'Économie",
+icon: "fa-file-alt",
+},
+{
+type: "institution",
+title: "Ministère de la Santé",
+meta: "Institution publique",
+icon: "fa-building",
+},
+{
+type: "publication",
+title: "Rapport sur l'Éducation",
+meta: "Ministère de l'Éducation",
+icon: "fa-file-alt",
+},
+{
+type: "institution",
+title: "Ministère de la Justice",
+meta: "Institution publique",
+icon: "fa-building",
+},
+];
+// Handle search input
+searchInput.addEventListener("input", function (e) {
+const query = e.target.value.trim();
+clearTimeout(searchTimeout);
+clearTimeout(suggestionsTimeout);
+if (query.length < 2) {
+searchSuggestions.style.display = "none";
+searchResults.innerHTML = "";
+return;
+}
+// Hide suggestions - we'll use real search results instead
+searchSuggestions.style.display = "none";
+// Perform full search after 500ms of no typing (debounce for API call)
+searchTimeout = setTimeout(() => {
+performSearch(query);
+}, 500);
+});
+// Show suggestions
+function showSuggestions(query) {
+const filtered = mockSuggestions.filter((item) =>
+item.title.toLowerCase().includes(query.toLowerCase())
+);
+if (filtered.length === 0) {
+searchSuggestions.style.display = "none";
+return;
+}
+suggestionsList.innerHTML = filtered
+.map(
+(item) => `
+<div class="suggestion-item d-flex align-items-center" onclick="selectSuggestion('${
+item.title
+}')">
+<div class="suggestion-icon">
+<i class="fas ${item.icon} text-primary"></i>
+</div>
+<div class="flex-grow-1">
+<div class="suggestion-title">${highlightMatch(
+item.title,
+query
+)}</div>
+<div class="suggestion-meta">${item.meta}</div>
+</div>
+</div>
+`
+)
+.join("");
+searchSuggestions.style.display = "block";
+}
+// Highlight matching text
+function highlightMatch(text, query) {
+const regex = new RegExp(`(${query})`, "gi");
+return text.replace(regex, "<mark>$1</mark>");
+}
+// Select suggestion
+window.selectSuggestion = function (title) {
+searchInput.value = title;
+searchSuggestions.style.display = "none";
+performSearch(title);
+};
+// Expose performSearch globally for retry button
+window.performSearch = performSearch;
+// Helper function to escape HTML
+function escapeHtml(text) {
+if (!text) return '';
+const div = document.createElement('div');
+div.textContent = text;
+return div.innerHTML;
+}
+// Helper function to format time ago
+function formatTimeAgo(isoDate) {
+if (!isoDate) return '';
+const date = new Date(isoDate);
+const now = new Date();
+const diffMs = now - date;
+const diffMins = Math.floor(diffMs / 60000);
+const diffHours = Math.floor(diffMs / 3600000);
+const diffDays = Math.floor(diffMs / 86400000);
+if (diffMins < 1) return 'Il y a moins d\'une minute';
+if (diffMins < 60) return `Il y a ${diffMins} minute${diffMins > 1 ? 's' : ''}`;
+if (diffHours < 24) return `Il y a ${diffHours} heure${diffHours > 1 ? 's' : ''}`;
+if (diffDays < 30) return `Il y a ${diffDays} jour${diffDays > 1 ? 's' : ''}`;
+return date.toLocaleDateString('fr-FR');
+}
+// Helper function to get publication type badge class
+function getPublicationTypeClass(type) {
+switch(type) {
+case 'DECREE': return 'bg-primary';
+case 'LAW': return 'bg-purple';
+case 'REPORT': return 'bg-success';
+case 'COMMUNIQUE': return 'bg-info';
+default: return 'bg-secondary';
+}
+}
+// Generate search result HTML
+function generateSearchResultHTML(pub) {
+const title = pub.title || '';
+const summary = pub.summary || '';
+const slug = pub.slug || '';
+const pubId = pub.id || '';
+const institutionName = pub.institution_name || '';
+const publishedAt = pub.published_at_iso ? formatTimeAgo(pub.published_at_iso) : (pub.published_at || '');
+const countryCode = pub.country_code || '';
+const pubType = pub.category_name || '';
+const articleUrl = `/publications/${pubId}/${slug}`;
+const badgeClass = getPublicationTypeClass(pubType);
+// Truncate summary to 150 characters
+const truncatedSummary = summary.length > 150 ? summary.substring(0, 150) + '...' : summary;
+return `
+<div class="search-result-item">
+<div class="d-flex align-items-start gap-2 mb-2">
+<span class="badge ${badgeClass} px-2 py-1 rounded-pill small">${escapeHtml(pubType)}</span>
+</div>
+<h5 class="mb-2">
+<a href="${articleUrl}" class="text-decoration-none text-dark hover-primary">
+${escapeHtml(title)}
+</a>
+</h5>
+<p class="text-muted small mb-2">${escapeHtml(truncatedSummary)}</p>
+<div class="d-flex gap-3 small text-muted flex-wrap">
+<span><i class="fas fa-building"></i> ${escapeHtml(institutionName)}</span>
+<span><i class="fas fa-clock"></i> ${escapeHtml(publishedAt)}</span>
+<span><i class="fas fa-globe"></i> ${escapeHtml(countryCode)}</span>
+</div>
+</div>
+`;
+}
+// Current search request controller for cancellation
+let currentSearchController = null;
+// Perform search
+async function performSearch(query) {
+// Cancel previous request if any
+if (currentSearchController) {
+currentSearchController.abort();
+}
+// Create new AbortController for this request
+currentSearchController = new AbortController();
+// Show loading indicator
+searchResults.innerHTML = `
+<div class="text-center py-4">
+<div class="spinner-border text-primary" role="status">
+<span class="visually-hidden">Recherche en cours...</span>
+</div>
+<p class="mt-3 text-muted small">Recherche en cours...</p>
+</div>
+`;
+try {
+// Get stored filters from localStorage
+const storedCountry = localStorage.getItem('govactu_country');
+const storedLang = localStorage.getItem('govactu_lang');
+// Build query parameters
+const params = new URLSearchParams();
+params.set('q', query);
+params.set('page', '1');
+params.set('per_page', '10'); // Limit to 10 results for modal
+// Add country filter from localStorage
+if (storedCountry) {
+params.set('country', storedCountry);
+}
+// Add language filter from localStorage
+if (storedLang) {
+params.set('lang', storedLang);
+}
+// Fetch data from API
+const response = await fetch(`/publications/filter?${params.toString()}`, {
+headers: { 'Accept': 'application/json' },
+signal: currentSearchController.signal
+});
+if (!response.ok) {
+throw new Error(`HTTP error! status: ${response.status}`);
+}
+const data = await response.json();
+// Check if request was aborted
+if (currentSearchController.signal.aborted) {
+return;
+}
+// Handle no results
+if (!data.publications || data.publications.length === 0) {
+searchResults.innerHTML = `
+<div class="text-center py-5">
+<i class="fas fa-search fa-3x text-muted mb-3"></i>
+<h6 class="fw-bold text-dark mb-2">Aucun résultat trouvé</h6>
+<p class="text-muted small mb-0">Aucune publication ne correspond à votre recherche "${escapeHtml(query)}".</p>
+</div>
+`;
+return;
+}
+// Generate HTML for results
+const resultsHTML = data.publications.map(pub => generateSearchResultHTML(pub)).join('');
+// Add "Voir tous les résultats" link if there are more results
+let footerHTML = '';
+if (data.total > 10) {
+const searchUrl = `/publications?q=${encodeURIComponent(query)}${storedCountry ? '&country=' + storedCountry : ''}${storedLang ? '&lang=' + storedLang : ''}`;
+footerHTML = `
+<div class="text-center pt-3 border-top">
+<a href="${searchUrl}" class="btn btn-sm btn-outline-primary">
+Voir tous les résultats (${data.total})
+<i class="fas fa-arrow-right ms-2"></i>
+</a>
+</div>
+`;
+}
+// Update DOM
+searchResults.innerHTML = resultsHTML + footerHTML;
+} catch (error) {
+// Don't show error if request was aborted
+if (error.name === 'AbortError' || currentSearchController.signal.aborted) {
+return;
+}
+console.error('Error performing search:', error);
+const errorQuery = query; // Store query for retry button
+searchResults.innerHTML = `
+<div class="text-center py-5">
+<i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
+<h6 class="fw-bold text-dark mb-2">Erreur de recherche</h6>
+<p class="text-muted small mb-3">Une erreur s'est produite lors de la recherche.</p>
+<button class="btn btn-sm btn-primary" onclick="window.performSearch('${escapeHtml(errorQuery)}')">
+<i class="fas fa-redo me-2"></i>Réessayer
+</button>
+</div>
+`;
+} finally {
+currentSearchController = null;
+}
+}
+// Handle Enter key
+searchInput.addEventListener("keydown", function (e) {
+if (e.key === "Enter") {
+e.preventDefault();
+const query = e.target.value.trim();
+if (query.length >= 2) {
+searchSuggestions.style.display = "none";
+performSearch(query);
+}
+} else if (e.key === "Escape") {
+searchSuggestions.style.display = "none";
+}
+});
+// Filter toggle active state
+filterToggle.addEventListener("click", function () {
+setTimeout(() => {
+const isExpanded = this.getAttribute("aria-expanded") === "true";
+if (isExpanded) {
+this.classList.add("active");
+} else {
+this.classList.remove("active");
+}
+}, 100);
+});
+// Apply filters
+document
+.getElementById("applyFilters")
+?.addEventListener("click", function () {
+const query = searchInput.value.trim();
+if (query.length >= 2) {
+performSearch(query);
+}
+});
+// Clear filters
+document
+.getElementById("clearFilters")
+?.addEventListener("click", function () {
+document.getElementById("filterType").value = "";
+document.getElementById("filterCountry").value = "";
+const query = searchInput.value.trim();
+if (query.length >= 2) {
+performSearch(query);
+}
+});
+// Quick topics buttons
+document.querySelectorAll(".quick-topic-btn").forEach((btn) => {
+btn.addEventListener("click", function () {
+const topic = this.getAttribute("data-topic");
+searchInput.value = topic;
+searchSuggestions.style.display = "none";
+performSearch(topic);
+// Update button states
+document.querySelectorAll(".quick-topic-btn").forEach((b) => {
+b.classList.remove("active");
+b.classList.remove("btn-primary");
+b.classList.add("btn-outline-primary");
+});
+this.classList.add("active");
+this.classList.remove("btn-outline-primary");
+this.classList.add("btn-primary");
+});
+});
+// Close suggestions when clicking outside
+document.addEventListener("click", function (e) {
+if (
+!searchInput.contains(e.target) &&
+!searchSuggestions.contains(e.target)
+) {
+searchSuggestions.style.display = "none";
+}
+});
+// Clear on modal close
+const searchModal = document.getElementById("searchModal");
+searchModal.addEventListener("hidden.bs.modal", function () {
+searchInput.value = "";
+searchSuggestions.style.display = "none";
+searchResults.innerHTML = "";
+document.getElementById("filterPanel").classList.remove("show");
+filterToggle.classList.remove("active");
+// Reset quick topic buttons
+document.querySelectorAll(".quick-topic-btn").forEach((btn) => {
+btn.classList.remove("active");
+btn.classList.remove("btn-primary");
+btn.classList.add("btn-outline-primary");
+});
+});
+})();</script><main><div class="bg-light border-bottom py-3"><div class="container"><nav aria-label="breadcrumb"><ol class="breadcrumb mb-0 small"><li class="breadcrumb-item"><a href="/" class="text-decoration-none">Accueil</a></li><li class="breadcrumb-item"><a href="/actualites" class="text-decoration-none">Actualités</a></li><li class="breadcrumb-item active text-truncate" aria-current="page">Loi de Finances 2024 - République du Mali</li></ol></nav></div></div><div class="container py-4"><div class="row g-4"><article class="col-lg-8"><div class="article-header mb-4"><div class="article-featured-image position-relative mb-4 rounded-3 overflow-hidden"
+ style="height: 450px;"><img src="assets&#x2F;images&#x2F;press2-default.jpg" alt="Loi de Finances 2024 - République du Mali" class="w-100 h-100 object-fit-cover" /><div class="position-absolute top-0 start-0 m-4"><span
+ class="badge bg-secondary px-3 py-2 rounded-pill">
+ Économie
+ </span></div></div><h1 class="h2 fw-bold mb-3 text-dark">
+ Loi de Finances 2024 - République du Mali </h1><div class="d-flex align-items-center gap-3 mb-4 flex-wrap text-muted small"><div class="d-flex align-items-center gap-2"><i class="fas fa-building text-primary"></i><span>Présidence de la République du Mali</span></div><div class="d-flex align-items-center gap-2"><i class="fas fa-clock text-primary"></i><span>20&#x2F;10&#x2F;2025 à 12:14</span></div><div class="d-flex align-items-center gap-2"><i class="fas fa-map-marker-alt text-primary"></i><span>ML</span></div></div><div class="article-summary bg-light p-4 rounded-3 mb-4 border-start border-primary border-4"><p class="lead mb-0 text-dark fst-italic">
+ La loi de finances pour l&#x27;exercice 2024 fixe les ressources et les charges de l&#x27;État malien.
+ </p></div></div><div class="article-content mb-4"><div class="article-body"><h2>Loi N° 2024-015</h2><p>L'Assemblée Nationale a délibéré et adopté ;<br>Le Président de la République promulgue la loi dont la teneur suit :</p><h2>Titre I - Dispositions Générales</h2><p>Article 1 : La présente loi fixe les ressources et les charges du budget de l'État pour l'exercice 2024.</p><h2>Titre II - Ressources Budgétaires</h2><p>Article 2 : Les ressources du budget général sont évaluées à 2 850 milliards de FCFA.</p><h2>Titre III - Dépenses Budgétaires</h2><p>Article 3 : Les charges budgétaires sont autorisées à hauteur de 3 100 milliards de FCFA, réparties comme suit :</p><ul><li>Éducation : 650 milliards FCFA</li><li>Santé : 450 milliards FCFA</li><li>Défense et Sécurité : 550 milliards FCFA</li><li>Infrastructure : 800 milliards FCFA</li><li>Agriculture : 300 milliards FCFA</li><li>Autres : 350 milliards FCFA</li></ul></div></div><div class="article-share border-top border-bottom py-4 mb-4"><div class="d-flex align-items-center justify-content-between flex-wrap gap-3"><div class="fw-semibold text-dark">Partager cet article:</div><div class="d-flex gap-3"><a href="javascript:void(0)" onclick="shareOnTwitter()" class="share-icon share-icon-twitter"
+ title="Twitter"><i class="fab fa-twitter"></i></a><a href="javascript:void(0)" onclick="shareOnFacebook()" class="share-icon share-icon-facebook"
+ title="Facebook"><i class="fab fa-facebook-f"></i></a><a href="javascript:void(0)" onclick="shareOnLinkedIn()" class="share-icon share-icon-linkedin"
+ title="LinkedIn"><i class="fab fa-linkedin-in"></i></a><a href="javascript:void(0)" onclick="shareOnWhatsApp()" class="share-icon share-icon-whatsapp"
+ title="WhatsApp"><i class="fab fa-whatsapp"></i></a><a href="javascript:void(0)" onclick="copyLink()" class="share-icon share-icon-link"
+ title="Copier le lien"><i class="fas fa-link"></i></a></div></div></div></article><aside class="col-lg-4"><div class="card border-0 shadow-sm mb-4"><div class="card-body p-4"><h3 class="h6 fw-semibold mb-3 text-dark">Actions</h3><div class="d-flex flex-column gap-2"><a href="javascript:window.print()"
+ class="text-decoration-none text-dark d-flex align-items-center p-2 rounded hover-bg-light"><i class="fas fa-print text-primary me-2"></i><span class="small fw-medium">Imprimer</span></a><a href="javascript:void(0)"
+ class="text-decoration-none text-dark d-flex align-items-center p-2 rounded hover-bg-light"><i class="fas fa-download text-primary me-2"></i><span class="small fw-medium">Télécharger PDF</span></a></div></div></div><div class="card border-0 shadow-sm"><div class="card-body p-4"><h3 class="h5 fw-bold mb-4 text-dark">Articles similaires</h3><div class="d-flex flex-column gap-3"><article class="related-article-card"><a href="/publications/21/rapport-economique-trimestriel-q1-2024"
+ class="text-decoration-none text-dark hover-primary"><h4 class="h6 fw-semibold mb-2 line-clamp-2">
+ Rapport Économique Trimestriel - 1er Trimestre 2024
+ </h4><p class="small text-muted mb-2 line-clamp-2">
+ Analyse de la performance économique de la Côte d&#x27;Ivoire au premier trimestre 2024.
+ </p><div class="d-flex align-items-center gap-2 text-muted small"><i class="fas fa-clock"></i><span>14&#x2F;10&#x2F;2025</span></div></a></article><article class="related-article-card"><a href="/publications/25/rapport-execution-budgetaire-2023"
+ class="text-decoration-none text-dark hover-primary"><h4 class="h6 fw-semibold mb-2 line-clamp-2">
+ Rapport sur l&#x27;exécution budgétaire 2023
+ </h4><p class="small text-muted mb-2 line-clamp-2">
+ Présentation détaillée de l&#x27;exécution du budget de l&#x27;État sénégalais pour l&#x27;exercice 2023.
+ </p><div class="d-flex align-items-center gap-2 text-muted small"><i class="fas fa-clock"></i><span>26&#x2F;09&#x2F;2025</span></div></a></article></div><a href="/actualites"
+ class="d-block mt-3 pt-3 border-top text-primary small fw-semibold text-center text-decoration-none">
+ Voir toutes les actualités
+ <i class="fas fa-arrow-right ms-1"></i></a></div></div></aside></div></div><script>function shareOnTwitter() {
+const url = encodeURIComponent(window.location.href);
+const text = encodeURIComponent(document.querySelector('h1').textContent);
+window.open(`https://twitter.com/intent/tweet?url=${url}&text=${text}`, '_blank', 'width=600,height=400');
+}
+function shareOnFacebook() {
+const url = encodeURIComponent(window.location.href);
+window.open(`https://www.facebook.com/sharer/sharer.php?u=${url}`, '_blank', 'width=600,height=400');
+}
+function shareOnLinkedIn() {
+const url = encodeURIComponent(window.location.href);
+window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${url}`, '_blank', 'width=600,height=400');
+}
+function shareOnWhatsApp() {
+const url = encodeURIComponent(window.location.href);
+const text = encodeURIComponent(document.querySelector('h1').textContent);
+window.open(`https://wa.me/?text=${text}%20${url}`, '_blank');
+}
+function copyLink() {
+navigator.clipboard.writeText(window.location.href).then(() => {
+showToast('Lien copié dans le presse-papiers!', 'success');
+}).catch(() => {
+showToast('Erreur lors de la copie', 'error');
+});
+}
+function showToast(message, type = 'success') {
+// Remove existing toast if any
+const existingToast = document.querySelector('.toast-notification');
+if (existingToast) {
+existingToast.remove();
+}
+// Create toast element
+const toast = document.createElement('div');
+toast.className = `toast-notification toast-${type}`;
+toast.innerHTML = `
+<div class="toast-content">
+<i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'} me-2"></i>
+<span>${message}</span>
+</div>
+`;
+// Add to body
+document.body.appendChild(toast);
+// Trigger animation
+setTimeout(() => {
+toast.classList.add('show');
+}, 10);
+// Remove after 3 seconds
+setTimeout(() => {
+toast.classList.remove('show');
+setTimeout(() => {
+toast.remove();
+}, 300);
+}, 3000);
+}</script><style>.article-body { font-size: 1.1rem; line-height: 1.8; color: #374151; } .article-body h2 { font-size: 1.75rem; font-weight: 700; margin-top: 2rem; margin-bottom: 1rem; line-height: 1.3; color: #111827; } .article-body h3 { font-size: 1.5rem; font-weight: 600; margin-top: 1.5rem; margin-bottom: 0.75rem; line-height: 1.3; color: #1f2937; } .article-body h4 { font-size: 1.25rem; font-weight: 600; margin-top: 1.25rem; margin-bottom: 0.5rem; line-height: 1.3; color: #374151; } .article-body p { margin-bottom: 1.25rem; line-height: 1.8; } .article-body ul, .article-body ol { margin-bottom: 1.25rem; padding-left: 2rem; } .article-body li { margin-bottom: 0.5rem; line-height: 1.8; } .article-body img { max-width: 100%; height: auto; border-radius: 0.5rem; margin: 1.5rem 0; } .article-body blockquote { border-left: 4px solid var(--bs-primary); padding-left: 1.5rem; margin: 1.5rem 0; font-style: italic; color: #6b7280; } .related-article-card { transition: transform 0.2s ease; } .related-article-card:hover { transform: translateX(5px); } .related-article-image img { transition: transform 0.5s ease; } .related-article-card:hover .related-article-image img { transform: scale(1.05); } .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; } .hover-primary:hover { color: var(--bs-primary) !important; } .hover-bg-light:hover { background-color: #f8f9fa; transition: background-color 0.2s ease; } .bg-purple { background-color: #9333ea !important; } .share-icon { display: inline-flex; align-items: center; justify-content: center; width: 45px; height: 45px; border-radius: 50%; border: 2px solid #dee2e6; color: #6c757d; text-decoration: none; transition: all 0.3s ease; background-color: white; } .share-icon:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); } .share-icon-twitter:hover { border-color: #1da1f2; color: #1da1f2; background-color: rgba(29, 161, 242, 0.1); } .share-icon-facebook:hover { border-color: #1877f2; color: #1877f2; background-color: rgba(24, 119, 242, 0.1); } .share-icon-linkedin:hover { border-color: #0a66c2; color: #0a66c2; background-color: rgba(10, 102, 194, 0.1); } .share-icon-whatsapp:hover { border-color: #25d366; color: #25d366; background-color: rgba(37, 211, 102, 0.1); } .share-icon-link:hover { border-color: var(--bs-primary); color: var(--bs-primary); background-color: rgba(var(--bs-primary-rgb), 0.1); } .share-icon i { font-size: 1.1rem; } .toast-notification { position: fixed; bottom: 30px; right: 30px; min-width: 300px; max-width: 400px; padding: 1rem 1.25rem; background-color: white; border-radius: 0.5rem; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15); z-index: 9999; opacity: 0; transform: translateY(20px); transition: all 0.3s ease; border-left: 4px solid; } .toast-notification.show { opacity: 1; transform: translateY(0); } .toast-notification.toast-success { border-left-color: #28a745; } .toast-notification.toast-error { border-left-color: #dc3545; } .toast-content { display: flex; align-items: center; font-size: 0.95rem; color: #333; } .toast-success .toast-content i { color: #28a745; } .toast-error .toast-content i { color: #dc3545; } @media (max-width: 991.98px) { .article-featured-image { height: 300px !important; } .article-body { font-size: 1rem; } } @media (max-width: 575.98px) { .article-featured-image { height: 250px !important; } .article-body { font-size: 0.95rem; } } @media print { aside, header, footer, .article-share, .breadcrumb { display: none !important; } .container { max-width: 100% !important; } .article-body { font-size: 12pt; line-height: 1.6; } }</style></main><footer class="bg-dark text-white mt-5"><div class="container py-5"><div class="row g-4"><div class="col-12 col-md-6 col-lg-3"><div class="d-flex align-items-center gap-3 mb-3"><div class="bg-primary text-white p-2 rounded"><i class="fas fa-landmark fs-5"></i></div><h3 class="font-display fw-bold fs-5 mb-0">GovActu</h3></div><p class="text-secondary mb-3">
+ La plateforme officielle et certifiée de publications gouvernementales pour l'Afrique.
+ </p><div class="d-flex align-items-center gap-2 small"><i class="fas fa-shield-alt text-success"></i><span class="text-success">Plateforme Certifiée</span></div></div><div class="col-12 col-md-6 col-lg-3"><h4 class="fw-semibold fs-6 mb-3">Accès Rapide</h4><ul class="list-unstyled"><li class="mb-2"><a href="/publications" class="text-secondary text-decoration-none d-inline-block"><i class="fas fa-chevron-right small me-2"></i>Toutes les Publications
+ </a></li><li class="mb-2"><a href="#" class="text-secondary text-decoration-none d-inline-block"><i class="fas fa-chevron-right small me-2"></i>Publications Urgentes
+ </a></li><li class="mb-2"><a href="/institutions" class="text-secondary text-decoration-none d-inline-block"><i class="fas fa-chevron-right small me-2"></i>Institutions Vérifiées
+ </a></li><li class="mb-2"><a href="/archives" class="text-secondary text-decoration-none d-inline-block"><i class="fas fa-chevron-right small me-2"></i>Archives
+ </a></li><li class="mb-2"><a href="/api/v1/doc" class="text-secondary text-decoration-none d-inline-block"><i class="fas fa-chevron-right small me-2"></i>API pour Développeurs
+ </a></li></ul></div><div class="col-12 col-md-6 col-lg-3"><h4 class="fw-semibold fs-6 mb-3">Support & Aide</h4><ul class="list-unstyled"><li class="mb-2"><a href="#" class="text-secondary text-decoration-none d-inline-block"><i class="fas fa-chevron-right small me-2"></i>Guide d'utilisation
+ </a></li><li class="mb-2"><a href="/about" class="text-secondary text-decoration-none d-inline-block"><i class="fas fa-chevron-right small me-2"></i>À propos
+ </a></li><li class="mb-2"><a href="/faq" class="text-secondary text-decoration-none d-inline-block"><i class="fas fa-chevron-right small me-2"></i>FAQ
+ </a></li><li class="mb-2"><a href="/contact" class="text-secondary text-decoration-none d-inline-block"><i class="fas fa-chevron-right small me-2"></i>Contact Support
+ </a></li><li class="mb-2"><a href="/" class="text-secondary text-decoration-none d-inline-block"><i class="fas fa-chevron-right small me-2"></i>Signaler un Problème
+ </a></li><li class="mb-2"><a href="/policy" class="text-secondary text-decoration-none d-inline-block"><i class="fas fa-chevron-right small me-2"></i>Conditions d'Utilisation
+ </a></li></ul></div><div class="col-12 col-md-6 col-lg-3"><h4 class="fw-semibold fs-6 mb-3">Applications Mobiles</h4><p class="text-secondary mb-3">
+ Téléchargez l'application GovActu pour rester informé en temps réel.
+ </p><div class="d-flex flex-column gap-2"><a href="#"
+ class="d-flex align-items-center gap-3 bg-secondary bg-opacity-10 p-3 rounded text-decoration-none text-white"><i class="fab fa-apple fs-3"></i><div><div class="small text-secondary">Télécharger sur</div><div class="fw-semibold">App Store</div></div></a><a href="#"
+ class="d-flex align-items-center gap-3 bg-secondary bg-opacity-10 p-3 rounded text-decoration-none text-white"><i class="fab fa-google-play fs-3"></i><div><div class="small text-secondary">Disponible sur</div><div class="fw-semibold">Google Play</div></div></a></div></div></div><div class="row g-3 mt-4 pt-4 border-top border-secondary border-opacity-25"><div class="col-6 col-md-3 text-center"><div class="fs-3 fw-bold text-primary">15,234</div><div class="small text-secondary">Publications Vérifiées</div></div><div class="col-6 col-md-3 text-center"><div class="fs-3 fw-bold text-primary">127</div><div class="small text-secondary">Institutions</div></div><div class="col-6 col-md-3 text-center"><div class="fs-3 fw-bold text-primary">12</div><div class="small text-secondary">Pays Couverts</div></div><div class="col-6 col-md-3 text-center"><div class="fs-3 fw-bold text-primary">45K+</div><div class="small text-secondary">Utilisateurs Actifs</div></div></div></div><div class="bg-black py-3"><div class="container"><div class="d-flex flex-column flex-md-row justify-content-between align-items-center small text-secondary"><div class="mb-2 mb-md-0">
+ © 2024 GovActu. Tous droits réservés. Plateforme officielle certifiée.
+ </div><div class="d-flex align-items-center gap-3"><a href="/privacy" class="text-secondary text-decoration-none">Confidentialité</a><span>•</span><a href="/policy" class="text-secondary text-decoration-none">Mentions Légales</a><span>•</span><a href="/cookies" class="text-secondary text-decoration-none">Cookies</a></div></div></div></div></footer></div><script src=""></script><script>document.body.addEventListener("htmx:configRequest", (event) => {
+event.detail.headers["X-CSRF-Token"] = document.querySelector(
+'meta[name="csrf-token"]'
+).content;
+});
+// Auto-hide flash messages after 5 seconds
+document.addEventListener("DOMContentLoaded", function () {
+const flashMessages = document.querySelectorAll('[role="alert"]');
+flashMessages.forEach(function (message) {
+setTimeout(function () {
+message.style.transition = "opacity 0.5s";
+message.style.opacity = "0";
+setTimeout(function () {
+message.style.display = "none";
+}, 500);
+}, 5000);
+});
+});
+// Glassmorphism effect on navbar scroll
+document.addEventListener("DOMContentLoaded", function () {
+const navbar = document.getElementById("mainNavbar");
+if (navbar) {
+function handleScroll() {
+const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+// Add scrolled class when scrolling down past 10px
+if (scrollTop > 10) {
+navbar.classList.add("scrolled");
+} else {
+navbar.classList.remove("scrolled");
+}
+}
+// Throttle scroll event for better performance
+let ticking = false;
+window.addEventListener("scroll", function () {
+if (!ticking) {
+window.requestAnimationFrame(function () {
+handleScroll();
+ticking = false;
+});
+ticking = true;
+}
+});
+// Check initial scroll position
+handleScroll();
+}
+});
+// Sync localStorage filters with URL on page load
+document.addEventListener("DOMContentLoaded", function () {
+const urlParams = new URLSearchParams(window.location.search);
+const urlCountry = urlParams.get('country');
+const urlLang = urlParams.get('lang');
+const storedCountry = localStorage.getItem('govactu_country');
+const storedLang = localStorage.getItem('govactu_lang');
+// If URL has parameters, sync to localStorage
+if (urlCountry) {
+localStorage.setItem('govactu_country', urlCountry);
+}
+if (urlLang) {
+localStorage.setItem('govactu_lang', urlLang);
+}
+// If localStorage has values but URL doesn't, redirect with parameters
+// This ensures filters persist across navigation on both homepage and publications page
+const currentPath = window.location.pathname;
+const isHomePage = currentPath === '/' || currentPath === '';
+const isPublicationsPage = currentPath === '/publications';
+if ((storedCountry || storedLang) && (isHomePage || isPublicationsPage)) {
+const needsRedirect = (storedCountry && !urlCountry) || (storedLang && !urlLang);
+if (needsRedirect) {
+const newParams = new URLSearchParams(window.location.search);
+if (storedCountry && !urlCountry) {
+newParams.set('country', storedCountry);
+}
+if (storedLang && !urlLang) {
+newParams.set('lang', storedLang);
+}
+// Preserve other query parameters
+const newUrl = `${currentPath}${newParams.toString() ? '?' + newParams.toString() : ''}`;
+// Only redirect if URL actually changed to avoid infinite loops
+if (newUrl !== window.location.pathname + window.location.search) {
+window.history.replaceState({}, '', newUrl);
+// Reload the page to apply the filters
+window.location.reload();
+}
+}
+}
+});
+// Keep layout offset in sync with fixed top bar height
+document.addEventListener("DOMContentLoaded", function () {
+const bar = document.getElementById("govTopBar");
+const spacer = document.getElementById("govTopBarSpacer");
+if (!bar || !spacer) return;
+const update = () => {
+const h = bar.offsetHeight || 0;
+document.documentElement.style.setProperty("--gov-topbar-height", `${h}px`);
+spacer.style.height = `${h}px`;
+};
+update();
+window.addEventListener("resize", update);
+});</script></body></html>
