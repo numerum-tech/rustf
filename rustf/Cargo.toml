@@ -69,7 +69,7 @@ default = [
     "uuid",
 ]
 config = ["toml", "serde-toml-merge"]
-embedded-views = ["rust-embed"]
+embedded-views = ["rust-embed", "rustf-macros/embedded-views"]
 auto-discovery = []
 schema = ["rustf-schema"]
 decimal = ["rust_decimal"]

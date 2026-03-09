@@ -7,25 +7,13 @@ use super::{
 use crate::config::{AppConfig, ViewConfig};
 use crate::error::{Error, Result};
 use crate::repository::APP;
+use crate::views::embed_provider::get_views_provider;
 use crate::views::minifier::minify_html;
 use crate::views::ViewEngineImpl;
-use rust_embed::RustEmbed;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 use std::time::{SystemTime, UNIX_EPOCH};
-
-/// Embedded templates using rust-embed
-///
-/// This embeds all templates from the views directory at compile time.
-/// You can customize the folder path by changing the folder attribute.
-///
-/// Note: This path is relative to the crate root where this is compiled.
-/// Applications using RustF should create their own embedded templates struct
-/// with their specific views folder path.
-#[derive(RustEmbed)]
-#[folder = "views/"]
-struct EmbeddedTemplates;
 
 /// Cache entry for compiled templates
 #[derive(Clone)]
@@ -177,11 +165,19 @@ impl EmbeddedTotalJsEngine {
             path
         };
 
-        // Try to load the embedded file
-        match EmbeddedTemplates::get(normalized_path) {
-            Some(file) => {
+        // Try to load the embedded file via the registered provider
+        let provider = get_views_provider().ok_or_else(|| {
+            Error::template(
+                "No embedded views provider registered. \
+                 Make sure auto_discover!() is called with the embedded-views feature enabled."
+                    .to_string(),
+            )
+        })?;
+
+        match provider.get(normalized_path) {
+            Some(data) => {
                 // Get content as string
-                let content = std::str::from_utf8(&file.data)
+                let content = std::str::from_utf8(&data)
                     .map_err(|e| Error::template(format!("Invalid UTF-8 in template {}: {}", path, e)))?
                     .to_string();
 
@@ -190,7 +186,7 @@ impl EmbeddedTotalJsEngine {
                     use std::collections::hash_map::DefaultHasher;
                     use std::hash::{Hash, Hasher};
                     let mut hasher = DefaultHasher::new();
-                    file.data.hash(&mut hasher);
+                    data.hash(&mut hasher);
                     Some(format!("{:x}", hasher.finish()))
                 } else {
                     None
@@ -325,10 +321,14 @@ impl EmbeddedTotalJsEngine {
                 format!("{}.html", clean_name)
             };
 
-            // Load from embedded templates
-            match EmbeddedTemplates::get(&path) {
-                Some(file) => {
-                    let content = std::str::from_utf8(&file.data).map_err(|e| {
+            // Load from embedded templates via provider
+            let provider = get_views_provider().ok_or_else(|| {
+                Error::template("No embedded views provider registered.".to_string())
+            })?;
+
+            match provider.get(&path) {
+                Some(data) => {
+                    let content = std::str::from_utf8(&data).map_err(|e| {
                         Error::template(format!("Invalid UTF-8 in partial {}: {}", name, e))
                     })?;
 
@@ -337,7 +337,7 @@ impl EmbeddedTotalJsEngine {
                         use std::collections::hash_map::DefaultHasher;
                         use std::hash::{Hash, Hasher};
                         let mut hasher = DefaultHasher::new();
-                        file.data.hash(&mut hasher);
+                        data.hash(&mut hasher);
                         Some(format!("{:x}", hasher.finish()))
                     } else {
                         None
@@ -392,9 +392,13 @@ impl EmbeddedTotalJsEngine {
                     format!("{}.html", clean_name)
                 };
 
-                match EmbeddedTemplates::get(&path) {
-                    Some(file) => {
-                        let content = std::str::from_utf8(&file.data).map_err(|e| {
+                let provider = get_views_provider().ok_or_else(|| {
+                    Error::template("No embedded views provider registered.".to_string())
+                })?;
+
+                match provider.get(&path) {
+                    Some(data) => {
+                        let content = std::str::from_utf8(&data).map_err(|e| {
                             Error::template(format!(
                                 "Invalid UTF-8 in layout partial {}: {}",
                                 name, e
@@ -405,7 +409,7 @@ impl EmbeddedTotalJsEngine {
                             use std::collections::hash_map::DefaultHasher;
                             use std::hash::{Hash, Hasher};
                             let mut hasher = DefaultHasher::new();
-                            file.data.hash(&mut hasher);
+                            data.hash(&mut hasher);
                             Some(format!("{:x}", hasher.finish()))
                         } else {
                             None

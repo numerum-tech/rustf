@@ -16,3 +16,4 @@ walkdir = "2.4"
 
 [features]
 default = []
+embedded-views = []
