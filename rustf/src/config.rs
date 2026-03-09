@@ -123,6 +123,9 @@ pub struct ViewConfig {
 
     #[serde(default = "default_root")]
     pub default_root: String,
+
+    #[serde(default)]
+    pub minify: bool,
 }
 
 /// Template engine - Total.js is the only supported engine
@@ -398,6 +401,7 @@ impl Default for ViewConfig {
             engine: TemplateEngine::default(),
             storage: TemplateStorage::default(),
             default_root: default_root(),
+            minify: false,
         }
     }
 }
@@ -682,6 +686,9 @@ impl AppConfig {
         // Enable view caching in production
         self.views.cache_enabled = true;
 
+        // Enable HTML minification in production
+        self.views.minify = true;
+
         // Enable static file caching
         self.static_files.cache_enabled = true;
 
@@ -797,6 +804,11 @@ impl AppConfig {
             self.views.cache_enabled = cache
                 .parse()
                 .map_err(|_| Error::internal("Invalid RUSTF_VIEW_CACHE value"))?;
+        }
+        if let Ok(minify) = env::var("RUSTF_VIEW_MINIFY") {
+            self.views.minify = minify
+                .parse()
+                .map_err(|_| Error::internal("Invalid RUSTF_VIEW_MINIFY value"))?;
         }
 
         // New storage configuration

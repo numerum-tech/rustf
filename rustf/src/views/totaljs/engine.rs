@@ -8,6 +8,7 @@ use super::{
 use crate::config::{AppConfig, ViewConfig};
 use crate::error::{Error, Result};
 use crate::repository::APP;
+use crate::views::minifier::minify_html;
 use crate::views::ViewEngineImpl;
 use serde_json::Value;
 use std::collections::HashMap;
@@ -137,6 +138,8 @@ pub struct TotalJsEngine {
     translator: Arc<RwLock<Option<TranslationSystem>>>,
     /// Resource translation system (new .res file based)
     resource_translator: Arc<RwLock<Option<ResourceTranslationSystem>>>,
+    /// Whether to minify rendered HTML output
+    minify: bool,
 }
 
 impl TotalJsEngine {
@@ -165,6 +168,8 @@ impl TotalJsEngine {
             config.insert("cache_enabled".to_string(), cache_enabled.to_string());
         }
 
+        let minify = view_config.map(|vc| vc.minify).unwrap_or(false);
+
         Self {
             base_dir: PathBuf::from(base_dir),
             cache: TemplateCache::new(enable_hot_reload),
@@ -172,6 +177,7 @@ impl TotalJsEngine {
             app_config: None,
             translator: Arc::new(RwLock::new(None)),
             resource_translator: Arc::new(RwLock::new(None)),
+            minify,
         }
     }
 
@@ -200,6 +206,8 @@ impl TotalJsEngine {
             app_config.views.cache_enabled.to_string(),
         );
 
+        let minify = app_config.views.minify;
+
         Self {
             base_dir: PathBuf::from(base_dir),
             cache: TemplateCache::new_with_trust_cache(enable_hot_reload, trust_cache),
@@ -207,6 +215,7 @@ impl TotalJsEngine {
             app_config: Some(app_config),
             translator: Arc::new(RwLock::new(None)),
             resource_translator: Arc::new(RwLock::new(None)),
+            minify,
         }
     }
 
@@ -588,13 +597,19 @@ impl ViewEngineImpl for TotalJsEngine {
             data.clone()
         };
 
-        self.render_with_layout_and_session(
+        let html = self.render_with_layout_and_session(
             template,
             &clean_data,
             layout,
             context_repository,
             session_data,
-        )
+        )?;
+
+        if self.minify {
+            Ok(minify_html(&html))
+        } else {
+            Ok(html)
+        }
     }
 }
 
