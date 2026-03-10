@@ -89,6 +89,22 @@ impl RustF {
             config_arc.static_files.directory
         );
 
+        // Auto-create uploads directory if it doesn't exist
+        let uploads_dir = std::path::Path::new(&config_arc.uploads.directory);
+        if !uploads_dir.exists() {
+            match std::fs::create_dir_all(uploads_dir) {
+                Ok(()) => log::info!(
+                    "Created uploads directory: {}",
+                    config_arc.uploads.directory
+                ),
+                Err(e) => log::warn!(
+                    "Could not create uploads directory '{}': {}",
+                    config_arc.uploads.directory,
+                    e
+                ),
+            }
+        }
+
         Self {
             router: Router::new(),
             models: Arc::new(ModelRegistry::new()),
@@ -968,12 +984,12 @@ impl RustF {
             return self.execute_route_handler(ctx).await;
         }
 
-        // Get sorted middleware (by priority)
+        // Get sorted middleware (by priority) — zero-cost slice borrow
         let middleware_list = self.middleware.get_sorted();
         let mut outbound_stack = Vec::new();
 
         // Phase 1: INBOUND - Process request through middleware
-        for middleware in &middleware_list {
+        for middleware in middleware_list {
             // Only process if middleware has inbound phase and should run
             if let Some(ref inbound) = middleware.inbound {
                 if inbound.should_run(ctx) {
@@ -1200,69 +1216,81 @@ impl RustF {
         if_modified_since: Option<&str>,
     ) -> Result<Option<Response>> {
         use std::time::{SystemTime, UNIX_EPOCH};
+        use tokio::io::AsyncReadExt;
 
-        match tokio::fs::metadata(path).await {
-            Ok(metadata) if metadata.is_file() => {
-                let content_type = Self::infer_content_type(path);
+        // Open the file once. This resolves the path a single time and gives us
+        // a file descriptor we can both stat and read — no TOCTOU race, one fewer
+        // syscall on cache misses compared to separate metadata() + read() calls.
+        let mut file = match tokio::fs::File::open(path).await {
+            Ok(f) => f,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+            Err(e) => return Err(e.into()),
+        };
 
-                if cache_enabled {
-                    // Compute ETag from mtime + size (no content read needed for validation)
-                    let mtime = metadata
-                        .modified()
-                        .unwrap_or(SystemTime::UNIX_EPOCH)
-                        .duration_since(UNIX_EPOCH)
-                        .unwrap_or_default()
-                        .as_secs();
-                    let etag = format!("\"{:x}-{:x}\"", mtime, metadata.len());
-                    let last_modified = Self::format_http_date(mtime);
+        // fstat() on the open fd — no second path lookup
+        let metadata = file.metadata().await?;
+        if !metadata.is_file() {
+            return Ok(None);
+        }
 
-                    // Check ETag for 304
-                    if let Some(client_etag) = if_none_match {
-                        if client_etag == etag {
-                            return Ok(Some(
-                                Response::not_modified()
-                                    .with_header("ETag", &etag)
-                                    .with_header("Cache-Control", &format!("public, max-age={}", cache_max_age)),
-                            ));
-                        }
-                    }
+        let content_type = Self::infer_content_type(path);
 
-                    // Check If-Modified-Since for 304
-                    if let Some(ims_header) = if_modified_since {
-                        if let Some(ims_ts) = Self::parse_http_date(ims_header) {
-                            if mtime <= ims_ts {
-                                return Ok(Some(
-                                    Response::not_modified()
-                                        .with_header("ETag", &etag)
-                                        .with_header("Cache-Control", &format!("public, max-age={}", cache_max_age)),
-                                ));
-                            }
-                        }
-                    }
+        if cache_enabled {
+            let mtime = metadata
+                .modified()
+                .unwrap_or(SystemTime::UNIX_EPOCH)
+                .duration_since(UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs();
+            let etag = format!("\"{:x}-{:x}\"", mtime, metadata.len());
+            let last_modified = Self::format_http_date(mtime);
 
-                    let content = tokio::fs::read(path).await?;
-                    Ok(Some(
-                        Response::ok()
-                            .with_header("Content-Type", content_type)
-                            .with_header("Cache-Control", &format!("public, max-age={}", cache_max_age))
+            // 304 checks — file is already open but we return before reading content
+            if let Some(client_etag) = if_none_match {
+                if client_etag == etag {
+                    return Ok(Some(
+                        Response::not_modified()
                             .with_header("ETag", &etag)
-                            .with_header("Last-Modified", &last_modified)
-                            .with_header("Content-Length", &content.len().to_string())
-                            .with_body(content),
-                    ))
-                } else {
-                    let content = tokio::fs::read(path).await?;
-                    Ok(Some(
-                        Response::ok()
-                            .with_header("Content-Type", content_type)
-                            .with_header("Cache-Control", "no-store, no-cache")
-                            .with_body(content),
-                    ))
+                            .with_header("Cache-Control", &format!("public, max-age={}", cache_max_age)),
+                    ));
                 }
             }
-            Ok(_) => Ok(None),
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
-            Err(e) => Err(e.into()),
+            if let Some(ims_header) = if_modified_since {
+                if let Some(ims_ts) = Self::parse_http_date(ims_header) {
+                    if mtime <= ims_ts {
+                        return Ok(Some(
+                            Response::not_modified()
+                                .with_header("ETag", &etag)
+                                .with_header("Cache-Control", &format!("public, max-age={}", cache_max_age)),
+                        ));
+                    }
+                }
+            }
+
+            // Cache miss — read from the already-open fd, pre-allocate from known size
+            let mut content = Vec::with_capacity(metadata.len() as usize);
+            file.read_to_end(&mut content).await?;
+
+            Ok(Some(
+                Response::ok()
+                    .with_header("Content-Type", content_type)
+                    .with_header("Cache-Control", &format!("public, max-age={}", cache_max_age))
+                    .with_header("ETag", &etag)
+                    .with_header("Last-Modified", &last_modified)
+                    .with_header("Content-Length", &content.len().to_string())
+                    .with_body(content),
+            ))
+        } else {
+            // No caching — read from the already-open fd, pre-allocate from known size
+            let mut content = Vec::with_capacity(metadata.len() as usize);
+            file.read_to_end(&mut content).await?;
+
+            Ok(Some(
+                Response::ok()
+                    .with_header("Content-Type", content_type)
+                    .with_header("Cache-Control", "no-store, no-cache")
+                    .with_body(content),
+            ))
         }
     }
 

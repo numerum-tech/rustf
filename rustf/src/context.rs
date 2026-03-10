@@ -264,29 +264,19 @@ impl Context {
         self
     }
 
-    /// Render a view template with data - now memory safe
+    /// Render a view template with data
     pub fn view(&mut self, template: &str, data: Value) -> Result<()> {
-        // Safe reference access - no unsafe code needed
         let views = &self.views;
 
-        // Start with provided data
-        let mut final_data = data;
-
-        // Convert repository HashMap to serde_json Value
+        // Convert per-request repository HashMap to a Value (always fresh, never shared)
         let repository_value = serde_json::to_value(&self.repository)
             .unwrap_or_else(|_| Value::Object(serde_json::Map::new()));
 
-        // Get session data if available
+        // Build per-request session Value if a session is active
         let session_value = if let Some(session) = self.session() {
-            // Get all flash messages (consumes them)
             let flash = session.flash_get_all();
-
-            // Get session data (excludes flash)
             let mut session_data = session.to_value();
-
-            // Build complete session object for templates
             if let Value::Object(ref mut map) = session_data {
-                // Add metadata that templates might need
                 map.insert("id".to_string(), Value::String(session.id().to_string()));
                 map.insert(
                     "authenticated".to_string(),
@@ -304,28 +294,20 @@ impl Context {
                     serde_json::to_value(flash).unwrap_or(Value::Null),
                 );
             }
-
-            session_data
+            Some(session_data)
         } else {
-            Value::Null
+            None
         };
 
-        // Pass all context data to view engine through special internal fields
-        if let Value::Object(ref mut map) = final_data {
-            // Add the context repository data for templates to access
-            map.insert("_context_repository".to_string(), repository_value);
-            // Add session data for templates to access
-            map.insert("_context_session".to_string(), session_value);
-        } else {
-            // Wrap non-object data
-            final_data = serde_json::json!({
-                "data": final_data,
-                "_context_repository": repository_value,
-                "_context_session": session_value
-            });
-        }
-
-        let rendered = views.render(template, &final_data, self.layout_name.as_deref())?;
+        // Pass repository and session as separate arguments — avoids hidden-field
+        // packing and the data.clone() needed to strip those fields in the engine.
+        let rendered = views.render_rich(
+            template,
+            &data,
+            self.layout_name.as_deref(),
+            Some(&repository_value),
+            session_value.as_ref(),
+        )?;
         self.update_response_body(rendered.into_bytes(), "text/html; charset=utf-8", None);
         Ok(())
     }

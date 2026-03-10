@@ -11,6 +11,34 @@ pub mod totaljs; // Total.js is the default built-in template engine // Global V
 /// Trait for view engine implementations
 pub trait ViewEngineImpl: Send + Sync {
     fn render(&self, template: &str, data: &Value, layout: Option<&str>) -> Result<String>;
+
+    /// Render with separately provided repository and session data.
+    ///
+    /// This avoids the hidden-field packing/unpacking round-trip and the
+    /// `data.clone()` needed to strip those fields before rendering.
+    /// Built-in engines override this; custom engines fall back to the
+    /// default which delegates to `render()`.
+    fn render_rich(
+        &self,
+        template: &str,
+        data: &Value,
+        layout: Option<&str>,
+        repository: Option<&Value>,
+        session: Option<&Value>,
+    ) -> Result<String> {
+        // Fallback: re-pack into hidden fields and delegate to render()
+        let mut packed = data.clone();
+        if let Value::Object(ref mut map) = packed {
+            if let Some(repo) = repository {
+                map.insert("_context_repository".to_string(), repo.clone());
+            }
+            if let Some(sess) = session {
+                map.insert("_context_session".to_string(), sess.clone());
+            }
+        }
+        self.render(template, &packed, layout)
+    }
+
     fn set_directory(&mut self, dir: &str);
 }
 
@@ -125,6 +153,17 @@ impl ViewEngine {
 
     pub fn render(&self, template: &str, data: &Value, layout: Option<&str>) -> Result<String> {
         self.engine.render(template, data, layout)
+    }
+
+    pub fn render_rich(
+        &self,
+        template: &str,
+        data: &Value,
+        layout: Option<&str>,
+        repository: Option<&Value>,
+        session: Option<&Value>,
+    ) -> Result<String> {
+        self.engine.render_rich(template, data, layout, repository, session)
     }
 }
 

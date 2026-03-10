@@ -59,64 +59,48 @@ impl TemplateCache {
             .map(|d| d.as_secs())
     }
 
-    fn get_or_compile(&self, path: &Path, content: &str) -> Result<Template> {
+    fn get_or_compile(&self, path: &Path, content: &str) -> Result<Arc<Template>> {
         // If hot reload is enabled (cache disabled), always recompile
         if self.enable_hot_reload {
             let mut parser = Parser::new(content)?;
-            return parser.parse();
+            return parser.parse().map(Arc::new);
         }
 
         let path_str = path.to_string_lossy().to_string();
 
-        // Check cache first - if trust_cache is enabled, skip mtime check entirely
+        // Check cache first — return a cheap Arc clone (refcount increment only)
         if let Ok(cache) = self.cache.read() {
             if let Some(entry) = cache.get(&path_str) {
                 if self.trust_cache {
-                    // Production mode: trust cache, no filesystem check
-                    // Return cloned Arc (cheap reference increment)
-                    return Ok((*entry.template).clone());
+                    return Ok(Arc::clone(&entry.template));
                 } else {
-                    // Development mode: check file modification time
                     let current_mtime = Self::get_file_mtime(path);
                     if let (Some(cached_mtime), Some(current)) = (entry.file_modified, current_mtime) {
                         if current <= cached_mtime {
-                            // Return cloned Arc (cheap reference increment)
-                            return Ok((*entry.template).clone());
+                            return Ok(Arc::clone(&entry.template));
                         }
                     }
                 }
             }
         }
 
-        // Compile template (cache miss or file changed)
+        // Cache miss or stale — compile and store
         let mut parser = Parser::new(content)?;
-        let template = parser.parse()?;
-
-        // Update cache with Arc to avoid cloning on subsequent accesses
-        let file_mtime = if self.trust_cache {
-            // In trust mode, we still record mtime on first load, but don't check it later
-            Self::get_file_mtime(path)
-        } else {
-            Self::get_file_mtime(path)
-        };
-
-        // Store template in Arc to share across requests
-        let template_arc = Arc::new(template);
-        let template_clone = (*template_arc).clone();
+        let template_arc = Arc::new(parser.parse()?);
 
         if let Ok(mut cache) = self.cache.write() {
             let entry = CacheEntry {
-                template: template_arc,
+                template: Arc::clone(&template_arc),
                 _compiled_at: SystemTime::now()
                     .duration_since(UNIX_EPOCH)
                     .unwrap_or_default()
                     .as_secs(),
-                file_modified: file_mtime,
+                file_modified: Self::get_file_mtime(path),
             };
             cache.insert(path_str, entry);
         }
 
-        Ok(template_clone)
+        Ok(template_arc)
     }
 
     fn clear(&self) {
@@ -336,8 +320,8 @@ impl TotalJsEngine {
         path
     }
 
-    /// Load and compile a template
-    fn load_template(&self, path: &Path) -> Result<Template> {
+    /// Load and compile a template, returning a shared Arc (zero-copy on cache hit).
+    fn load_template(&self, path: &Path) -> Result<Arc<Template>> {
         let content = std::fs::read_to_string(path)
             .map_err(|e| Error::template(format!("Failed to load template {:?}: {}", path, e)))?;
 
@@ -450,11 +434,6 @@ impl TotalJsEngine {
         let cache = self.cache.clone();
         let loader: TemplateLoader = Box::new(move |name: &str| {
             let mut path = base_dir.clone();
-
-            // Handle different path types:
-            // - Paths starting with '/' are absolute from views directory
-            // - Other paths are also from views directory (for now)
-            // TODO: In the future, we could make non-'/' paths relative to current template
             let clean_name = name.strip_prefix('/').unwrap_or(name);
 
             if clean_name.ends_with(".html") {
@@ -526,8 +505,6 @@ impl TotalJsEngine {
             let cache = self.cache.clone();
             let loader: TemplateLoader = Box::new(move |name: &str| {
                 let mut path = base_dir.clone();
-
-                // Handle different path types (same as main template loader)
                 let clean_name = name.strip_prefix('/').unwrap_or(name);
 
                 if clean_name.ends_with(".html") {
@@ -605,6 +582,25 @@ impl ViewEngineImpl for TotalJsEngine {
             session_data,
         )?;
 
+        if self.minify {
+            Ok(minify_html(&html))
+        } else {
+            Ok(html)
+        }
+    }
+
+    fn render_rich(
+        &self,
+        template: &str,
+        data: &Value,
+        layout: Option<&str>,
+        repository: Option<&Value>,
+        session: Option<&Value>,
+    ) -> Result<String> {
+        // Call render_with_layout_and_session directly — no hidden-field packing,
+        // no data.clone() needed to strip those fields.
+        let html =
+            self.render_with_layout_and_session(template, data, layout, repository, session)?;
         if self.minify {
             Ok(minify_html(&html))
         } else {

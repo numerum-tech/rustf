@@ -18,7 +18,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 /// Cache entry for compiled templates
 #[derive(Clone)]
 struct CacheEntry {
-    template: Template,
+    template: Arc<Template>,
     _compiled_at: u64,
     #[allow(dead_code)]
     file_hash: Option<String>, // For development hot reload
@@ -39,34 +39,30 @@ impl TemplateCache {
         }
     }
 
-    fn get_or_compile(&self, path: &str, content: &str, hash: Option<String>) -> Result<Template> {
-        // Check cache
+    fn get_or_compile(&self, path: &str, content: &str, hash: Option<String>) -> Result<Arc<Template>> {
+        // Check cache — return a cheap Arc clone (refcount increment only)
         if let Ok(cache) = self.cache.read() {
             if let Some(entry) = cache.get(path) {
-                // In production mode, always use cached version
                 if !self.enable_hot_reload {
-                    return Ok(entry.template.clone());
+                    return Ok(Arc::clone(&entry.template));
                 }
-
-                // In development mode, check if file has changed
                 if let Some(current_hash) = &hash {
                     if let Some(cached_hash) = &entry.file_hash {
                         if current_hash == cached_hash {
-                            return Ok(entry.template.clone());
+                            return Ok(Arc::clone(&entry.template));
                         }
                     }
                 }
             }
         }
 
-        // Compile template
+        // Cache miss or stale — compile and store
         let mut parser = Parser::new(content)?;
-        let template = parser.parse()?;
+        let template_arc = Arc::new(parser.parse()?);
 
-        // Update cache
         if let Ok(mut cache) = self.cache.write() {
             let entry = CacheEntry {
-                template: template.clone(),
+                template: Arc::clone(&template_arc),
                 _compiled_at: SystemTime::now()
                     .duration_since(UNIX_EPOCH)
                     .unwrap_or_default()
@@ -76,7 +72,7 @@ impl TemplateCache {
             cache.insert(path.to_string(), entry);
         }
 
-        Ok(template)
+        Ok(template_arc)
     }
 
     fn clear(&self) {
@@ -201,8 +197,8 @@ impl EmbeddedTotalJsEngine {
         }
     }
 
-    /// Load and compile a template
-    fn load_template(&self, path: &str) -> Result<Template> {
+    /// Load and compile a template, returning a shared Arc (zero-copy on cache hit).
+    fn load_template(&self, path: &str) -> Result<Arc<Template>> {
         let (content, hash) = self.load_embedded_template(path)?;
         self.cache.get_or_compile(path, &content, hash)
     }
@@ -496,6 +492,23 @@ impl ViewEngineImpl for EmbeddedTotalJsEngine {
             session_data,
         )?;
 
+        if self.minify {
+            Ok(minify_html(&html))
+        } else {
+            Ok(html)
+        }
+    }
+
+    fn render_rich(
+        &self,
+        template: &str,
+        data: &Value,
+        layout: Option<&str>,
+        repository: Option<&Value>,
+        session: Option<&Value>,
+    ) -> Result<String> {
+        let html =
+            self.render_with_layout_and_session(template, data, layout, repository, session)?;
         if self.minify {
             Ok(minify_html(&html))
         } else {
