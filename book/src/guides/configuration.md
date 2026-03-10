@@ -147,7 +147,7 @@ The main configuration structure in RustF:
 
 ```rust
 pub struct AppConfig {
-    pub environment: Environment,        // development, staging, production, testing
+    pub environment: Environment,        // development or production
     pub server: ServerConfig,           // Server settings
     pub views: ViewConfig,              // Template engine settings
     pub session: SessionConfig,         // Session management
@@ -189,11 +189,13 @@ storage = "filesystem"      # Storage method: "filesystem" or "embedded"
 #### Session Configuration
 ```toml
 [session]
-secret = "change-me-in-production"  # Session encryption secret
-timeout = 3600              # Session timeout in seconds
+enabled = true              # Enable session middleware
 cookie_name = "rustf_session"       # Session cookie name
-secure = false              # Secure cookies (HTTPS only)
-http_only = true            # HttpOnly flag for cookies
+idle_timeout = 900          # Idle timeout in seconds (15 min default)
+absolute_timeout = 28800    # Absolute timeout in seconds (8 hours default)
+same_site = "Lax"           # SameSite cookie policy
+fingerprint_mode = "soft"   # Fingerprint mode for session binding
+exempt_routes = []          # Routes exempt from session requirement
 
 [session.storage]
 type = "memory"             # Storage backend: "memory", "redis", or "database"
@@ -205,7 +207,7 @@ cleanup_interval = 300      # Cleanup interval in seconds (for memory storage)
 [database]
 url = "postgresql://user:pass@localhost/myapp"  # Database connection URL
 max_connections = 10        # Connection pool size
-timeout = 5000              # Connection timeout in milliseconds
+timeout = 5000              # Connection timeout in seconds
 ```
 
 #### Static Files Configuration
@@ -300,16 +302,24 @@ let stripe_key = CONF::get_string("payment.stripe_key")?;
 
 ### File Locations and Loading Order
 
-1. **Base Configuration**: `config.toml`
-2. **Environment-Specific**: `config.{environment}.toml`
-3. **Environment Variables**: `RUSTF_*` prefixed variables
-4. **CLI Arguments**: `--config` flag
+Config loading follows this pipeline at startup:
+
+1. **Base config** (`config.toml`) is loaded first — always required in release builds.
+2. **Environment is resolved** from: `RUSTF_ENV` / `RAILS_ENV` / `NODE_ENV` env vars → then `[app] environment` field in `config.toml` → then `development` default.
+3. **Overlay is merged** (`config.dev.toml` or `config.prod.toml`) on top of the base using TOML-level deep merge — only the keys present in the overlay override the base.
+4. **Environment variables** (`RUSTF_*` prefix) override individual values after merging.
+
+> **Release binary note**: In release builds the binary looks for `config.toml` in **the same directory as the binary itself**, not in the current working directory. Place `config.toml`, `config.prod.toml`, `public/`, and `views/` next to the binary in your deployment directory.
+
+> **`--config` note**: When using `--config /path/to/config.toml`, the overlay (`config.prod.toml` / `config.dev.toml`) is also automatically loaded from the **same directory as the specified file**.
 
 ### Example config.toml
 
 ```toml
 # Base configuration for all environments
-environment = "development"
+
+[app]
+environment = "development"   # Controls which overlay is loaded (dev or prod)
 
 [server]
 host = "127.0.0.1"
@@ -323,9 +333,9 @@ cache_enabled = false
 extension = "html"
 
 [session]
-secret = "dev-secret-change-in-production"
-timeout = 3600
 cookie_name = "rustf_session"
+idle_timeout = 900
+absolute_timeout = 28800
 
 [database]
 url = "postgresql://localhost/myapp_dev"
@@ -346,10 +356,11 @@ feature_x_enabled = "false"
 
 ### Environment-Specific Overrides
 
+The overlay is loaded **automatically** based on the `[app] environment` value in `config.toml`. Only the keys you specify override the base — everything else is inherited.
+
 #### config.prod.toml
 ```toml
-# Production-specific overrides
-environment = "production"
+# Production overrides — merged on top of config.toml when environment = "production"
 
 [server]
 host = "0.0.0.0"
@@ -362,12 +373,8 @@ max_connections = 2000
 [views]
 cache_enabled = true
 
-[session]
-secret = "${RUSTF_SESSION_SECRET}"  # Read from environment
-secure = true
-
 [database]
-url = "${DATABASE_URL}"  # Read from environment
+url = "${DATABASE_URL}"  # Override with env var at runtime
 max_connections = 20
 
 [logging]
@@ -401,15 +408,6 @@ DATABASE_URL=postgresql://user:pass@host/db  # Database URL (standard)
 RUSTF_DATABASE_URL=postgresql://...          # Alternative prefix
 RUSTF_DB_MAX_CONNECTIONS=20                  # Pool size
 RUSTF_DB_TIMEOUT=10000                       # Timeout in ms
-```
-
-### Session Settings
-```bash
-RUSTF_SESSION_SECRET=very-secret-key         # Session secret
-RUSTF_SESSION_TIMEOUT=7200                   # Session timeout
-RUSTF_SESSION_COOKIE_NAME=my_session         # Cookie name
-RUSTF_SESSION_SECURE=true                    # Secure cookies
-RUSTF_SESSION_HTTP_ONLY=true                 # HttpOnly cookies
 ```
 
 ### View Settings
@@ -493,12 +491,13 @@ fn main() -> Result<()> {
 
 ## Environment Detection
 
-RustF automatically detects the environment from these sources (in order):
+RustF resolves the environment from these sources (in priority order):
 
 1. `RUSTF_ENV` environment variable
 2. `RAILS_ENV` environment variable (Rails compatibility)
 3. `NODE_ENV` environment variable (Node.js compatibility)
-4. Default: `development`
+4. `[app] environment = "production"` in `config.toml` — the recommended way for per-app declaration
+5. Default: `development`
 
 ```rust
 pub enum Environment {
@@ -506,6 +505,8 @@ pub enum Environment {
     Production,   // Live production environment
 }
 ```
+
+The two valid string values are `"production"` (or `"prod"`) and `"development"` (or `"dev"`).
 
 ### Environment-Specific Behavior
 
@@ -642,12 +643,13 @@ The unified approach eliminates cognitive overhead:
 ### 1. Use Environment Variables for Secrets
 
 ```toml
-# config.production.toml
-[session]
-secret = "${RUSTF_SESSION_SECRET}"  # Never hardcode production secrets
-
+# config.prod.toml — secrets come from env vars, never hardcoded
 [database]
 url = "${DATABASE_URL}"              # Use environment variable
+
+[session.storage]
+type = "redis"
+url = "${REDIS_URL}"
 
 [custom]
 api_key = "${API_KEY}"               # External service credentials
@@ -656,9 +658,9 @@ api_key = "${API_KEY}"               # External service credentials
 ### 2. Environment-Specific Files
 
 ```
-config.toml          # Base configuration
-config.dev.toml      # Development overrides
-config.prod.toml     # Production settings
+config.toml          # Base configuration — set [app] environment = "production" here
+config.dev.toml      # Development overrides (loaded when environment = "development")
+config.prod.toml     # Production overrides (loaded when environment = "production")
 ```
 
 ### 3. Custom Settings Organization
@@ -766,8 +768,7 @@ url = "postgresql://localhost/myapp"
 ### Full Production Configuration
 
 ```toml
-# config.prod.toml
-environment = "production"
+# config.prod.toml — merges on top of config.toml when [app] environment = "production"
 
 [server]
 host = "0.0.0.0"
@@ -785,11 +786,9 @@ cache_enabled = true
 storage = "embedded"  # Use embedded templates in production
 
 [session]
-secret = "${SESSION_SECRET}"  # From environment
-timeout = 86400  # 24 hours
 cookie_name = "app_session"
-secure = true
-http_only = true
+idle_timeout = 86400      # 24 hours
+absolute_timeout = 604800 # 7 days
 
 [session.storage]
 type = "redis"
