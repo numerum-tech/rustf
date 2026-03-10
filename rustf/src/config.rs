@@ -478,16 +478,22 @@ impl AppConfig {
 
     /// Load configuration with development-time auto-detection
     pub fn load_with_dev_detection() -> Result<Self> {
-        // Check if we're in a development environment and look for config in target/debug
-        let base_dir = if cfg!(debug_assertions) && Path::new("target/debug").exists() {
-            // Look for config relative to target/debug (where the binary runs)
-            if Path::new("../../config.toml").exists() {
-                "../.."
+        let base_dir: std::path::PathBuf = if cfg!(debug_assertions) {
+            // Debug builds: look relative to CWD (project root when using cargo run)
+            if Path::new("target/debug").exists() && Path::new("../../config.toml").exists() {
+                std::path::PathBuf::from("../..")
             } else {
-                "."
+                std::path::PathBuf::from(".")
             }
         } else {
-            "."
+            // Release builds: look next to the binary, not the CWD.
+            // Resolves symlinks so /usr/local/bin/myapp -> /opt/myapp/myapp
+            // correctly uses /opt/myapp/ as the config directory.
+            std::env::current_exe()
+                .ok()
+                .and_then(|p| p.canonicalize().ok())
+                .and_then(|p| p.parent().map(|p| p.to_path_buf()))
+                .unwrap_or_else(|| std::path::PathBuf::from("."))
         };
 
         Self::load_with_base_dir(base_dir)
@@ -497,21 +503,32 @@ impl AppConfig {
     pub fn load_with_base_dir<P: AsRef<Path>>(base_dir: P) -> Result<Self> {
         let base_dir = base_dir.as_ref();
 
-        // Determine environment
-        let env = Self::detect_environment();
-
-        // Load base configuration as TOML Value
+        // Load base configuration as TOML Value first
         let base_config_path = base_dir.join("config.toml");
         let mut merged_value = if base_config_path.exists() {
             Self::load_toml_value(&base_config_path)?
+        } else if !cfg!(debug_assertions) {
+            // In release builds, a missing config.toml is a hard error.
+            // The binary must be launched from the directory containing config.toml,
+            // or --config <path> must be used to specify its location.
+            return Err(Error::internal(format!(
+                "Configuration file not found: '{}'. \
+                 Launch the binary from the directory containing config.toml, \
+                 or use --config <path> to specify its location.",
+                base_config_path.display()
+            )));
         } else {
-            // Use default config as Value
+            // In debug builds, fall back to defaults for dev convenience
             let default_config = AppConfig::default();
             toml::to_string(&default_config)
                 .ok()
                 .and_then(|s| toml::from_str(&s).ok())
                 .unwrap_or(toml::Value::Table(toml::map::Map::new()))
         };
+
+        // Resolve environment AFTER reading config.toml so we can honour the
+        // `environment` field declared there. Env vars still override if set.
+        let env = Self::resolve_environment(&merged_value);
 
         // Load and merge environment-specific configuration if it exists
         let env_config_path = base_dir.join(format!("config.{}.toml", env.as_str()));
@@ -552,8 +569,8 @@ impl AppConfig {
         // Apply environment variable overrides
         config.apply_env_overrides()?;
 
-        // Resolve views directory path (supports both relative and absolute paths)
-        config.resolve_views_directory(base_dir)?;
+        // Resolve all path fields relative to the config base directory
+        config.resolve_relative_paths(base_dir)?;
 
         // Apply security defaults for production
         if config.environment.is_production() {
@@ -577,37 +594,74 @@ impl AppConfig {
     }
 
     /// Load configuration from TOML file
+    ///
+    /// Mirrors `load_with_base_dir()`: resolves the environment, merges the
+    /// environment overlay (`config.prod.toml` / `config.dev.toml`) from the
+    /// same directory as the specified file, applies env-var overrides, and
+    /// runs production security/performance defaults.
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self> {
         let path_ref = path.as_ref();
 
-        // Enhanced error message with path information
-        let content = fs::read_to_string(path_ref).map_err(|e| {
-            Error::internal(format!(
-                "Failed to read config file '{}': {}. Make sure the file exists and is readable.",
-                path_ref.display(),
-                e
-            ))
-        })?;
+        // Base directory for overlay lookup = directory containing the config file
+        let base_dir = path_ref
+            .parent()
+            .map(|p| p.to_path_buf())
+            .unwrap_or_else(|| std::path::PathBuf::from("."));
 
-        let mut config: AppConfig = toml::from_str(&content).map_err(|e| {
-            Error::internal(format!(
-                "Failed to parse config file '{}': {}. Check TOML syntax.",
-                path_ref.display(),
-                e
-            ))
-        })?;
+        // Load specified file as raw TOML value
+        let mut merged_value = Self::load_toml_value(path_ref)?;
 
-        // Resolve paths relative to the config file's directory
-        if let Some(parent_dir) = path_ref.parent() {
-            config.resolve_views_directory(parent_dir)?;
-        } else {
-            config.resolve_views_directory(".")?;
+        // Resolve environment (env vars > [app].environment in file > Development)
+        let env = Self::resolve_environment(&merged_value);
+
+        // Merge environment overlay if present (config.prod.toml / config.dev.toml)
+        let env_config_path = base_dir.join(format!("config.{}.toml", env.as_str()));
+        if env_config_path.exists() {
+            let env_value = Self::load_toml_value(&env_config_path)?;
+
+            #[cfg(feature = "config")]
+            {
+                use serde_toml_merge::merge;
+                merged_value = merge(merged_value, env_value).map_err(|e| {
+                    Error::internal(format!("Failed to merge configuration files: {}", e))
+                })?;
+            }
+
+            #[cfg(not(feature = "config"))]
+            {
+                log::warn!(
+                    "Config feature not enabled, skipping environment-specific config merge"
+                );
+            }
         }
 
-        log::debug!(
-            "Successfully loaded configuration from: {}",
-            path_ref.display()
+        // Deserialize merged TOML
+        let json_value = serde_json::to_value(&merged_value).map_err(|e| {
+            Error::internal(format!("Failed to convert merged configuration: {}", e))
+        })?;
+
+        let mut config: AppConfig = serde_json::from_value(json_value).map_err(|e| {
+            Error::internal(format!("Failed to deserialize merged configuration: {}", e))
+        })?;
+
+        // Apply all post-load steps (same pipeline as load_with_base_dir)
+        config.environment = env.clone();
+        config.apply_env_overrides()?;
+        config.resolve_relative_paths(&base_dir)?;
+
+        if config.environment.is_production() {
+            config.apply_security_defaults();
+            config.apply_performance_defaults();
+        }
+
+        config.validate()?;
+
+        log::info!(
+            "Configuration loaded from '{}' (environment: {})",
+            path_ref.display(),
+            config.environment.as_str()
         );
+
         Ok(config)
     }
 
@@ -662,6 +716,36 @@ impl AppConfig {
         }
 
         // Default to development
+        Environment::Development
+    }
+
+    /// Resolve the active environment from the loaded base config TOML and env vars.
+    ///
+    /// Priority order:
+    /// 1. `RUSTF_ENV` / `RAILS_ENV` / `NODE_ENV` env vars (deployment override)
+    /// 2. `environment` field in `config.toml` (per-app declaration)
+    /// 3. `Development` (fallback)
+    fn resolve_environment(base_toml: &toml::Value) -> Environment {
+        // Env vars always win — useful for Docker, CI, or temporary overrides
+        if let Ok(env) = env::var("RUSTF_ENV") {
+            return Environment::from_str(&env);
+        }
+        if let Ok(env) = env::var("RAILS_ENV") {
+            return Environment::from_str(&env);
+        }
+        if let Ok(env) = env::var("NODE_ENV") {
+            return Environment::from_str(&env);
+        }
+
+        // Read from config.toml's [app] section: environment = "production"
+        if let toml::Value::Table(root) = base_toml {
+            if let Some(toml::Value::Table(app)) = root.get("app") {
+                if let Some(toml::Value::String(env_str)) = app.get("environment") {
+                    return Environment::from_str(env_str);
+                }
+            }
+        }
+
         Environment::Development
     }
 
@@ -949,45 +1033,42 @@ impl AppConfig {
         Ok(())
     }
 
-    /// Resolve views directory path to handle relative and absolute paths properly
+    /// Resolve all directory paths (views, static, uploads) relative to the config base dir.
     ///
-    /// This method converts relative paths to be relative to the config base directory
-    /// and normalizes absolute paths. This allows the config to specify paths like:
-    /// - "views" (relative to config location)
-    /// - "./templates" (relative to config location)
-    /// - "../shared/views" (relative to config location)
-    /// - "/absolute/path/to/views" (absolute path)
-    fn resolve_views_directory<P: AsRef<Path>>(&mut self, base_dir: P) -> Result<()> {
-        // Only resolve for filesystem storage
-        if !matches!(self.views.storage, TemplateStorage::Filesystem) {
-            return Ok(());
+    /// Relative paths like `"public"` or `"views"` are joined to `base_dir` so they
+    /// resolve correctly regardless of the process CWD. Absolute paths are kept as-is.
+    fn resolve_relative_paths<P: AsRef<Path>>(&mut self, base_dir: P) -> Result<()> {
+        let base = base_dir.as_ref();
+
+        // Views directory — only meaningful for filesystem storage
+        if matches!(self.views.storage, TemplateStorage::Filesystem) {
+            self.views.directory = Self::resolve_dir(&self.views.directory, base);
         }
 
-        let views_path = Path::new(&self.views.directory);
-
-        if views_path.is_absolute() {
-            // Absolute path - use as-is but normalize
-            self.views.directory = views_path.to_string_lossy().to_string();
-        } else {
-            // Relative path - make it relative to the config base directory
-            let resolved_path = base_dir.as_ref().join(views_path);
-
-            // Canonicalize if the directory exists, otherwise store the logical path
-            if resolved_path.exists() {
-                match resolved_path.canonicalize() {
-                    Ok(canonical) => {
-                        self.views.directory = canonical.to_string_lossy().to_string();
-                    }
-                    Err(_) => {
-                        self.views.directory = resolved_path.to_string_lossy().to_string();
-                    }
-                }
-            } else {
-                self.views.directory = resolved_path.to_string_lossy().to_string();
-            }
-        }
+        // Static files and uploads are always path-sensitive
+        self.static_files.directory = Self::resolve_dir(&self.static_files.directory, base);
+        self.uploads.directory = Self::resolve_dir(&self.uploads.directory, base);
 
         Ok(())
+    }
+
+    /// Join a relative path to `base`, canonicalizing if it already exists.
+    /// Absolute paths are returned unchanged.
+    fn resolve_dir(dir: &str, base: &Path) -> String {
+        let p = Path::new(dir);
+        if p.is_absolute() {
+            return dir.to_string();
+        }
+        let joined = base.join(p);
+        if joined.exists() {
+            joined
+                .canonicalize()
+                .unwrap_or(joined)
+                .to_string_lossy()
+                .into_owned()
+        } else {
+            joined.to_string_lossy().into_owned()
+        }
     }
 
     /// Get server address string
@@ -1327,5 +1408,24 @@ enabled = true
             .and_then(|v| v.get("stripe_key"))
             .and_then(|v| v.as_str());
         assert_eq!(stripe_key, Some("sk_test_123"));
+    }
+
+    #[test]
+    fn test_resolve_environment_from_config_toml() {
+        // [app] environment = "production" in config.toml → Production, no env vars needed
+        let toml_str = r#"[app]
+environment = "production"
+"#;
+        let toml_value: toml::Value = toml::from_str(toml_str).unwrap();
+        let env = AppConfig::resolve_environment(&toml_value);
+        assert_eq!(env, Environment::Production);
+    }
+
+    #[test]
+    fn test_resolve_environment_default() {
+        // No environment field, no env vars → Development
+        let toml_value = toml::Value::Table(toml::map::Map::new());
+        let env = AppConfig::resolve_environment(&toml_value);
+        assert_eq!(env, Environment::Development);
     }
 }

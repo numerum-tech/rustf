@@ -1130,8 +1130,11 @@ impl RenderContext {
     }
 }
 
-/// Template loader function type
-pub type TemplateLoader = Box<dyn Fn(&str) -> Result<Template> + Send + Sync>;
+/// Template loader function type.
+///
+/// Returns `Arc<Template>` so the cache can hand out a shared reference
+/// without copying the parsed AST on every partial load.
+pub type TemplateLoader = Box<dyn Fn(&str) -> Result<Arc<Template>> + Send + Sync>;
 
 /// Template renderer
 pub struct Renderer {
@@ -1464,14 +1467,12 @@ impl Renderer {
                 // Try to use template loader first (uses cache)
                 if let Some(loader) = &self.template_loader {
                     match loader(name) {
-                        Ok(mut partial_template) => {
-                            // Extract sections and helpers
-                            partial_template.extract_sections();
-                            partial_template.extract_helpers();
+                        Ok(partial_template) => {
+                            // Sections and helpers are already extracted by the parser —
+                            // no need to re-extract from the cached Arc<Template>.
 
                             // Create a new renderer for the partial with the same or updated context
                             let partial_context = if let Some(model_expr) = model {
-                                // If a model expression is provided, create context with that as the data
                                 let model_value =
                                     self.context.resolve_value_from_expression(model_expr);
                                 RenderContext::new(model_value)
@@ -1485,25 +1486,22 @@ impl Renderer {
                                     .with_url(self.context.url.clone())
                                     .with_hostname(self.context.hostname.clone())
                             } else {
-                                // No model specified, use the same context
                                 self.context.clone()
                             };
 
                             let mut partial_renderer = Renderer::new(partial_context);
 
-                            // Pass along the template loader to support nested partials
                             if let Some(loader) = &self.template_loader {
                                 partial_renderer =
                                     partial_renderer.with_template_loader(Arc::clone(loader));
                             }
 
-                            // Also pass along template path as fallback
                             if let Some(path) = &self.template_path {
                                 partial_renderer =
                                     partial_renderer.with_template_path(path.clone());
                             }
 
-                            // Render the partial
+                            // Arc<Template> auto-derefs to &Template
                             return partial_renderer.render(&partial_template);
                         }
                         Err(_) => {
@@ -1553,13 +1551,8 @@ impl Renderer {
                                         partial_renderer.with_template_loader(Arc::clone(loader));
                                 }
 
-                                // Extract sections and helpers
-                                let mut partial_template = template;
-                                partial_template.extract_sections();
-                                partial_template.extract_helpers();
-
-                                // Render the partial
-                                return partial_renderer.render(&partial_template);
+                                // Sections/helpers already extracted by parser
+                                return partial_renderer.render(&template);
                             }
                         }
                     }

@@ -551,8 +551,6 @@ impl<T: BaseModel> ModelQuery<T> {
             .build()
             .map_err(|e| Error::template(format!("Query build failed: {}", e)))?;
 
-        println!("[DEBUG] Executing raw SQL: {}", sql);
-
         let rows = DB::fetch_all_with_params(&sql, params)
             .await
             .map_err(|e| Error::database_query(e.to_string()))?;

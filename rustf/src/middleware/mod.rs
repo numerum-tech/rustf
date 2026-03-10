@@ -64,11 +64,14 @@ impl std::fmt::Debug for MiddlewareResult {
     }
 }
 
-/// Registry for storing and managing dual-phase middleware instances
+/// Registry for storing and managing dual-phase middleware instances.
+///
+/// Middleware is kept sorted by priority at all times so that `get_sorted`
+/// is a zero-cost borrow of the internal slice — no allocation or sort on
+/// every request.
 #[derive(Default)]
 pub struct MiddlewareRegistry {
     pub(crate) middleware: Vec<DualPhaseMiddlewareInstance>,
-    sorted: bool,
 }
 
 impl MiddlewareRegistry {
@@ -76,7 +79,6 @@ impl MiddlewareRegistry {
     pub fn new() -> Self {
         Self {
             middleware: Vec::new(),
-            sorted: true, // Empty is considered sorted
         }
     }
 
@@ -84,14 +86,14 @@ impl MiddlewareRegistry {
     pub fn register_inbound<M: InboundMiddleware>(&mut self, name: &str, middleware: M) {
         self.middleware
             .push(DualPhaseMiddlewareInstance::inbound(name, middleware));
-        self.sorted = false;
+        self.middleware.sort_by_key(|m| m.priority);
     }
 
     /// Register an outbound-only middleware
     pub fn register_outbound<M: OutboundMiddleware>(&mut self, name: &str, middleware: M) {
         self.middleware
             .push(DualPhaseMiddlewareInstance::outbound(name, middleware));
-        self.sorted = false;
+        self.middleware.sort_by_key(|m| m.priority);
     }
 
     /// Register a dual-phase middleware
@@ -101,7 +103,7 @@ impl MiddlewareRegistry {
     {
         self.middleware
             .push(DualPhaseMiddlewareInstance::dual(name, middleware));
-        self.sorted = false;
+        self.middleware.sort_by_key(|m| m.priority);
     }
 
     /// Compatibility method for old code - converts to dual phase
@@ -112,11 +114,9 @@ impl MiddlewareRegistry {
         self.register_dual(name, middleware);
     }
 
-    /// Get all middleware instances sorted by priority
-    pub fn get_sorted(&self) -> Vec<&DualPhaseMiddlewareInstance> {
-        let mut sorted_refs: Vec<&DualPhaseMiddlewareInstance> = self.middleware.iter().collect();
-        sorted_refs.sort_by_key(|m| m.priority);
-        sorted_refs
+    /// Return middleware in priority order. Zero-cost — already sorted.
+    pub fn get_sorted(&self) -> &[DualPhaseMiddlewareInstance] {
+        &self.middleware
     }
 
     /// Check if registry is empty
