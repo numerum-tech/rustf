@@ -30,36 +30,52 @@ RUSTFLAGS="-C target-cpu=native" cargo build --release
 
 ## Configuration
 
+### Deployment Layout
+
+Place all files next to the binary — in release builds the binary looks for `config.toml` **in the same directory as itself**, not in the working directory:
+
+```
+/opt/myapp/
+├── myapp              ← binary
+├── config.toml        ← [app] environment = "production" set here
+├── config.prod.toml   ← production overrides, loaded automatically
+├── public/            ← static files
+└── views/             ← templates (if using filesystem storage)
+```
+
 ### Production Config
 
-Create `config.prod.toml`:
+In `config.toml` declare the environment under `[app]`:
 
 ```toml
-environment = "production"
+[app]
+environment = "production"   # triggers config.prod.toml overlay
 
 [server]
 host = "0.0.0.0"
 port = 8080
-timeout = 30
+```
+
+Create `config.prod.toml` for production-specific overrides (merged on top of `config.toml`):
+
+```toml
+[server]
+timeout = 60
 
 [database]
 url = "postgresql://user:pass@localhost/dbname"
-pool_size = 20
+max_connections = 20
 
 [session]
-timeout = 7200
-secure = true
-http_only = true
+idle_timeout = 7200
 cookie_name = "app_session"
 
 [views]
 cache_enabled = true
-directory = "views"
 
 [logging]
 level = "warn"
-output = "file"
-file_path = "/var/log/app/error.log"
+file = "/var/log/app/error.log"
 ```
 
 ### Environment Variables
@@ -84,16 +100,17 @@ After=network.target
 [Service]
 Type=simple
 User=www-data
-WorkingDirectory=/opt/rustf-app
-ExecStart=/opt/rustf-app/target/release/rustf-app
+WorkingDirectory=/opt/myapp
+ExecStart=/opt/myapp/myapp
 Restart=always
 RestartSec=10
-Environment="RUSTF_ENV=production"
 Environment="RUST_LOG=warn"
 
 [Install]
 WantedBy=multi-user.target
 ```
+
+> **Note**: `RUSTF_ENV` is not needed here — environment is declared via `[app] environment = "production"` in `config.toml`. The binary always finds `config.toml` next to itself regardless of the working directory.
 
 Enable and start:
 
@@ -241,7 +258,6 @@ cache_enabled = true
 
 ```toml
 [database]
-pool_size = 20
 max_connections = 50
 ```
 
