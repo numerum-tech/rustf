@@ -1,54 +1,87 @@
-//! {{title}} business logic — stateless module.
+//! {{title}} business logic — the ONLY place that touches the
+//! `{{pascal_name}}` model.
 //!
-//! The ONLY place in the feature that calls the `{{pascal_name_singular}}`
-//! model. Controllers call this service; workers and CLI tasks can reuse it
-//! without duplicating logic (RustF layering rule: DRY through modules).
+//! Wired to the REAL schema-generated model at `src/models/{{name}}.rs`.
+//! `list_all` / `find` / `delete` are generic (they don't need to know
+//! your field names). `create` and `update` have TODO markers because
+//! the field names come from your schema — fill them in to match
+//! `schemas/{{name}}.yaml`.
+//!
+//! Layering reminder: controllers call this service, nothing else calls
+//! the model directly. Keep business rules here so they're reusable from
+//! workers, events, and tests.
 
-use crate::models::{{name}}::{{pascal_name_singular}};
+use crate::models::{{name}}::{{pascal_name}};
+use rustf::models::BaseModel;
 use rustf::prelude::*;
 use std::collections::HashMap;
 
 pub struct {{pascal_name}}Service;
 
 impl {{pascal_name}}Service {
-    pub async fn list_all() -> rustf::Result<Vec<{{pascal_name_singular}}>> {
-        Ok({{pascal_name_singular}}::all())
+    /// List every row. Add `where_*` filters before `get_all()` as needed.
+    pub async fn list_all() -> rustf::Result<Vec<{{pascal_name}}>> {
+        {{pascal_name}}::query()?.get_all().await
     }
 
-    pub async fn find(id: i64) -> rustf::Result<Option<{{pascal_name_singular}}>> {
-        Ok({{pascal_name_singular}}::find(id))
+    /// Find one row by id. Returns Ok(None) if not found.
+    ///
+    /// `id: i64` works across i32 / i64 primary keys because `where_eq`
+    /// accepts `V: Into<SqlValue>` and coerces to the column's type.
+    pub async fn find(id: i64) -> rustf::Result<Option<{{pascal_name}}>> {
+        {{pascal_name}}::query()?
+            .where_eq("id", id)
+            .get_first()
+            .await
     }
 
-    pub async fn create(form: &HashMap<String, String>) -> rustf::Result<i64> {
-        let name = Self::validate_name(form)?;
-        let item = {{pascal_name_singular}}::create(name);
-        Ok(item.id)
+    /// Create a new row from a form submission.
+    ///
+    /// TODO: replace the field mapping below with the real fields from
+    /// `schemas/{{name}}.yaml`. The generated model's builder gives you
+    /// a typed setter per field (e.g. `.email("...")`, `.age(42)`). The
+    /// `.save()` call uses the global DB connection — no pool argument.
+    pub async fn create(_form: &HashMap<String, String>) -> rustf::Result<i64> {
+        // let item = {{pascal_name}}::builder()
+        //     .field_one(form.get("field_one").cloned().unwrap_or_default())
+        //     .field_two(form.get("field_two").and_then(|s| s.parse().ok()).unwrap_or_default())
+        //     .save()
+        //     .await?;
+        // Ok(item.id() as i64)
+        Err(rustf::Error::internal(
+            "{{pascal_name}}Service::create — wire up the field mapping for your schema",
+        ))
     }
 
-    pub async fn update(id: i64, form: &HashMap<String, String>) -> rustf::Result<()> {
-        let name = Self::validate_name(form)?;
-        if {{pascal_name_singular}}::update(id, name).is_none() {
+    /// Update an existing row from a form submission.
+    ///
+    /// Uses the smart-update pattern: fetch, call `set_*` setters, then
+    /// `update()` emits UPDATE only for the fields you actually changed.
+    ///
+    /// TODO: add your real `.set_field_name(...)` calls below.
+    pub async fn update(id: i64, _form: &HashMap<String, String>) -> rustf::Result<()> {
+        let Some(mut item) = Self::find(id).await? else {
             return Err(rustf::Error::validation("{{title_singular}} not found"));
-        }
-        Ok(())
+        };
+
+        // if let Some(v) = form.get("field_one") {
+        //     item.set_field_one(v.clone());
+        // }
+        // if let Some(v) = form.get("field_two").and_then(|s| s.parse().ok()) {
+        //     item.set_field_two(v);
+        // }
+        item.update().await?;
+        let _ = &item; // silence "unused" while TODO stubs are in place
+        Err(rustf::Error::internal(
+            "{{pascal_name}}Service::update — wire up the setters for your schema",
+        ))
     }
 
+    /// Delete a row by id.
     pub async fn delete(id: i64) -> rustf::Result<()> {
-        if !{{pascal_name_singular}}::delete(id) {
+        let Some(item) = Self::find(id).await? else {
             return Err(rustf::Error::validation("{{title_singular}} not found"));
-        }
-        Ok(())
-    }
-
-    fn validate_name(form: &HashMap<String, String>) -> rustf::Result<String> {
-        let raw = form.get("name").cloned().unwrap_or_default();
-        let trimmed = raw.trim();
-        if trimmed.is_empty() {
-            return Err(rustf::Error::validation("name is required"));
-        }
-        if trimmed.len() > 255 {
-            return Err(rustf::Error::validation("name is too long (max 255)"));
-        }
-        Ok(trimmed.to_string())
+        };
+        item.delete().await
     }
 }
