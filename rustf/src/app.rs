@@ -318,6 +318,28 @@ impl RustF {
         self
     }
 
+    /// Enable HTTP method-override middleware.
+    ///
+    /// Upgrades a POST request to PUT/PATCH/DELETE when the request carries
+    /// a `_method=<METHOD>` field (in query string or form body). Required
+    /// for the HTML forms emitted by `rustf-cli new crud` to work with
+    /// their PUT and DELETE routes, since browsers only natively send GET
+    /// and POST. Matches the Rails / Express / Phoenix convention.
+    ///
+    /// # Example
+    /// ```rust,ignore
+    /// let app = RustF::new()
+    ///     .with_method_override()
+    ///     .controllers(auto_controllers!());
+    /// ```
+    pub fn with_method_override(mut self) -> Self {
+        use crate::middleware::builtin::MethodOverrideMiddleware;
+        self.middleware
+            .register_inbound("method_override", MethodOverrideMiddleware::new());
+        log::info!("HTTP method-override middleware enabled");
+        self
+    }
+
     /// Register multiple middleware from a function (for auto-discovery)
     ///
     /// # Example
