@@ -168,6 +168,21 @@ Real-world repositories are typically 5-15 keys where the current path costs ~1-
 
 ---
 
+## Task 10 — end-to-end request lifecycle bench
+
+`benches/request_lifecycle.rs` (new). Drives a hyper `Request<Body>` through `RustF::handle_request` — the same entry point the real server uses. Measures the full path: body read, `Request::from_hyper`, route match, handler execution, `Response` assembly.
+
+| Scenario | Time |
+|---|---|
+| `json_bare` — minimal app, JSON handler, no added middleware | `[1.38 µs  1.39 µs  1.40 µs]` |
+| `json_compressed` — same app `+ .with_compression()`, `Accept-Encoding: gzip` | `[1.54 µs  1.55 µs  1.56 µs]` |
+
+Compression middleware adds ~160 ns of traversal overhead when it skips compression (payload below the 256B cutoff here, as expected). That is the worst-case tax; with a real page-sized response, the ~90 % bandwidth savings dwarfs it.
+
+Purpose: regression smoke test. Individual phases already have focused benches (routing, middleware, context, compression, http_date, view_render, session, pool, minifier). This is the one that catches deltas introduced by cross-cutting changes.
+
+---
+
 ## Task 5 — cached cookie parse on Request
 
 `request.cookie(name)` previously re-parsed the `Cookie` header on every call. Session, flash, and CSRF middleware each call it for different names — 3+ parses per typical request. Added `once_cell::sync::OnceCell<HashMap>` on `Request` populated lazily on first access.

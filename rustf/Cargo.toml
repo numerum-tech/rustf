@@ -121,3 +121,7 @@ harness = false
 [[bench]]
 name = "http_date"
 harness = false
+
+[[bench]]
+name = "request_lifecycle"
+harness = false
