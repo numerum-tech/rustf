@@ -1,12 +1,46 @@
 # Work Plan - RustF Framework Development
 
-**Last Updated**: 2025-12-10  
-**Current Sprint**: Release Candidate 1 Polishing  
-**Branch**: `main`
+**Last Updated**: 2026-04-24
+**Current Sprint**: Release Candidate 1 Polishing
+**Branch**: `perf-sweep-and-skill` (pending merge to `main`)
 
 ---
 
 ## Completed Tasks ✅
+
+### Session 2026-04-24 (Perf Sweep + Claude Skill)
+
+Branch `perf-sweep-and-skill`. 11 commits. Plan document: `PERF_AND_SKILL_PLAN.md`. Measurement log: `bench-results.md`. Every commit reviewed by user before landing.
+
+**Runtime perf wins (Chunk 2):**
+- [x] **Ship gzip compression middleware** — closes the #1 item in `Page_Load_Perf_Analysis.md`. Opt-in via `RustF::with_compression()`. 9 KB HTML → 643 B (93 % shrink) at default level. Commit `a911f68`.
+- [x] **Hand-rolled HTTP date formatter, DRY + 2.5× faster** — collapsed three duplicates (app.rs, cache/response.rs, security/static_files.rs) into `utils::http_date`. `cache/response.rs` was a literal `format!("{:?}", ...)` placeholder, so this also fixes a latent bug in cached-response `Last-Modified`. 287 ns → 114 ns per format. Commit `4ccf0ee`.
+- [x] **Cached cookie parse on Request** — once_cell-backed HashMap; session + flash + CSRF middleware now share one parse instead of three. Commit `61d1741`.
+- [x] **Deferred Task 2** (repository/session pass-by-ref into renderer) with measured rationale. Direct `Map::from_iter` only recovers 13 % of the clone cost; the other 87 % is inside the engine's `RenderContext` which would need an Arc/lifetime refactor unsuitable for RC1. `benches/view_render.rs` left in-tree as measurement infrastructure for the future cleanup. Commit `383b119`.
+- [x] **Verified Task 3 already done**. `app.rs:try_read_static_file` already opens the file once and calls `.metadata()` on the fd before reading. No change needed.
+
+**Framework additions (Chunk 3):**
+- [x] **`MethodOverrideMiddleware`** — upgrades POST + `_method=PUT|PATCH|DELETE` to the real method so HTML forms from the CRUD scaffolder work out of the box (Rails/Express convention). Opt-in via `RustF::with_method_override()`. 7 unit tests. Commit `ded4a5f`.
+
+**Bug fixes:**
+- [x] **Guard MemoryStorage cleanup against missing Tokio runtime** — `storage.rs:124` unconditionally called `tokio::spawn`, which panicked in benches and any sync constructor path. Defensive `Handle::try_current` guard. Unblocked `benches/context.rs` and `benches/session.rs`. Commit `be19fc5`.
+
+**Developer experience (Chunk 3):**
+- [x] **Populated sample-app with a runnable example**. `home` controller (3 routes), `home_service` module (business logic demonstrating the layering rule), `timing` dual-phase middleware (`X-Response-Time` header), layout + 2 views + minimal CSS. Before: `sample-app/src/controllers/` was empty — a fresh clone had nothing runnable. Commit `15ad894`.
+- [x] **`rustf-cli new crud <name>` scaffolder** — emits 8 files (controller + module + model stub + 4 views + test) all wired to the `Base Model → Model → Module → Controller` layering rule. Controller never imports `crate::models::*`. In-memory Vec model stub so the scaffold works out of the box; file-top comment explains swap-in of schema-generated base. Smoke-tested end-to-end: create → show → update (POST + `_method=PUT`) → delete. Commit `fc6ab58`.
+
+**AI collaboration (Chunk 4):**
+- [x] **`rustf` Claude Code skill** — 410 lines, every claim cited at file:line. Covers: layering rule (headline), handler signature (overrides drifted README), `routes!` macro with `{id}` params, middleware traits + `#[async_trait]`, Context API cheat sheet, base/wrapper model pattern, kebab-case worker names, template-without-extension, built-in-middleware imports, config merging, auto-discovery. Twelve common mistakes checklist. Shipped both in this repo (`.claude/skills/rustf/SKILL.md`) and bundled into the CLI project template so every new project gets it. Commit `38850a5`.
+
+**Verification (Chunk 5):**
+- [x] **End-to-end `request_lifecycle` bench** — full `hyper::Request<Body>` → `handle_request` → `Response`. Bare JSON: 1.39 µs. With compression middleware configured: 1.55 µs (160 ns skip-path overhead — cheap). Commit `242339e`.
+- [x] **Documentation**: `PERF_AND_SKILL_PLAN.md` (plan), `bench-results.md` (baselines + per-task deltas).
+
+**Numbers (dev machine):**
+- All 414 existing lib tests + 7 new method-override tests + 8 new http_date tests + 1 new cookie-cache test pass.
+- HTTP date formatting: 2.5× faster.
+- End-to-end request: ~1.4 µs bare.
+- Compression: 93 % shrink on 9 KB+ HTML.
 
 ### Session 2025-12-10 (Release Readiness)
 
