@@ -1,0 +1,68 @@
+//! {{title_singular}} data layer — STUB IN-MEMORY STORE.
+//!
+//! This is a prototyping stub so the whole CRUD scaffold compiles and runs
+//! out of the box. **Replace with the schema-generated base model** once
+//! you have a real DB:
+//!
+//!   1. Define schemas/{{name}}.yaml
+//!   2. Run: rustf-cli schema generate models
+//!   3. Replace the body of this file with:
+//!        include!("base/{{name}}.inc.rs");
+//!        impl {{pascal_name_singular}} {
+//!            // {{name}}-specific query helpers (find_by_*, etc.)
+//!        }
+//!        pub fn register(registry: &mut rustf::models::ModelRegistry) { }
+//!
+//! NOTE: The module (src/modules/{{name}}_service.rs) is the ONLY caller
+//! of this file — swap the storage here without touching the controller.
+
+use once_cell::sync::Lazy;
+use serde::{Deserialize, Serialize};
+use std::sync::Mutex;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct {{pascal_name_singular}} {
+    pub id: i64,
+    pub name: String,
+}
+
+static STORE: Lazy<Mutex<Vec<{{pascal_name_singular}}>>> = Lazy::new(|| Mutex::new(Vec::new()));
+static NEXT_ID: Lazy<Mutex<i64>> = Lazy::new(|| Mutex::new(1));
+
+impl {{pascal_name_singular}} {
+    pub fn all() -> Vec<Self> {
+        STORE.lock().unwrap().clone()
+    }
+
+    pub fn find(id: i64) -> Option<Self> {
+        STORE.lock().unwrap().iter().find(|x| x.id == id).cloned()
+    }
+
+    pub fn create(name: String) -> Self {
+        let mut next = NEXT_ID.lock().unwrap();
+        let id = *next;
+        *next += 1;
+        let item = Self { id, name };
+        STORE.lock().unwrap().push(item.clone());
+        item
+    }
+
+    pub fn update(id: i64, name: String) -> Option<Self> {
+        let mut store = STORE.lock().unwrap();
+        if let Some(item) = store.iter_mut().find(|x| x.id == id) {
+            item.name = name;
+            return Some(item.clone());
+        }
+        None
+    }
+
+    pub fn delete(id: i64) -> bool {
+        let mut store = STORE.lock().unwrap();
+        let before = store.len();
+        store.retain(|x| x.id != id);
+        store.len() < before
+    }
+}
+
+/// Required by auto_models!() for discovery.
+pub fn register(_registry: &mut rustf::models::ModelRegistry) {}

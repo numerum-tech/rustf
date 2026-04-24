@@ -3,6 +3,7 @@ use handlebars::Handlebars;
 use std::collections::HashMap;
 use std::fs::{self, File};
 use std::io::Write;
+use std::path::PathBuf;
 
 /// Generate a controller file
 pub async fn generate_controller(names: String, crud: bool, routes: bool) -> Result<()> {
@@ -376,6 +377,149 @@ pub async fn generate_worker(name: String) -> Result<()> {
     println!("   - See docs/ABOUT_WORKERS.md for examples (email, batch, cleanup, etc.)");
 
     Ok(())
+}
+
+/// Generate a full CRUD scaffold — controller + module + model stub + 4 views + test.
+///
+/// Enforces the RustF layering rule (Base Model -> Model -> Module -> Controller)
+/// in the emitted templates: the controller imports only `crate::modules::<name>_service`,
+/// never the model directly.
+pub async fn generate_crud(name: String) -> Result<()> {
+    let project_path = std::env::current_dir()?;
+
+    // Normalise names. Input is treated as plural (e.g. "posts"). The
+    // singular is a naive strip of trailing 's'; irregular plurals are a
+    // user problem per the plan.
+    let plural = to_snake_case(&name);
+    if plural.is_empty() {
+        return Err(anyhow!("CRUD name cannot be empty"));
+    }
+    let singular = naive_singular(&plural);
+    let pascal_plural = to_pascal_case(&plural);
+    let pascal_singular = to_pascal_case(&singular);
+    let title_plural = to_title_case(&plural);
+    let title_singular = to_title_case(&singular);
+
+    // Target paths
+    let controllers_dir = project_path.join("src").join("controllers");
+    let modules_dir = project_path.join("src").join("modules");
+    let models_dir = project_path.join("src").join("models");
+    let views_dir = project_path.join("views").join(&plural);
+    let tests_dir = project_path.join("tests");
+
+    for dir in [&controllers_dir, &modules_dir, &models_dir, &views_dir, &tests_dir] {
+        fs::create_dir_all(dir)?;
+    }
+
+    // Fail fast if any target already exists — avoid clobbering.
+    let targets = [
+        controllers_dir.join(format!("{}.rs", plural)),
+        modules_dir.join(format!("{}_service.rs", plural)),
+        models_dir.join(format!("{}.rs", plural)),
+        views_dir.join("index.html"),
+        views_dir.join("show.html"),
+        views_dir.join("new.html"),
+        views_dir.join("edit.html"),
+        tests_dir.join(format!("{}_test.rs", plural)),
+    ];
+    for t in &targets {
+        if t.exists() {
+            return Err(anyhow!(
+                "'{}' already exists — refusing to overwrite",
+                t.display()
+            ));
+        }
+    }
+
+    let mut vars = HashMap::new();
+    vars.insert("name", plural.clone());
+    vars.insert("name_singular", singular.clone());
+    vars.insert("pascal_name", pascal_plural.clone());
+    vars.insert("pascal_name_singular", pascal_singular.clone());
+    vars.insert("title", title_plural.clone());
+    vars.insert("title_singular", title_singular.clone());
+
+    let mut handlebars = Handlebars::new();
+    handlebars.set_strict_mode(false);
+
+    // (template-key, template-content, output-path)
+    let rendering_plan: Vec<(&str, &str, PathBuf)> = vec![
+        (
+            "crud_controller",
+            include_str!("../../templates/components/crud_controller.rs.template"),
+            targets[0].clone(),
+        ),
+        (
+            "crud_module",
+            include_str!("../../templates/components/crud_module.rs.template"),
+            targets[1].clone(),
+        ),
+        (
+            "crud_model",
+            include_str!("../../templates/components/crud_model.rs.template"),
+            targets[2].clone(),
+        ),
+        (
+            "crud_index",
+            include_str!("../../templates/views/crud/index.html.template"),
+            targets[3].clone(),
+        ),
+        (
+            "crud_show",
+            include_str!("../../templates/views/crud/show.html.template"),
+            targets[4].clone(),
+        ),
+        (
+            "crud_new",
+            include_str!("../../templates/views/crud/new.html.template"),
+            targets[5].clone(),
+        ),
+        (
+            "crud_edit",
+            include_str!("../../templates/views/crud/edit.html.template"),
+            targets[6].clone(),
+        ),
+        (
+            "crud_test",
+            include_str!("../../templates/components/crud_test.rs.template"),
+            targets[7].clone(),
+        ),
+    ];
+
+    for (key, content, out_path) in rendering_plan {
+        handlebars.register_template_string(key, content)?;
+        let rendered = handlebars.render(key, &vars)?;
+        let mut file = File::create(&out_path)?;
+        file.write_all(rendered.as_bytes())?;
+        println!("✅ {}", out_path.display());
+    }
+
+    println!();
+    println!("📝 Scaffold layering (enforced in generated code):");
+    println!("   HTTP:     src/controllers/{}.rs  (calls {}Service only)", plural, pascal_plural);
+    println!("   Business: src/modules/{}_service.rs  (only caller of {})", plural, pascal_singular);
+    println!("   Data:     src/models/{}.rs  (in-memory stub — replace with schema base)", plural);
+    println!("   Views:    views/{}/{{index,show,new,edit}}.html", plural);
+    println!("   Tests:    tests/{}_test.rs  (stubs — uncomment + adjust crate import)", plural);
+    println!();
+    println!("📝 Next steps:");
+    println!("   1. cargo run  (the scaffold works out of the box against the stub store)");
+    println!("   2. Visit http://127.0.0.1:8000/{}", plural);
+    println!("   3. When ready for a real DB, define schemas/{}.yaml and run", plural);
+    println!("      `rustf-cli schema generate models` — then replace the stub in");
+    println!("      src/models/{}.rs per the file-top comment.", plural);
+
+    Ok(())
+}
+
+/// Naive plural -> singular: strip trailing 's'. Users with irregular plurals
+/// (child/children, datum/data, etc.) rename the generated files themselves.
+fn naive_singular(plural: &str) -> String {
+    if plural.ends_with('s') && plural.len() > 1 {
+        plural[..plural.len() - 1].to_string()
+    } else {
+        plural.to_string()
+    }
 }
 
 // Helper functions for name conversion

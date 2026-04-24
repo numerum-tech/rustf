@@ -1,0 +1,35 @@
+//! Integration test stub for {{name}} CRUD.
+//!
+//! Tests the business logic in `{{pascal_name}}Service` directly — which is
+//! where all the interesting behaviour lives (the controller is thin HTTP
+//! glue, per the layering rule).
+
+use std::collections::HashMap;
+
+// Adjust these imports to match your project's crate name.
+// Default for projects scaffolded via `rustf-cli new project`: "sample_app" / your project name.
+// use sample_app::modules::{{name}}_service::{{pascal_name}}Service;
+// use sample_app::models::{{name}}::{{pascal_name_singular}};
+
+#[cfg(test)]
+mod tests {
+    // Uncomment after wiring up the imports above:
+    // use super::*;
+
+    // #[tokio::test]
+    // async fn create_validates_required_name() {
+    //     let mut form = HashMap::new();
+    //     form.insert("name".to_string(), "".to_string());
+    //     let res = {{pascal_name}}Service::create(&form).await;
+    //     assert!(res.is_err(), "empty name should fail validation");
+    // }
+
+    // #[tokio::test]
+    // async fn create_then_find_round_trip() {
+    //     let mut form = HashMap::new();
+    //     form.insert("name".to_string(), "hello".to_string());
+    //     let id = {{pascal_name}}Service::create(&form).await.unwrap();
+    //     let found = {{pascal_name}}Service::find(id).await.unwrap().unwrap();
+    //     assert_eq!(found.name, "hello");
+    // }
+}

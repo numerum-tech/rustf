@@ -1,0 +1,54 @@
+//! {{title}} business logic — stateless module.
+//!
+//! The ONLY place in the feature that calls the `{{pascal_name_singular}}`
+//! model. Controllers call this service; workers and CLI tasks can reuse it
+//! without duplicating logic (RustF layering rule: DRY through modules).
+
+use crate::models::{{name}}::{{pascal_name_singular}};
+use rustf::prelude::*;
+use std::collections::HashMap;
+
+pub struct {{pascal_name}}Service;
+
+impl {{pascal_name}}Service {
+    pub async fn list_all() -> rustf::Result<Vec<{{pascal_name_singular}}>> {
+        Ok({{pascal_name_singular}}::all())
+    }
+
+    pub async fn find(id: i64) -> rustf::Result<Option<{{pascal_name_singular}}>> {
+        Ok({{pascal_name_singular}}::find(id))
+    }
+
+    pub async fn create(form: &HashMap<String, String>) -> rustf::Result<i64> {
+        let name = Self::validate_name(form)?;
+        let item = {{pascal_name_singular}}::create(name);
+        Ok(item.id)
+    }
+
+    pub async fn update(id: i64, form: &HashMap<String, String>) -> rustf::Result<()> {
+        let name = Self::validate_name(form)?;
+        if {{pascal_name_singular}}::update(id, name).is_none() {
+            return Err(rustf::Error::validation("{{title_singular}} not found"));
+        }
+        Ok(())
+    }
+
+    pub async fn delete(id: i64) -> rustf::Result<()> {
+        if !{{pascal_name_singular}}::delete(id) {
+            return Err(rustf::Error::validation("{{title_singular}} not found"));
+        }
+        Ok(())
+    }
+
+    fn validate_name(form: &HashMap<String, String>) -> rustf::Result<String> {
+        let raw = form.get("name").cloned().unwrap_or_default();
+        let trimmed = raw.trim();
+        if trimmed.is_empty() {
+            return Err(rustf::Error::validation("name is required"));
+        }
+        if trimmed.len() > 255 {
+            return Err(rustf::Error::validation("name is too long (max 255)"));
+        }
+        Ok(trimmed.to_string())
+    }
+}

@@ -1,0 +1,11 @@
+<section>
+    <h1>@{M.title}</h1>
+    <form method="POST" action="/{{name}}">
+        <label>
+            Name
+            <input type="text" name="name" required maxlength="255">
+        </label>
+        <button type="submit">Create</button>
+        <a href="/{{name}}">Cancel</a>
+    </form>
+</section>

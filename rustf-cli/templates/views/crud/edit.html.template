@@ -1,0 +1,12 @@
+<section>
+    <h1>@{M.title}</h1>
+    <form method="POST" action="/{{name}}/@{R.item.id}">
+        <input type="hidden" name="_method" value="PUT">
+        <label>
+            Name
+            <input type="text" name="name" value="@{R.item.name}" required maxlength="255">
+        </label>
+        <button type="submit">Save</button>
+        <a href="/{{name}}/@{R.item.id}">Cancel</a>
+    </form>
+</section>
