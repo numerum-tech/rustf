@@ -9,7 +9,7 @@ use std::collections::HashMap;
 // Adjust these imports to match your project's crate name.
 // Default for projects scaffolded via `rustf-cli new project`: "sample_app" / your project name.
 // use sample_app::modules::{{name}}_service::{{pascal_name}}Service;
-// use sample_app::models::{{name}}::{{pascal_name_singular}};
+// use sample_app::models::{{name}}::{{pascal_name}};
 
 #[cfg(test)]
 mod tests {

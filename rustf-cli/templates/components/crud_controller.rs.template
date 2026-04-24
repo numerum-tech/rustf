@@ -2,7 +2,7 @@
 //!
 //! HTTP LAYER ONLY. Per RustF's layering rule
 //! (Base Model -> Model -> Module -> Controller), this file contains ZERO
-//! calls to `{{pascal_name_singular}}::*` or any other model. All business
+//! calls to `{{pascal_name}}::*` or any other model. All business
 //! logic, validation, and model access live in
 //! `crate::modules::{{name}}_service`. If you find yourself reaching for
 //! `use crate::models::*` here, push that code into the service instead.

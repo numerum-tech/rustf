@@ -380,7 +380,7 @@ creep in.
 | Goal | Command |
 |---|---|
 | Bootstrap a new project | `rustf-cli new project <name>` |
-| Full CRUD feature (controller + module + model stub + 4 views + test, layered) | `rustf-cli new crud <plural-name>` |
+| HTTP+business layer around an **existing** model (controller + module + 4 views + test) | `rustf-cli new crud --name <plural-name>` |
 | One controller (thin handlers only) | `rustf-cli new controller --names <name> [--crud] [--routes]` |
 | One middleware (dual-phase, `#[async_trait]`, Clone) | `rustf-cli new middleware --name <name> [--auth] [--logging]` |
 | One stateless utility module (default) | `rustf-cli new module --name <name>` |
@@ -390,11 +390,31 @@ creep in.
 | Regenerate a model's generated base after schema changes | `rustf-cli schema generate models` |
 | Introspect a database schema | `rustf-cli db introspect` |
 
+### CRUD scaffolder — preconditions and flow
+
+`rustf-cli new crud --name <plural>` is specifically for adding the
+HTTP + business layer AROUND an existing database-backed model. It is
+NOT for prototyping without a database.
+
+**Precondition:** `src/models/<plural>.rs` must already exist. If it
+doesn't, the command errors out telling you to run the schema-first
+flow:
+
+1. Define `schemas/<plural>.yaml`.
+2. `rustf-cli schema generate models` — produces `src/models/base/<plural>.inc.rs` + the wrapper.
+3. `rustf-cli new crud --name <plural>` — emits controller + module + 4 views + test.
+
+The generated module uses the real query-builder API
+(`YourModel::query()?.get_all().await`, `where_eq("id", id)`,
+`item.update().await`, `item.delete().await`). The `create` and
+`update` methods have `TODO` markers where you need to map form fields
+to builder / setter calls — the scaffolder doesn't know your schema's
+fields, so those two methods return a clear
+`rustf::Error::internal(...)` until you fill them in.
+
 ### Output sanity check
 
-Every generator respects the layering rule and current APIs. The CRUD
-scaffolder specifically emits an in-memory stub model so the output
-compiles and runs before you wire a real DB. After running, confirm:
+After any generator runs, confirm:
 
 - Controllers import `crate::modules::<name>_service`, NOT the model directly.
 - Routes use `{id}`, not `:id`.
@@ -412,6 +432,9 @@ around it — flag the template for repair in `rustf-cli/templates/` and
   produces `src/models/base/*.inc.rs`. Never edit that file by hand.
 - **Tiny edits.** Adding one route to an existing controller, or one
   method to an existing service — directly edit the file.
+- **Filling CRUD module TODOs.** The `create` / `update` field mappings
+  in the scaffolded service are by design a manual step — they require
+  the actual field names from your schema.
 - **Irregular plurals / non-standard naming.** The CRUD scaffolder
   naively strips a trailing `s` for the singular. For `children`,
   `data`, `geese`, etc., generate then rename.

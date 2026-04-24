@@ -379,11 +379,19 @@ pub async fn generate_worker(name: String) -> Result<()> {
     Ok(())
 }
 
-/// Generate a full CRUD scaffold — controller + module + model stub + 4 views + test.
+/// Generate a CRUD scaffold around an EXISTING database model.
 ///
-/// Enforces the RustF layering rule (Base Model -> Model -> Module -> Controller)
-/// in the emitted templates: the controller imports only `crate::modules::<name>_service`,
-/// never the model directly.
+/// Emits the HTTP + business layers — controller, business-logic module,
+/// four views, and an integration-test stub — all wired to the already-
+/// generated model at `src/models/<name>.rs`. Does NOT touch the model
+/// file. Per the RustF layering rule (Base Model -> Model -> Module ->
+/// Controller), the controller imports only
+/// `crate::modules::<name>_service`; that service is the only caller of
+/// the model.
+///
+/// Precondition: `src/models/<name>.rs` must exist. Run
+/// `rustf-cli schema generate models` (after defining `schemas/<name>.yaml`)
+/// first if it doesn't.
 pub async fn generate_crud(name: String) -> Result<()> {
     let project_path = std::env::current_dir()?;
 
@@ -407,7 +415,25 @@ pub async fn generate_crud(name: String) -> Result<()> {
     let views_dir = project_path.join("views").join(&plural);
     let tests_dir = project_path.join("tests");
 
-    for dir in [&controllers_dir, &modules_dir, &models_dir, &views_dir, &tests_dir] {
+    // PRECONDITION: the model must already exist. The CRUD scaffolder
+    // generates the HTTP/business layer AROUND an existing model; it
+    // never emits a model stub.
+    let model_path = models_dir.join(format!("{}.rs", plural));
+    if !model_path.exists() {
+        return Err(anyhow!(
+            "Model not found at {}\n\n\
+             `rustf-cli new crud` wires controllers/views/services around an EXISTING \
+             database model. Generate one first:\n\
+             \n    1. Define schemas/{}.yaml\n\
+             \n    2. Run: rustf-cli schema generate models\n\
+             \n    3. Re-run: rustf-cli new crud --name {}\n",
+            model_path.display(),
+            plural,
+            plural,
+        ));
+    }
+
+    for dir in [&controllers_dir, &modules_dir, &views_dir, &tests_dir] {
         fs::create_dir_all(dir)?;
     }
 
@@ -415,7 +441,6 @@ pub async fn generate_crud(name: String) -> Result<()> {
     let targets = [
         controllers_dir.join(format!("{}.rs", plural)),
         modules_dir.join(format!("{}_service.rs", plural)),
-        models_dir.join(format!("{}.rs", plural)),
         views_dir.join("index.html"),
         views_dir.join("show.html"),
         views_dir.join("new.html"),
@@ -455,34 +480,29 @@ pub async fn generate_crud(name: String) -> Result<()> {
             targets[1].clone(),
         ),
         (
-            "crud_model",
-            include_str!("../../templates/components/crud_model.rs.template"),
-            targets[2].clone(),
-        ),
-        (
             "crud_index",
             include_str!("../../templates/views/crud/index.html.template"),
-            targets[3].clone(),
+            targets[2].clone(),
         ),
         (
             "crud_show",
             include_str!("../../templates/views/crud/show.html.template"),
-            targets[4].clone(),
+            targets[3].clone(),
         ),
         (
             "crud_new",
             include_str!("../../templates/views/crud/new.html.template"),
-            targets[5].clone(),
+            targets[4].clone(),
         ),
         (
             "crud_edit",
             include_str!("../../templates/views/crud/edit.html.template"),
-            targets[6].clone(),
+            targets[5].clone(),
         ),
         (
             "crud_test",
             include_str!("../../templates/components/crud_test.rs.template"),
-            targets[7].clone(),
+            targets[6].clone(),
         ),
     ];
 
@@ -496,18 +516,17 @@ pub async fn generate_crud(name: String) -> Result<()> {
 
     println!();
     println!("📝 Scaffold layering (enforced in generated code):");
-    println!("   HTTP:     src/controllers/{}.rs  (calls {}Service only)", plural, pascal_plural);
+    println!("   HTTP:     src/controllers/{}.rs        (calls {}Service only)", plural, pascal_plural);
     println!("   Business: src/modules/{}_service.rs  (only caller of {})", plural, pascal_singular);
-    println!("   Data:     src/models/{}.rs  (in-memory stub — replace with schema base)", plural);
+    println!("   Data:     src/models/{}.rs              (PRE-EXISTING — not touched)", plural);
     println!("   Views:    views/{}/{{index,show,new,edit}}.html", plural);
-    println!("   Tests:    tests/{}_test.rs  (stubs — uncomment + adjust crate import)", plural);
+    println!("   Tests:    tests/{}_test.rs             (stubs — uncomment + adjust crate import)", plural);
     println!();
     println!("📝 Next steps:");
-    println!("   1. cargo run  (the scaffold works out of the box against the stub store)");
-    println!("   2. Visit http://127.0.0.1:8000/{}", plural);
-    println!("   3. When ready for a real DB, define schemas/{}.yaml and run", plural);
-    println!("      `rustf-cli schema generate models` — then replace the stub in");
-    println!("      src/models/{}.rs per the file-top comment.", plural);
+    println!("   1. Open src/modules/{}_service.rs and fill in the `create` and `update`", plural);
+    println!("      field mappings marked with TODO — they need your schema's real field");
+    println!("      names (the generated model's builder + setters are typed per-field).");
+    println!("   2. cargo run, then visit http://127.0.0.1:8000/{}", plural);
 
     Ok(())
 }
