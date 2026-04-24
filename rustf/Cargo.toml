@@ -54,6 +54,7 @@ clap = { version = "4.4", features = ["derive"], optional = true }
 sha2 = "0.10"
 sha1 = "0.10"
 md-5 = "0.10"
+flate2 = "1.0"
 
 # Fast JSON parsing (2-3x faster than serde_json)
 # Note: simd-json is primarily for parsing, not serialization
@@ -107,4 +108,8 @@ harness = false
 
 [[bench]]
 name = "minifier"
+harness = false
+
+[[bench]]
+name = "compression"
 harness = false

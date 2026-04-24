@@ -296,6 +296,28 @@ impl RustF {
         self
     }
 
+    /// Enable gzip response compression middleware.
+    ///
+    /// Responses are compressed only when:
+    /// - The client sends `Accept-Encoding: gzip`
+    /// - The body is at least 256 bytes
+    /// - The `Content-Type` is compressible (text, JSON, JS, XML, …)
+    /// - The response is not already encoded
+    ///
+    /// # Example
+    /// ```rust,ignore
+    /// let app = RustF::new()
+    ///     .with_compression()
+    ///     .controllers(auto_controllers!());
+    /// ```
+    pub fn with_compression(mut self) -> Self {
+        use crate::middleware::builtin::CompressionMiddleware;
+        self.middleware
+            .register_outbound("compression", CompressionMiddleware::new());
+        log::info!("Gzip compression middleware enabled");
+        self
+    }
+
     /// Register multiple middleware from a function (for auto-discovery)
     ///
     /// # Example
