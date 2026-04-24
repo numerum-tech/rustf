@@ -138,6 +138,36 @@ Deltas will be appended to this file as each task lands.
 
 ---
 
+## Task 2 — repository/session pass-by-ref: DEFERRED
+
+Numbers from `benches/view_render.rs` (added to the tree in the same commit as this note).
+
+### Repository build cost before renderer is called
+
+| Repo size | `serde_json::to_value` (current) | Direct `Map::from_iter` | Gain from direct |
+|---|---|---|---|
+| 0 keys | 15 ns | 10 ns | (noise) |
+| 10 keys | 1.90 µs | 1.67 µs | 0.23 µs (12 %) |
+| 50 keys | 12.3 µs | 10.8 µs | 1.5 µs (12 %) |
+| 100 keys | 26.1 µs | 22.6 µs | 3.5 µs (13 %) |
+
+### Session clone+stamp cost
+
+`session_clone_and_stamp`: 558 ns (negligible).
+
+### Why deferred
+
+Swapping `serde_json::to_value` for a direct `Value::Object(Map::from_iter(...))` only recovers ~13 % of the clone cost. The remaining ~87 % is the second clone inside the Total.js engine at `views/totaljs/engine.rs:349` (`context.with_repository(ctx_repo.clone())`) — removing that would require re-plumbing `RenderContext` to hold `Arc<Value>` or references with lifetimes. That's a medium-effort engine-internal refactor, not RC1-friendly.
+
+Real-world repositories are typically 5-15 keys where the current path costs ~1-3 µs per render — inside request-handling noise. The bench stays in-tree as measurement infrastructure so any post-RC1 view-render optimization has instant before/after numbers.
+
+### Tasks already done in the code (verified during exploration, NOT in this sweep's commits)
+
+- **Static-file single-I/O (was Task 3):** `app.rs:try_read_static_file` already opens the file once and calls `.metadata()` on the open fd before optionally reading. Has an explanatory comment. Skipping this task.
+- **`parse_http_date` format ordering:** already narrowed to two chrono formats (RFC 7231 fast path + RFC 850 fallback), no triple-parse anymore. The `format_http_date` per-request string allocation remains — addressed in Task 4.
+
+---
+
 ## Task 1 — gzip compression middleware
 
 Numbers from `benches/compression.rs` on the dev machine. Measures raw `flate2::GzEncoder` throughput — the middleware's async wrapper adds negligible overhead on top.

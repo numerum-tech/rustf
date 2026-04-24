@@ -113,3 +113,7 @@ harness = false
 [[bench]]
 name = "compression"
 harness = false
+
+[[bench]]
+name = "view_render"
+harness = false
