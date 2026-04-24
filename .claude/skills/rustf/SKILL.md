@@ -1,6 +1,6 @@
 ---
 name: rustf
-description: Use when writing or modifying Rust code in a RustF MVC framework project. Enforces the Base Model → Model → Module → Controller layering rule, correct `async fn(ctx: &mut Context) -> rustf::Result<()>` handler signatures, `#[async_trait]` middleware traits, route macro syntax with `{id}` parameters, template naming without extensions, `MODULE::register` only for stateful modules, and built-in middleware imports. Trigger for any edit under src/controllers/, src/middleware/, src/models/, src/modules/, src/workers/, src/events/, src/definitions/, views/, or Cargo.toml / config.toml in a project whose Cargo.toml depends on `rustf`. Overrides drifted examples in README.md and docs/ABOUT_*.md — when docs and code disagree, the code wins.
+description: Use when writing or modifying Rust code in a RustF MVC framework project. Prefers `rustf-cli new <component>` for code generation over writing files by hand. Enforces the Base Model → Model → Module → Controller layering rule, correct `async fn(ctx: &mut Context) -> rustf::Result<()>` handler signatures, `#[async_trait]` middleware traits, route macro syntax with `{id}` parameters, template naming without extensions, `MODULE::register` only for stateful modules, and built-in middleware imports. Trigger for any edit under src/controllers/, src/middleware/, src/models/, src/modules/, src/workers/, src/events/, src/definitions/, views/, or Cargo.toml / config.toml in a project whose Cargo.toml depends on `rustf`. Overrides drifted examples in README.md and docs/ABOUT_*.md — when docs and code disagree, the code wins.
 ---
 
 # RustF — the rules the code enforces
@@ -368,7 +368,57 @@ feed the `RustF` builder.
 
 ---
 
-## 11. Common mistakes — the 12 fastest ways to get this wrong
+## 11. Prefer `rustf-cli` for code generation
+
+When you need to create a new component, **prefer the CLI over writing
+files by hand**. The generators emit code that matches current framework
+conventions (verified 2026-04-24); writing from scratch is where drifts
+creep in.
+
+### Trusted commands (use these freely)
+
+| Goal | Command |
+|---|---|
+| Bootstrap a new project | `rustf-cli new project <name>` |
+| Full CRUD feature (controller + module + model stub + 4 views + test, layered) | `rustf-cli new crud <plural-name>` |
+| One controller (thin handlers only) | `rustf-cli new controller --names <name> [--crud] [--routes]` |
+| One middleware (dual-phase, `#[async_trait]`, Clone) | `rustf-cli new middleware --name <name> [--auth] [--logging]` |
+| One stateless utility module (default) | `rustf-cli new module --name <name>` |
+| One `SharedModule` service (when state is needed) | `rustf-cli new module --name <name> --shared` |
+| One background worker | `rustf-cli new worker --name <name>` |
+| One event handler (lifecycle/custom) | `rustf-cli new event --name <name> [--lifecycle] [--custom]` |
+| Regenerate a model's generated base after schema changes | `rustf-cli schema generate models` |
+| Introspect a database schema | `rustf-cli db introspect` |
+
+### Output sanity check
+
+Every generator respects the layering rule and current APIs. The CRUD
+scaffolder specifically emits an in-memory stub model so the output
+compiles and runs before you wire a real DB. After running, confirm:
+
+- Controllers import `crate::modules::<name>_service`, NOT the model directly.
+- Routes use `{id}`, not `:id`.
+- Middleware impls carry `#[async_trait]` and the struct is `Clone`.
+- Module files default to a stateless unit struct unless `--shared` was passed.
+- Model wrappers include `pub fn register(registry: &mut rustf::models::ModelRegistry)`.
+
+If a generator's output looks drifted against these rules, don't patch
+around it — flag the template for repair in `rustf-cli/templates/` and
+`rustf-cli/src/commands/new_component.rs`.
+
+### Hand-writing: when it's still the right call
+
+- **Regenerating the base model.** Only `rustf-cli schema generate models`
+  produces `src/models/base/*.inc.rs`. Never edit that file by hand.
+- **Tiny edits.** Adding one route to an existing controller, or one
+  method to an existing service — directly edit the file.
+- **Irregular plurals / non-standard naming.** The CRUD scaffolder
+  naively strips a trailing `s` for the singular. For `children`,
+  `data`, `geese`, etc., generate then rename.
+
+---
+
+## 12. Common mistakes — the 12 fastest ways to get this wrong
 
 1. Handler takes `Context` by value or returns `Result<Response>` → does not compile. Use `&mut Context` + `Result<()>`.
 2. Route uses `/:id` → silent 404. Use `/{id}`.
@@ -385,24 +435,56 @@ feed the `RustF` builder.
 
 ---
 
-## 12. When stuck, read these — in this order
+## 13. When stuck, read the framework source — it IS readable in both dep configurations
 
-1. `sample-app/src/*` — the canonical working example. One controller, one
-   module, one middleware, two views. All verified to boot and respond.
-2. `rustf/src/routing/mod.rs` — handler signature truth.
-3. `rustf/src/middleware/traits.rs` — middleware trait truth.
-4. `rustf/src/context.rs` — every `pub fn` on Context.
-5. `rustf/src/app.rs` — every `pub fn` on the `RustF` builder.
-6. `rustf-cli/templates/components/*.template` — scaffolder patterns (the
-   CRUD scaffolder in particular: `rustf-cli new crud <name>` emits 8
-   files that all obey the layering rule).
-7. `docs/ABOUT_*.md` — high-level intent. When these disagree with code,
-   the code wins.
+The framework source is the authoritative answer when docs and code
+disagree. Where to find it depends on how the project depends on `rustf`:
+
+### Path-dep project (development / monorepo)
+
+If the project's `Cargo.toml` has `rustf = { path = "../rustf" }` or
+similar, the full `rustf/` repo is right there alongside the project —
+source, docs, sample-app, tests, all readable without extra steps.
+Example: this repo's own `sample-app/`.
+
+### Published-crate project (typical downstream)
+
+If the project's `Cargo.toml` has `rustf = "X.Y.Z"` (from crates.io),
+the source lands at `~/.cargo/registry/src/index.crates.io-*/rustf-X.Y.Z/src/`
+once `cargo build` has fetched the crate. Find the exact path with:
+
+```bash
+cargo metadata --format-version 1 --no-deps | \
+  jq -r '.packages[] | select(.name=="rustf") | .manifest_path'
+# -> /Users/.../.cargo/registry/src/index.crates.io-.../rustf-0.1.0/Cargo.toml
+```
+
+**The repo's `docs/*.md` and `sample-app/` are NOT shipped with the
+published crate.** Only `src/` and `Cargo.toml` are on disk. Plan
+accordingly.
+
+### Reading priority
+
+1. **`sample-app/src/*`** (path-dep only) — canonical working feature
+   demonstrating the layering rule end-to-end.
+2. **`rustf/src/routing/mod.rs`** — handler signature + `routes!` macro.
+3. **`rustf/src/middleware/traits.rs`** — middleware trait + `InboundAction`.
+4. **`rustf/src/context.rs`** — every `pub fn` on `Context`.
+5. **`rustf/src/app.rs`** — every `pub fn` on the `RustF` builder (search
+   for `with_` helpers and `auto_load*` variants).
+6. **`rustf/src/middleware/builtin/*.rs`** — concrete working examples
+   of each built-in middleware.
+7. **`rustf-cli/src/commands/new_component.rs` + `rustf-cli/templates/components/*.template`**
+   (path-dep only) — if you wonder "how would the CLI write this?", read
+   the emitter.
+8. **`docs/ABOUT_*.md`** (path-dep only) — high-level intent. When
+   these disagree with code, the code wins.
 
 ---
 
 ## One-liner summary for quick reference
 
+> Prefer `rustf-cli new <component>` over writing files by hand.
 > Controllers thin, modules own logic, models own data, base never touched.
 > Handlers `async fn(ctx: &mut Context) -> rustf::Result<()>`. Routes use
 > `{id}`. Middleware needs `#[async_trait]`, lower priority runs first.
