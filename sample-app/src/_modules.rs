@@ -6,6 +6,8 @@
 pub mod payment_service;
 #[path = "modules/string_helpers.rs"]
 pub mod string_helpers;
+#[path = "modules/home_service.rs"]
+pub mod home_service;
 #[path = "modules/simple_util.rs"]
 pub mod simple_util;
 #[path = "modules/email_service.rs"]

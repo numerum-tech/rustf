@@ -1,0 +1,96 @@
+:root {
+    --bg: #0f1419;
+    --fg: #e6e6e6;
+    --accent: #f5a623;
+    --muted: #8a8f98;
+    --card: #1a1f29;
+    --border: #252b36;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    line-height: 1.6;
+    background: var(--bg);
+    color: var(--fg);
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem;
+}
+
+nav {
+    display: flex;
+    gap: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 2rem;
+}
+
+nav a {
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 0.95rem;
+}
+
+nav a:hover { color: var(--accent); }
+
+h1 {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+}
+
+h2 {
+    font-size: 1.25rem;
+    margin: 1.5rem 0 0.75rem;
+    color: var(--accent);
+}
+
+.tagline {
+    color: var(--muted);
+    font-size: 1.05rem;
+    margin-bottom: 2rem;
+}
+
+.features ul {
+    list-style: none;
+    display: grid;
+    gap: 0.5rem;
+}
+
+.features li {
+    background: var(--card);
+    border: 1px solid var(--border);
+    padding: 0.75rem 1rem;
+    border-radius: 6px;
+    font-size: 0.95rem;
+}
+
+pre {
+    background: var(--card);
+    border: 1px solid var(--border);
+    padding: 0.75rem 1rem;
+    border-radius: 6px;
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 0.9rem;
+    margin: 1rem 0;
+}
+
+code {
+    background: var(--card);
+    padding: 0.1rem 0.4rem;
+    border-radius: 3px;
+    font-size: 0.9em;
+}
+
+footer {
+    margin-top: 3rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 0.85rem;
+}
+
+footer a {
+    color: var(--muted);
+}

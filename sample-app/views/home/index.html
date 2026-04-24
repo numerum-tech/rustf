@@ -1,0 +1,13 @@
+<section class="hero">
+    <h1>@{M.title}</h1>
+    <p class="tagline">@{M.tagline}</p>
+</section>
+
+<section class="features">
+    <h2>Features</h2>
+    <ul>
+        @{foreach item in M.features}
+        <li>@{item}</li>
+        @{end}
+    </ul>
+</section>
