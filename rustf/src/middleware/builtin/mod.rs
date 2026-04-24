@@ -3,6 +3,7 @@
 //! This module provides common middleware that are frequently needed in web applications.
 //! These serve as examples for third-party middleware authors and provide immediate utility.
 
+pub mod compression;
 pub mod cors;
 pub mod csp;
 pub mod logging;
@@ -12,6 +13,7 @@ pub mod session;
 pub mod validation;
 
 // Re-export middleware for convenience
+pub use compression::CompressionMiddleware;
 pub use cors::{CorsConfig, CorsMiddleware};
 pub use csp::{CspConfig, CspMiddleware};
 pub use logging::LoggingMiddleware;
