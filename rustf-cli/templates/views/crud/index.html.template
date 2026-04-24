@@ -1,0 +1,18 @@
+<section>
+    <h1>@{M.title}</h1>
+    <p><a href="/{{name}}/new">+ New {{title_singular}}</a></p>
+
+    @{if R.items.length === 0}
+    <p>No {{name}} yet.</p>
+    @{else}
+    <ul>
+        @{foreach item in R.items}
+        <li>
+            <a href="/{{name}}/@{item.id}">@{item.name}</a>
+            &nbsp;·&nbsp;
+            <a href="/{{name}}/@{item.id}/edit">edit</a>
+        </li>
+        @{end}
+    </ul>
+    @{fi}
+</section>

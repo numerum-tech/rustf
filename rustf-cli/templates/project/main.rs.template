@@ -21,7 +21,10 @@ async fn main() -> rustf::Result<()> {
     // This single line replaces all manual configuration:
     // - Controllers, models, workers, middleware, events, definitions (from src/ directories)
     // - Builtin middleware: logging, cors, rate_limit, csrf (configured via config.toml)
-    let app = app.auto_load();
+    //
+    // .with_method_override() upgrades POST + _method=PUT/DELETE to the real method so
+    // HTML forms from `rustf-cli new crud` scaffolds work out of the box (Rails-style).
+    let app = app.auto_load().with_method_override();
 
     // Get server configuration
     let config = &app.config;

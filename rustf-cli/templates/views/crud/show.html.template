@@ -1,0 +1,16 @@
+<section>
+    <h1>@{M.title}</h1>
+    <dl>
+        <dt>ID</dt><dd>@{R.item.id}</dd>
+        <dt>Name</dt><dd>@{R.item.name}</dd>
+    </dl>
+    <p>
+        <a href="/{{name}}/@{R.item.id}/edit">Edit</a> &nbsp;·&nbsp;
+        <a href="/{{name}}">Back to list</a>
+    </p>
+
+    <form method="POST" action="/{{name}}/@{R.item.id}" style="display:inline">
+        <input type="hidden" name="_method" value="DELETE">
+        <button type="submit">Delete</button>
+    </form>
+</section>
