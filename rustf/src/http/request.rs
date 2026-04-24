@@ -121,6 +121,12 @@ pub struct Request {
     files: Option<FileCollection>,
     /// Cached multipart form data (parsed alongside files)
     multipart_form_data: Option<HashMap<String, String>>,
+    /// Lazily-populated cache of the parsed `Cookie` header.
+    ///
+    /// Session, CSRF, and flash-message middleware all read cookies from the
+    /// same request; without this cache each would re-tokenise the header
+    /// and allocate a fresh `HashMap`.
+    cookies_cache: once_cell::sync::OnceCell<HashMap<String, String>>,
 }
 
 impl Default for Request {
@@ -134,6 +140,7 @@ impl Default for Request {
             body_bytes: Vec::new(),
             files: None,
             multipart_form_data: None,
+            cookies_cache: once_cell::sync::OnceCell::new(),
         }
     }
 }
@@ -152,6 +159,7 @@ impl Request {
             body_bytes: Vec::new(),
             files: None,
             multipart_form_data: None,
+            cookies_cache: once_cell::sync::OnceCell::new(),
         }
     }
 
@@ -189,6 +197,7 @@ impl Request {
             body_bytes,
             files: None,               // Will be parsed on demand
             multipart_form_data: None, // Will be parsed on demand
+            cookies_cache: once_cell::sync::OnceCell::new(),
         })
     }
 
@@ -492,13 +501,23 @@ impl Request {
 
     // Total.js compatibility methods - Phase 1: High Priority Features
 
-    /// Get cookie value by name (Total.js: request.cookie(name))
+    /// Get cookie value by name (Total.js: request.cookie(name)).
+    ///
+    /// Parses the `Cookie` header once per request and caches the result, so
+    /// session + flash + CSRF middleware reading different cookies on the
+    /// same request all share one parse.
     pub fn cookie(&self, name: &str) -> Option<String> {
-        if let Some(cookie_header) = self.headers.get("cookie") {
-            Self::parse_cookies(cookie_header).get(name).cloned()
-        } else {
-            None
-        }
+        self.cookies().get(name).cloned()
+    }
+
+    /// All cookies on this request, parsed lazily on first access and cached.
+    pub fn cookies(&self) -> &HashMap<String, String> {
+        self.cookies_cache.get_or_init(|| {
+            self.headers
+                .get("cookie")
+                .map(|h| Self::parse_cookies(h))
+                .unwrap_or_default()
+        })
     }
 
     /// Get host from Host header (Total.js: request.host)
@@ -1199,6 +1218,28 @@ mod tests {
         // Test with no cookies
         let empty_request = Request::default();
         assert_eq!(empty_request.cookie("any"), None);
+    }
+
+    #[test]
+    fn test_cookies_cache_returns_stable_reference() {
+        // Two calls to cookies() must return the exact same HashMap —
+        // proves the lazy cache isn't re-parsing per call.
+        let mut request = Request::default();
+        request.headers.insert(
+            "cookie".to_string(),
+            "a=1; b=2; c=3".to_string(),
+        );
+
+        let first = request.cookies() as *const _;
+        let second = request.cookies() as *const _;
+        assert_eq!(first, second, "cookies() must cache — got different HashMap pointers");
+
+        // And multiple cookie(name) calls go through the same cache.
+        assert_eq!(request.cookie("a"), Some("1".to_string()));
+        assert_eq!(request.cookie("b"), Some("2".to_string()));
+        assert_eq!(request.cookie("c"), Some("3".to_string()));
+        let third = request.cookies() as *const _;
+        assert_eq!(first, third);
     }
 
     #[test]

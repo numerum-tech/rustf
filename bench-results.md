@@ -168,6 +168,16 @@ Real-world repositories are typically 5-15 keys where the current path costs ~1-
 
 ---
 
+## Task 5 — cached cookie parse on Request
+
+`request.cookie(name)` previously re-parsed the `Cookie` header on every call. Session, flash, and CSRF middleware each call it for different names — 3+ parses per typical request. Added `once_cell::sync::OnceCell<HashMap>` on `Request` populated lazily on first access.
+
+No before/after bench — the per-request parse cost is small (typical cookie header: ~50-200 bytes, ~3-10 name/value pairs, sub-µs parse). The correctness-critical test is that the *same* HashMap is returned across repeat calls, proving the cache is effective; added as `test_cookies_cache_returns_stable_reference`. The saving is one HashMap allocation + N tokenisations per request where N is the number of cookie readers on the hot path (today: session middleware + any flash/CSRF lookup).
+
+Also exposed `request.cookies() -> &HashMap<String, String>` publicly so callers that need several cookies (authentication code, analytics) can look them up without going through `cookie(name)` N times.
+
+---
+
 ## Task 4 — cached / hand-rolled HTTP date formatter
 
 Numbers from `benches/http_date.rs` (new). Each iteration formats three representative timestamps (epoch, ~2023, future).
