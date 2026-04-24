@@ -8,7 +8,7 @@ mod sqlite;
 use anyhow::Result;
 use clap::{Args, Subcommand};
 use rustf::config::AppConfig;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 // Re-export common types
 use self::{mysql::MySqlIntrospector, postgres::PostgresIntrospector, sqlite::SqliteIntrospector};
@@ -126,6 +126,28 @@ pub enum DbAction {
         /// Only generate schema for specific tables
         #[arg(long)]
         tables: Vec<String>,
+
+        /// Skip emitting the full SQL DDL dump alongside the YAML files.
+        /// By default, `db generate-schema` also writes
+        /// `<output>/_schema.sql` so the canonical DB structure stays in
+        /// source control (database-first workflow).
+        #[arg(long)]
+        no_sql: bool,
+    },
+
+    /// Dump the full database schema as SQL DDL to source control.
+    ///
+    /// Shells out to the native tool for your dialect (`pg_dump`,
+    /// `mysqldump`, or `sqlite3 .schema`) with schema-only, no-data
+    /// flags. Output is deterministic enough for git diffs.
+    DumpSchema {
+        /// Named connection to use (defaults to primary)
+        #[arg(long)]
+        connection: Option<String>,
+
+        /// Output file for the SQL dump
+        #[arg(short, long, default_value = "schemas/_schema.sql")]
+        output: PathBuf,
     },
 
     /// List all tables in the database
@@ -175,7 +197,11 @@ impl DbCommand {
                 force,
                 output,
                 tables,
-            } => generate_schema(project_path, output, connection, force, tables).await,
+                no_sql,
+            } => generate_schema(project_path, output, connection, force, tables, no_sql).await,
+            DbAction::DumpSchema { connection, output } => {
+                dump_schema(project_path, output, connection).await
+            }
             DbAction::ListTables {
                 connection,
                 format,
@@ -395,12 +421,13 @@ async fn generate_schema(
     connection: Option<String>,
     force: bool,
     tables: Vec<String>,
+    no_sql: bool,
 ) -> Result<()> {
     println!("🚀 Generating RustF YAML schemas from database...");
     println!("📂 Project: {:?}", project_path);
     println!("📁 Output: {:?}", output);
 
-    let database_url = get_database_url(project_path, connection).await?;
+    let database_url = get_database_url(project_path.clone(), connection.clone()).await?;
 
     // Mask sensitive parts for display
     let masked_url = if database_url.contains("://") {
@@ -442,7 +469,266 @@ async fn generate_schema(
         .await?;
 
     println!("🎉 Schema generation completed successfully!");
+
+    // Database-first workflow: keep the canonical DDL in source control
+    // alongside the YAML so reviewers see real structural diffs and a
+    // fresh environment can rebuild the DB from the SQL dump.
+    if !no_sql {
+        let sql_output = output.join("_schema.sql");
+        match run_dump_to_file(&database_url, &sql_output).await {
+            Ok(()) => {
+                println!("🗄️  Dumped DDL to: {:?}", sql_output);
+            }
+            Err(e) => {
+                // Don't fail the whole command — YAML generation already
+                // succeeded. Print a clear warning so the user can fix
+                // the dump step independently (install tool, etc.).
+                eprintln!("⚠️  SQL dump skipped: {}", e);
+                eprintln!("    Pass --no-sql to silence this, or run `rustf-cli db dump-schema` separately.");
+            }
+        }
+    }
+
     Ok(())
+}
+
+/// Standalone SQL dump command — same mechanism, no YAML regeneration.
+async fn dump_schema(
+    project_path: PathBuf,
+    output: PathBuf,
+    connection: Option<String>,
+) -> Result<()> {
+    // Relative output paths are resolved against the project dir, not CWD.
+    let resolved = if output.is_absolute() {
+        output.clone()
+    } else {
+        project_path.join(&output)
+    };
+    println!("🗄️  Dumping database DDL to {:?}", resolved);
+    let database_url = get_database_url(project_path, connection).await?;
+    run_dump_to_file(&database_url, &resolved).await?;
+    println!("✅ Dump complete.");
+    Ok(())
+}
+
+/// Shell out to the dialect-specific native tool and write its stdout
+/// to `output`. The parent directory is created if needed. Errors are
+/// reported with enough detail to diagnose missing-tool vs connection-
+/// refused vs auth-failed.
+async fn run_dump_to_file(database_url: &str, output: &Path) -> Result<()> {
+    use std::process::Stdio;
+    use tokio::io::AsyncWriteExt;
+
+    // Ensure parent exists so writing the file doesn't race a missing dir.
+    if let Some(parent) = output.parent() {
+        if !parent.as_os_str().is_empty() && !parent.exists() {
+            tokio::fs::create_dir_all(parent).await?;
+        }
+    }
+
+    let spec = DumpCommand::from_url(database_url)?;
+    log::debug!(
+        "Invoking {} with {} args (secrets redacted)",
+        spec.program,
+        spec.args.len()
+    );
+
+    let mut cmd = tokio::process::Command::new(&spec.program);
+    cmd.args(&spec.args);
+    for (k, v) in &spec.env {
+        cmd.env(k, v);
+    }
+    cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
+
+    let mut child = cmd.spawn().map_err(|e| {
+        if e.kind() == std::io::ErrorKind::NotFound {
+            anyhow::anyhow!(
+                "`{}` not found on PATH. Install it to enable SQL dumps \
+                 (brew install {} / apt install {} / equivalent).",
+                spec.program,
+                spec.install_hint,
+                spec.install_hint
+            )
+        } else {
+            anyhow::anyhow!("Failed to spawn `{}`: {}", spec.program, e)
+        }
+    })?;
+
+    let stdout = child.stdout.take().expect("stdout piped");
+    let stderr = child.stderr.take().expect("stderr piped");
+
+    // Stream stdout → file.
+    let output_path = output.to_path_buf();
+    let write_task = tokio::spawn(async move {
+        let mut reader = stdout;
+        let mut file = tokio::fs::File::create(&output_path).await?;
+        tokio::io::copy(&mut reader, &mut file).await?;
+        file.flush().await?;
+        Ok::<(), std::io::Error>(())
+    });
+
+    // Collect stderr for error messaging.
+    let stderr_task = tokio::spawn(async move {
+        use tokio::io::AsyncReadExt;
+        let mut reader = stderr;
+        let mut buf = Vec::new();
+        let _ = reader.read_to_end(&mut buf).await;
+        buf
+    });
+
+    let status = child.wait().await?;
+    let stderr_bytes = stderr_task.await.unwrap_or_default();
+    write_task.await??;
+
+    // Determine whether anything actually got written — a partial dump
+    // beats no dump (mysqldump on DBs with broken views still emits
+    // most tables correctly before erroring out).
+    let dump_size = tokio::fs::metadata(output)
+        .await
+        .map(|m| m.len())
+        .unwrap_or(0);
+
+    if !status.success() {
+        let stderr_text = String::from_utf8_lossy(&stderr_bytes);
+        if dump_size == 0 {
+            // Nothing useful written — remove the empty file and bail.
+            let _ = tokio::fs::remove_file(output).await;
+            anyhow::bail!(
+                "`{}` exited with status {} without producing output: {}",
+                spec.program,
+                status.code().map(|c| c.to_string()).unwrap_or_else(|| "signal".into()),
+                stderr_text.trim()
+            );
+        }
+        // Partial dump — keep it, warn with the first few stderr lines
+        // so the user knows the output is incomplete.
+        let stderr_snippet: String = stderr_text
+            .lines()
+            .take(5)
+            .collect::<Vec<_>>()
+            .join("\n    ");
+        eprintln!(
+            "⚠️  `{}` exited with status {} but wrote {} bytes — keeping partial dump.",
+            spec.program,
+            status.code().map(|c| c.to_string()).unwrap_or_else(|| "signal".into()),
+            dump_size
+        );
+        eprintln!("    First errors:\n    {}", stderr_snippet);
+    }
+
+    Ok(())
+}
+
+/// Resolved shell-out for a given database URL. Keeps program, args,
+/// env vars, and a human-friendly install hint together.
+struct DumpCommand {
+    program: &'static str,
+    args: Vec<String>,
+    env: Vec<(&'static str, String)>,
+    install_hint: &'static str,
+}
+
+impl DumpCommand {
+    fn from_url(database_url: &str) -> Result<Self> {
+        if database_url.starts_with("mysql://") {
+            Self::mysql(database_url)
+        } else if database_url.starts_with("postgres://") || database_url.starts_with("postgresql://") {
+            Self::postgres(database_url)
+        } else if database_url.starts_with("sqlite:") {
+            Self::sqlite(database_url)
+        } else {
+            anyhow::bail!(
+                "Unsupported database URL for SQL dump: expected mysql://, postgresql://, or sqlite:"
+            )
+        }
+    }
+
+    fn mysql(database_url: &str) -> Result<Self> {
+        let parsed = url::Url::parse(database_url)
+            .map_err(|e| anyhow::anyhow!("Invalid MySQL URL: {}", e))?;
+
+        let host = parsed.host_str().unwrap_or("localhost").to_string();
+        let port = parsed.port().unwrap_or(3306).to_string();
+        let user = parsed.username();
+        if user.is_empty() {
+            anyhow::bail!("MySQL URL missing user");
+        }
+        let user = user.to_string();
+        let db_name = parsed.path().trim_start_matches('/');
+        if db_name.is_empty() {
+            anyhow::bail!("MySQL URL missing database name");
+        }
+
+        let mut args: Vec<String> = vec![
+            "--no-data".into(),
+            "--skip-comments".into(),
+            "--skip-dump-date".into(),
+            "--skip-add-locks".into(),
+            // Schema-only dump — no point locking, and locks fail when
+            // the DB has views/routines with DEFINER users that no
+            // longer exist (MySQL error 1449). Skip locking outright.
+            "--skip-lock-tables".into(),
+            "--single-transaction".into(),
+            "--skip-set-charset".into(),
+            "--compact".into(),
+            // Continue past errors so broken views / routines don't wipe
+            // out an otherwise-useful dump of the tables. A partial
+            // dump is flagged with a warning (see run_dump_to_file).
+            "--force".into(),
+            format!("--host={}", host),
+            format!("--port={}", port),
+            format!("--user={}", user),
+            db_name.to_string(),
+        ];
+        // Routines + triggers make the dump a faithful full structure.
+        args.insert(0, "--routines".into());
+        args.insert(0, "--triggers".into());
+
+        // Password via MYSQL_PWD so it doesn't appear in `ps`.
+        let mut env: Vec<(&'static str, String)> = Vec::new();
+        if let Some(pw) = parsed.password() {
+            env.push(("MYSQL_PWD", pw.to_string()));
+        }
+
+        Ok(Self {
+            program: "mysqldump",
+            args,
+            env,
+            install_hint: "mysql-client",
+        })
+    }
+
+    fn postgres(database_url: &str) -> Result<Self> {
+        // pg_dump accepts the connection URL directly; no parsing needed.
+        Ok(Self {
+            program: "pg_dump",
+            args: vec![
+                "--schema-only".into(),
+                "--no-owner".into(),
+                "--no-privileges".into(),
+                "--no-comments".into(),
+                database_url.to_string(),
+            ],
+            env: Vec::new(),
+            install_hint: "postgresql-client",
+        })
+    }
+
+    fn sqlite(database_url: &str) -> Result<Self> {
+        // Supported URL shapes: sqlite:PATH  sqlite://PATH  sqlite:///ABSPATH
+        let path = database_url
+            .trim_start_matches("sqlite:")
+            .trim_start_matches("//");
+        if path.is_empty() || path == ":memory:" {
+            anyhow::bail!("Cannot dump in-memory SQLite database");
+        }
+        Ok(Self {
+            program: "sqlite3",
+            args: vec![path.to_string(), ".schema".into()],
+            env: Vec::new(),
+            install_hint: "sqlite3",
+        })
+    }
 }
 
 /// Compare database structure with existing schema

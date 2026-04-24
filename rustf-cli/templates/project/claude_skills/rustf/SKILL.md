@@ -388,7 +388,9 @@ creep in.
 | One background worker | `rustf-cli new worker --name <name>` |
 | One event handler (lifecycle/custom) | `rustf-cli new event --name <name> [--lifecycle] [--custom]` |
 | Regenerate a model's generated base after schema changes | `rustf-cli schema generate models` |
-| Introspect a database schema | `rustf-cli db introspect` |
+| Sync YAML schemas + SQL DDL from live DB (database-first flow) | `rustf-cli db generate-schema` *(also writes `schemas/_schema.sql`)* |
+| Dump full DB DDL to `schemas/_schema.sql` without regenerating YAML | `rustf-cli db dump-schema` |
+| Introspect a database | `rustf-cli db list-tables` / `db describe` / `db test-connection` |
 
 ### CRUD scaffolder — preconditions and flow
 
