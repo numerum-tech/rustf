@@ -115,8 +115,21 @@ impl MemorySessionStorage {
         format!("{:x}", hasher.finish())
     }
 
-    /// Start background cleanup task to remove expired sessions
+    /// Start background cleanup task to remove expired sessions.
+    ///
+    /// No-op if no Tokio runtime is active (e.g. construction during benchmarks
+    /// or synchronous config init). In that case, expired sessions are not
+    /// reaped in the background — callers that need cleanup must construct the
+    /// storage from within a running Tokio runtime (which is the normal case
+    /// for a RustF app started via `app.start().await`).
     fn start_cleanup_task(&self) {
+        if tokio::runtime::Handle::try_current().is_err() {
+            log::debug!(
+                "MemoryStorage::start_cleanup_task: no Tokio runtime, skipping background cleanup"
+            );
+            return;
+        }
+
         let sessions = Arc::clone(&self.sessions);
         let cleanup_interval = self.cleanup_interval;
         let session_timeout = self.session_timeout;
