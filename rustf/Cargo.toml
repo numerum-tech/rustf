@@ -117,3 +117,7 @@ harness = false
 [[bench]]
 name = "view_render"
 harness = false
+
+[[bench]]
+name = "http_date"
+harness = false

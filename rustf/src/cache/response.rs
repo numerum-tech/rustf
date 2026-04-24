@@ -321,15 +321,9 @@ fn generate_etag(content: &str) -> String {
     format!("\"{}\"", hasher.finish())
 }
 
-/// Format timestamp as HTTP date
+/// Format timestamp as an RFC 7231 HTTP date string.
 fn format_http_date(timestamp: u64) -> String {
-    use std::time::{Duration, UNIX_EPOCH};
-
-    let datetime = UNIX_EPOCH + Duration::from_secs(timestamp);
-
-    // Format as RFC 2822 date (simplified)
-    // In a real implementation, you'd use chrono or time crate
-    format!("{:?}", datetime) // Placeholder - use proper HTTP date formatting
+    crate::utils::http_date::format_http_date(timestamp)
 }
 
 /// Get current timestamp

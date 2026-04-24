@@ -16,6 +16,7 @@ pub mod crypto;
 pub mod encoding;
 pub mod geo;
 pub mod http;
+pub mod http_date;
 pub mod object;
 pub mod pagination;
 pub mod parsing;
