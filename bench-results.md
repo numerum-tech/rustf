@@ -168,6 +168,25 @@ Real-world repositories are typically 5-15 keys where the current path costs ~1-
 
 ---
 
+## Task 4 — cached / hand-rolled HTTP date formatter
+
+Numbers from `benches/http_date.rs` (new). Each iteration formats three representative timestamps (epoch, ~2023, future).
+
+| Implementation | Time / iteration (3 timestamps) | Per-format |
+|---|---|---|
+| `dt.format("%a...").to_string()` (chrono strftime) | `[858.57 ns  860.32 ns  862.43 ns]` | ~287 ns |
+| Hand-rolled (new) | `[342.54 ns  343.63 ns  344.58 ns]` | ~114 ns |
+
+**~2.5× faster** on every static-file response and every cached-response Last-Modified header.
+
+The old code also had a concrete bug: `cache/response.rs` previously called `format!("{:?}", datetime)` (marked `// Placeholder - use proper HTTP date formatting`), which emitted Rust-Debug-formatted `SystemTime` instead of a real HTTP date — any client honouring `Last-Modified` would have failed validation on cached responses.
+
+Three duplicate implementations in `app.rs`, `cache/response.rs`, and `security/static_files.rs` collapsed into one shared `utils::http_date::{format_http_date, parse_http_date}` with unit tests covering RFC 7231 shape, epoch, fixed 29-byte output, RFC 7231/RFC 850/asctime parsing, and round-trip.
+
+Net: **101 lines removed, 21 lines added** (plus the shared module + bench).
+
+---
+
 ## Task 1 — gzip compression middleware
 
 Numbers from `benches/compression.rs` on the dev machine. Measures raw `flate2::GzEncoder` throughput — the middleware's async wrapper adds negligible overhead on top.

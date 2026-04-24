@@ -1318,47 +1318,12 @@ impl RustF {
 
     /// Format a Unix timestamp as an RFC 7231 HTTP date string.
     fn format_http_date(timestamp: u64) -> String {
-        use chrono::{TimeZone, Utc};
-        let dt = Utc
-            .timestamp_opt(timestamp as i64, 0)
-            .single()
-            .unwrap_or_else(chrono::Utc::now);
-        dt.format("%a, %d %b %Y %H:%M:%S GMT").to_string()
+        crate::utils::http_date::format_http_date(timestamp)
     }
 
-    /// Parse an RFC 7231 HTTP date string to a Unix timestamp.
+    /// Parse an HTTP date header (RFC 7231, RFC 850, or asctime) to a Unix timestamp.
     fn parse_http_date(date_str: &str) -> Option<u64> {
-        use chrono::{TimeZone, Utc};
-        // RFC 7231: "Sun, 06 Nov 1994 08:49:37 GMT"
-        if let Some(without_gmt) = date_str.strip_suffix(" GMT") {
-            if let Ok(naive) =
-                chrono::NaiveDateTime::parse_from_str(without_gmt, "%a, %d %b %Y %H:%M:%S")
-            {
-                let ts = Utc.from_utc_datetime(&naive).timestamp();
-                if ts >= 0 {
-                    return Some(ts as u64);
-                }
-            }
-            // RFC 850: "Sunday, 06-Nov-94 08:49:37 GMT"
-            if let Ok(naive) =
-                chrono::NaiveDateTime::parse_from_str(without_gmt, "%A, %d-%b-%y %H:%M:%S")
-            {
-                let ts = Utc.from_utc_datetime(&naive).timestamp();
-                if ts >= 0 {
-                    return Some(ts as u64);
-                }
-            }
-        }
-        // asctime(): "Sun Nov  6 08:49:37 1994"
-        if let Ok(naive) =
-            chrono::NaiveDateTime::parse_from_str(date_str, "%a %b %e %H:%M:%S %Y")
-        {
-            let ts = chrono::Utc.from_utc_datetime(&naive).timestamp();
-            if ts >= 0 {
-                return Some(ts as u64);
-            }
-        }
-        None
+        crate::utils::http_date::parse_http_date(date_str)
     }
 
     fn infer_content_type(path: &Path) -> &'static str {

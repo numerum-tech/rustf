@@ -6,7 +6,6 @@
 use super::{PathValidator, SecurityConfig};
 use crate::error::{Error, Result};
 use crate::http::{Request, Response};
-use chrono::{TimeZone, Utc};
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -168,20 +167,9 @@ impl SecureStaticFileServer {
         }
     }
 
-    /// Format timestamp as HTTP date (RFC 7231 format)
+    /// Format timestamp as an RFC 7231 HTTP date string.
     fn format_http_date(timestamp: u64) -> String {
-        // Convert timestamp to DateTime<Utc>
-        let datetime = Utc
-            .timestamp_opt(timestamp as i64, 0)
-            .single()
-            .unwrap_or_else(|| {
-                Utc.timestamp_opt(0, 0)
-                    .single()
-                    .unwrap_or_else(Utc::now)
-            });
-
-        // Format according to RFC 7231: "Sun, 06 Nov 1994 08:49:37 GMT"
-        datetime.format("%a, %d %b %Y %H:%M:%S GMT").to_string()
+        crate::utils::http_date::format_http_date(timestamp)
     }
 
     /// Handle conditional requests (If-Modified-Since, ETag)
@@ -216,47 +204,7 @@ impl SecureStaticFileServer {
 
     /// Parse HTTP date string to timestamp (RFC 7231/2616 compliant)
     fn parse_http_date(date_str: &str) -> Option<u64> {
-        // HTTP/1.1 requires support for three date formats:
-        // 1. RFC 7231: "Sun, 06 Nov 1994 08:49:37 GMT"
-        // 2. RFC 850: "Sunday, 06-Nov-94 08:49:37 GMT"
-        // 3. asctime(): "Sun Nov  6 08:49:37 1994"
-
-        // Try RFC 7231 format first (most common) - strip GMT and parse as naive, then treat as UTC
-        if let Some(without_gmt) = date_str.strip_suffix(" GMT") {
-            if let Ok(naive_dt) =
-                chrono::NaiveDateTime::parse_from_str(without_gmt, "%a, %d %b %Y %H:%M:%S")
-            {
-                let datetime = Utc.from_utc_datetime(&naive_dt);
-                let timestamp = datetime.timestamp();
-                if timestamp >= 0 {
-                    return Some(timestamp as u64);
-                }
-            }
-
-            // Try RFC 850 format
-            if let Ok(naive_dt) =
-                chrono::NaiveDateTime::parse_from_str(without_gmt, "%A, %d-%b-%y %H:%M:%S")
-            {
-                let datetime = Utc.from_utc_datetime(&naive_dt);
-                let timestamp = datetime.timestamp();
-                if timestamp >= 0 {
-                    return Some(timestamp as u64);
-                }
-            }
-        }
-
-        // Try asctime() format (no timezone specified, assume GMT)
-        if let Ok(naive_dt) =
-            chrono::NaiveDateTime::parse_from_str(date_str, "%a %b %e %H:%M:%S %Y")
-        {
-            let datetime = Utc.from_utc_datetime(&naive_dt);
-            let timestamp = datetime.timestamp();
-            if timestamp >= 0 {
-                return Some(timestamp as u64);
-            }
-        }
-
-        None
+        crate::utils::http_date::parse_http_date(date_str)
     }
 }
 
@@ -312,6 +260,7 @@ impl StaticFileMiddleware {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::{TimeZone, Utc};
     use std::fs;
     use tempfile::TempDir;
 
