@@ -272,6 +272,14 @@ fn generate_project_files(project_path: &Path, variables: &HashMap<String, Strin
         ("readmes/uploads_README.md.template", "uploads/README.md"),
         // Schema files
         ("schemas/sessions.yaml.template", "schemas/sessions.yaml"),
+        // Claude Code skill — teaches AI collaborators the RustF
+        // layering rule + code-verified handler/middleware/model/view
+        // conventions. Loaded automatically by Claude Code when editing
+        // this project.
+        (
+            "project/claude_skills/rustf/SKILL.md",
+            ".claude/skills/rustf/SKILL.md",
+        ),
     ];
 
     for (template_path, output_path) in &file_mappings {
