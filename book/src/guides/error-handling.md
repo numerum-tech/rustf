@@ -81,10 +81,16 @@ Error::rate_limit("API rate limit exceeded: 100 requests per minute")
 Error::external_service("payment_gateway", "Service temporarily unavailable")
 Error::timeout("Request timed out after 30 seconds")
 
-// Validation errors
+// Validation errors — `Error::validation` covers all input-validation cases
 Error::validation("Email address is invalid")
-Error::invalid_input("Age must be a positive number")
+Error::validation("Age must be a positive number")
 ```
+
+> Note: `Error::validation` is the single constructor for input/validation
+> failures. There is no `Error::invalid_input`. For HTTP-specific
+> short-circuits (404, 400, 403, 500, …), use `ctx.throw404(...)`,
+> `ctx.throw400(...)`, etc. — those set the response on `ctx.res` and
+> return `Err` so the `?` operator propagates correctly.
 
 ### Error Propagation
 
