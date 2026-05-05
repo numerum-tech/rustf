@@ -26,8 +26,13 @@ impl Router {
     ///
     /// This now uses the high-performance Trie implementation for O(log n) lookup
     pub fn add_route(&mut self, route: Route) {
-        self.trie
-            .add_route(&route.method, &route.path, route.handler, route.xhr_only);
+        self.trie.add_route(
+            &route.method,
+            &route.path,
+            route.handler,
+            route.xhr_only,
+            route.before,
+        );
         // XHR routes count as 2 (GET + POST)
         self.route_count += if route.method == "XHR" { 2 } else { 1 };
     }

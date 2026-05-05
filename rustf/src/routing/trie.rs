@@ -3,7 +3,7 @@
 //! This module implements a radix trie (compressed trie) for efficient route matching.
 //! It provides O(log n) route matching instead of the previous O(n) implementation.
 
-use super::RouteHandler;
+use super::{BeforeFn, RouteHandler};
 use std::collections::HashMap;
 use std::fmt::Debug;
 
@@ -12,6 +12,10 @@ use std::fmt::Debug;
 pub struct RouteInfo {
     pub handler: RouteHandler,
     pub xhr_only: bool,
+    /// Optional controller-level pre-handler hook, copied through from
+    /// `Route::before`. The dispatcher calls this before invoking
+    /// `handler` and skips `handler` if the hook returns `Stop`.
+    pub before: Option<BeforeFn>,
 }
 
 /// A Trie node that can contain route handlers and parameters
@@ -69,7 +73,15 @@ impl TrieRouter {
     /// * `path` - Route path with optional parameters (e.g., "/users/{id}")
     /// * `handler` - Route handler function
     /// * `xhr_only` - Whether this route requires XHR/AJAX requests
-    pub fn add_route(&mut self, method: &str, path: &str, handler: RouteHandler, xhr_only: bool) {
+    /// * `before` - Optional controller-level pre-handler hook
+    pub fn add_route(
+        &mut self,
+        method: &str,
+        path: &str,
+        handler: RouteHandler,
+        xhr_only: bool,
+        before: Option<BeforeFn>,
+    ) {
         let segments = self.parse_path(path);
         let mut current = &mut self.root;
 
@@ -101,17 +113,32 @@ impl TrieRouter {
         // For XHR routes, we store with "XHR" as method but match on GET/POST
         if method == "XHR" {
             // XHR routes match both GET and POST
-            current
-                .handlers
-                .insert("GET".to_string(), RouteInfo { handler, xhr_only });
-            current
-                .handlers
-                .insert("POST".to_string(), RouteInfo { handler, xhr_only });
+            current.handlers.insert(
+                "GET".to_string(),
+                RouteInfo {
+                    handler,
+                    xhr_only,
+                    before,
+                },
+            );
+            current.handlers.insert(
+                "POST".to_string(),
+                RouteInfo {
+                    handler,
+                    xhr_only,
+                    before,
+                },
+            );
             self.route_count += 2;
         } else {
-            current
-                .handlers
-                .insert(method.to_uppercase(), RouteInfo { handler, xhr_only });
+            current.handlers.insert(
+                method.to_uppercase(),
+                RouteInfo {
+                    handler,
+                    xhr_only,
+                    before,
+                },
+            );
             self.route_count += 1;
         }
     }
@@ -245,9 +272,9 @@ mod tests {
     #[test]
     fn test_static_routes() {
         let mut router = TrieRouter::new();
-        router.add_route("GET", "/", mock_handler as RouteHandler, false);
-        router.add_route("GET", "/users", mock_handler as RouteHandler, false);
-        router.add_route("GET", "/users/profile", mock_handler as RouteHandler, false);
+        router.add_route("GET", "/", mock_handler as RouteHandler, false, None);
+        router.add_route("GET", "/users", mock_handler as RouteHandler, false, None);
+        router.add_route("GET", "/users/profile", mock_handler as RouteHandler, false, None);
 
         assert!(router.match_route("GET", "/").is_some());
         assert!(router.match_route("GET", "/users").is_some());
@@ -259,12 +286,13 @@ mod tests {
     #[test]
     fn test_parameter_routes() {
         let mut router = TrieRouter::new();
-        router.add_route("GET", "/users/{id}", mock_handler as RouteHandler, false);
+        router.add_route("GET", "/users/{id}", mock_handler as RouteHandler, false, None);
         router.add_route(
             "GET",
             "/users/{id}/posts/{post_id}",
             mock_handler as RouteHandler,
             false,
+            None,
         );
 
         let (_, params) = router.match_route("GET", "/users/123").unwrap();
@@ -278,8 +306,8 @@ mod tests {
     #[test]
     fn test_route_priority() {
         let mut router = TrieRouter::new();
-        router.add_route("GET", "/users/special", mock_handler as RouteHandler, false);
-        router.add_route("GET", "/users/{id}", mock_handler as RouteHandler, false);
+        router.add_route("GET", "/users/special", mock_handler as RouteHandler, false, None);
+        router.add_route("GET", "/users/{id}", mock_handler as RouteHandler, false, None);
 
         // Static route should take priority over parameter route
         let (_, params) = router.match_route("GET", "/users/special").unwrap();
@@ -292,7 +320,7 @@ mod tests {
     #[test]
     fn test_query_parameters_ignored() {
         let mut router = TrieRouter::new();
-        router.add_route("GET", "/search", mock_handler as RouteHandler, false);
+        router.add_route("GET", "/search", mock_handler as RouteHandler, false, None);
 
         assert!(router
             .match_route("GET", "/search?q=test&limit=10")
@@ -305,13 +333,13 @@ mod tests {
         let mut router = TrieRouter::new();
         assert_eq!(router.route_count(), 0);
 
-        router.add_route("GET", "/", mock_handler, false);
+        router.add_route("GET", "/", mock_handler, false, None);
         assert_eq!(router.route_count(), 1);
 
-        router.add_route("POST", "/", mock_handler as RouteHandler, false);
+        router.add_route("POST", "/", mock_handler as RouteHandler, false, None);
         assert_eq!(router.route_count(), 2);
 
-        router.add_route("GET", "/users", mock_handler as RouteHandler, false);
+        router.add_route("GET", "/users", mock_handler as RouteHandler, false, None);
         assert_eq!(router.route_count(), 3);
     }
 }

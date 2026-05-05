@@ -132,6 +132,97 @@ routes![
 - Compile-time validation
 - Support for URL parameters with `{parameter}` syntax
 - Trailing commas allowed
+- Optional `before:` clause for controller-level pre-handler hooks (see below)
+
+## Controller-level `before` Hook
+
+The `routes!` macro accepts an optional `before:` clause as the first
+item. When present, the framework runs the supplied function before
+**every** handler this `install()` registers. It can short-circuit the
+request — useful for setup work shared by all the controller's handlers
+(e.g. setting a repository value used by all views) or for an access
+gate scoped to this controller.
+
+```rust
+use rustf::prelude::*;
+use rustf::routing::BeforeAction;
+
+pub fn install() -> Vec<Route> {
+    async fn before(ctx: &mut Context) -> rustf::Result<BeforeAction> {
+        // Setup common to every route below.
+        ctx.repository_set("section", "users");
+
+        // Access gate: kick out unauthenticated users.
+        if !ctx.has_session() {
+            ctx.redirect("/login")?;
+            return Ok(BeforeAction::Stop);
+        }
+        Ok(BeforeAction::Continue)
+    }
+
+    routes![
+        before: before,
+        GET    "/users"      => index,
+        GET    "/users/{id}" => show,
+        POST   "/users"      => create,
+    ]
+}
+```
+
+**Semantics:**
+
+- `Ok(BeforeAction::Continue)` — handler runs normally.
+- `Ok(BeforeAction::Stop)` — handler is skipped. The framework returns
+  whatever response the hook wrote to `ctx.res` (via `ctx.redirect`,
+  `ctx.throw403`, `ctx.json`, etc.).
+- `Err(e)` — propagates exactly like an error from a handler.
+
+**Pipeline order:**
+
+```
+inbound middleware  →  router match  →  before  →  handler  →  outbound middleware
+```
+
+`before` runs after the request has been matched to one of this
+controller's routes; it does NOT see traffic destined for other
+controllers.
+
+**Why not just middleware?** Middleware applies based on URL prefix or
+global match and lives in a separate file. Use middleware for
+cross-cutting concerns (logging, CORS, compression, CSRF). Use a
+controller `before` when the rule belongs to *this controller's
+identity* — e.g. "every route in `users` requires the `users.read`
+permission". The `before` lives inside the controller's `install()`
+body, scoped lexically to it; the wiring is one opt-in line.
+
+**Defining `before` inside `install()`** (Rust permits inner `async fn`
+items) keeps it scoped to the controller. No module-namespace pollution,
+no risk of confusing it with a route handler, no need to invent a
+private name. The wiring `before: before,` in `routes![]` is the one
+visible cue the controller has a hook.
+
+**Controller-level shared state.** If you need state shared across
+multiple handlers in the same controller (an in-memory cache, a counter,
+a once-initialized resource), use module-level Rust statics. Nothing
+framework-specific is required.
+
+```rust
+use once_cell::sync::Lazy;
+use std::sync::atomic::{AtomicU64, Ordering};
+
+static REQUEST_COUNT: AtomicU64 = AtomicU64::new(0);
+static CACHE: Lazy<dashmap::DashMap<i64, String>> = Lazy::new(DashMap::new);
+
+async fn show(ctx: &mut Context) -> rustf::Result<()> {
+    REQUEST_COUNT.fetch_add(1, Ordering::Relaxed);
+    // CACHE is shared with all other handlers in this file
+    Ok(())
+}
+```
+
+**Backward compatibility:** existing controllers using the bare
+`routes![GET ..., ...]` form behave identically to before. The `before:`
+clause is purely additive.
 
 ## Writing Route Handlers
 

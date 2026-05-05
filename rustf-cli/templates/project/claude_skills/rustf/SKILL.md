@@ -168,6 +168,73 @@ Canonical example: `sample-app/src/middleware/timing.rs` (timing via
 
 ---
 
+## 3.5. Controller-level `before` hook (NOT middleware)
+
+Use when **every handler in ONE controller** needs the same setup or
+the same access gate (set a repository value used by all the controller's
+views, deny users who lack rights to anything in this controller, etc.).
+Defined inside `install()`, wired via `routes![]`, auto-applied to every
+route the controller emits.
+
+```rust
+// src/controllers/users.rs
+use rustf::prelude::*;
+use rustf::routing::BeforeAction;
+
+pub fn install() -> Vec<Route> {
+    async fn before(ctx: &mut Context) -> rustf::Result<BeforeAction> {
+        ctx.repository_set("section", "users");
+
+        if !ctx.has_session() {
+            ctx.redirect("/login")?;
+            return Ok(BeforeAction::Stop);
+        }
+        Ok(BeforeAction::Continue)
+    }
+
+    routes![
+        before: before,
+        GET    "/users"      => index,
+        GET    "/users/{id}" => show,
+        POST   "/users"      => create,
+    ]
+}
+
+async fn index(ctx: &mut Context)  -> rustf::Result<()> { /* ... */ }
+async fn show(ctx: &mut Context)   -> rustf::Result<()> { /* ... */ }
+async fn create(ctx: &mut Context) -> rustf::Result<()> { /* ... */ }
+```
+
+**This is NOT middleware.** Differences that matter:
+
+|  | Middleware | Controller `before` |
+|---|---|---|
+| Where it lives | `src/middleware/*.rs`, separate file | Inside the controller's `install()` body |
+| Scope | Path-prefix matched, can apply to many controllers | Exactly the routes returned by this `install()` — no path matching |
+| Registration | Explicit `MiddlewareRegistry::register_*` | One opt-in line: `before: <fn>,` at the top of `routes![]` |
+| When to reach for it | Cross-cutting concern (logging, CORS, compression, CSRF) | "Every handler of THIS controller does X" |
+
+**Pipeline order:** `inbound middleware → router match → before → handler → outbound middleware`. Middleware stays request-level (above the router); `before` is controller-level (below).
+
+**Short-circuit semantics:**
+- `Ok(BeforeAction::Continue)` → handler runs as usual.
+- `Ok(BeforeAction::Stop)` → handler is skipped. The framework returns whatever response the hook wrote to `ctx.res` via `ctx.redirect`, `ctx.throw403`, `ctx.json`, etc.
+- `Err(e)` → propagates exactly like an error from a handler.
+
+**Defining `before` inside `install()`** (Rust allows inner `async fn` items) keeps it scoped to the controller — no module-namespace pollution, no risk of confusing it with a route handler. The wiring `before: before,` in `routes![]` is the one visible cue that this controller has a hook.
+
+**Controller-level shared variables** (state shared across handlers of the same controller): use Rust module-level statics. No framework feature needed.
+
+```rust
+use once_cell::sync::Lazy;
+static CACHE: Lazy<dashmap::DashMap<i64, String>> = Lazy::new(DashMap::new);
+// every handler in this file can use CACHE
+```
+
+Authoritative: `rustf/src/routing/mod.rs` (the `BeforeAction` enum + the `routes!` macro arm).
+
+---
+
 ## 4. Context API cheat sheet (top ~30 methods)
 
 **Authoritative:** `rustf/src/context.rs`.
@@ -457,6 +524,7 @@ around it — flag the template for repair in `rustf-cli/templates/` and
 10. Built-in middleware assumed to be in the prelude → `use rustf::middleware::builtin::*;` is required.
 11. Templates using JSX-ish `{ var }` or Jinja `{{ var }}` → Total.js uses `@{var}`.
 12. `ctx.set` used for data that the view needs → switch to `ctx.repository_set`.
+13. Reaching for middleware when only one controller cares → use `routes![before: <fn>, ...]` inside `install()` instead.
 
 ---
 
