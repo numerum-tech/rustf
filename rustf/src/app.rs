@@ -1104,6 +1104,22 @@ impl RustF {
 
             ctx.req.params = params;
 
+            // Run controller-level `before` hook if any (wired via the
+            // `routes![before: ..., ...]` macro arm). If it returns
+            // `Stop`, skip the handler and return the response the hook
+            // already wrote to ctx.res.
+            if let Some(before) = route_info.before {
+                use crate::routing::BeforeAction;
+                match before(ctx).await? {
+                    BeforeAction::Stop => {
+                        let response =
+                            ctx.take_response().unwrap_or_else(Response::internal_error);
+                        return Ok(MiddlewareResult::Stop(response));
+                    }
+                    BeforeAction::Continue => { /* fall through to handler */ }
+                }
+            }
+
             // Handler modifies context in place (sets response)
             (route_info.handler)(ctx).await?;
 
