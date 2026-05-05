@@ -363,6 +363,35 @@ let app = RustF::new()
    - CSRF protection integration
    - Automatic error response generation
 
+5. **CompressionMiddleware** (Outbound)
+   - Gzip-compresses responses when the client sends `Accept-Encoding: gzip`
+   - Skips bodies < 256 B, non-compressible content-types, and already-encoded responses
+   - Adds `Content-Encoding: gzip` and `Vary: Accept-Encoding` headers; updates `Content-Length`
+   - Opt-in builder: `RustF::new().with_compression()` (registers the middleware for you)
+   - Configurable compression level via `CompressionMiddleware::fast()` / `::best()` / `::new()` (default level 6)
+
+6. **MethodOverrideMiddleware** (Inbound)
+   - Upgrades a `POST` request to `PUT`, `PATCH`, or `DELETE` when the body or query carries `_method=<METHOD>`
+   - Standard convention used by Rails / Express / Phoenix to make HTML forms expressive (browsers only natively send GET and POST)
+   - Reads `_method` from the query string OR from `application/x-www-form-urlencoded` body — JSON bodies that incidentally contain `_method` are NOT touched
+   - Required for the HTML forms emitted by `rustf-cli new crud` to work as-is
+   - Opt-in builder: `RustF::new().with_method_override()`
+
+### Builder helpers for opt-in middleware
+
+Some built-ins are registered via dedicated builder methods on `RustF`
+rather than `auto_load_with(&[...])` strings, because they are commonly
+toggled on/off per project:
+
+```rust
+let app = RustF::with_args()?
+    .auto_load()                  // builtin mw via config + auto-discovery
+    .with_compression()           // gzip, opt-in
+    .with_method_override();      // _method=PUT/DELETE for HTML forms
+```
+
+Both helpers are no-ops if you don't call them — fully opt-in.
+
 ## Execution Order
 
 ### Priority System

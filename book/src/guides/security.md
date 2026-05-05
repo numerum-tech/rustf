@@ -69,8 +69,8 @@ async fn main() -> Result<()> {
     
     // Your routes - CSRF automatically applied
     app.post("/users", create_user_handler);         // Protected
-    app.put("/users/:id", update_user_handler);      // Protected  
-    app.delete("/users/:id", delete_user_handler);   // Protected
+    app.put("/users/{id}", update_user_handler);      // Protected  
+    app.delete("/users/{id}", delete_user_handler);   // Protected
     app.get("/users", list_users_handler);           // Not protected
     
     app.listen("127.0.0.1:8080").await?;
@@ -104,13 +104,13 @@ CSRF protection is applied automatically based on HTTP methods:
 ```rust
 // These routes are automatically protected:
 app.post("/users", create_user);           // ✅ CSRF Required
-app.put("/users/:id", update_user);        // ✅ CSRF Required  
-app.patch("/users/:id", partial_update);   // ✅ CSRF Required
-app.delete("/users/:id", delete_user);     // ✅ CSRF Required
+app.put("/users/{id}", update_user);        // ✅ CSRF Required  
+app.patch("/users/{id}", partial_update);   // ✅ CSRF Required
+app.delete("/users/{id}", delete_user);     // ✅ CSRF Required
 
 // These routes bypass CSRF protection:
 app.get("/users", list_users);             // ⏭️ CSRF Bypassed
-app.head("/users/:id", check_user);        // ⏭️ CSRF Bypassed
+app.head("/users/{id}", check_user);        // ⏭️ CSRF Bypassed
 app.options("/users", cors_preflight);     // ⏭️ CSRF Bypassed
 ```
 
@@ -719,7 +719,7 @@ let csrf_config = CsrfConfig::new()
 app.middleware("csrf", CsrfMiddleware::with_config(csrf_config));
 
 // Custom method handling
-app.route("CUSTOM", "/resources/:id", custom_method_handler);
+app.route("CUSTOM", "/resources/{id}", custom_method_handler);
 ```
 
 ### Multiple CSRF Configurations
@@ -739,7 +739,7 @@ let private_api_config = CsrfConfig::new()
 let private_routes = RouteGroup::new("/api/private")
     .middleware("csrf", CsrfMiddleware::with_config(private_api_config))
     .route("POST", "/users", create_user)
-    .route("PUT", "/users/:id", update_user);
+    .route("PUT", "/users/{id}", update_user);
 
 app.route_group(public_routes);
 app.route_group(private_routes);
@@ -755,7 +755,7 @@ app.middleware("csrf", CsrfMiddleware::new());
 
 // Routes with CSRF
 app.post("/users", create_user_handler);
-app.put("/users/:id", update_user_handler);
+app.put("/users/{id}", update_user_handler);
 
 // Exempt webhook routes
 app.post("/webhook/stripe", stripe_webhook_handler);  // Exempt via /api/* default

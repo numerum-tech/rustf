@@ -123,11 +123,26 @@ rustf-cli db <SUBCOMMAND>
   rustf-cli db export-data <TABLE_NAME> [--format json|csv] [--limit <N>] [-o <FILE>]
   ```
 
-- **`generate-schema`** - Generate YAML schemas from database
+- **`generate-schema`** - Generate YAML schemas + full SQL DDL dump from database
   ```bash
-  rustf-cli db generate-schema [-o <DIR>] [--force] [--tables <TABLE1,TABLE2>]
+  rustf-cli db generate-schema [-o <DIR>] [--force] [--tables <T1,T2>] [--no-sql]
   # ⚠️ --force creates backups in .rustf/backups/schemas/
   ```
+  By default also writes `<DIR>/_schema.sql` (full DDL via mysqldump /
+  pg_dump / sqlite3 .schema). The SQL dump is the canonical
+  source-controlled representation of the live DB structure
+  (database-first workflow). Pass `--no-sql` to skip it.
+
+- **`dump-schema`** - Dump full DB DDL only (no YAML regeneration)
+  ```bash
+  rustf-cli db dump-schema [-o <FILE>]
+  # Default output: schemas/_schema.sql
+  ```
+  Shells out to the dialect-specific native tool: `pg_dump --schema-only`,
+  `mysqldump --no-data --skip-lock-tables --routines --triggers --force`,
+  or `sqlite3 <path> .schema`. Falls back gracefully when a tool isn't
+  installed (clear error naming the package). Keeps a partial dump if
+  the DB has broken views / orphaned DEFINERs (warns to stderr).
 
 - **`list-tables`** - List all database tables
   ```bash
@@ -201,6 +216,39 @@ rustf-cli new <SUBCOMMAND>
   rustf-cli new project <PROJECT_NAME> [--path <DIR>] [--force]
   # ⚠️ --force creates backup of existing project in .rustf/backups/project/
   ```
+  Scaffolds the canonical layout (controllers, models, modules,
+  middleware, definitions, views, public, schemas, uploads), a working
+  sample controller + view, default config, and `.claude/skills/rustf/SKILL.md`
+  so AI collaborators inherit the framework conventions automatically.
+
+- **`worker`** - Generate background worker
+  ```bash
+  rustf-cli new worker -n <NAME>
+  # NAME is converted to kebab-case for WORKER::register
+  ```
+
+- **`crud`** - Generate the HTTP + business layer around an EXISTING model
+  ```bash
+  rustf-cli new crud -n <PLURAL_NAME>
+  # Example: rustf-cli new crud -n posts
+  ```
+  Emits 7 files all wired to the **layering rule**
+  (Base Model → Model → Module → Controller):
+
+  - `src/controllers/<name>.rs` — thin handlers (7 RESTful routes), calls only `crate::modules::<name>_service`
+  - `src/modules/<name>_service.rs` — the only place that touches the model; uses `Model::query()` etc.
+  - `views/<name>/{index,show,new,edit}.html`
+  - `tests/<name>_test.rs`
+
+  **Precondition:** `src/models/<name>.rs` must already exist
+  (generate it first via `rustf-cli schema generate models` after
+  defining `schemas/<name>.yaml`). The CRUD command refuses to run
+  otherwise and prints clear guidance.
+
+  The `create` and `update` methods in the emitted service have
+  `TODO` markers where you need to map form fields to the model's
+  schema-typed `.builder()` / `.set_*` calls — the scaffolder doesn't
+  read your YAML, so those 2-3 lines are by design a manual step.
 
 ### 5. `perf` - Performance Analysis
 

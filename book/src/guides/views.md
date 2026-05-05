@@ -36,35 +36,37 @@ default_root = ""                  # Base URL path for deployment (e.g., "/app")
 ```rust
 use rustf::prelude::*;
 
-#[rustf::install]
-impl HomeController {
-    #[route(GET, "/")]
-    pub async fn index(ctx: Context) -> Result<Response> {
-        // Render a template with data
-        ctx.view("home/index", json!({
-            "title": "Welcome",
-            "message": "Hello from RustF!",
-            "features": vec!["Fast", "Safe", "Productive"]
-        }))
-    }
-    
-    #[route(GET, "/about")]
-    pub async fn about(mut ctx: Context) -> Result<Response> {
-        // Render with custom layout
-        ctx.layout("layouts/special")
-            .view("about", json!({
-                "title": "About Us"
-            }))
-    }
-    
-    #[route(GET, "/standalone")]
-    pub async fn standalone(mut ctx: Context) -> Result<Response> {
-        // Render without layout
-        ctx.layout("")  // Empty string = no layout
-            .view("standalone", json!({
-                "content": "This page has no layout"
-            }))
-    }
+pub fn install() -> Vec<Route> {
+    routes![
+        GET "/"           => index,
+        GET "/about"      => about,
+        GET "/standalone" => standalone,
+    ]
+}
+
+async fn index(ctx: &mut Context) -> rustf::Result<()> {
+    // Render a template with data
+    ctx.view("home/index", json!({
+        "title": "Welcome",
+        "message": "Hello from RustF!",
+        "features": vec!["Fast", "Safe", "Productive"]
+    }))
+}
+
+async fn about(ctx: &mut Context) -> rustf::Result<()> {
+    // Render with custom layout
+    ctx.layout("layouts/special");
+    ctx.view("about", json!({
+        "title": "About Us"
+    }))
+}
+
+async fn standalone(ctx: &mut Context) -> rustf::Result<()> {
+    // Render without layout
+    ctx.layout("");  // Empty string = no layout
+    ctx.view("standalone", json!({
+        "content": "This page has no layout"
+    }))
 }
 ```
 
@@ -727,27 +729,29 @@ RustF follows the Total.js pattern for layouts:
 ```rust
 use rustf::prelude::*;
 
-#[rustf::install]
-impl PageController {
-    // Uses default layout from config
-    #[route(GET, "/")]
-    pub async fn index(ctx: Context) -> Result<Response> {
-        ctx.view("home/index", json!({"title": "Home"}))
-    }
-    
-    // Custom layout
-    #[route(GET, "/admin")]
-    pub async fn admin(mut ctx: Context) -> Result<Response> {
-        ctx.layout("layouts/admin")  // Set custom layout
-            .view("admin/dashboard", json!({"user": "Admin"}))
-    }
-    
-    // No layout (standalone page)
-    #[route(GET, "/api-doc")]
-    pub async fn api_doc(mut ctx: Context) -> Result<Response> {
-        ctx.layout("")  // Empty string = no layout
-            .view("docs/api", json!({"version": "1.0"}))
-    }
+pub fn install() -> Vec<Route> {
+    routes![
+        GET "/"        => index,
+        GET "/admin"   => admin,
+        GET "/api-doc" => api_doc,
+    ]
+}
+
+// Uses default layout from config
+async fn index(ctx: &mut Context) -> rustf::Result<()> {
+    ctx.view("home/index", json!({"title": "Home"}))
+}
+
+// Custom layout
+async fn admin(ctx: &mut Context) -> rustf::Result<()> {
+    ctx.layout("layouts/admin");  // Set custom layout
+    ctx.view("admin/dashboard", json!({"user": "Admin"}))
+}
+
+// No layout (standalone page)
+async fn api_doc(ctx: &mut Context) -> rustf::Result<()> {
+    ctx.layout("");  // Empty string = no layout
+    ctx.view("docs/api", json!({"version": "1.0"}))
 }
 ```
 
@@ -2105,63 +2109,65 @@ match ctx.view("missing-template", data) {
 ```rust
 use rustf::prelude::*;
 
-#[rustf::install]
-impl ProductController {
-    #[route(GET, "/products")]
-    pub async fn index(mut ctx: Context) -> Result<Response> {
-        let products = vec![
-            json!({"id": 1, "name": "Widget", "price": 19.99}),
-            json!({"id": 2, "name": "Gadget", "price": 29.99}),
-        ];
-        
-        // Set context repository for this page
-        ctx.repository_set("view_mode", "grid")
-           .repository_set("filters_available", json!(["price", "category", "brand"]))
-           .repository_set("user_preferences", json!({
-               "currency": "USD",
-               "show_tax": true
-           }));
-        
-        ctx.view("products/index", json!({
-            "title": "Our Products",
-            "products": products,
-            "featured": true
-        }))
-    }
-    
-    #[route(GET, "/products/:id")]
-    pub async fn show(mut ctx: Context) -> Result<Response> {
-        let id = ctx.param("id")?;
-        
-        // Fetch product from database
-        let product = json!({
-            "id": id,
-            "name": "Premium Widget",
-            "price": 49.99,
-            "description": "High-quality widget"
-        });
-        
-        // Set repository data for product page
-        ctx.repository_set("breadcrumbs", json!([
-            {"name": "Home", "url": "/"},
-            {"name": "Products", "url": "/products"},
-            {"name": "Premium Widget", "url": null}
-        ]))
-        .repository_set("show_reviews", true)
-        .repository_set("related_products_count", 5);
-        
-        ctx.view("products/show", product)
-    }
-    
-    #[route(POST, "/products/:id/buy")]
-    pub async fn purchase(ctx: Context) -> Result<Response> {
-        let id = ctx.param("id")?;
-        
-        // Process purchase...
-        
-        ctx.flash("success", "Purchase completed!");
-        ctx.redirect(&format!("/products/{}", id))
-    }
+pub fn install() -> Vec<Route> {
+    routes![
+        GET  "/products"           => index,
+        GET  "/products/{id}"      => show,
+        POST "/products/{id}/buy"  => purchase,
+    ]
+}
+
+async fn index(ctx: &mut Context) -> rustf::Result<()> {
+    let products = vec![
+        json!({"id": 1, "name": "Widget", "price": 19.99}),
+        json!({"id": 2, "name": "Gadget", "price": 29.99}),
+    ];
+
+    // Set context repository for this page
+    ctx.repository_set("view_mode", "grid")
+       .repository_set("filters_available", json!(["price", "category", "brand"]))
+       .repository_set("user_preferences", json!({
+           "currency": "USD",
+           "show_tax": true
+       }));
+
+    ctx.view("products/index", json!({
+        "title": "Our Products",
+        "products": products,
+        "featured": true
+    }))
+}
+
+async fn show(ctx: &mut Context) -> rustf::Result<()> {
+    let id = ctx.param_str("id")?;
+
+    // Fetch product from database
+    let product = json!({
+        "id": id,
+        "name": "Premium Widget",
+        "price": 49.99,
+        "description": "High-quality widget"
+    });
+
+    // Set repository data for product page
+    ctx.repository_set("breadcrumbs", json!([
+        {"name": "Home", "url": "/"},
+        {"name": "Products", "url": "/products"},
+        {"name": "Premium Widget", "url": null}
+    ]))
+    .repository_set("show_reviews", true)
+    .repository_set("related_products_count", 5);
+
+    ctx.view("products/show", product)
+}
+
+async fn purchase(ctx: &mut Context) -> rustf::Result<()> {
+    let id = ctx.param_str("id")?;
+
+    // Process purchase...
+
+    ctx.flash_success("Purchase completed!")?;
+    ctx.redirect(&format!("/products/{}", id))
 }
 ```
 

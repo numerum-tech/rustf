@@ -179,12 +179,27 @@ sudo systemctl reload nginx
 
 ## Database Setup
 
-### Run Migrations
+### Apply schema changes
+
+RustF is **database-first**: the live DB is the source of truth, not an
+ordered migration log. The supported flow is:
 
 ```bash
-# In production
-rustf-cli migrate up
+# 1. Define / update YAML schemas/<table>.yaml from your design.
+
+# 2. Generate SQL migrations from the YAML diff.
+rustf-cli schema generate migrations
+
+# 3. Apply the generated SQL with your tool of choice (psql, mysql, sqlite3,
+#    Flyway, Liquibase, etc.). RustF does not ship its own migration runner.
+
+# 4. After the DB is updated, sync the YAML back from the live DB and
+#    keep the canonical DDL in source control:
+rustf-cli db generate-schema       # writes schemas/*.yaml + schemas/_schema.sql
 ```
+
+For a one-off SQL dump without regenerating the YAML, use
+`rustf-cli db dump-schema`.
 
 ### Backup Strategy
 
