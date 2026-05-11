@@ -66,7 +66,7 @@ pub use context::Context;
 pub use error::{Error, Result};
 pub use http::{FileCollection, Request, Response, UploadedFile};
 pub use middleware::{InboundAction, InboundMiddleware, MiddlewareResult, OutboundMiddleware};
-pub use routing::{Route, RouteHandler};
+pub use routing::{BeforeAction, BeforeFn, Route, RouteHandler};
 
 // Re-export database access for backward compatibility
 pub use configuration::{CONF, DEBUG};

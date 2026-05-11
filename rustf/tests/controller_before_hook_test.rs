@@ -7,7 +7,6 @@
 
 use hyper::{Body, Request as HyperRequest};
 use rustf::prelude::*;
-use rustf::routing::{BeforeAction, Route};
 use rustf::RustF;
 
 // ---------------------------------------------------------------------

@@ -145,7 +145,6 @@ gate scoped to this controller.
 
 ```rust
 use rustf::prelude::*;
-use rustf::routing::BeforeAction;
 
 pub fn install() -> Vec<Route> {
     async fn before(ctx: &mut Context) -> rustf::Result<BeforeAction> {
