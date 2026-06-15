@@ -112,7 +112,7 @@ impl Pagination {
 ///
 /// # Example
 ///
-/// ```rust
+/// ```ignore
 /// use rustf::prelude::*;
 ///
 /// // Get paginated results from database

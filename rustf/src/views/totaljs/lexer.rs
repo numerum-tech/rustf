@@ -231,6 +231,78 @@ impl Lexer {
         Token::new(token_kind, line, column)
     }
 
+    /// Detect a top-level binary or ternary operator in directive content,
+    /// ignoring anything inside quotes or parentheses. Used to route compound
+    /// value expressions (e.g. `M.a || "default"`) to the parser's expression
+    /// handling instead of the single-data-path token kinds.
+    fn has_top_level_operator(expr: &str) -> bool {
+        let chars: Vec<char> = expr.chars().collect();
+        let mut paren_depth: i32 = 0;
+        let mut in_quote = false;
+        let mut quote_char = ' ';
+        let mut i = 0;
+
+        while i < chars.len() {
+            let c = chars[i];
+
+            // Track quotes (respecting backslash escapes)
+            if (c == '"' || c == '\'') && (i == 0 || chars[i - 1] != '\\') {
+                if !in_quote {
+                    in_quote = true;
+                    quote_char = c;
+                } else if c == quote_char {
+                    in_quote = false;
+                }
+                i += 1;
+                continue;
+            }
+            if in_quote {
+                i += 1;
+                continue;
+            }
+
+            // Track parentheses
+            if c == '(' {
+                paren_depth += 1;
+                i += 1;
+                continue;
+            }
+            if c == ')' {
+                paren_depth -= 1;
+                i += 1;
+                continue;
+            }
+
+            if paren_depth == 0 {
+                // Ternary
+                if c == '?' {
+                    return true;
+                }
+                // Single-char arithmetic / comparison operators
+                if matches!(c, '+' | '*' | '/' | '%' | '<' | '>') {
+                    return true;
+                }
+                // Two-char operators
+                if i + 1 < chars.len() {
+                    let next = chars[i + 1];
+                    if (c == '=' && next == '=')
+                        || (c == '!' && next == '=')
+                        || (c == '<' && next == '=')
+                        || (c == '>' && next == '=')
+                        || (c == '&' && next == '&')
+                        || (c == '|' && next == '|')
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            i += 1;
+        }
+
+        false
+    }
+
     /// Parse the content of a directive to determine its type
     fn parse_directive_content(&self, content: &str) -> TokenKind {
         let trimmed = content.trim();
@@ -354,6 +426,14 @@ impl Lexer {
 
         if trimmed == "csrf" {
             return TokenKind::Csrf;
+        }
+
+        // Compound value expressions: when the content contains a top-level
+        // binary or ternary operator (e.g. `M.a || "default"`, `x > 0 ? a : b`),
+        // emit a generic Variable token so the parser evaluates it as a full
+        // expression instead of short-circuiting to a single data path below.
+        if Self::has_top_level_operator(trimmed) {
+            return TokenKind::Variable(trimmed.to_string());
         }
 
         // Special variables with dot notation

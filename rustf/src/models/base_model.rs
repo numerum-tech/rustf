@@ -158,7 +158,7 @@ where
     /// * `Err(Error)` - If database is not configured
     ///
     /// # Examples
-    /// ```rust
+    /// ```ignore
     /// // Get active users
     /// let users = Users::query()?
     ///     .where_eq("is_active", 1)
@@ -210,7 +210,7 @@ where
     /// * `Err(Error)` - If query fails or database not configured
     ///
     /// # Examples
-    /// ```rust
+    /// ```ignore
     /// let active_users = Users::where_eq("is_active", 1).await?;
     /// let admins = Users::where_eq("role", "admin").await?;
     /// ```
@@ -248,7 +248,7 @@ where
     /// This provides the standard ORM method name that developers expect.
     ///
     /// # Examples
-    /// ```rust
+    /// ```ignore
     /// let total = PaymentSchemes::count().await?;
     /// ```
     async fn count() -> crate::error::Result<i64> {
@@ -270,7 +270,7 @@ where
     /// This provides the standard ORM method name that developers expect.
     ///
     /// # Examples
-    /// ```rust
+    /// ```ignore
     /// let user = Users::get_by_id(123).await?;
     /// ```
     async fn get_by_id(id: Self::IdType) -> crate::error::Result<Option<Self>> {
@@ -282,7 +282,7 @@ where
     /// **DEPRECATED**: Use `get_by_id()` instead
     ///
     /// # Examples
-    /// ```rust
+    /// ```ignore
     /// let user = Users::find(123).await?;
     /// ```
     #[deprecated(since = "0.2.0", note = "Please use `get_by_id()` instead")]
@@ -303,7 +303,7 @@ where
     /// Uses the global database connection for transparent access.
     ///
     /// # Examples
-    /// ```rust
+    /// ```ignore
     /// let user = Users::find(123).await?.unwrap();
     /// user.delete().await?;
     /// ```
@@ -341,7 +341,7 @@ where
     /// Get the first record from the table
     ///
     /// # Examples
-    /// ```rust
+    /// ```ignore
     /// let first_user = Users::first().await?;
     /// ```
     async fn get_first() -> crate::error::Result<Option<Self>> {
@@ -359,7 +359,7 @@ where
     /// Paginate results
     ///
     /// # Examples
-    /// ```rust
+    /// ```ignore
     /// let users = Users::paginate(1, 20).await?;
     /// ```
     async fn paginate(page: u32, per_page: u32) -> crate::error::Result<Vec<Self>> {

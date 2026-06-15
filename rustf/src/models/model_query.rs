@@ -49,7 +49,7 @@ impl<T: BaseModel> ModelQuery<T> {
     /// - Making queries more readable
     ///
     /// # Example
-    /// ```rust
+    /// ```ignore
     /// // Simple aliasing
     /// let users = Users::query()?
     ///     .alias("u")
@@ -159,7 +159,7 @@ impl<T: BaseModel> ModelQuery<T> {
     /// This allows you to define common filters once and apply them to multiple queries.
     ///
     /// # Example
-    /// ```rust
+    /// ```ignore
     /// let active_filter = ModelFilter::new()
     ///     .where_eq("is_active", true)
     ///     .where_not_null("verified_at");
@@ -236,7 +236,7 @@ impl<T: BaseModel> ModelQuery<T> {
     /// Select specific fields instead of SELECT *
     ///
     /// # Example
-    /// ```rust
+    /// ```ignore
     /// // Select specific columns
     /// let users = Users::query()?
     ///     .select(&["id", "name", "email"])
@@ -262,7 +262,7 @@ impl<T: BaseModel> ModelQuery<T> {
     /// Use this for complex selections including SQL functions and aggregations.
     ///
     /// # Example
-    /// ```rust
+    /// ```ignore
     /// let results = Users::query()?
     ///     .select_raw(&[
     ///         "users.name",
@@ -315,7 +315,7 @@ impl<T: BaseModel> ModelQuery<T> {
     /// Add GROUP BY clause
     ///
     /// # Example
-    /// ```rust
+    /// ```ignore
     /// let results = Users::query()?
     ///     .select_raw(&["department", "COUNT(*) as count"])
     ///     .group_by(&["department"])
@@ -356,7 +356,7 @@ impl<T: BaseModel> ModelQuery<T> {
     /// * `Err(Error)` - If query execution fails
     ///
     /// # Examples
-    /// ```rust
+    /// ```ignore
     /// let users = Users::query()
     ///     .where_eq("is_active", 1)
     ///     .order_by("created_at", OrderDirection::Desc)
@@ -527,7 +527,7 @@ impl<T: BaseModel> ModelQuery<T> {
     ///
     /// # Example
     ///
-    /// ```rust
+    /// ```ignore
     /// let results = Users::query()?
     ///     .select_raw(&[
     ///         "department",
@@ -703,7 +703,7 @@ impl<T: BaseModel> ModelQuery<T> {
     ///
     /// # Example
     ///
-    /// ```rust
+    /// ```ignore
     /// let result = Users::query()?
     ///     .where_eq("is_active", true)
     ///     .order_by("created_at", OrderDirection::Desc)

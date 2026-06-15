@@ -13,15 +13,19 @@
 //!
 //! # Example
 //!
-//! ```rust
+//! ```no_run
 //! // In definitions/helpers.rs
 //! use rustf::definitions::{Helpers, HelperRegistry};
+//! use serde_json::{json, Value};
 //!
 //! pub struct AppHelpers;
 //!
 //! impl Helpers for AppHelpers {
 //!     fn register(&self, registry: &mut HelperRegistry) {
-//!         registry.register("format_money", |v| format!("${:.2}", v));
+//!         registry.register_fn("format_money", "Format a number as currency", |args, _ctx| {
+//!             let amount = args.first().and_then(|v| v.as_f64()).unwrap_or(0.0);
+//!             Ok(json!(format!("${:.2}", amount)))
+//!         });
 //!     }
 //! }
 //! ```

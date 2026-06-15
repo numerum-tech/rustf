@@ -79,9 +79,9 @@ fn test_index_comparison_operations() {
         @{foreach item in M.items}
             @{if index == 0}
                 <div class="first">First item</div>
-            @{else if index == 1}
+            @{elif index == 1}
                 <div class="second">Second item</div>
-            @{else if index > 1}
+            @{elif index > 1}
                 <div class="other">Other item @{index}</div>
             @{fi}
         @{end}

@@ -259,7 +259,7 @@ impl SessionStorage for RedisSessionStorage {
                     // Key exists but has no expiry - set default TTL using EXPIRE
                     tokio::time::timeout(
                         self.command_timeout,
-                        redis::cmd("EXPIRE").arg(&key).arg(self.default_ttl.as_secs()).query_async(&mut conn),
+                        redis::cmd("EXPIRE").arg(&key).arg(self.default_ttl.as_secs()).query_async::<()>(&mut conn),
                     )
                     .await
                     .map_err(|_| Error::internal("Redis EXPIRE operation timed out"))?
@@ -275,7 +275,7 @@ impl SessionStorage for RedisSessionStorage {
                 if ttl_to_use < (self.default_ttl.as_secs() / 2) {
                     tokio::time::timeout(
                         self.command_timeout,
-                        redis::cmd("EXPIRE").arg(&key).arg(self.default_ttl.as_secs()).query_async(&mut conn),
+                        redis::cmd("EXPIRE").arg(&key).arg(self.default_ttl.as_secs()).query_async::<()>(&mut conn),
                     )
                     .await
                     .map_err(|_| Error::internal("Redis EXPIRE operation timed out"))?
@@ -441,6 +441,7 @@ mod tests {
     }
     
     #[test]
+    #[ignore = "requires a running Redis server"]
     async fn test_redis_storage_get_missing_fingerprint() {
         let storage = create_test_storage().await;
         let session_id = "test_missing_fingerprint";
@@ -452,6 +453,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires a running Redis server"]
     async fn test_redis_storage_basic_operations() {
         let storage = create_test_storage().await;
         let session_id = "test_redis_session_123";
@@ -496,6 +498,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires a running Redis server"]
     async fn test_redis_storage_ttl() {
         let storage = create_test_storage().await;
         let session_id = "expiring_redis_session";
@@ -519,6 +522,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires a running Redis server"]
     async fn test_redis_storage_stats() {
         let storage = create_test_storage().await;
 
@@ -555,6 +559,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires a running Redis server"]
     async fn test_redis_storage_concurrent_access() {
         let storage = create_test_storage().await;
         let session_id = "concurrent_redis_session";

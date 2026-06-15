@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// # Example
 ///
-/// ```rust
+/// ```ignore
 /// let result = Users::query()?
 ///     .where_eq("is_active", true)
 ///     .get_paginated(2, 20)

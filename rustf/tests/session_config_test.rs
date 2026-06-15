@@ -30,12 +30,15 @@ same_site = "Lax"
 type = "memory"
 "#;
 
-        // Write test config
-        let test_path = "test_dev_config.toml";
-        fs::write(test_path, config_content).unwrap();
+        // Write test config into an isolated temp dir containing the
+        // required `public` static directory (validated by from_file).
+        let dir = tempfile::tempdir().unwrap();
+        fs::create_dir(dir.path().join("public")).unwrap();
+        let test_path = dir.path().join("config.toml");
+        fs::write(&test_path, config_content).unwrap();
 
         // Load config
-        let config = AppConfig::from_file(test_path).unwrap();
+        let config = AppConfig::from_file(&test_path).unwrap();
 
         // Check session settings
         assert_eq!(config.session.enabled, true);
@@ -43,9 +46,7 @@ type = "memory"
         assert_eq!(config.session.idle_timeout, 3600);
         assert_eq!(config.session.absolute_timeout, 86400);
         assert_eq!(config.session.same_site, "Lax");
-
-        // Cleanup
-        fs::remove_file(test_path).unwrap();
+        // temp dir cleaned up automatically on drop
     }
 
     #[test]
@@ -64,12 +65,15 @@ same_site = "Strict"
 type = "memory"
 "#;
 
-        // Write test config
-        let test_path = "test_prod_config.toml";
-        fs::write(test_path, config_content).unwrap();
+        // Write test config into an isolated temp dir containing the
+        // required `public` static directory (validated by from_file).
+        let dir = tempfile::tempdir().unwrap();
+        fs::create_dir(dir.path().join("public")).unwrap();
+        let test_path = dir.path().join("config.toml");
+        fs::write(&test_path, config_content).unwrap();
 
         // Load config
-        let config = AppConfig::from_file(test_path).unwrap();
+        let config = AppConfig::from_file(&test_path).unwrap();
 
         // Check session settings
         assert_eq!(config.session.enabled, true);
@@ -77,9 +81,7 @@ type = "memory"
         assert_eq!(config.session.idle_timeout, 900);
         assert_eq!(config.session.absolute_timeout, 28800);
         assert_eq!(config.session.same_site, "Strict");
-
-        // Cleanup
-        fs::remove_file(test_path).unwrap();
+        // temp dir cleaned up automatically on drop
     }
 
     #[test]
@@ -91,18 +93,19 @@ environment = "production"
 enabled = false
 "#;
 
-        // Write test config
-        let test_path = "test_no_session_config.toml";
-        fs::write(test_path, config_content).unwrap();
+        // Write test config into an isolated temp dir containing the
+        // required `public` static directory (validated by from_file).
+        let dir = tempfile::tempdir().unwrap();
+        fs::create_dir(dir.path().join("public")).unwrap();
+        let test_path = dir.path().join("config.toml");
+        fs::write(&test_path, config_content).unwrap();
 
         // Load config
-        let config = AppConfig::from_file(test_path).unwrap();
+        let config = AppConfig::from_file(&test_path).unwrap();
 
         // Check session is disabled
         assert_eq!(config.session.enabled, false);
-
-        // Cleanup
-        fs::remove_file(test_path).unwrap();
+        // temp dir cleaned up automatically on drop
     }
 
     #[test]

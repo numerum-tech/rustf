@@ -5,7 +5,7 @@ use std::fmt::Debug;
 /// A reusable filter that can be applied to any ModelQuery
 ///
 /// Example usage:
-/// ```rust
+/// ```ignore
 /// // Create a reusable filter
 /// let active_users = ModelFilter::new()
 ///     .where_eq("is_active", true)

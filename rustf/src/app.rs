@@ -177,9 +177,12 @@ impl RustF {
     /// * `default_config_path` - Default config file to use if no --config flag
     ///
     /// # Examples
-    /// ```rust
+    /// ```no_run
+    /// # use rustf::prelude::*;
+    /// # fn _doctest() -> rustf::Result<()> {
     /// // Use custom default, but allow --config to override
     /// let app = RustF::with_args_and_default("config/production.toml")?;
+    /// # Ok(()) }
     /// ```
     pub fn with_args_and_default(default_config_path: &str) -> Result<Self> {
         let args = crate::cli::CliArgs::parse()?;

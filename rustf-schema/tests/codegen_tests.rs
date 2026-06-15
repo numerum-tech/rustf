@@ -219,8 +219,9 @@ mod tests {
     fn test_template_generator() {
         let mut generator = TemplateGenerator::new();
         
-        // Register a simple template
-        let template = "Hello {{name}}!";
+        // Register a simple template. Variables passed via GenerationContext
+        // are namespaced under `variables` in the render data.
+        let template = "Hello {{variables.name}}!";
         let result = generator.register_template("greeting", template);
         assert!(result.is_ok());
         
