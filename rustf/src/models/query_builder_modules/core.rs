@@ -99,7 +99,8 @@ impl QueryBuilder {
     /// Set an alias for the main table
     ///
     /// # Example
-    /// ```
+    /// ```no_run
+    /// # use rustf::models::{QueryBuilder, DatabaseBackend};
     /// let query = QueryBuilder::new(DatabaseBackend::Postgres)
     ///     .from("users")
     ///     .as_alias("u")

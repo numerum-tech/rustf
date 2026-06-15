@@ -58,7 +58,7 @@ fn test_array_length_in_condition() {
 
 #[test]
 fn test_string_length_property() {
-    let template = "@{if name.length > 5}Long name@{else}Short name@{fi}";
+    let template = "@{if M.name.length > 5}Long name@{else}Short name@{fi}";
 
     let mut parser = Parser::new(template).expect("Failed to create parser");
     let ast = parser.parse().expect("Failed to parse template");
@@ -86,7 +86,7 @@ fn test_string_length_property() {
 
 #[test]
 fn test_array_index_access() {
-    let template = "@{items.0} and @{items.1}";
+    let template = "@{M.items.0} and @{M.items.1}";
 
     let mut parser = Parser::new(template).expect("Failed to create parser");
     let ast = parser.parse().expect("Failed to parse template");

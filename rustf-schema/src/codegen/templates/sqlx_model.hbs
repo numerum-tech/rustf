@@ -71,11 +71,11 @@ impl {{table_name}} {
 {{#each variables.rust_fields}}
             {{#if auto_increment}}
             {{name}}: None, // Will be auto-generated
-            {{else if default}}
+            {{else}}{{#if default}}
             {{name}}: {{#if nullable}}Some({{/if}}{{default}}{{#if nullable}}){{/if}},
             {{else}}
             {{name}}: {{#if nullable}}None{{else}}Default::default(){{/if}},
-            {{/if}}
+            {{/if}}{{/if}}
 {{/each}}
         }
     }
@@ -105,7 +105,7 @@ impl {{table_name}} {
             r#"
             UPDATE {{table.table}} 
             SET {{#each variables.update_fields}}{{this}} = ${{@index}}{{#unless @last}}, {{/unless}}{{/each}}
-            WHERE {{variables.primary_key}} = ${{variables.update_fields.length}}
+            WHERE {{variables.primary_key}} = ${{len variables.update_fields}}
             RETURNING *
             "#,
 {{#each variables.update_fields}}

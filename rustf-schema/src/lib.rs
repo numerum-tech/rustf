@@ -28,7 +28,7 @@
 //! // Generate SQLx models
 //! #[cfg(feature = "codegen")]
 //! {
-//!     use rustf_schema::codegen::SqlxGenerator;
+//!     use rustf_schema::codegen::{SqlxGenerator, CodeGenerator};
 //!     let generator = SqlxGenerator::new()?;
 //!     let code = generator.generate_table("User", &schema.tables["User"], &schema)?;
 //!     println!("{}", code);

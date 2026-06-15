@@ -523,10 +523,15 @@ impl SchemaValidator {
         
         for table_name in schema.tables.keys() {
             if !visited.contains(table_name) {
-                if let Err(_cycle_error) = Self::has_cycle(schema, table_name, &mut visited, &mut rec_stack) {
-                    result.add_error(format!("Circular dependency detected involving table '{}'", table_name));
-                    // Don't clear visited - it should persist across the entire traversal
-                    // rec_stack is managed by has_cycle function itself
+                // has_cycle returns Ok(true) when a cycle is detected; a true value
+                // (not an Err) is what signals the circular dependency.
+                match Self::has_cycle(schema, table_name, &mut visited, &mut rec_stack) {
+                    Ok(true) | Err(_) => {
+                        result.add_error(format!("Circular dependency detected involving table '{}'", table_name));
+                        // Don't clear visited - it should persist across the entire traversal
+                        // rec_stack is managed by has_cycle function itself
+                    }
+                    Ok(false) => {}
                 }
             }
         }

@@ -176,7 +176,9 @@ InvalidTable:
     
     let result = Schema::load_from_directory(temp_dir.path()).await;
     assert!(result.is_err());
-    assert!(matches!(result.unwrap_err(), SchemaError::Yaml(_)));
+    // The directory parser wraps per-file YAML errors with file context as
+    // SchemaError::Parse (see SchemaParser::parse_file).
+    assert!(matches!(result.unwrap_err(), SchemaError::Parse(_)));
 }
 
 #[tokio::test]
@@ -236,13 +238,14 @@ async fn create_basic_schema() -> TempDir {
     let temp_dir = TempDir::new().unwrap();
     let schema_dir = temp_dir.path();
     
-    // Create meta.yaml
+    // Create _meta.yaml
     let meta_content = r#"
 version: "1.0"
-database: "test_db"
+database_type: postgres
+database_name: test_db
 description: "Basic test schema"
 "#;
-    fs::write(schema_dir.join("meta.yaml"), meta_content).await.unwrap();
+    fs::write(schema_dir.join("_meta.yaml"), meta_content).await.unwrap();
     
     // Create users.yaml
     let users_content = r#"
@@ -303,14 +306,15 @@ async fn create_comprehensive_schema() -> TempDir {
     let temp_dir = TempDir::new().unwrap();
     let schema_dir = temp_dir.path();
     
-    // Create meta.yaml
+    // Create _meta.yaml
     let meta_content = r#"
 version: "1.0"
-database: "blog_system"
+database_type: postgres
+database_name: blog_system
 description: "Comprehensive blog system schema"
 ai_context: "Full-featured blog with users, posts, categories, and tags"
 "#;
-    fs::write(schema_dir.join("meta.yaml"), meta_content).await.unwrap();
+    fs::write(schema_dir.join("_meta.yaml"), meta_content).await.unwrap();
     
     // Create users.yaml
     let users_content = r#"
@@ -411,11 +415,11 @@ Tag:
     many_to_many:
       posts:
         model: Post
-        through_table: post_tags
+        through: post_tags
         local_field: id
         foreign_field: id
-        through_local_field: tag_id
-        through_foreign_field: post_id
+        local_through_field: tag_id
+        foreign_through_field: post_id
 "#;
     fs::write(schema_dir.join("tags.yaml"), tags_content).await.unwrap();
     
@@ -449,26 +453,15 @@ Post:
       type: text
       nullable: true
     status:
-      type:
-        enum:
-          values: ["draft", "published", "archived"]
-          transitions:
-            draft: ["published", "archived"]
-            published: ["archived"]
-            archived: ["draft"]
+      type: enum
+      values: ["draft", "published", "archived"]
+      transitions:
+        draft: ["published", "archived"]
+        published: ["archived"]
+        archived: ["draft"]
       default: "draft"
     meta:
-      type:
-        json:
-          schema: |
-            {
-              "type": "object",
-              "properties": {
-                "seo_title": {"type": "string"},
-                "seo_description": {"type": "string"},
-                "featured_image": {"type": "string"}
-              }
-            }
+      type: json
       nullable: true
     created_at:
       type: timestamp
@@ -489,11 +482,11 @@ Post:
     many_to_many:
       tags:
         model: Tag
-        through_table: post_tags
+        through: post_tags
         local_field: id
         foreign_field: id
-        through_local_field: post_id
-        through_foreign_field: tag_id
+        local_through_field: post_id
+        foreign_through_field: tag_id
 "#;
     fs::write(schema_dir.join("posts.yaml"), posts_content).await.unwrap();
     

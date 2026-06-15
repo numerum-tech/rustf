@@ -4,6 +4,9 @@
 [![Coverage](https://codecov.io/gh/numerum-tech/rustf/branch/main/graph/badge.svg)](https://codecov.io/gh/numerum-tech/rustf)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Version](https://img.shields.io/badge/version-1.0.0--rc1-orange)](CHANGELOG.md)
+[![Docs](https://img.shields.io/badge/docs-online-success)](https://numerum-tech.github.io/rustf/)
+
+📖 **[Read the Documentation →](https://numerum-tech.github.io/rustf/)**
 
 🤖 **AI-Agent Optimized** | 🚀 **Production Ready** | 🛡️ **Enterprise Security** | ⚡ **High Performance**
 

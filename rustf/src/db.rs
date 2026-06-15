@@ -30,12 +30,15 @@ impl DB {
     /// * `database_url` - Optional database connection URL. If None, database operations will return errors.
     ///
     /// # Examples
-    /// ```rust
+    /// ```no_run
+    /// # use rustf::prelude::*;
+    /// # async fn _doctest() -> rustf::Result<()> {
     /// // Initialize with MySQL
     /// DB::init(Some("mysql://user:pass@localhost/mydb")).await?;
     ///
     /// // Initialize without database (some apps don't need it)
     /// DB::init(None).await?;
+    /// # Ok(()) }
     /// ```
     pub async fn init(database_url: Option<&str>) -> Result<()> {
         // Initialize registry if not already done
@@ -86,20 +89,24 @@ impl DB {
     /// * `config` - Database configuration with one or more database connections
     ///
     /// # Examples
-    /// ```rust
+    /// ```no_run
+    /// # use rustf::prelude::*;
+    /// # use rustf::database::config::{DatabasesConfig, DatabaseConnectionConfigBuilder};
+    /// # async fn _doctest() -> rustf::Result<()> {
     /// let mut config = DatabasesConfig::new();
-    /// config.add_database("primary", DatabaseConnectionConfig {
-    ///     url: "postgresql://localhost/main".to_string(),
-    ///     max_connections: 20,
-    ///     ..Default::default()
-    /// });
-    /// config.add_database("analytics", DatabaseConnectionConfig {
-    ///     url: "mysql://localhost/analytics".to_string(),
-    ///     max_connections: 10,
-    ///     ..Default::default()
-    /// });
+    /// config.add_database("primary", DatabaseConnectionConfigBuilder::new()
+    ///     .url("postgresql://localhost/main")
+    ///     .max_connections(20)
+    ///     .build()
+    ///     .unwrap());
+    /// config.add_database("analytics", DatabaseConnectionConfigBuilder::new()
+    ///     .url("mysql://localhost/analytics")
+    ///     .max_connections(10)
+    ///     .build()
+    ///     .unwrap());
     ///
     /// DB::init_registry(config).await?;
+    /// # Ok(()) }
     /// ```
     pub async fn init_registry(config: DatabasesConfig) -> Result<()> {
         let registry = REGISTRY.get_or_init(|| Arc::new(DatabaseRegistry::new()));
@@ -173,13 +180,16 @@ impl DB {
     /// A database handle that can be used to execute queries
     ///
     /// # Examples
-    /// ```rust
-    /// let users = DB::use("analytics")
+    /// ```no_run
+    /// # use rustf::prelude::*;
+    /// # async fn _doctest() -> std::result::Result<(), Box<dyn std::error::Error>> {
+    /// let users = DB::r#use("analytics")
     ///     .await?
     ///     .query()
     ///     .from("users")
     ///     .where_eq("active", true)
     ///     .build()?;
+    /// # Ok(()) }
     /// ```
     pub async fn r#use(name: &str) -> Result<Box<dyn DatabaseAdapter>> {
         let registry = Self::get_registry()?;
@@ -206,12 +216,15 @@ impl DB {
     /// * `Err(Error)` - If database is not initialized or not configured
     ///
     /// # Examples
-    /// ```rust
-    /// let users = DB::query()
+    /// ```no_run
+    /// # use rustf::prelude::*;
+    /// # fn _doctest() -> std::result::Result<(), Box<dyn std::error::Error>> {
+    /// let users = DB::query()?
     ///     .from("users")
     ///     .where_eq("active", true)
     ///     .limit(10)
     ///     .build()?;
+    /// # Ok(()) }
     /// ```
     pub fn query() -> Result<QueryBuilder> {
         // First try registry default
@@ -627,11 +640,14 @@ impl DB {
     /// * `Err(Error)` - Database is configured but connection test failed
     ///
     /// # Examples
-    /// ```rust
+    /// ```no_run
+    /// # use rustf::prelude::*;
+    /// # async fn _doctest() -> rustf::Result<()> {
     /// // Health check during startup or monitoring
     /// if DB::ping().await? {
     ///     println!("Database is healthy");
     /// }
+    /// # Ok(()) }
     /// ```
     pub async fn ping() -> Result<bool> {
         // Try registry first
@@ -683,9 +699,12 @@ impl DB {
     /// all database connections are properly closed and resources are released.
     ///
     /// # Examples
-    /// ```rust
+    /// ```no_run
+    /// # use rustf::prelude::*;
+    /// # async fn _doctest() -> rustf::Result<()> {
     /// // During application shutdown
     /// DB::shutdown().await?;
+    /// # Ok(()) }
     /// ```
     pub async fn shutdown() -> Result<()> {
         // Shutdown registry databases

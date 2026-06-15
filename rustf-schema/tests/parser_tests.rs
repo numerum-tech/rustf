@@ -1,7 +1,6 @@
 //! Tests for the schema parser module
 
-use rustf_schema::{Schema, SchemaParser, Table, Field, FieldType, FieldConstraints, Relations, SchemaMeta};
-use std::collections::HashMap;
+use rustf_schema::{SchemaParser, FieldType};
 use std::path::Path;
 use tempfile::TempDir;
 use tokio::fs;
@@ -11,14 +10,15 @@ async fn create_test_schema_dir() -> TempDir {
     let temp_dir = TempDir::new().unwrap();
     let schema_dir = temp_dir.path();
     
-    // Create meta.yaml
+    // Create _meta.yaml
     let meta_content = r#"
 version: "1.0"
-database: "test_db"
+database_type: postgres
+database_name: test_db
 description: "Test database schema"
 ai_context: "Testing schema parser functionality"
 "#;
-    fs::write(schema_dir.join("meta.yaml"), meta_content).await.unwrap();
+    fs::write(schema_dir.join("_meta.yaml"), meta_content).await.unwrap();
     
     // Create users.yaml
     let users_content = r#"
@@ -268,10 +268,11 @@ async fn test_meta_yaml_only() {
     
     let meta_content = r#"
 version: "2.0"
-database: "meta_only_db"
+database_type: postgres
+database_name: meta_only_db
 description: "Database with only meta"
 "#;
-    fs::write(schema_dir.join("meta.yaml"), meta_content).await.unwrap();
+    fs::write(schema_dir.join("_meta.yaml"), meta_content).await.unwrap();
     
     let schema = SchemaParser::parse_directory(schema_dir).await.unwrap();
     
@@ -303,24 +304,14 @@ ComplexTable:
       type: decimal(10,2)
       nullable: true
     enum_field:
-      type:
-        enum:
-          values: ["active", "inactive", "pending"]
-          transitions:
-            active: ["inactive"]
-            inactive: ["active", "pending"]
-            pending: ["active", "inactive"]
+      type: enum
+      values: ["active", "inactive", "pending"]
+      transitions:
+        active: ["inactive"]
+        inactive: ["active", "pending"]
+        pending: ["active", "inactive"]
     json_field:
-      type:
-        json:
-          schema: |
-            {
-              "type": "object",
-              "properties": {
-                "name": {"type": "string"},
-                "age": {"type": "number"}
-              }
-            }
+      type: json
 "#;
     
     fs::write(schema_dir.join("complex.yaml"), content).await.unwrap();
@@ -349,10 +340,12 @@ ComplexTable:
     }
     
     let json_field = &table.fields["json_field"];
+    // The current parser maps `type: json` to a simple type named "json"
+    // (the Field deserializer handles "json"/"jsonb" as FieldType::Simple).
     match &json_field.field_type {
-        FieldType::Json { schema, .. } => {
-            assert!(schema.is_some());
+        FieldType::Simple(name) => {
+            assert_eq!(name, "json");
         }
-        _ => panic!("Expected JSON type"),
+        _ => panic!("Expected simple JSON type, got {:?}", json_field.field_type),
     }
 }

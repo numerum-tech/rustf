@@ -30,29 +30,31 @@ impl SqlxGenerator {
     }
     
     /// Generate a complete model file with CRUD operations
-    pub fn generate_model(&self, table_name: &str, table: &Table, schema: &Schema) -> Result<String> {
+    /// Build the template context (with all SQLx-specific `variables` populated)
+    /// shared by the model, CRUD and relations templates.
+    fn build_context(&self, table_name: &str, table: &Table, schema: &Schema) -> Result<GenerationContext> {
         let mut context = GenerationContext {
             schema: schema.clone(),
             table: table.clone(),
             table_name: table_name.to_string(),
             variables: HashMap::new(),
         };
-        
+
         // Add SQLx-specific variables
         let rust_fields = self.generate_rust_fields(table)?;
-        context.variables.insert("rust_fields".to_string(), 
+        context.variables.insert("rust_fields".to_string(),
             serde_json::to_value(&rust_fields)?);
-        context.variables.insert("primary_key".to_string(), 
+        context.variables.insert("primary_key".to_string(),
             serde_json::to_value(self.find_primary_key(table))?);
-        context.variables.insert("insert_fields".to_string(), 
+        context.variables.insert("insert_fields".to_string(),
             serde_json::to_value(self.generate_insert_fields(table)?)?);
-        context.variables.insert("update_fields".to_string(), 
+        context.variables.insert("update_fields".to_string(),
             serde_json::to_value(self.generate_update_fields(table)?)?);
-        
+
         // Add type constants for AI agent reference
         context.variables.insert("type_constants".to_string(),
             serde_json::to_value(self.generate_type_constants(&rust_fields)?)?);
-        
+
         // Add dependency flags for imports in Types module
         context.variables.insert("needs_chrono".to_string(),
             serde_json::to_value(self.needs_chrono_import(&rust_fields))?);
@@ -62,31 +64,24 @@ impl SqlxGenerator {
             serde_json::to_value(self.needs_uuid_import(&rust_fields))?);
         context.variables.insert("needs_json".to_string(),
             serde_json::to_value(self.needs_json_import(&rust_fields))?);
-        
+
+        Ok(context)
+    }
+
+    pub fn generate_model(&self, table_name: &str, table: &Table, schema: &Schema) -> Result<String> {
+        let context = self.build_context(table_name, table, schema)?;
         self.template_generator.render("model", &context)
     }
     
     /// Generate CRUD operations for a table
     pub fn generate_crud(&self, table_name: &str, table: &Table, schema: &Schema) -> Result<String> {
-        let context = GenerationContext {
-            schema: schema.clone(),
-            table: table.clone(),
-            table_name: table_name.to_string(),
-            variables: HashMap::new(),
-        };
-        
+        let context = self.build_context(table_name, table, schema)?;
         self.template_generator.render("crud", &context)
     }
     
     /// Generate relationship helpers
     pub fn generate_relations(&self, table_name: &str, table: &Table, schema: &Schema) -> Result<String> {
-        let context = GenerationContext {
-            schema: schema.clone(),
-            table: table.clone(),
-            table_name: table_name.to_string(),
-            variables: HashMap::new(),
-        };
-        
+        let context = self.build_context(table_name, table, schema)?;
         self.template_generator.render("relations", &context)
     }
     

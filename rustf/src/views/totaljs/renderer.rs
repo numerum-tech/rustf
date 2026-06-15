@@ -881,15 +881,26 @@ impl RenderContext {
             }
 
             BinaryOperator::And => {
-                let left_bool = self.is_truthy(left);
-                let right_bool = self.is_truthy(right);
-                Ok(Value::Bool(left_bool && right_bool))
+                // Total.js/JS-style: return left if it is falsy, otherwise right.
+                // In boolean contexts (if/elseif) the result is passed through
+                // is_truthy, so logic still behaves correctly; in interpolation
+                // contexts this enables value expressions like `@{a && b}`.
+                if self.is_truthy(left) {
+                    Ok(right.clone())
+                } else {
+                    Ok(left.clone())
+                }
             }
 
             BinaryOperator::Or => {
-                let left_bool = self.is_truthy(left);
-                let right_bool = self.is_truthy(right);
-                Ok(Value::Bool(left_bool || right_bool))
+                // Total.js/JS-style value fallback: return left if truthy,
+                // otherwise right. Enables `@{M.a || "default"}` to render the
+                // default while still evaluating correctly inside conditions.
+                if self.is_truthy(left) {
+                    Ok(left.clone())
+                } else {
+                    Ok(right.clone())
+                }
             }
 
             BinaryOperator::Add => match (left, right) {

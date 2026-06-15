@@ -55,13 +55,19 @@ impl TemplateGenerator {
     /// Create a new template generator
     pub fn new() -> Self {
         let mut handlebars = Handlebars::new();
-        
+
+        // This generator emits Rust source code, not HTML — disable the default
+        // HTML escaping so type syntax like `Vec<T>` / `Option<String>` is not
+        // mangled into `Vec&lt;T&gt;`.
+        handlebars.register_escape_fn(handlebars::no_escape);
+
         // Register helper functions
         handlebars.register_helper("snake_case", Box::new(snake_case_helper));
         handlebars.register_helper("camel_case", Box::new(camel_case_helper));
         handlebars.register_helper("pascal_case", Box::new(pascal_case_helper));
         handlebars.register_helper("pluralize", Box::new(pluralize_helper));
-        
+        handlebars.register_helper("len", Box::new(len_helper));
+
         Self { handlebars }
     }
     
@@ -86,6 +92,22 @@ impl Default for TemplateGenerator {
 }
 
 // Handlebars helper functions
+
+/// `{{len array}}` — number of elements in an array (the Rust handlebars crate
+/// does not support the `.length` property that Handlebars.js exposes).
+fn len_helper(
+    h: &handlebars::Helper,
+    _: &Handlebars,
+    _: &handlebars::Context,
+    _: &mut handlebars::RenderContext,
+    out: &mut dyn handlebars::Output,
+) -> handlebars::HelperResult {
+    let param = h.param(0)
+        .ok_or_else(|| handlebars::RenderError::new("len helper requires a parameter"))?;
+    let len = param.value().as_array().map(|a| a.len()).unwrap_or(0);
+    out.write(&len.to_string())?;
+    Ok(())
+}
 
 fn snake_case_helper(
     h: &handlebars::Helper,

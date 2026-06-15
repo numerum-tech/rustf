@@ -23,7 +23,7 @@ fn test_or_operator_with_empty_string() {
 #[test]
 fn test_or_operator_with_null() {
     let template = r#"
-        <img src="@{M.photo_url || '/default.jpg'}" alt="Avatar">
+        <img src="@{!M.photo_url || '/default.jpg'}" alt="Avatar">
     "#;
 
     let model = json!({
@@ -40,7 +40,7 @@ fn test_or_operator_with_null() {
 #[test]
 fn test_or_operator_with_missing_property() {
     let template = r#"
-        <img src="@{M.photo_url || '/assets/img/avatar/1.jpg'}" alt="Avatar">
+        <img src="@{!M.photo_url || '/assets/img/avatar/1.jpg'}" alt="Avatar">
     "#;
 
     let model = json!({
@@ -57,7 +57,7 @@ fn test_or_operator_with_missing_property() {
 #[test]
 fn test_or_operator_with_truthy_value() {
     let template = r#"
-        <img src="@{M.photo_url || '/default.jpg'}" alt="Avatar">
+        <img src="@{!M.photo_url || '/default.jpg'}" alt="Avatar">
     "#;
 
     let model = json!({
@@ -103,7 +103,7 @@ fn test_or_operator_chaining() {
 #[test]
 fn test_or_operator_with_session_data() {
     let template = r#"
-        <img src="@{session.user.photo_url || '/assets/img/avatar/1.jpg'}" alt="Avatar">
+        <img src="@{!R.user.photo_url || '/assets/img/avatar/1.jpg'}" alt="Avatar">
     "#;
 
     // Test with missing photo_url

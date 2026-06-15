@@ -104,8 +104,10 @@ impl Parser {
             }
 
             TokenKind::RawVariable(name) => {
-                // Check if the variable name contains a ternary operator
-                let expression = if self.contains_ternary_operator(name) {
+                // Check if the variable name contains any expression operators
+                // (binary, ternary, etc.) so raw output supports the same
+                // expressions as escaped output — e.g. `@{!M.url || '/img.jpg'}`.
+                let expression = if self.contains_expression_operators(name) {
                     // Parse as expression
                     match self.parse_expression(name) {
                         Ok(expr) => Some(expr),
