@@ -86,9 +86,15 @@ db-sqlite = ["database", "sqlx/sqlite"]
 # supply a custom SessionStorage implementation for shared sessions.
 redis = ["dep:redis", "dep:deadpool-redis"]
 embedded-views = ["rust-embed", "rustf-macros/embedded-views"]
+# Auto-discovery (the auto_* macros) is a core, always-compiled part of the
+# framework. This feature gates nothing — it is a no-op kept for backward
+# compatibility with consumers that list `features = ["auto-discovery"]`.
 auto-discovery = []
 schema = ["rustf-schema"]
 decimal = ["rust_decimal", "sqlx?/rust_decimal"]
+# The `uuid` crate is a non-optional dependency (used pervasively for IDs), so
+# UUID support is always available. This feature is a no-op kept for backward
+# compatibility; it can no longer disable UUID support.
 uuid = []
 cli = ["clap"]
 
