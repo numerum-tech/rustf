@@ -4,7 +4,7 @@
 
 RustF provides a modern, ergonomic database layer with:
 - **Transparent database access** - No need to pass database connections around
-- **Multi-database support** - PostgreSQL, MySQL/MariaDB, SQLite
+- **Multi-database support** - PostgreSQL, MySQL/MariaDB, SQLite (all on by default; opt out per driver via [Cargo Features](../getting-started/installation.md#cargo-features))
 - **Type-safe query builders** - Compile-time query validation
 - **Laravel-style model queries** - Chainable, intuitive API
 - **Schema-driven development** - YAML schemas generate type-safe models

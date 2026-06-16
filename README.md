@@ -33,6 +33,25 @@ cargo add tokio --features="full" serde --features="derive" serde_json log env_l
 # Note: Add rustf from crates.io after publication, or use --path for local development
 ```
 
+### Optional Features (opt-out)
+
+All SQL drivers and Redis are **on by default** — most users need no config. For
+a leaner build, opt out and enable only what you use:
+
+```toml
+# PostgreSQL only — skips MySQL, SQLite, and Redis
+rustf = { version = "1.0.0-rc1", default-features = false, features = [
+    "config", "embedded-views", "auto-discovery", "schema", "decimal", "uuid",
+    "db-postgres",
+] }
+```
+
+Available: `db-postgres`, `db-mysql`, `db-sqlite` (each pulls in the `database`
+core), and `redis` (the only built-in cross-instance session store — keep it, or
+supply a custom `SessionStorage`, for multi-instance deployments). See the
+[Installation guide](https://numerum-tech.github.io/rustf/getting-started/installation.html#cargo-features)
+for the full feature table.
+
 ### Hello World Application
 
 **src/main.rs:**

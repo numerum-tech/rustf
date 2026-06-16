@@ -144,6 +144,44 @@ cd /path/to/your/project
 cargo run
 ```
 
+## Cargo Features
+
+RustF ships its SQL drivers and Redis support as **optional, on-by-default**
+features. Out of the box you get everything (PostgreSQL, MySQL, SQLite, and
+Redis sessions), so most users need no configuration. If you want a leaner
+build, opt out and enable only what you use.
+
+| Feature | Default | What it enables |
+|---------|:-------:|-----------------|
+| `database` | ✅ | Driverless SQL core (query builder, models, migrations) |
+| `db-postgres` | ✅ | PostgreSQL driver |
+| `db-mysql` | ✅ | MySQL / MariaDB driver |
+| `db-sqlite` | ✅ | SQLite driver |
+| `redis` | ✅ | Redis-backed session storage (the only built-in cross-instance/cluster store) |
+| `config` | ✅ | TOML configuration loading |
+| `embedded-views` | ✅ | Compile templates into the binary |
+| `auto-discovery` | ✅ | Procedural-macro auto-discovery |
+| `schema` | ✅ | YAML schema validation & codegen |
+| `decimal` | ✅ | `rust_decimal` support (incl. sqlx mapping) |
+| `uuid` | ✅ | UUID support |
+
+Each `db-*` feature pulls in `database` automatically and turns on the matching
+`sqlx` driver. A PostgreSQL-only app, for example, can skip compiling the MySQL
+and SQLite drivers plus Redis:
+
+```toml
+[dependencies]
+rustf = { version = "1.0.0-rc1", default-features = false, features = [
+    "config", "embedded-views", "auto-discovery", "schema", "decimal", "uuid",
+    "db-postgres",
+] }
+```
+
+> **Note — clustering:** `redis` is the only built-in storage that lets multiple
+> RustF instances share session state. If you disable it for a multi-instance
+> deployment, provide your own `SessionStorage` implementation for shared
+> sessions.
+
 ## Verifying Installation
 
 After installation, verify everything works:
