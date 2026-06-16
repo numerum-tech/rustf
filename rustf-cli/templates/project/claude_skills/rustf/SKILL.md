@@ -1,14 +1,14 @@
 ---
 name: rustf
-description: Use when writing or modifying Rust code in a RustF MVC framework project. Prefers `rustf-cli new <component>` for code generation over writing files by hand. Enforces the Base Model → Model → Module → Controller layering rule, correct `async fn(ctx: &mut Context) -> rustf::Result<()>` handler signatures, `#[async_trait]` middleware traits, route macro syntax with `{id}` parameters, template naming without extensions, `MODULE::register` only for stateful modules, and built-in middleware imports. Trigger for any edit under src/controllers/, src/middleware/, src/models/, src/modules/, src/workers/, src/events/, src/definitions/, views/, or Cargo.toml / config.toml in a project whose Cargo.toml depends on `rustf`. Overrides drifted examples in README.md and docs/ABOUT_*.md — when docs and code disagree, the code wins.
+description: Use when writing or modifying Rust code in a RustF MVC framework project. Prefers `rustf-cli new <component>` for code generation over writing files by hand. Enforces the Base Model → Model → Module → Controller layering rule, correct `async fn(ctx: &mut Context) -> rustf::Result<()>` handler signatures, `#[async_trait]` middleware traits, route macro syntax with `{id}` parameters, template naming without extensions, `MODULE::register` only for stateful modules, and built-in middleware imports. Trigger for any edit under src/controllers/, src/middleware/, src/models/, src/modules/, src/workers/, src/events/, src/definitions/, views/, or Cargo.toml / config.toml in a project whose Cargo.toml depends on `rustf`.
 ---
 
-# RustF — the rules the code enforces
+# RustF — usage guide
 
-The framework docs have drifted in a few places; this skill tells you the
-current rules so you do not re-make the same mistakes the docs lead toward.
-**Every fact below is verified against the code at the cited file:line.**
-If something here contradicts a doc, the code wins.
+This skill teaches you how to **use** the RustF framework: conventions
+the framework enforces, the public API surface to reach for, common
+mistakes to avoid. If something here contradicts older README/docs
+snippets you find online, this skill is the up-to-date source.
 
 ## 0. Layering rule — THE most important one
 
@@ -40,29 +40,17 @@ state is required.**
 
 - **Plain module (DEFAULT)**: stateless `pub fn`s on a unit struct. Import
   and call directly. No `MODULE::register`. Use for validation, formatting,
-  stateless business rules, and the whole HTTP feature surface. Canonical:
-  `sample-app/src/modules/simple_util.rs`, `sample-app/src/modules/home_service.rs`.
-
+  stateless business rules, and the whole HTTP feature surface.
 - **`SharedModule` + `MODULE::register`**: only when the module must keep
   state — an SMTP client with connection pool, a payment provider with API
   keys, a cache, a long-lived connection to an external system. Supports
-  multiple named instances (`email-primary`, `email-backup`). Canonical:
-  `sample-app/src/modules/email_service.rs`.
+  multiple named instances (`email-primary`, `email-backup`).
 
 If in doubt, start stateless. Promote when you reach for instance fields.
 
 ---
 
-## 1. Handler signature — THE README IS WRONG
-
-**Authoritative:** `rustf/src/routing/mod.rs:11-13`
-
-```rust
-pub type RouteHandler =
-    for<'a> fn(&'a mut Context) -> Pin<Box<dyn Future<Output = Result<()>> + Send + 'a>>;
-```
-
-**Correct:**
+## 1. Handler signature
 
 ```rust
 async fn my_handler(ctx: &mut Context) -> rustf::Result<()> {
@@ -71,34 +59,31 @@ async fn my_handler(ctx: &mut Context) -> rustf::Result<()> {
 }
 ```
 
-The handler receives a **`&mut Context`**, returns **`rustf::Result<()>`**,
+The handler receives **`&mut Context`**, returns **`rustf::Result<()>`**,
 and modifies `ctx.res` in place via methods like `ctx.json`, `ctx.view`,
-`ctx.html`, `ctx.redirect`, `ctx.throw404`. The framework pulls the response
-back out with `ctx.take_response()` after the handler returns.
+`ctx.html`, `ctx.redirect`, `ctx.throw404`. The framework pulls the
+response back out after the handler returns.
 
-Some README and `docs/ABOUT_*.md` snippets show the older shape
-`async fn(ctx: Context) -> Result<Response>` — that does not compile.
-Always use `&mut Context` and `Result<()>`.
+`async fn(ctx: Context) -> Result<Response>` does NOT compile. Always
+use `&mut Context` and `Result<()>`.
 
 ---
 
 ## 2. `routes![…]` macro — use `{id}`, not `:id`
-
-**Authoritative:** `rustf/src/routing/mod.rs:60` (macro) + `trie.rs` (param parser).
 
 ```rust
 use rustf::prelude::*;
 
 pub fn install() -> Vec<Route> {
     routes![
-        GET    "/posts"          => index,
-        GET    "/posts/new"      => new_form,
-        POST   "/posts"          => create,
-        GET    "/posts/{id}"     => show,       // ← BRACES, NOT COLONS
+        GET    "/posts"           => index,
+        GET    "/posts/new"       => new_form,
+        POST   "/posts"           => create,
+        GET    "/posts/{id}"      => show,       // ← BRACES, NOT COLONS
         GET    "/posts/{id}/edit" => edit_form,
-        PUT    "/posts/{id}"     => update,
-        DELETE "/posts/{id}"     => destroy,
-        XHR    "/api/data"       => xhr_only,   // XHR is a first-class method here
+        PUT    "/posts/{id}"      => update,
+        DELETE "/posts/{id}"      => destroy,
+        XHR    "/api/data"        => xhr_only,   // XHR is a first-class method here
     ]
 }
 ```
@@ -112,8 +97,6 @@ cast if your data layer uses `i64`).
 ---
 
 ## 3. Middleware — `InboundMiddleware`, `OutboundMiddleware`, `#[async_trait]`
-
-**Authoritative:** `rustf/src/middleware/traits.rs`, `middleware/mod.rs`.
 
 ```rust
 use async_trait::async_trait;
@@ -163,9 +146,6 @@ pub fn install(registry: &mut rustf::middleware::MiddlewareRegistry) {
   `process_response` runs on the way out. Use for measuring, header
   stamping, after-handler transforms.
 
-Canonical example: `sample-app/src/middleware/timing.rs` (timing via
-`Instant`, dual-phase, priority -100).
-
 ---
 
 ## 3.5. Controller-level `before` hook (NOT middleware)
@@ -179,7 +159,6 @@ route the controller emits.
 ```rust
 // src/controllers/users.rs
 use rustf::prelude::*;
-use rustf::routing::BeforeAction;
 
 pub fn install() -> Vec<Route> {
     async fn before(ctx: &mut Context) -> rustf::Result<BeforeAction> {
@@ -204,6 +183,9 @@ async fn index(ctx: &mut Context)  -> rustf::Result<()> { /* ... */ }
 async fn show(ctx: &mut Context)   -> rustf::Result<()> { /* ... */ }
 async fn create(ctx: &mut Context) -> rustf::Result<()> { /* ... */ }
 ```
+
+`BeforeAction` is re-exported by `rustf::prelude`, so the `use rustf::prelude::*;`
+covers it — no extra import needed.
 
 **This is NOT middleware.** Differences that matter:
 
@@ -231,13 +213,9 @@ static CACHE: Lazy<dashmap::DashMap<i64, String>> = Lazy::new(DashMap::new);
 // every handler in this file can use CACHE
 ```
 
-Authoritative: `rustf/src/routing/mod.rs` (the `BeforeAction` enum + the `routes!` macro arm).
-
 ---
 
 ## 4. Context API cheat sheet (top ~30 methods)
-
-**Authoritative:** `rustf/src/context.rs`.
 
 ```rust
 // --- Request reads ---
@@ -246,12 +224,12 @@ ctx.param_int("id") -> rustf::Result<i32>       // i32 — cast to i64 for model
 ctx.param_str("id") -> rustf::Result<String>
 ctx.query("q") -> Option<&str>                  // query string param
 ctx.query_str("q") / query_int / query_bool     // typed
-ctx.body_json::<T>() -> rustf::Result<T>        // simd-json parse
+ctx.body_json::<T>() -> rustf::Result<T>        // simd-json parse (synchronous)
 ctx.body_form() -> rustf::Result<FormData>      // newtype around HashMap<String,String>; derefs to it
 ctx.body_str("name") / body_int / body_bool     // typed form field
 ctx.header("x-foo") -> Option<&str>
-ctx.cookie("name") -> Option<String>            // cache-backed since Task 5
-ctx.cookies() -> &HashMap<String,String>        // same cache, whole map
+ctx.req.cookie("name") -> Option<String>        // cookies live on Request — cache-backed
+ctx.req.cookies() -> &HashMap<String,String>    // same cache, whole map
 ctx.ip() -> String
 ctx.is_xhr() -> bool
 ctx.url() -> &str                               // full path including query
@@ -329,6 +307,9 @@ pub fn register(registry: &mut rustf::models::ModelRegistry) {
 **Model-specific query helpers go here. Business logic does NOT.**
 `Users::find_by_email` is fine (data access). `Users::send_welcome_email`
 would be wrong — that's business logic and belongs in a module.
+
+The generated struct name is **Pascal-cased plural** (e.g. `Users`, not
+`User`) — it matches your `schemas/<table>.yaml` top-level key.
 
 Regenerate the base after schema changes: `rustf-cli schema generate models`.
 
@@ -439,8 +420,7 @@ feed the `RustF` builder.
 
 When you need to create a new component, **prefer the CLI over writing
 files by hand**. The generators emit code that matches current framework
-conventions (verified 2026-04-24); writing from scratch is where drifts
-creep in.
+conventions; writing from scratch is where drifts creep in.
 
 ### Trusted commands (use these freely)
 
@@ -491,10 +471,6 @@ After any generator runs, confirm:
 - Module files default to a stateless unit struct unless `--shared` was passed.
 - Model wrappers include `pub fn register(registry: &mut rustf::models::ModelRegistry)`.
 
-If a generator's output looks drifted against these rules, don't patch
-around it — flag the template for repair in `rustf-cli/templates/` and
-`rustf-cli/src/commands/new_component.rs`.
-
 ### Hand-writing: when it's still the right call
 
 - **Regenerating the base model.** Only `rustf-cli schema generate models`
@@ -510,7 +486,7 @@ around it — flag the template for repair in `rustf-cli/templates/` and
 
 ---
 
-## 12. Common mistakes — the 12 fastest ways to get this wrong
+## 12. Common mistakes — the fastest ways to get this wrong
 
 1. Handler takes `Context` by value or returns `Result<Response>` → does not compile. Use `&mut Context` + `Result<()>`.
 2. Route uses `/:id` → silent 404. Use `/{id}`.
@@ -520,7 +496,7 @@ around it — flag the template for repair in `rustf-cli/templates/` and
 6. `MODULE::register` used for a stateless utility → delete the registration, use the utility's static methods directly.
 7. Template name has `.html` in the string → framework appends `.html`, you get `.html.html`, silent 404.
 8. Wrapper model missing `pub fn register(registry: &mut rustf::models::ModelRegistry)` → `auto_models!()` fails to compile.
-9. Worker name in camelCase or snake_case → violates the kebab-case convention (not compile-enforced, but uniform across the codebase).
+9. Worker name in camelCase or snake_case → violates the kebab-case convention.
 10. Built-in middleware assumed to be in the prelude → `use rustf::middleware::builtin::*;` is required.
 11. Templates using JSX-ish `{ var }` or Jinja `{{ var }}` → Total.js uses `@{var}`.
 12. `ctx.set` used for data that the view needs → switch to `ctx.repository_set`.
@@ -528,50 +504,24 @@ around it — flag the template for repair in `rustf-cli/templates/` and
 
 ---
 
-## 13. When stuck, read the framework source — it IS readable in both dep configurations
+## 13. When the docs and your reality disagree
 
-The framework source is the authoritative answer when docs and code
-disagree. Where to find it depends on how the project depends on `rustf`:
-
-### Path-dep project (development / monorepo)
-
-If the project's `Cargo.toml` has `rustf = { path = "../rustf" }` or
-similar, the full `rustf/` repo is right there alongside the project —
-source, docs, sample-app, tests, all readable without extra steps.
-Example: this repo's own `sample-app/`.
-
-### Published-crate project (typical downstream)
-
-If the project's `Cargo.toml` has `rustf = "X.Y.Z"` (from crates.io),
-the source lands at `~/.cargo/registry/src/index.crates.io-*/rustf-X.Y.Z/src/`
-once `cargo build` has fetched the crate. Find the exact path with:
+If something this skill describes seems to not work in your project,
+the fastest authoritative answers come from generated rustdoc:
 
 ```bash
-cargo metadata --format-version 1 --no-deps | \
-  jq -r '.packages[] | select(.name=="rustf") | .manifest_path'
-# -> /Users/.../.cargo/registry/src/index.crates.io-.../rustf-0.1.0/Cargo.toml
+cargo doc --no-deps --open -p rustf
 ```
 
-**The repo's `docs/*.md` and `sample-app/` are NOT shipped with the
-published crate.** Only `src/` and `Cargo.toml` are on disk. Plan
-accordingly.
+This opens the API surface in your browser — every public type and
+method on `Context`, `Route`, `RustF`, the `routes!` macro, etc.
 
-### Reading priority
+For deeper questions about WHY the framework behaves a certain way:
 
-1. **`sample-app/src/*`** (path-dep only) — canonical working feature
-   demonstrating the layering rule end-to-end.
-2. **`rustf/src/routing/mod.rs`** — handler signature + `routes!` macro.
-3. **`rustf/src/middleware/traits.rs`** — middleware trait + `InboundAction`.
-4. **`rustf/src/context.rs`** — every `pub fn` on `Context`.
-5. **`rustf/src/app.rs`** — every `pub fn` on the `RustF` builder (search
-   for `with_` helpers and `auto_load*` variants).
-6. **`rustf/src/middleware/builtin/*.rs`** — concrete working examples
-   of each built-in middleware.
-7. **`rustf-cli/src/commands/new_component.rs` + `rustf-cli/templates/components/*.template`**
-   (path-dep only) — if you wonder "how would the CLI write this?", read
-   the emitter.
-8. **`docs/ABOUT_*.md`** (path-dep only) — high-level intent. When
-   these disagree with code, the code wins.
+- `rustf-cli new project <tmp>` — scaffold a fresh project with the
+  current canonical patterns and compare against yours.
+- `rustf-cli analyze` — point at your project, get a report of which
+  conventions are followed and which are drifting.
 
 ---
 
@@ -583,3 +533,4 @@ accordingly.
 > `{id}`. Middleware needs `#[async_trait]`, lower priority runs first.
 > Templates no extension. Built-ins imported from `rustf::middleware::builtin`.
 > Workers kebab-case. Module state ? `SharedModule` : plain functions.
+
