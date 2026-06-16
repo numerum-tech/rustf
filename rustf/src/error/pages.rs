@@ -384,6 +384,7 @@ impl HealthCheck {
         };
 
         // Check database connectivity if configured
+        #[cfg(feature = "database")]
         if self.config.database.url.is_some() {
             match self.check_database_health().await {
                 Ok(_) => {
@@ -417,6 +418,7 @@ impl HealthCheck {
     }
 
     /// Check database health
+    #[cfg(feature = "database")]
     async fn check_database_health(&self) -> Result<()> {
         use crate::db::DB;
 

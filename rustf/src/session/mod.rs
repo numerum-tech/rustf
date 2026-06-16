@@ -10,6 +10,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 pub mod config_adapter;
 pub mod factory;
 pub mod manager;
+#[cfg(feature = "redis")]
 pub mod redis;
 pub mod security;
 pub mod storage;

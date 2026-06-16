@@ -316,8 +316,11 @@ where
 
         // Get database backend
         let backend = match db.as_ref() {
+            #[cfg(feature = "db-postgres")]
             AnyDatabase::Postgres(_) => DatabaseBackend::Postgres,
+            #[cfg(feature = "db-mysql")]
             AnyDatabase::MySQL(_) => DatabaseBackend::MySQL,
+            #[cfg(feature = "db-sqlite")]
             AnyDatabase::SQLite(_) => DatabaseBackend::SQLite,
         };
 
@@ -402,8 +405,11 @@ where
 
         // Get database backend
         let backend = match db.as_ref() {
+            #[cfg(feature = "db-postgres")]
             AnyDatabase::Postgres(_) => DatabaseBackend::Postgres,
+            #[cfg(feature = "db-mysql")]
             AnyDatabase::MySQL(_) => DatabaseBackend::MySQL,
+            #[cfg(feature = "db-sqlite")]
             AnyDatabase::SQLite(_) => DatabaseBackend::SQLite,
         };
 
@@ -437,8 +443,11 @@ where
 
         // Get database backend
         let backend = match db {
+            #[cfg(feature = "db-postgres")]
             AnyDatabase::Postgres(_) => DatabaseBackend::Postgres,
+            #[cfg(feature = "db-mysql")]
             AnyDatabase::MySQL(_) => DatabaseBackend::MySQL,
+            #[cfg(feature = "db-sqlite")]
             AnyDatabase::SQLite(_) => DatabaseBackend::SQLite,
         };
 
@@ -478,12 +487,15 @@ where
         id: Self::IdType,
     ) -> Result<Self> {
         match db {
+            #[cfg(feature = "db-postgres")]
             AnyDatabase::Postgres(pool) => {
                 sqlx::query(sql).execute(pool).await?;
             }
+            #[cfg(feature = "db-mysql")]
             AnyDatabase::MySQL(pool) => {
                 sqlx::query(sql).execute(pool).await?;
             }
+            #[cfg(feature = "db-sqlite")]
             AnyDatabase::SQLite(pool) => {
                 sqlx::query(sql).execute(pool).await?;
             }

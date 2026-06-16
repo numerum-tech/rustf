@@ -801,6 +801,7 @@ impl RustF {
         }
 
         // Initialize database connection if configured
+        #[cfg(feature = "database")]
         {
             use crate::db::DB;
             if let Err(e) = DB::init(self.config.database.url.as_deref()).await {
@@ -965,6 +966,7 @@ impl RustF {
         }
 
         // 4. Close database connections
+        #[cfg(feature = "database")]
         {
             use crate::db::DB;
             if let Err(e) = DB::shutdown().await {

@@ -32,24 +32,21 @@ anyhow = "1.0"
 futures = "0.3"
 chrono = { version = "0.4", features = ["serde"] }
 rust_decimal = { version = "1.32", features = ["serde"], optional = true }
-sqlx = { version = "0.8", features = [
+sqlx = { version = "0.8", default-features = false, features = [
     "runtime-tokio-rustls",
-    "mysql",
-    "postgres",
-    "sqlite",
+    "json",
     "chrono",
     "uuid",
     "ipnetwork",
-    "rust_decimal",
-] }
+], optional = true }
 ipnetwork = "0.20"
 toml = { version = "0.9", optional = true }
 serde-toml-merge = { version = "0.3", optional = true }
 rust-embed = { version = "8.0", optional = true }
 rustf-macros = { version = "1.0.0-rc1", path = "../rustf-macros" }
 rustf-schema = { version = "1.0.0-rc1", path = "../rustf-schema", optional = true }
-redis = { version = "0.27", features = ["tokio-comp"] }
-deadpool-redis = { version = "0.18" }
+redis = { version = "0.27", features = ["tokio-comp"], optional = true }
+deadpool-redis = { version = "0.18", optional = true }
 clap = { version = "4.4", features = ["derive"], optional = true }
 sha2 = "0.10"
 sha1 = "0.10"
@@ -68,12 +65,28 @@ default = [
     "schema",
     "decimal",
     "uuid",
+    "redis",
+    "db-postgres",
+    "db-mysql",
+    "db-sqlite",
 ]
 config = ["toml", "serde-toml-merge"]
+# SQL database support. `database` pulls in the driverless sqlx core; each
+# `db-*` feature turns on one sqlx driver. All three are on by default
+# (opt-out): use --no-default-features to drop them, then enable only the
+# driver(s) you need (e.g. "db-postgres").
+database = ["dep:sqlx"]
+db-postgres = ["database", "sqlx/postgres"]
+db-mysql = ["database", "sqlx/mysql"]
+db-sqlite = ["database", "sqlx/sqlite"]
+# Redis-backed session storage (the only built-in cross-instance/cluster store).
+# On by default; disable with --no-default-features to drop the redis deps, then
+# supply a custom SessionStorage implementation for shared sessions.
+redis = ["dep:redis", "dep:deadpool-redis"]
 embedded-views = ["rust-embed", "rustf-macros/embedded-views"]
 auto-discovery = []
 schema = ["rustf-schema"]
-decimal = ["rust_decimal"]
+decimal = ["rust_decimal", "sqlx?/rust_decimal"]
 uuid = []
 cli = ["clap"]
 
