@@ -25,7 +25,7 @@ pub struct Session {
 RustF supports multiple storage backends through the `SessionStorage` trait:
 
 - **Memory Storage** - Fast in-memory storage with automatic cleanup (implemented, default)
-- **Redis Storage** - Persistent storage with connection pooling (implemented, built-in)
+- **Redis Storage** - Persistent, cross-instance storage with connection pooling (implemented; on by default via the `redis` [Cargo feature](../getting-started/installation.md#cargo-features)). This is the only built-in backend that lets multiple RustF instances share sessions; if you disable the `redis` feature, supply a custom `SessionStorage`.
 - **Database Storage** - Planned but not yet implemented (configuration exists)
 
 ## Basic Session Usage
