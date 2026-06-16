@@ -297,12 +297,21 @@ impl EmbeddedTotalJsEngine {
         layout: Option<&str>,
         context_repository: Option<&Value>,
         session_data: Option<&Value>,
+        request: Option<&crate::views::RequestMeta>,
     ) -> Result<String> {
         let template_path = self.template_path(template);
         let template_ast = self.load_template(&template_path)?;
 
         // Create render context with session data
         let context = self.create_context(data, context_repository, session_data);
+        // Apply per-request metadata (url / hostname / mobile) if provided.
+        let context = match request {
+            Some(req) => context
+                .with_url(req.url.clone())
+                .with_hostname(req.hostname.clone())
+                .with_mobile(req.mobile),
+            None => context,
+        };
 
         // Create template loader that uses embedded templates
         let cache = self.cache.clone();
@@ -371,6 +380,12 @@ impl EmbeddedTotalJsEngine {
 
             let mut layout_context =
                 self.create_context(&layout_data, context_repository, session_data);
+            if let Some(req) = request {
+                layout_context = layout_context
+                    .with_url(req.url.clone())
+                    .with_hostname(req.hostname.clone())
+                    .with_mobile(req.mobile);
+            }
 
             // Transfer child template sections to layout context
             // This allows child views to define sections that parent layouts can render
@@ -490,6 +505,7 @@ impl ViewEngineImpl for EmbeddedTotalJsEngine {
             layout,
             context_repository,
             session_data,
+            None,
         )?;
 
         if self.minify {
@@ -506,9 +522,11 @@ impl ViewEngineImpl for EmbeddedTotalJsEngine {
         layout: Option<&str>,
         repository: Option<&Value>,
         session: Option<&Value>,
+        request: Option<&crate::views::RequestMeta>,
     ) -> Result<String> {
-        let html =
-            self.render_with_layout_and_session(template, data, layout, repository, session)?;
+        let html = self.render_with_layout_and_session(
+            template, data, layout, repository, session, request,
+        )?;
         if self.minify {
             Ok(minify_html(&html))
         } else {
