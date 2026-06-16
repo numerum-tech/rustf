@@ -42,9 +42,7 @@ pub enum AffectedComponent {
 
 pub struct ProjectWatcher {
     project_path: PathBuf,
-    analyzer: Arc<RwLock<ProjectAnalyzer>>,
     dependency_tracker: Arc<RwLock<DependencyTracker>>,
-    event_sender: mpsc::UnboundedSender<FileChangeEvent>,
     _watcher: RecommendedWatcher, // Keep alive
 }
 
@@ -105,9 +103,7 @@ impl ProjectWatcher {
         Ok((
             Self {
                 project_path,
-                analyzer,
                 dependency_tracker,
-                event_sender,
                 _watcher: watcher,
             },
             event_receiver,

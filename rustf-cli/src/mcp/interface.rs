@@ -63,6 +63,8 @@ pub struct McpMetadata {
     pub context: Option<Map<String, Value>>,
 }
 
+// reserved: MCP response builders, paired with server tool dispatch (not all entry points wired yet)
+#[allow(dead_code)]
 impl McpResponse {
     /// Create a successful response with data
     pub fn success(data: Value) -> Self {
@@ -155,8 +157,12 @@ impl McpResponse {
 }
 
 /// Standard parameter extraction utilities
+// reserved: JSON-RPC param extraction helpers for MCP tool handlers
+#[allow(dead_code)]
 pub struct McpParams;
 
+// reserved: JSON-RPC param extraction helpers for MCP tool handlers
+#[allow(dead_code)]
 impl McpParams {
     /// Parse JSON-RPC parameters into a map
     pub fn parse(params: Params) -> Result<Map<String, Value>, JsonRpcError> {
@@ -233,11 +239,15 @@ impl McpParams {
 }
 
 /// Execution context for MCP operations
+// reserved: per-request MCP execution context, used to build response metadata
+#[allow(dead_code)]
 pub struct McpContext {
     pub project_path: PathBuf,
     pub start_time: std::time::Instant,
 }
 
+// reserved: per-request MCP execution context, used to build response metadata
+#[allow(dead_code)]
 impl McpContext {
     pub fn new(project_path: PathBuf) -> Self {
         Self {
@@ -274,6 +284,8 @@ impl McpContext {
 }
 
 /// Trait for uniform MCP operation handlers
+// reserved: uniform handler trait, implemented via impl_mcp_handler! macro for MCP tools
+#[allow(dead_code)]
 #[async_trait::async_trait]
 pub trait McpHandler {
     /// The name of the MCP tool/method
@@ -324,6 +336,8 @@ macro_rules! impl_mcp_handler {
 }
 
 /// Helper function to convert anyhow::Error to standardized MCP response
+// reserved: error normalizer for MCP tool dispatch
+#[allow(dead_code)]
 pub fn error_to_mcp_response(error: anyhow::Error) -> Value {
     let error_msg = error.to_string();
     let error_code = if error_msg.contains("connection") {
@@ -344,6 +358,8 @@ pub fn error_to_mcp_response(error: anyhow::Error) -> Value {
 }
 
 /// Helper function to convert Result to standardized MCP JSON-RPC response
+// reserved: Result->JSON-RPC adapter for MCP tool dispatch
+#[allow(dead_code)]
 pub fn result_to_json_rpc<T>(
     result: Result<T>, 
     context: Option<McpContext>

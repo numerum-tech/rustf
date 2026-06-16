@@ -1149,7 +1149,6 @@ fn prepare_base_model_variables(
 
     // Generate struct fields with documentation
     let mut struct_fields = Vec::new();
-    let struct_fields_with_docs: Vec<String> = Vec::new();
     for field in &sorted_fields {
         let is_nullable = field.constraints.nullable.unwrap_or(false);
 
@@ -1811,7 +1810,6 @@ fn prepare_base_model_variables(
         };
 
         let escaped_field_name = escape_rust_keyword(&field.name);
-        let is_required = field.constraints.required.unwrap_or(false) && !is_nullable;
 
         // For builder, wrap all fields in Option to allow incremental building
         builder_fields.push(format!(
@@ -2234,7 +2232,6 @@ fn prepare_base_model_variables(
     let mut sqlite_conversion = Vec::new();
 
     for field in &sorted_fields {
-        let escaped_field_name = escape_rust_keyword(&field.name);
         let field_name = &field.name;
 
         // PostgreSQL conversion
@@ -3241,140 +3238,6 @@ fn prepare_wrapper_model_variables(
     vars.insert("wrapper_setters".to_string(), String::new());
 
     // No longer need field accessors - Deref handles delegation automatically!
-    let field_accessors = Vec::<String>::new();
-
-    for field in &sorted_fields {
-        if field.constraints.primary_key.unwrap_or(false) {
-            continue; // ID is handled separately
-        }
-
-        let escaped_field_name = escape_rust_keyword(&field.name);
-        let field_doc = field
-            .ai
-            .as_ref()
-            .unwrap_or(&format!("Get the {} field", field.name))
-            .clone();
-
-        // Determine the return type
-        let is_nullable = field.constraints.nullable.unwrap_or(false);
-        let return_type = if let Some(ref lang_type) = field.lang_type {
-            lang_type.clone()
-        } else {
-            match field.field_type.base_type() {
-                // SQLite integer types for FromRow (preserve precision even though SQLite stores as INTEGER)
-                "tinyint" => {
-                    if is_nullable {
-                        "Option<i8>"
-                    } else {
-                        "i8"
-                    }
-                }
-                "smallint" => {
-                    if is_nullable {
-                        "Option<i16>"
-                    } else {
-                        "i16"
-                    }
-                }
-                "mediumint" | "int" | "integer" => {
-                    if is_nullable {
-                        "Option<i32>"
-                    } else {
-                        "i32"
-                    }
-                }
-                "bigint" => {
-                    if is_nullable {
-                        "Option<i64>"
-                    } else {
-                        "i64"
-                    }
-                }
-                "text" | "varchar" | "string" | "enum" => {
-                    if is_nullable {
-                        "Option<String>"
-                    } else {
-                        "String"
-                    }
-                }
-                "boolean" | "bool" => {
-                    if is_nullable {
-                        "Option<bool>"
-                    } else {
-                        "bool"
-                    }
-                }
-                "timestamp" | "datetime" => {
-                    if is_nullable {
-                        "Option<DateTime<Utc>>"
-                    } else {
-                        "DateTime<Utc>"
-                    }
-                }
-                "date" => {
-                    if is_nullable {
-                        "Option<NaiveDate>"
-                    } else {
-                        "NaiveDate"
-                    }
-                }
-                "time" => {
-                    if is_nullable {
-                        "Option<NaiveTime>"
-                    } else {
-                        "NaiveTime"
-                    }
-                }
-                "decimal" => {
-                    if is_nullable {
-                        "Option<Decimal>"
-                    } else {
-                        "Decimal"
-                    }
-                }
-                "json" => {
-                    if is_nullable {
-                        "Option<serde_json::Value>"
-                    } else {
-                        "serde_json::Value"
-                    }
-                }
-                "uuid" => {
-                    if is_nullable {
-                        "Option<Uuid>"
-                    } else {
-                        "Uuid"
-                    }
-                }
-                "real" | "float" | "double" => {
-                    if is_nullable {
-                        "Option<f64>"
-                    } else {
-                        "f64"
-                    }
-                }
-                _ => {
-                    if is_nullable {
-                        "Option<String>"
-                    } else {
-                        "String"
-                    }
-                }
-            }
-            .to_string()
-        };
-
-        // For String types, we need to clone
-        let needs_clone = return_type.contains("String");
-        let accessor_impl = if needs_clone {
-            format!("self.base.{}.clone()", escaped_field_name)
-        } else {
-            format!("self.base.{}", escaped_field_name)
-        };
-
-        // Skip generating field accessors - Deref handles this
-    }
-
     // Empty field_accessors since Deref handles delegation
     vars.insert("field_accessors".to_string(), String::new());
 

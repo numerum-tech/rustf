@@ -187,23 +187,6 @@ fn detect_database_backend(schema: &Schema) -> String {
     "Postgres".to_string()
 }
 
-/// Shared utility: Escape Rust reserved keywords
-pub fn escape_rust_keyword(field_name: &str) -> String {
-    const RUST_KEYWORDS: &[&str] = &[
-        "type", "match", "if", "else", "while", "for", "loop", "fn", "let", "mut", 
-        "const", "static", "struct", "enum", "trait", "impl", "mod", "use", "pub",
-        "return", "break", "continue", "true", "false", "self", "Self", "super",
-        "crate", "in", "as", "where", "async", "await", "dyn", "move", "ref",
-        "macro", "union", "unsafe", "extern", "yield", "try", "catch", "typeof"
-    ];
-    
-    if RUST_KEYWORDS.contains(&field_name) {
-        format!("r#{}", field_name)
-    } else {
-        field_name.to_string()
-    }
-}
-
 /// Convert string to PascalCase
 pub fn to_pascal_case(s: &str) -> String {
     s.split('_')
@@ -217,26 +200,3 @@ pub fn to_pascal_case(s: &str) -> String {
         .collect()
 }
 
-/// Convert string to snake_case
-pub fn to_snake_case(s: &str) -> String {
-    let mut result = String::new();
-    let mut prev_is_upper = false;
-    
-    for (i, ch) in s.chars().enumerate() {
-        if ch == '_' {
-            result.push(ch);
-            prev_is_upper = false;
-        } else if ch.is_uppercase() {
-            if i > 0 && !prev_is_upper {
-                result.push('_');
-            }
-            result.push(ch.to_lowercase().next().unwrap());
-            prev_is_upper = true;
-        } else {
-            result.push(ch);
-            prev_is_upper = false;
-        }
-    }
-    
-    result
-}

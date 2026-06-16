@@ -217,21 +217,6 @@ impl ProjectFiles {
         html_files
     }
     
-    /// Get cached file existence check for performance
-    pub fn file_exists(&self, path: &Path) -> bool {
-        global_metadata_cache().file_exists(path)
-    }
-    
-    /// Get file metadata using cache
-    pub fn get_file_metadata(&self, path: &Path) -> Result<FileMetadata> {
-        global_metadata_cache().get_metadata(path)
-    }
-    
-    /// Filter files by extension using cached metadata
-    pub fn filter_by_extension(&self, files: &[PathBuf], extension: &str) -> Vec<PathBuf> {
-        global_metadata_cache().filter_by_extension(files, extension)
-    }
-
     fn scan_controllers(&mut self, src_path: &Path) -> Result<()> {
         let controllers_path = src_path.join("controllers");
         if controllers_path.exists() {

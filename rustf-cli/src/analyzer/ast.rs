@@ -21,27 +21,13 @@ impl Default for AstAnalyzer {
 }
 
 impl AstAnalyzer {
-    /// Create new analyzer with custom cache settings
-    pub fn with_cache(max_entries: usize, max_age_seconds: u64) -> Self {
-        Self {
-            cache: Arc::new(AstCache::new(max_entries, max_age_seconds)),
-        }
-    }
-
     /// Get cache statistics for monitoring
     pub fn cache_stats(&self) -> super::cache::CacheStats {
         self.cache.get_stats()
     }
-
-    /// Clear the AST cache
-    pub fn clear_cache(&self) {
-        self.cache.clear();
-    }
 }
 
 pub struct BasicControllerInfo {
-    pub name: String,
-    pub file_path: String,
     pub handlers: Vec<String>,
 }
 
@@ -50,15 +36,7 @@ impl AstAnalyzer {
         let syntax_tree = self.cache.get_or_parse(file_path)
             .with_context(|| format!("Failed to parse file: {}", file_path.display()))?;
 
-        let controller_name = file_path
-            .file_stem()
-            .and_then(|s| s.to_str())
-            .unwrap_or("unknown")
-            .to_string();
-
         let mut controller_info = BasicControllerInfo {
-            name: controller_name,
-            file_path: file_path.to_string_lossy().to_string(),
             handlers: Vec::new(),
         };
 
@@ -177,35 +155,4 @@ impl AstAnalyzer {
         parameters
     }
 
-    pub fn find_handler_functions(&self, file_path: &Path) -> Result<Vec<String>> {
-        let syntax_tree = self.cache.get_or_parse(file_path)?;
-
-        let mut handlers = Vec::new();
-
-        for item in &syntax_tree.items {
-            if let Item::Fn(func) = item {
-                let func_name = func.sig.ident.to_string();
-                
-                // Check if it's an async function that takes Context parameter
-                if func.sig.asyncness.is_some() && Self::has_context_parameter(&func.sig) {
-                    handlers.push(func_name);
-                }
-            }
-        }
-
-        Ok(handlers)
-    }
-
-    fn has_context_parameter(sig: &syn::Signature) -> bool {
-        sig.inputs.iter().any(|arg| {
-            if let syn::FnArg::Typed(pat_type) = arg {
-                if let syn::Type::Path(type_path) = &*pat_type.ty {
-                    if let Some(segment) = type_path.path.segments.last() {
-                        return segment.ident == "Context";
-                    }
-                }
-            }
-            false
-        })
-    }
 }

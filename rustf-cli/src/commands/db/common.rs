@@ -74,6 +74,8 @@ pub struct TriggerInfo {
     pub description: Option<String>,
 }
 
+// reserved: public DB-type enum
+#[allow(dead_code)]
 #[derive(Debug)]
 pub enum DatabaseType {
     PostgreSQL,
@@ -81,6 +83,8 @@ pub enum DatabaseType {
     SQLite,
 }
 
+// reserved: public DB-type enum
+#[allow(dead_code)]
 impl DatabaseType {
     pub fn from_url(url: &str) -> Result<Self> {
         if url.starts_with("postgres://") || url.starts_with("postgresql://") {

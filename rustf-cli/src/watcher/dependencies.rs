@@ -38,7 +38,6 @@ pub enum FileType {
     Config,
     Library,
     Main,
-    Unknown,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -187,30 +186,6 @@ impl DependencyTracker {
 
         affected.remove(&changed_file.to_path_buf()); // Don't include the original file
         affected
-    }
-
-    /// Check if a file needs re-analysis based on its dependencies
-    pub fn needs_reanalysis(&self, file_path: &Path) -> bool {
-        let file_last_analyzed = self.last_analyzed.get(file_path);
-        
-        if file_last_analyzed.is_none() {
-            return true; // Never analyzed
-        }
-
-        let file_time = file_last_analyzed.unwrap();
-
-        // Check if any dependencies were analyzed more recently
-        if let Some(deps) = self.dependencies.get(file_path) {
-            for dep in deps {
-                if let Some(dep_time) = self.last_analyzed.get(dep) {
-                    if dep_time > file_time {
-                        return true; // Dependency is newer
-                    }
-                }
-            }
-        }
-
-        false
     }
 
     /// Determine file type based on path and content

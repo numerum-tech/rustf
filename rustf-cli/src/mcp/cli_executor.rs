@@ -226,6 +226,8 @@ pub struct CliExecuteParams {
     pub subcommand: Option<String>,
     #[serde(default)]
     pub args: Vec<String>,
+    // reserved: deserialized from MCP request, used to scope CLI execution to a project
+    #[allow(dead_code)]
     pub project_path: Option<PathBuf>,
 }
 

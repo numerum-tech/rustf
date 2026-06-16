@@ -7,6 +7,8 @@ use sqlx::{Pool, Sqlite};
 use std::path::PathBuf;
 
 pub struct SqliteIntrospector {
+    // reserved: holds sqlite pool handle
+    #[allow(dead_code)]
     pool: Pool<Sqlite>,
 }
 

@@ -96,15 +96,6 @@ where
         self.access_order.push(key);
     }
 
-    pub fn contains_key(&self, key: &K) -> bool {
-        if let Some(node) = self.cache.get(key) {
-            let now = Utc::now();
-            (now - node.created_at).num_seconds() <= self.ttl_seconds
-        } else {
-            false
-        }
-    }
-
     pub fn remove(&mut self, key: &K) -> Option<V> {
         if let Some(node) = self.cache.remove(key) {
             self.access_order.retain(|k| k != key);
@@ -114,41 +105,8 @@ where
         }
     }
 
-    pub fn clear(&mut self) {
-        self.cache.clear();
-        self.access_order.clear();
-    }
-
     pub fn len(&self) -> usize {
         self.cache.len()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.cache.is_empty()
-    }
-
-    pub fn capacity(&self) -> usize {
-        self.capacity
-    }
-
-    /// Remove expired entries
-    pub fn cleanup_expired(&mut self) -> usize {
-        let now = Utc::now();
-        let mut expired_keys = Vec::new();
-
-        for (key, node) in &self.cache {
-            if (now - node.created_at).num_seconds() > self.ttl_seconds {
-                expired_keys.push(key.clone());
-            }
-        }
-
-        let count = expired_keys.len();
-        for key in expired_keys {
-            self.cache.remove(&key);
-            self.access_order.retain(|k| k != &key);
-        }
-
-        count
     }
 
     fn evict_lru(&mut self) {
@@ -245,30 +203,12 @@ where
         }
     }
 
-    pub fn contains_key(&self, key: &K) -> bool {
-        self.inner.read().ok().map(|cache| cache.contains_key(key)).unwrap_or(false)
-    }
-
     pub fn remove(&self, key: &K) -> Option<V> {
         self.inner.write().ok()?.remove(key)
     }
 
-    pub fn clear(&self) {
-        if let Ok(mut cache) = self.inner.write() {
-            cache.clear();
-        }
-    }
-
     pub fn len(&self) -> usize {
         self.inner.read().ok().map(|cache| cache.len()).unwrap_or(0)
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.inner.read().ok().map(|cache| cache.is_empty()).unwrap_or(true)
-    }
-
-    pub fn cleanup_expired(&self) -> usize {
-        self.inner.write().ok().map(|mut cache| cache.cleanup_expired()).unwrap_or(0)
     }
 
     pub fn get_statistics(&self) -> CacheStatistics {
