@@ -37,6 +37,7 @@ pub enum TokenKind {
     // Special directives
     Meta(Option<String>, Option<String>, Option<String>), // @{meta(title, desc, keywords)}
     Title(String),                                        // @{title('value')} - raw arg expression
+    FormField(String, String),                            // @{text|textarea(...)} - (kind, raw args inside parens)
     Body,    // @{body} - Standard Total.js layout content placeholder
     Head,    // @{head} - Additional head section content
     Content, // @{content} - Our extension, same as @{body} for backward compatibility
@@ -417,6 +418,17 @@ impl Lexer {
         if trimmed.starts_with("title(") && trimmed.ends_with(')') {
             let arg = trimmed[6..trimmed.len() - 1].trim().to_string();
             return TokenKind::Title(arg);
+        }
+
+        // Form-input helpers: @{text('field', {...})}, @{textarea('field', {...})}.
+        // Keep the raw argument list; the parser splits it into field name +
+        // attribute object.
+        for kind in ["text", "textarea"] {
+            let prefix = format!("{}(", kind);
+            if trimmed.starts_with(&prefix) && trimmed.ends_with(')') {
+                let args = trimmed[prefix.len()..trimmed.len() - 1].trim().to_string();
+                return TokenKind::FormField(kind.to_string(), args);
+            }
         }
 
         // Special directives

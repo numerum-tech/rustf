@@ -1,4 +1,6 @@
-use super::ast::{BinaryOperator, Expression, Node, Template, UnaryOperator};
+use super::ast::{
+    AttrValue, BinaryOperator, Expression, FormFieldKind, Node, Template, UnaryOperator,
+};
 use super::lexer::{Lexer, Token, TokenKind};
 use crate::error::{Error, Result};
 
@@ -182,6 +184,26 @@ impl Parser {
                 let expr = self.parse_expression(arg)?;
                 self.advance();
                 Ok(Node::Title(expr))
+            }
+
+            TokenKind::FormField(kind, args) => {
+                let field_kind = match kind.as_str() {
+                    "text" => FormFieldKind::Text,
+                    "textarea" => FormFieldKind::Textarea,
+                    other => {
+                        return Err(Error::template(format!(
+                            "Unknown form helper: {}",
+                            other
+                        )))
+                    }
+                };
+                let (name, attrs) = Self::parse_form_args(args)?;
+                self.advance();
+                Ok(Node::FormField {
+                    kind: field_kind,
+                    name,
+                    attrs,
+                })
             }
 
             TokenKind::Body => {
@@ -569,6 +591,120 @@ impl Parser {
         }
 
         Ok(args)
+    }
+
+    /// Parse a form-helper argument list into (field_name, attributes).
+    /// Input e.g.: `'nick', { class: 'form', maxlength: 30, required: true }`
+    fn parse_form_args(args: &str) -> Result<(String, Vec<(String, AttrValue)>)> {
+        let parts = Self::split_top_level(args, ',');
+        let name = parts
+            .first()
+            .map(|s| Self::unquote(s.trim()))
+            .ok_or_else(|| Error::template("Form helper requires a field name".to_string()))?;
+        if name.is_empty() {
+            return Err(Error::template(
+                "Form helper requires a non-empty field name".to_string(),
+            ));
+        }
+
+        let mut attrs = Vec::new();
+        if let Some(obj) = parts.iter().skip(1).map(|s| s.trim()).find(|s| {
+            s.starts_with('{') && s.ends_with('}')
+        }) {
+            attrs = Self::parse_attr_object(&obj[1..obj.len() - 1]);
+        }
+        Ok((name, attrs))
+    }
+
+    /// Parse an HTML-attribute object body like
+    /// `class: 'form', maxlength: 30, required: true` into ordered pairs.
+    fn parse_attr_object(body: &str) -> Vec<(String, AttrValue)> {
+        let mut attrs = Vec::new();
+        for entry in Self::split_top_level(body, ',') {
+            let entry = entry.trim();
+            if entry.is_empty() {
+                continue;
+            }
+            // Split on the first top-level ':'
+            let colon = entry.find(':');
+            let Some(colon) = colon else { continue };
+            let key = Self::unquote(entry[..colon].trim());
+            let raw = entry[colon + 1..].trim();
+            let value = if raw == "true" {
+                AttrValue::Bool(true)
+            } else if raw == "false" {
+                AttrValue::Bool(false)
+            } else if (raw.starts_with('\'') && raw.ends_with('\''))
+                || (raw.starts_with('"') && raw.ends_with('"'))
+            {
+                AttrValue::Str(Self::unquote(raw))
+            } else if let Ok(n) = raw.parse::<f64>() {
+                AttrValue::Number(n)
+            } else {
+                AttrValue::Str(raw.to_string())
+            };
+            if !key.is_empty() {
+                attrs.push((key, value));
+            }
+        }
+        attrs
+    }
+
+    /// Split a string on `sep` at the top level, ignoring separators inside
+    /// quotes, parentheses, braces, or brackets.
+    fn split_top_level(s: &str, sep: char) -> Vec<String> {
+        let mut parts = Vec::new();
+        let mut current = String::new();
+        let mut depth: i32 = 0;
+        let mut in_single = false;
+        let mut in_double = false;
+        let mut prev_backslash = false;
+        for ch in s.chars() {
+            if prev_backslash {
+                current.push(ch);
+                prev_backslash = false;
+                continue;
+            }
+            if ch == '\\' && (in_single || in_double) {
+                current.push(ch);
+                prev_backslash = true;
+                continue;
+            }
+            if ch == '\'' && !in_double {
+                in_single = !in_single;
+            } else if ch == '"' && !in_single {
+                in_double = !in_double;
+            } else if !in_single && !in_double {
+                match ch {
+                    '(' | '{' | '[' => depth += 1,
+                    ')' | '}' | ']' => depth -= 1,
+                    _ => {}
+                }
+            }
+            if ch == sep && depth == 0 && !in_single && !in_double {
+                parts.push(current.clone());
+                current.clear();
+            } else {
+                current.push(ch);
+            }
+        }
+        if !current.trim().is_empty() {
+            parts.push(current);
+        }
+        parts
+    }
+
+    /// Strip a single layer of surrounding single or double quotes.
+    fn unquote(s: &str) -> String {
+        let s = s.trim();
+        if s.len() >= 2
+            && ((s.starts_with('\'') && s.ends_with('\''))
+                || (s.starts_with('"') && s.ends_with('"')))
+        {
+            s[1..s.len() - 1].to_string()
+        } else {
+            s.to_string()
+        }
     }
 
     /// Check if parentheses are balanced in a string
