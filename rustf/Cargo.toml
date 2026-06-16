@@ -60,18 +60,14 @@ simd-json = { version = "0.13", features = ["serde", "alloc"] }
 [features]
 default = [
     "embedded-views",
-    "auto-discovery",
     "schema",
-    "uuid",
     "redis",
     "db-postgres",
     "db-mysql",
     "db-sqlite",
 ]
-# TOML config loading is core to the framework and always compiled. This
-# feature is kept as a no-op for backward compatibility with consumers that
-# still list `features = ["config"]`; it can no longer be disabled.
-config = []
+# Note: TOML config loading, the auto_* discovery macros, and UUID support are
+# core and always compiled — they are not features (no flag gates them).
 # SQL database support. `database` pulls in the driverless sqlx core; each
 # `db-*` feature turns on one sqlx driver. All three are on by default
 # (opt-out): use --no-default-features to drop them, then enable only the
@@ -86,18 +82,10 @@ db-sqlite = ["database", "sqlx/sqlite"]
 # supply a custom SessionStorage implementation for shared sessions.
 redis = ["dep:redis", "dep:deadpool-redis"]
 embedded-views = ["rust-embed", "rustf-macros/embedded-views"]
-# Auto-discovery (the auto_* macros) is a core, always-compiled part of the
-# framework. This feature gates nothing — it is a no-op kept for backward
-# compatibility with consumers that list `features = ["auto-discovery"]`.
-auto-discovery = []
 schema = ["rustf-schema"]
 # Implied by `database` (decimal support is only useful with a DB). Listed
 # separately so it can still be referenced explicitly.
 decimal = ["rust_decimal", "sqlx?/rust_decimal"]
-# The `uuid` crate is a non-optional dependency (used pervasively for IDs), so
-# UUID support is always available. This feature is a no-op kept for backward
-# compatibility; it can no longer disable UUID support.
-uuid = []
 cli = ["clap"]
 
 [dev-dependencies]

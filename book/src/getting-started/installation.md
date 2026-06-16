@@ -153,17 +153,20 @@ build, opt out and enable only what you use.
 
 | Feature | Default | What it enables |
 |---------|:-------:|-----------------|
-| `database` | ✅ | Driverless SQL core (query builder, models, migrations) |
+| `database` | ✅ | Driverless SQL core (query builder, models, migrations) + `decimal` |
 | `db-postgres` | ✅ | PostgreSQL driver |
 | `db-mysql` | ✅ | MySQL / MariaDB driver |
 | `db-sqlite` | ✅ | SQLite driver |
 | `redis` | ✅ | Redis-backed session storage (the only built-in cross-instance/cluster store) |
-| `config` | ✅ | TOML configuration loading |
 | `embedded-views` | ✅ | Compile templates into the binary |
-| `auto-discovery` | ✅ | Procedural-macro auto-discovery |
 | `schema` | ✅ | YAML schema validation & codegen |
 | `decimal` | ✅ | `DECIMAL`/`NUMERIC` support via `rust_decimal` — **implied by `database`**, so any `db-*` feature pulls it in automatically |
-| `uuid` | ✅ | UUID support |
+| `cli` | — | `clap`-based CLI argument parsing |
+
+> **Always compiled (not features):** TOML config loading, the auto-discovery
+> macros (`auto_controllers!`, …), and UUID support are core to the framework
+> and cannot be disabled — there are no `config` / `auto-discovery` / `uuid`
+> flags.
 
 Each `db-*` feature pulls in `database` automatically and turns on the matching
 `sqlx` driver. A PostgreSQL-only app, for example, can skip compiling the MySQL
@@ -172,7 +175,7 @@ and SQLite drivers plus Redis:
 ```toml
 [dependencies]
 rustf = { version = "1.0.0-rc1", default-features = false, features = [
-    "config", "embedded-views", "auto-discovery", "schema", "uuid",
+    "embedded-views", "schema",
     "db-postgres",   # pulls in `database` + `decimal` automatically
 ] }
 ```

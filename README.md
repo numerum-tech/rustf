@@ -41,14 +41,16 @@ a leaner build, opt out and enable only what you use:
 ```toml
 # PostgreSQL only — skips MySQL, SQLite, and Redis
 rustf = { version = "1.0.0-rc1", default-features = false, features = [
-    "config", "embedded-views", "auto-discovery", "schema", "uuid",
+    "embedded-views", "schema",
     "db-postgres",   # pulls in `database` + `decimal` automatically
 ] }
 ```
 
 Available: `db-postgres`, `db-mysql`, `db-sqlite` (each pulls in the `database`
-core), and `redis` (the only built-in cross-instance session store — keep it, or
-supply a custom `SessionStorage`, for multi-instance deployments). See the
+core + `decimal`), and `redis` (the only built-in cross-instance session store —
+keep it, or supply a custom `SessionStorage`, for multi-instance deployments).
+TOML config, auto-discovery, and UUID support are always compiled (not features).
+See the
 [Installation guide](https://numerum-tech.github.io/rustf/getting-started/installation.html#cargo-features)
 for the full feature table.
 
