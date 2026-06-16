@@ -782,12 +782,12 @@ mod urlencoding {
     use std::borrow::Cow;
 
     /// Securely decode URL-encoded strings with validation
-    pub fn decode(s: &str) -> Option<Cow<str>> {
+    pub fn decode(s: &str) -> Option<Cow<'_, str>> {
         decode_safe(s).ok()
     }
 
     /// Safe URL decoding with comprehensive validation
-    pub fn decode_safe(input: &str) -> Result<Cow<str>, UrlDecodeError> {
+    pub fn decode_safe(input: &str) -> Result<Cow<'_, str>, UrlDecodeError> {
         // Input validation
         if input.len() > MAX_URL_LENGTH {
             return Err(UrlDecodeError::TooLong);

@@ -64,7 +64,10 @@ impl MySqlTypeConverter {
         Ok(SqlValue::TinyInt(0))
     }
 
-    /// Extract a boolean value from MySQL (for actual BOOLEAN/BOOL types)
+    /// Extract a boolean value from MySQL (for actual BOOLEAN/BOOL types).
+    /// Reserved for explicit BOOLEAN handling; MySQL maps BOOL to TINYINT(1),
+    /// currently handled via the tinyint path, so this is not yet wired.
+    #[allow(dead_code)]
     fn extract_boolean(row: &MySqlRow, index: usize) -> Result<SqlValue> {
         // First check if the value is NULL using raw value
         if let Ok(raw_value) = row.try_get_raw(index) {

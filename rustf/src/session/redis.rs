@@ -9,7 +9,7 @@ use serde_json;
 use simd_json;
 use std::collections::HashMap;
 use std::net::IpAddr;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::Duration;
 
 /// Redis-based session storage implementation with connection pooling
 ///
@@ -21,6 +21,9 @@ pub struct RedisSessionStorage {
     prefix: String,
     fingerprint_mode: FingerprintMode,
     default_ttl: Duration,
+    // Stored from config; deadpool-redis does not expose a per-connection
+    // timeout knob, so it is retained for completeness but not yet applied.
+    #[allow(dead_code)]
     connection_timeout: Duration,
     command_timeout: Duration,
 }
@@ -114,14 +117,6 @@ impl RedisSessionStorage {
     /// Get the Redis key for a session ID
     fn session_key(&self, session_id: &str) -> String {
         format!("{}{}", self.prefix, session_id)
-    }
-
-    /// Get current Unix timestamp in seconds
-    fn now() -> u64 {
-        SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs()
     }
 
     /// Validate fingerprint based on configured mode

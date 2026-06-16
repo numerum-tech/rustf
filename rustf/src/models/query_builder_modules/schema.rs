@@ -18,7 +18,7 @@ impl SchemaBuilder {
     }
 
     /// Create a CREATE TABLE statement
-    pub fn create_table(&self, table_name: &str) -> CreateTableBuilder {
+    pub fn create_table(&self, table_name: &str) -> CreateTableBuilder<'_> {
         CreateTableBuilder {
             dialect: &self.dialect,
             backend: self.backend,
