@@ -264,9 +264,9 @@ impl TypeConverter for SqliteTypeConverter {
             .downcast_ref::<SqliteRow>()
             .ok_or_else(|| Error::template("Invalid row type for SQLite converter".to_string()))?;
 
-        // Get column information
+        // Bounds-check the column index (clearer error than try_get_raw's).
         let columns = sqlite_row.columns();
-        let column = columns.get(column_index).ok_or_else(|| {
+        let _column = columns.get(column_index).ok_or_else(|| {
             Error::template(format!("Column index {} out of bounds", column_index))
         })?;
 
@@ -283,9 +283,6 @@ impl TypeConverter for SqliteTypeConverter {
         {
             return Ok(SqlValue::Null);
         }
-
-        let type_info = column.type_info();
-        let type_name = type_info.name();
 
         // SQLite uses type affinity, not strict types
         // We need to determine the best extraction method based on the declared type
