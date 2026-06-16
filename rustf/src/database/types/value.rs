@@ -494,8 +494,7 @@ impl From<chrono::NaiveDateTime> for SqlValue {
     }
 }
 
-// UUID type conversion (for uuid crate)
-#[cfg(feature = "uuid")]
+// UUID type conversion (the uuid crate is always available)
 impl From<uuid::Uuid> for SqlValue {
     fn from(uuid: uuid::Uuid) -> Self {
         SqlValue::Uuid(uuid.to_string())
