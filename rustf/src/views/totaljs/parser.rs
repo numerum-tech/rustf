@@ -178,6 +178,12 @@ impl Parser {
                 Ok(node)
             }
 
+            TokenKind::Title(arg) => {
+                let expr = self.parse_expression(arg)?;
+                self.advance();
+                Ok(Node::Title(expr))
+            }
+
             TokenKind::Body => {
                 self.advance();
                 Ok(Node::Body)
