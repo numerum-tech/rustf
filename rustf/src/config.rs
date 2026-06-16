@@ -536,20 +536,11 @@ impl AppConfig {
             let env_value = Self::load_toml_value(&env_config_path)?;
 
             // Merge environment config into base (environment takes precedence)
-            #[cfg(feature = "config")]
             {
                 use serde_toml_merge::merge;
                 merged_value = merge(merged_value, env_value).map_err(|e| {
                     Error::internal(format!("Failed to merge configuration files: {}", e))
                 })?;
-            }
-
-            #[cfg(not(feature = "config"))]
-            {
-                // Fallback if feature is not enabled (shouldn't happen in practice)
-                log::warn!(
-                    "Config feature not enabled, skipping environment-specific config merge"
-                );
             }
         }
 
@@ -619,19 +610,11 @@ impl AppConfig {
         if env_config_path.exists() {
             let env_value = Self::load_toml_value(&env_config_path)?;
 
-            #[cfg(feature = "config")]
             {
                 use serde_toml_merge::merge;
                 merged_value = merge(merged_value, env_value).map_err(|e| {
                     Error::internal(format!("Failed to merge configuration files: {}", e))
                 })?;
-            }
-
-            #[cfg(not(feature = "config"))]
-            {
-                log::warn!(
-                    "Config feature not enabled, skipping environment-specific config merge"
-                );
             }
         }
 
@@ -1166,21 +1149,8 @@ impl AppConfig {
     }
 }
 
-// TOML support
-#[cfg(feature = "config")]
+// TOML support (always available — config loading is core to the framework)
 use toml;
-
-#[cfg(not(feature = "config"))]
-mod toml {
-    use crate::error::Error;
-    use serde::de::DeserializeOwned;
-
-    pub fn from_str<T: DeserializeOwned>(_: &str) -> Result<T, Error> {
-        Err(Error::internal(
-            "TOML support not enabled. Add 'config' feature.",
-        ))
-    }
-}
 
 #[cfg(test)]
 mod tests {
@@ -1190,7 +1160,6 @@ mod tests {
     // at the TOML file level via serde_toml_merge, not at the AppConfig struct level
 
     #[test]
-    #[cfg(feature = "config")]
     fn test_toml_level_merging_simple() {
         // Test simple TOML value merging
         use serde_toml_merge::merge;
@@ -1218,7 +1187,6 @@ port = 3000
     }
 
     #[test]
-    #[cfg(feature = "config")]
     fn test_toml_level_merging_nested_tables() {
         // Test that nested tables are properly merged
         use serde_toml_merge::merge;
@@ -1258,7 +1226,6 @@ url = "redis://localhost:6379"
     }
 
     #[test]
-    #[cfg(feature = "config")]
     fn test_toml_level_merging_custom_sections() {
         // Test that custom config sections merge properly
         use serde_toml_merge::merge;

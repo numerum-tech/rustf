@@ -40,8 +40,8 @@ sqlx = { version = "0.8", default-features = false, features = [
     "ipnetwork",
 ], optional = true }
 ipnetwork = "0.20"
-toml = { version = "0.9", optional = true }
-serde-toml-merge = { version = "0.3", optional = true }
+toml = "0.9"
+serde-toml-merge = "0.3"
 rust-embed = { version = "8.0", optional = true }
 rustf-macros = { version = "1.0.0-rc1", path = "../rustf-macros" }
 rustf-schema = { version = "1.0.0-rc1", path = "../rustf-schema", optional = true }
@@ -59,7 +59,6 @@ simd-json = { version = "0.13", features = ["serde", "alloc"] }
 
 [features]
 default = [
-    "config",
     "embedded-views",
     "auto-discovery",
     "schema",
@@ -70,7 +69,10 @@ default = [
     "db-mysql",
     "db-sqlite",
 ]
-config = ["toml", "serde-toml-merge"]
+# TOML config loading is core to the framework and always compiled. This
+# feature is kept as a no-op for backward compatibility with consumers that
+# still list `features = ["config"]`; it can no longer be disabled.
+config = []
 # SQL database support. `database` pulls in the driverless sqlx core; each
 # `db-*` feature turns on one sqlx driver. All three are on by default
 # (opt-out): use --no-default-features to drop them, then enable only the
