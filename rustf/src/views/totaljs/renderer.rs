@@ -70,6 +70,10 @@ pub struct RenderContext {
     /// `Arc` across cloned contexts so partials — and the layout, once the
     /// engine transfers it — observe the same value and `@{title}` reads it.
     meta_title: Arc<std::sync::Mutex<Option<String>>>,
+
+    /// Page description set via @{description('value')} (deferred meta data),
+    /// read back via @{description}. Shared like `meta_title`.
+    meta_description: Arc<std::sync::Mutex<Option<String>>>,
 }
 
 #[derive(Clone)]
@@ -99,6 +103,7 @@ impl Clone for RenderContext {
             sections: self.sections.clone(),
             helpers: self.helpers.clone(),
             meta_title: self.meta_title.clone(),
+            meta_description: self.meta_description.clone(),
         };
 
         // Re-register built-in functions for the cloned context
@@ -136,6 +141,7 @@ impl RenderContext {
             functions,
             translator: None,
             meta_title: Arc::new(std::sync::Mutex::new(None)),
+            meta_description: Arc::new(std::sync::Mutex::new(None)),
         };
 
         // Register context-aware functions
@@ -189,6 +195,18 @@ impl RenderContext {
     /// Read the current page title, if any was set via `@{title(...)}`.
     pub fn get_title(&self) -> Option<String> {
         self.meta_title.lock().ok().and_then(|g| g.clone())
+    }
+
+    /// Store the description set via `@{description('value')}`.
+    pub fn set_description(&self, description: String) {
+        if let Ok(mut guard) = self.meta_description.lock() {
+            *guard = Some(description);
+        }
+    }
+
+    /// Read the current page description, if any was set via `@{description(...)}`.
+    pub fn get_description(&self) -> Option<String> {
+        self.meta_description.lock().ok().and_then(|g| g.clone())
     }
 
     /// Set query parameters
@@ -517,6 +535,14 @@ impl RenderContext {
             if name == "title" {
                 return match self.get_title() {
                     Some(t) => Value::String(t),
+                    None => Value::Null,
+                };
+            }
+
+            // Page description set via @{description('value')}; read as @{description}
+            if name == "description" {
+                return match self.get_description() {
+                    Some(d) => Value::String(d),
                     None => Value::Null,
                 };
             }
@@ -1213,6 +1239,12 @@ impl Renderer {
         self.context.get_title()
     }
 
+    /// Page description set during rendering via `@{description('value')}`, if
+    /// any. Used by the engine to carry it from a view into its layout.
+    pub fn meta_description(&self) -> Option<String> {
+        self.context.get_description()
+    }
+
     /// Render a form-helper attribute object into an HTML attribute string,
     /// e.g. `[("class","form"),("required",true)]` -> ` class="form" required`.
     fn render_attrs(attrs: &[(String, AttrValue)]) -> String {
@@ -1692,29 +1724,81 @@ impl Renderer {
                 Ok(String::new())
             }
 
-            Node::FormField { kind, name, attrs } => {
-                // Auto-bind the value from the model field `name`.
-                let value = match &self.context.data {
-                    Value::Object(map) => map
-                        .get(name)
-                        .map(|v| self.context.value_to_string(v, false))
-                        .unwrap_or_default(),
-                    _ => String::new(),
+            Node::Description(expr) => {
+                // Deferred meta description; read back via @{description}.
+                let value = self.context.evaluate_expression(expr)?;
+                self.context
+                    .set_description(self.context.value_to_string(&value, false));
+                Ok(String::new())
+            }
+
+            Node::FormField {
+                kind,
+                name,
+                value,
+                label,
+                attrs,
+            } => {
+                // Auto-bind from the model field `name`.
+                let field_val = match &self.context.data {
+                    Value::Object(map) => map.get(name),
+                    _ => None,
                 };
+                let value_str = field_val
+                    .map(|v| self.context.value_to_string(v, false))
+                    .unwrap_or_default();
                 let attr_str = Self::render_attrs(attrs);
-                Ok(match kind {
-                    FormFieldKind::Text => format!(
-                        "<input type=\"text\" name=\"{}\" value=\"{}\"{} />",
-                        HtmlEscaper::escape_attribute(name),
-                        HtmlEscaper::escape_attribute(&value),
-                        attr_str
-                    ),
+                let name_esc = HtmlEscaper::escape_attribute(name);
+
+                let element = match kind {
+                    FormFieldKind::Text | FormFieldKind::Password | FormFieldKind::Hidden => {
+                        let ty = match kind {
+                            FormFieldKind::Password => "password",
+                            FormFieldKind::Hidden => "hidden",
+                            _ => "text",
+                        };
+                        format!(
+                            "<input type=\"{}\" name=\"{}\" value=\"{}\"{} />",
+                            ty,
+                            name_esc,
+                            HtmlEscaper::escape_attribute(&value_str),
+                            attr_str
+                        )
+                    }
                     FormFieldKind::Textarea => format!(
                         "<textarea name=\"{}\"{}>{}</textarea>",
-                        HtmlEscaper::escape_attribute(name),
+                        name_esc,
                         attr_str,
-                        HtmlEscaper::escape(&value)
+                        HtmlEscaper::escape(&value_str)
                     ),
+                    FormFieldKind::Checkbox => {
+                        let checked = field_val.map(|v| self.context.is_truthy(v)).unwrap_or(false);
+                        format!(
+                            "<input type=\"checkbox\" name=\"{}\"{}{} />",
+                            name_esc,
+                            if checked { " checked" } else { "" },
+                            attr_str
+                        )
+                    }
+                    FormFieldKind::Radio => {
+                        let rv = value.clone().unwrap_or_default();
+                        let checked = value_str == rv;
+                        format!(
+                            "<input type=\"radio\" name=\"{}\" value=\"{}\"{}{} />",
+                            name_esc,
+                            HtmlEscaper::escape_attribute(&rv),
+                            if checked { " checked" } else { "" },
+                            attr_str
+                        )
+                    }
+                };
+
+                // Wrap in a <label> when a label was supplied (checkbox/radio).
+                Ok(match label {
+                    Some(text) => {
+                        format!("<label>{} {}</label>", element, HtmlEscaper::escape(text))
+                    }
+                    None => element,
                 })
             }
 
