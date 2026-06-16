@@ -162,7 +162,7 @@ build, opt out and enable only what you use.
 | `embedded-views` | ✅ | Compile templates into the binary |
 | `auto-discovery` | ✅ | Procedural-macro auto-discovery |
 | `schema` | ✅ | YAML schema validation & codegen |
-| `decimal` | ✅ | `rust_decimal` support (incl. sqlx mapping) |
+| `decimal` | ✅ | `DECIMAL`/`NUMERIC` support via `rust_decimal` — **implied by `database`**, so any `db-*` feature pulls it in automatically |
 | `uuid` | ✅ | UUID support |
 
 Each `db-*` feature pulls in `database` automatically and turns on the matching
@@ -172,8 +172,8 @@ and SQLite drivers plus Redis:
 ```toml
 [dependencies]
 rustf = { version = "1.0.0-rc1", default-features = false, features = [
-    "config", "embedded-views", "auto-discovery", "schema", "decimal", "uuid",
-    "db-postgres",
+    "config", "embedded-views", "auto-discovery", "schema", "uuid",
+    "db-postgres",   # pulls in `database` + `decimal` automatically
 ] }
 ```
 
