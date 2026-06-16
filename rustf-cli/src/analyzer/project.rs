@@ -3,8 +3,8 @@ use super::files::ProjectFiles;
 use super::ast::AstAnalyzer;
 use super::lookup::AnalysisLookup;
 use super::analysis_cache::{
-    get_cached_project_analysis, 
-    cache_project_analysis, invalidate_file_cache
+    get_cached_project_analysis,
+    cache_project_analysis
 };
 use std::path::PathBuf;
 use anyhow::{Result, Context};
@@ -185,22 +185,6 @@ impl ProjectAnalyzer {
         Ok(analysis)
     }
 
-    /// Invalidate cache entries for a specific file
-    pub async fn invalidate_cache_for_file(&self, file_path: &PathBuf) {
-        log::debug!("Invalidating cache for file: {}", file_path.display());
-        invalidate_file_cache(file_path).await;
-    }
-
-    /// Clear all cached analysis results for this project
-    pub async fn clear_project_cache(&self) {
-        use super::analysis_cache::global_analysis_cache;
-        
-        let cache_arc = global_analysis_cache();
-        let mut cache = cache_arc.lock().await;
-        cache.clear();
-        log::info!("Cleared all cached analysis results");
-    }
-    
     fn validate_project(&self, routes: &[RouteInfo], controllers: &[ControllerInfo]) -> Result<Vec<Issue>> {
         let mut issues = Vec::new();
         
@@ -258,11 +242,6 @@ impl ProjectAnalyzer {
     /// Get AST cache statistics for performance monitoring
     pub fn get_cache_stats(&self) -> super::cache::CacheStats {
         self.ast_analyzer.cache_stats()
-    }
-    
-    /// Clear AST cache (useful for testing or memory management)
-    pub fn clear_cache(&self) {
-        self.ast_analyzer.clear_cache();
     }
     
     /// Create fast lookup indexes from analysis results

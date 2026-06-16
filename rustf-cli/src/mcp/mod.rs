@@ -18,6 +18,8 @@ use crate::analyzer::ProjectAnalyzer;
 use crate::watcher::{ProjectWatcher, FileChangeEvent, EventAggregator};
 
 /// Core MCP server state
+// reserved: MCP server state, fields consumed by server dispatch + file-watch notifications (not all wired yet)
+#[allow(dead_code)]
 pub struct McpState {
     pub project_path: PathBuf,
     pub analyzer: Arc<RwLock<ProjectAnalyzer>>,
@@ -51,6 +53,8 @@ impl McpState {
         })
     }
     
+    // reserved: starts file-watch loop; paired with watch-enabled server mode
+    #[allow(dead_code)]
     pub async fn start_file_watcher(&mut self) -> Result<()> {
         if let Some(watcher) = &self.watcher {
             watcher.start_watching().await?;
@@ -79,8 +83,10 @@ impl McpState {
         Ok(())
     }
     
+    // reserved: MCP client notification, invoked by file-watch loop
+    #[allow(dead_code)]
     async fn notify_clients(
-        clients: &Arc<RwLock<Vec<String>>>, 
+        clients: &Arc<RwLock<Vec<String>>>,
         event: &FileChangeEvent
     ) {
         let client_list = clients.read().await;
@@ -99,6 +105,8 @@ impl McpState {
         }
     }
     
+    // reserved: client registration for MCP notification fan-out
+    #[allow(dead_code)]
     pub async fn add_client(&self, client_id: String) {
         let mut clients = self.connected_clients.write().await;
         if !clients.contains(&client_id) {
@@ -106,11 +114,15 @@ impl McpState {
         }
     }
     
+    // reserved: client deregistration for MCP notification fan-out
+    #[allow(dead_code)]
     pub async fn remove_client(&self, client_id: &str) {
         let mut clients = self.connected_clients.write().await;
         clients.retain(|id| id != client_id);
     }
     
+    // reserved: aggregated change summary for watch-status tool
+    #[allow(dead_code)]
     pub async fn get_change_summary(&self) -> crate::watcher::ChangeEventSummary {
         let aggregator = self.event_aggregator.read().await;
         aggregator.get_summary()

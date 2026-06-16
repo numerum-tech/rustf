@@ -5,7 +5,6 @@ use chrono::Utc;
 use walkdir::WalkDir;
 
 pub struct BackupManager {
-    project_root: PathBuf,
     rustf_dir: PathBuf,
 }
 
@@ -21,7 +20,7 @@ impl BackupManager {
             Self::create_readme(&rustf_dir)?;
         }
         
-        Ok(Self { project_root, rustf_dir })
+        Ok(Self { rustf_dir })
     }
     
     /// Backup a directory before overwriting with --force

@@ -128,8 +128,4 @@ impl EventAggregator {
     pub fn clear(&mut self) {
         self.events.clear();
     }
-    
-    pub fn is_empty(&self) -> bool {
-        self.events.is_empty()
-    }
 }

@@ -107,42 +107,4 @@ impl RouteAnalyzer {
         
         param_analysis
     }
-    
-    pub fn find_potential_conflicts(routes: &[RouteInfo]) -> Vec<(RouteInfo, RouteInfo)> {
-        let mut potential_conflicts = Vec::new();
-        
-        for (i, route1) in routes.iter().enumerate() {
-            for route2 in routes.iter().skip(i + 1) {
-                if route1.method == route2.method && Self::paths_could_conflict(&route1.path, &route2.path) {
-                    potential_conflicts.push((route1.clone(), route2.clone()));
-                }
-            }
-        }
-        
-        potential_conflicts
-    }
-    
-    fn paths_could_conflict(path1: &str, path2: &str) -> bool {
-        // Simple conflict detection - more sophisticated logic could be added
-        let segments1: Vec<&str> = path1.split('/').collect();
-        let segments2: Vec<&str> = path2.split('/').collect();
-        
-        if segments1.len() != segments2.len() {
-            return false;
-        }
-        
-        for (seg1, seg2) in segments1.iter().zip(segments2.iter()) {
-            // If both are parameters or both are exact matches, continue
-            if (seg1.starts_with('{') && seg1.ends_with('}')) || 
-               (seg2.starts_with('{') && seg2.ends_with('}')) {
-                continue;
-            }
-            
-            if seg1 != seg2 {
-                return false;
-            }
-        }
-        
-        true
-    }
 }

@@ -18,7 +18,6 @@ pub struct CachedAst {
     pub ast: File,
     pub file_size: u64,
     pub modified_time: u64,
-    pub content_hash: u64,
     pub created_at: u64,
 }
 
@@ -181,7 +180,6 @@ impl AstCache {
             .as_secs();
         
         let file_size = metadata.len();
-        let content_hash = self.calculate_content_hash(&content);
         let created_at = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default()
@@ -192,7 +190,6 @@ impl AstCache {
             ast: ast.clone(),
             file_size,
             modified_time,
-            content_hash,
             created_at,
         };
         
@@ -252,28 +249,6 @@ impl AstCache {
         }
     }
     
-    /// Calculate simple hash of file content for validation
-    fn calculate_content_hash(&self, content: &str) -> u64 {
-        use std::collections::hash_map::DefaultHasher;
-        use std::hash::{Hash, Hasher};
-        
-        let mut hasher = DefaultHasher::new();
-        content.hash(&mut hasher);
-        hasher.finish()
-    }
-    
-    /// Clear all cache entries
-    pub fn clear(&self) {
-        let mut entries = self.entries.write().unwrap();
-        let mut access_order = self.access_order.write().unwrap();
-        let mut stats = self.stats.write().unwrap();
-        
-        entries.clear();
-        access_order.clear();
-        stats.entries_count = 0;
-        stats.invalidations += entries.len() as u64;
-    }
-    
     /// Get current cache statistics
     pub fn get_stats(&self) -> CacheStats {
         let stats = self.stats.read().unwrap();
@@ -282,34 +257,6 @@ impl AstCache {
         let mut current_stats = stats.clone();
         current_stats.entries_count = entries.len();
         current_stats
-    }
-    
-    /// Clean up expired entries
-    pub fn cleanup_expired(&self) {
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs();
-        
-        let mut entries = self.entries.write().unwrap();
-        let mut access_order = self.access_order.write().unwrap();
-        let mut stats = self.stats.write().unwrap();
-        
-        let mut expired_paths = Vec::new();
-        
-        for (path, cached) in entries.iter() {
-            if (now - cached.created_at) > self.max_age_seconds {
-                expired_paths.push(path.clone());
-            }
-        }
-        
-        for path in expired_paths {
-            entries.remove(&path);
-            access_order.retain(|p| p != &path);
-            stats.invalidations += 1;
-        }
-        
-        stats.entries_count = entries.len();
     }
 }
 

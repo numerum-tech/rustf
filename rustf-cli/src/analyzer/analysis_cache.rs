@@ -12,18 +12,6 @@ use super::{ProjectAnalysis, ControllerInfo, RouteInfo};
 pub enum AnalysisCacheKey {
     /// Complete project analysis
     ProjectComplete { project_path: PathBuf, include_views: bool },
-    /// Controller-specific analysis
-    Controller { file_path: PathBuf },
-    /// Route analysis for a specific controller
-    Routes { controller_path: PathBuf },
-    /// Middleware analysis
-    Middleware { file_path: PathBuf },
-    /// Model analysis
-    Model { file_path: PathBuf },
-    /// View analysis
-    View { file_path: PathBuf },
-    /// Custom analysis type
-    Custom { cache_key: String },
 }
 
 /// Cached analysis result with metadata
@@ -51,27 +39,6 @@ impl AnalysisResult {
     pub fn as_project_analysis(&self) -> Option<&ProjectAnalysis> {
         match self {
             AnalysisResult::ProjectAnalysis(analysis) => Some(analysis),
-            _ => None,
-        }
-    }
-
-    pub fn as_controllers(&self) -> Option<&[ControllerInfo]> {
-        match self {
-            AnalysisResult::Controllers(controllers) => Some(controllers),
-            _ => None,
-        }
-    }
-
-    pub fn as_routes(&self) -> Option<&[RouteInfo]> {
-        match self {
-            AnalysisResult::Routes(routes) => Some(routes),
-            _ => None,
-        }
-    }
-
-    pub fn as_json(&self) -> Option<&serde_json::Value> {
-        match self {
-            AnalysisResult::Json(json) => Some(json),
             _ => None,
         }
     }
@@ -206,44 +173,11 @@ impl AnalysisCache {
         true
     }
 
-    /// Invalidate cache entries for specific files
-    pub fn invalidate_by_file(&mut self, file_path: &PathBuf) {
-        let keys_to_remove: Vec<_> = self.get_keys_for_file(file_path);
-        
-        for key in keys_to_remove {
-            self.lru_cache.remove(&key);
-            self.cache_stats.invalidations += 1;
-        }
-        
-        self.cache_stats.cache_size = self.lru_cache.len();
-    }
-
-    /// Get all cache keys that depend on a specific file
-    fn get_keys_for_file(&self, _file_path: &PathBuf) -> Vec<AnalysisCacheKey> {
-        // This is a simplified implementation
-        // In practice, you'd want to track which cache entries depend on which files
-        Vec::new()
-    }
-
-    /// Clear all cached entries
-    pub fn clear(&mut self) {
-        self.lru_cache.clear();
-        self.file_watcher.clear();
-        self.cache_stats = CacheStats::default();
-    }
-
     /// Get cache statistics
     pub fn get_stats(&self) -> CacheStats {
         let mut stats = self.cache_stats.clone();
         stats.cache_size = self.lru_cache.len();
         stats
-    }
-
-    /// Clean up expired entries
-    pub fn cleanup_expired(&mut self) -> usize {
-        let removed = self.lru_cache.cleanup_expired();
-        self.cache_stats.cache_size = self.lru_cache.len();
-        removed
     }
 
     /// Update hit rate calculation
@@ -266,22 +200,6 @@ impl AnalysisCache {
             most_accessed_keys: lru_stats.most_accessed_keys,
             tracked_files_count: self.file_watcher.len(),
         }
-    }
-
-    /// Preload cache with common analysis patterns
-    pub async fn preload_common_patterns(&mut self, project_path: &PathBuf) -> Result<usize> {
-        let loaded_count = 0;
-        
-        // This would be implemented based on common usage patterns
-        // For example, always cache the main project analysis
-        let _key = AnalysisCacheKey::ProjectComplete {
-            project_path: project_path.clone(),
-            include_views: false,
-        };
-        
-        // Implementation would go here...
-        
-        Ok(loaded_count)
     }
 }
 
@@ -355,12 +273,6 @@ pub async fn get_cached_project_analysis(
     None
 }
 
-pub async fn invalidate_file_cache(file_path: &PathBuf) {
-    let cache_arc = global_analysis_cache();
-    let mut cache = cache_arc.lock().await;
-    cache.invalidate_by_file(file_path);
-}
-
 pub async fn get_cache_statistics() -> Option<CacheStats> {
     let cache_arc = global_analysis_cache();
     let cache = cache_arc.lock().await;
@@ -373,16 +285,32 @@ mod tests {
     use tempfile::tempdir;
     use std::fs::write;
 
+    fn empty_analysis() -> ProjectAnalysis {
+        ProjectAnalysis {
+            project_name: "test".to_string(),
+            framework_version: "detected".to_string(),
+            controllers: vec![],
+            routes: vec![],
+            middleware: vec![],
+            models: vec![],
+            views: vec![],
+            issues: vec![],
+        }
+    }
+
     #[tokio::test]
     async fn test_cache_basic_operations() {
         let mut cache = AnalysisCache::new(10, 60);
-        
-        let key = AnalysisCacheKey::Custom { cache_key: "test".to_string() };
-        let result = AnalysisResult::Json(serde_json::json!({"test": "data"}));
-        
+
+        let key = AnalysisCacheKey::ProjectComplete {
+            project_path: PathBuf::from("/tmp/project"),
+            include_views: false,
+        };
+        let result = AnalysisResult::ProjectAnalysis(Box::new(empty_analysis()));
+
         // Cache miss initially
         assert!(cache.get(&key).await.is_none());
-        
+
         // Put and get
         cache.put(key.clone(), result, vec![]).await.unwrap();
         assert!(cache.get(&key).await.is_some());
@@ -393,19 +321,22 @@ mod tests {
         let dir = tempdir().unwrap();
         let file_path = dir.path().join("test.rs");
         write(&file_path, "fn test() {}").unwrap();
-        
+
         let mut cache = AnalysisCache::new(10, 60);
-        let key = AnalysisCacheKey::Controller { file_path: file_path.clone() };
-        let result = AnalysisResult::Json(serde_json::json!({"function": "test"}));
-        
+        let key = AnalysisCacheKey::ProjectComplete {
+            project_path: dir.path().to_path_buf(),
+            include_views: false,
+        };
+        let result = AnalysisResult::ProjectAnalysis(Box::new(empty_analysis()));
+
         // Cache the result
         cache.put(key.clone(), result, vec![file_path.clone()]).await.unwrap();
         assert!(cache.get(&key).await.is_some());
-        
+
         // Modify the file
         tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
         write(&file_path, "fn test() { println!(); }").unwrap();
-        
+
         // Cache should be invalid now
         assert!(cache.get(&key).await.is_none());
     }

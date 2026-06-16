@@ -76,16 +76,6 @@ impl SectionedTranslations {
             .map(|s| s.as_str())
     }
     
-    pub fn get_with_fallback(&self, section: &str, key: &str) -> Option<&str> {
-        // Try section-specific first
-        if let Some(value) = self.get(section, key) {
-            return Some(value);
-        }
-        
-        // Fall back to global
-        self.get("global", key)
-    }
-    
     pub fn sections(&self) -> impl Iterator<Item = (&str, &IndexMap<String, String>)> {
         self.sections.iter().map(|(k, v)| (k.as_str(), v))
     }
@@ -101,25 +91,6 @@ impl SectionedTranslations {
             .count()
     }
     
-    pub fn get_section(&self, section: &str) -> Option<&IndexMap<String, String>> {
-        self.sections.get(section)
-    }
-    
-    pub fn has_section(&self, section: &str) -> bool {
-        self.sections.contains_key(section)
-    }
-    
-    pub fn merge_with(&mut self, other: SectionedTranslations) {
-        for (section, translations) in other.sections {
-            let target = self.sections.entry(section).or_insert_with(IndexMap::new);
-            for (key, value) in translations {
-                // Only override if the new value is not empty
-                if !value.is_empty() || !target.contains_key(&key) {
-                    target.insert(key, value);
-                }
-            }
-        }
-    }
 }
 
 fn unescape_value(s: &str) -> String {

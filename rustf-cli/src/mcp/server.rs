@@ -10,10 +10,18 @@ use tokio::sync::broadcast;
 use serde_json::json;
 
 pub struct McpServer {
+    // reserved: shared MCP state, held for handler closures wired during dispatch
+    #[allow(dead_code)]
     state: Arc<McpState>,
     io_handler: IoHandler,
+    // reserved: broadcast channel for MCP notifications to connected clients
+    #[allow(dead_code)]
     notification_sender: broadcast::Sender<Value>,
+    // reserved: CLI command executor, paired with cli-exec MCP tool
+    #[allow(dead_code)]
     cli_executor: Arc<CliExecutor>,
+    // reserved: read-only mode flag enforced by mutating MCP tools
+    #[allow(dead_code)]
     read_only: bool,
 }
 

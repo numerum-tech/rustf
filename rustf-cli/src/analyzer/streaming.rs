@@ -474,11 +474,6 @@ impl StreamingAnalyzer {
     pub fn get_memory_stats(&self) -> &MemoryStats {
         &self.memory_stats
     }
-
-    /// Get streaming configuration
-    pub fn get_config(&self) -> &StreamingConfig {
-        &self.config
-    }
 }
 
 /// Builder for streaming configuration
