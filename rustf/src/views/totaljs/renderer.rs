@@ -63,6 +63,11 @@ pub struct RenderContext {
 
     /// Translation system
     translator: Option<TranslationSystem>,
+
+    /// Page title set via @{title('value')} (deferred meta data). Shared via
+    /// `Arc` across cloned contexts so partials — and the layout, once the
+    /// engine transfers it — observe the same value and `@{title}` reads it.
+    meta_title: Arc<std::sync::Mutex<Option<String>>>,
 }
 
 #[derive(Clone)]
@@ -91,6 +96,7 @@ impl Clone for RenderContext {
             locals: self.locals.clone(),
             sections: self.sections.clone(),
             helpers: self.helpers.clone(),
+            meta_title: self.meta_title.clone(),
         };
 
         // Re-register built-in functions for the cloned context
@@ -127,6 +133,7 @@ impl RenderContext {
             helpers: HashMap::new(),
             functions,
             translator: None,
+            meta_title: Arc::new(std::sync::Mutex::new(None)),
         };
 
         // Register context-aware functions
@@ -168,6 +175,18 @@ impl RenderContext {
     pub fn with_session(mut self, session: Value) -> Self {
         self.session = session;
         self
+    }
+
+    /// Store the page title set via `@{title('value')}` (deferred meta data).
+    pub fn set_title(&self, title: String) {
+        if let Ok(mut guard) = self.meta_title.lock() {
+            *guard = Some(title);
+        }
+    }
+
+    /// Read the current page title, if any was set via `@{title(...)}`.
+    pub fn get_title(&self) -> Option<String> {
+        self.meta_title.lock().ok().and_then(|g| g.clone())
     }
 
     /// Set query parameters
@@ -490,6 +509,14 @@ impl RenderContext {
                     // Return 0 if index is not available (outside loop)
                     return Value::Number(serde_json::Number::from(0));
                 }
+            }
+
+            // Page title set via @{title('value')}; layouts output it as @{title}
+            if name == "title" {
+                return match self.get_title() {
+                    Some(t) => Value::String(t),
+                    None => Value::Null,
+                };
             }
 
             // Check for framework globals
@@ -1178,6 +1205,12 @@ impl Renderer {
         self
     }
 
+    /// Page title set during rendering via `@{title('value')}`, if any. Used by
+    /// the engine to carry the title from a view into its layout.
+    pub fn meta_title(&self) -> Option<String> {
+        self.context.get_title()
+    }
+
     /// Render a template to string
     pub fn render(&mut self, template: &Template) -> Result<String> {
         // Merge sections: keep existing sections (e.g., from child views),
@@ -1618,6 +1651,15 @@ impl Renderer {
                 }
 
                 Ok(output)
+            }
+
+            Node::Title(expr) => {
+                // Total.js semantics: store the title in meta data and render
+                // nothing inline. The layout outputs it via @{title}.
+                let value = self.context.evaluate_expression(expr)?;
+                self.context
+                    .set_title(self.context.value_to_string(&value, false));
+                Ok(String::new())
             }
 
             Node::Body => {

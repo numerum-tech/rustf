@@ -36,6 +36,7 @@ pub enum TokenKind {
 
     // Special directives
     Meta(Option<String>, Option<String>, Option<String>), // @{meta(title, desc, keywords)}
+    Title(String),                                        // @{title('value')} - raw arg expression
     Body,    // @{body} - Standard Total.js layout content placeholder
     Head,    // @{head} - Additional head section content
     Content, // @{content} - Our extension, same as @{body} for backward compatibility
@@ -409,6 +410,13 @@ impl Lexer {
                 let keywords = parts.get(2).cloned();
                 return TokenKind::Meta(title, desc, keywords);
             }
+        }
+
+        // Page title setter: @{title('value')} — keeps the raw argument so the
+        // parser can evaluate it as an expression (string literal, variable...).
+        if trimmed.starts_with("title(") && trimmed.ends_with(')') {
+            let arg = trimmed[6..trimmed.len() - 1].trim().to_string();
+            return TokenKind::Title(arg);
         }
 
         // Special directives

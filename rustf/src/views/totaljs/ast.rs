@@ -75,6 +75,10 @@ pub enum Node {
         keywords: Option<String>,
     },
 
+    /// Page title setter @{title('value')} — stores the title in meta data
+    /// (deferred); the layout outputs it via @{title}. Renders nothing inline.
+    Title(Expression),
+
     /// Special placeholders
     Body,
     Head,

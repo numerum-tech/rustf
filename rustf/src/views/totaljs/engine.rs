@@ -478,6 +478,10 @@ impl TotalJsEngine {
 
         let content = renderer.render(&template_ast)?;
 
+        // Carry any page title set in the view via @{title('value')} so the
+        // layout can output it through @{title}.
+        let page_title = renderer.meta_title();
+
         // Apply layout if specified
         if let Some(layout_name) = layout {
             let layout_path = self.layout_path(layout_name);
@@ -499,6 +503,11 @@ impl TotalJsEngine {
             // Transfer child template sections to layout context
             // This allows child views to define sections that parent layouts can render
             layout_context = layout_context.with_sections(template_ast.sections.clone());
+
+            // Carry the view's page title into the layout so @{title} resolves
+            if let Some(ref t) = page_title {
+                layout_context.set_title(t.clone());
+            }
 
             // Create template loader for layout
             let base_dir = self.base_dir.clone();
@@ -635,6 +644,32 @@ mod tests {
         let result = engine.render("test", &data, None).unwrap();
 
         assert_eq!(result, "Hello World!");
+    }
+
+    #[test]
+    fn test_title_set_in_view_reaches_layout() {
+        let (engine, temp_dir) = create_test_engine();
+
+        // Layout reads the title via @{title}; view sets it via @{title('...')}
+        fs::create_dir_all(temp_dir.path().join("layouts")).unwrap();
+        fs::write(
+            temp_dir.path().join("layouts/main.html"),
+            "<head><title>@{title}</title></head><body>@{body}</body>",
+        )
+        .unwrap();
+        fs::write(
+            temp_dir.path().join("page.html"),
+            "@{title('My Page')}Hello",
+        )
+        .unwrap();
+
+        let result = engine
+            .render_with_layout("page", &json!({}), Some("main"), None)
+            .unwrap();
+        assert_eq!(
+            result,
+            "<head><title>My Page</title></head><body>Hello</body>"
+        );
     }
 
     #[test]
