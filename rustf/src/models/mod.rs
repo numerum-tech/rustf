@@ -2,10 +2,14 @@ use crate::Model;
 use std::collections::HashMap;
 use std::sync::Arc;
 
+#[cfg(feature = "database")]
 pub mod base_model;
+#[cfg(feature = "database")]
 pub mod filter;
+#[cfg(feature = "database")]
 pub mod model_query;
 pub mod paged_result;
+#[cfg(feature = "database")]
 pub mod query_builder;
 /// pub mod macros;
 
@@ -63,26 +67,32 @@ pub use MODEL;
 */
 
 // Re-export base model traits and builders for easier access
+#[cfg(feature = "database")]
 pub use base_model::{BaseModel, ChangeTracking, Filter, UpdateBuilder};
 
 // Keep DatabaseModel as alias for backward compatibility during migration
+#[cfg(feature = "database")]
 pub use base_model::BaseModel as DatabaseModel;
 
 // Re-export query builder components
+#[cfg(feature = "database")]
 pub use query_builder::{
     DatabaseBackend, OrderDirection, QueryBuilder, QueryError, SchemaBuilder, SqlDialect, SqlValue,
 };
 
 // Re-export model query builder
+#[cfg(feature = "database")]
 pub use model_query::ModelQuery;
 
 // Re-export paginated result
 pub use paged_result::PagedResult;
 
 // Re-export filter for reusable query filters
+#[cfg(feature = "database")]
 pub use filter::ModelFilter;
 
 // Re-export database connection wrapper
+#[cfg(feature = "database")]
 pub use query_builder::AnyDatabase;
 
 // NULL constant and FieldUpdate enum for explicit NULL handling

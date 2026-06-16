@@ -88,9 +88,11 @@ pub enum Error {
     #[error("Rate limit exceeded: {0}")]
     RateLimit(String),
 
+    #[cfg(feature = "redis")]
     #[error("Redis error: {0}")]
     Redis(#[from] redis::RedisError),
 
+    #[cfg(feature = "redis")]
     #[error("Redis pool error: {0}")]
     RedisPool(String),
 
@@ -104,18 +106,21 @@ pub enum Error {
 }
 
 // Redis-specific error conversions
+#[cfg(feature = "redis")]
 impl From<deadpool_redis::ConfigError> for Error {
     fn from(err: deadpool_redis::ConfigError) -> Self {
         Self::RedisPool(format!("Config error: {}", err))
     }
 }
 
+#[cfg(feature = "redis")]
 impl From<deadpool_redis::CreatePoolError> for Error {
     fn from(err: deadpool_redis::CreatePoolError) -> Self {
         Self::RedisPool(format!("Pool creation error: {}", err))
     }
 }
 
+#[cfg(feature = "redis")]
 impl From<deadpool_redis::PoolError> for Error {
     fn from(err: deadpool_redis::PoolError) -> Self {
         Self::RedisPool(format!("Pool error: {}", err))
@@ -233,7 +238,9 @@ impl Error {
             Error::Authentication(_) => "E_AUTH",
             Error::Authorization(_) => "E_AUTHZ",
             Error::RateLimit(_) => "E_RATE_LIMIT",
+            #[cfg(feature = "redis")]
             Error::Redis(_) => "E_REDIS",
+            #[cfg(feature = "redis")]
             Error::RedisPool(_) => "E_REDIS_POOL",
             Error::WithContext { source, .. } => source.error_code(),
         }

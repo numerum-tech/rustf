@@ -146,21 +146,26 @@ impl DB {
 
     /// Create a database adapter based on the URL
     async fn create_adapter(name: &str, url: &str) -> Result<Box<dyn DatabaseAdapter>> {
+        let _ = name;
+        #[cfg(feature = "db-postgres")]
         if url.starts_with("postgresql://") || url.starts_with("postgres://") {
             let adapter = PostgresAdapter::new(name, url).await?;
-            Ok(Box::new(adapter))
-        } else if url.starts_with("mysql://") || url.starts_with("mariadb://") {
-            let adapter = MySqlAdapter::new(name, url).await?;
-            Ok(Box::new(adapter))
-        } else if url.starts_with("sqlite://") {
-            let adapter = SqliteAdapter::new(name, url).await?;
-            Ok(Box::new(adapter))
-        } else {
-            Err(Error::template(format!(
-                "Unsupported database URL scheme: {}",
-                url
-            )))
+            return Ok(Box::new(adapter));
         }
+        #[cfg(feature = "db-mysql")]
+        if url.starts_with("mysql://") || url.starts_with("mariadb://") {
+            let adapter = MySqlAdapter::new(name, url).await?;
+            return Ok(Box::new(adapter));
+        }
+        #[cfg(feature = "db-sqlite")]
+        if url.starts_with("sqlite://") {
+            let adapter = SqliteAdapter::new(name, url).await?;
+            return Ok(Box::new(adapter));
+        }
+        Err(Error::template(format!(
+            "Unsupported database URL scheme (or its driver feature is not enabled): {}",
+            url
+        )))
     }
 
     /// Get access to the database registry
@@ -300,12 +305,14 @@ impl DB {
     /// # Returns
     /// * `Ok(Arc<sqlx::PgPool>)` - PostgreSQL connection pool wrapped in Arc
     /// * `Err(Error)` - If database is not configured or is not PostgreSQL
+    #[cfg(feature = "db-postgres")]
     pub fn pg_pool() -> Result<Arc<sqlx::PgPool>> {
         let db = Self::connection()
             .ok_or_else(|| Error::template("Database not configured".to_string()))?;
 
         match db.as_ref() {
             AnyDatabase::Postgres(pool) => Ok(Arc::new(pool.clone())),
+            #[allow(unreachable_patterns)]
             _ => Err(Error::template("Database is not PostgreSQL".to_string())),
         }
     }
@@ -315,12 +322,14 @@ impl DB {
     /// # Returns
     /// * `Ok(Arc<sqlx::MySqlPool>)` - MySQL connection pool wrapped in Arc
     /// * `Err(Error)` - If database is not configured or is not MySQL
+    #[cfg(feature = "db-mysql")]
     pub fn mysql_pool() -> Result<Arc<sqlx::MySqlPool>> {
         let db = Self::connection()
             .ok_or_else(|| Error::template("Database not configured".to_string()))?;
 
         match db.as_ref() {
             AnyDatabase::MySQL(pool) => Ok(Arc::new(pool.clone())),
+            #[allow(unreachable_patterns)]
             _ => Err(Error::template("Database is not MySQL".to_string())),
         }
     }
@@ -330,12 +339,14 @@ impl DB {
     /// # Returns
     /// * `Ok(Arc<sqlx::SqlitePool>)` - SQLite connection pool wrapped in Arc
     /// * `Err(Error)` - If database is not configured or is not SQLite
+    #[cfg(feature = "db-sqlite")]
     pub fn sqlite_pool() -> Result<Arc<sqlx::SqlitePool>> {
         let db = Self::connection()
             .ok_or_else(|| Error::template("Database not configured".to_string()))?;
 
         match db.as_ref() {
             AnyDatabase::SQLite(pool) => Ok(Arc::new(pool.clone())),
+            #[allow(unreachable_patterns)]
             _ => Err(Error::template("Database is not SQLite".to_string())),
         }
     }
@@ -368,18 +379,21 @@ impl DB {
 
         // Use the appropriate adapter based on database type
         match db.as_ref() {
+            #[cfg(feature = "db-postgres")]
             AnyDatabase::Postgres(pool) => {
                 use crate::database::adapters::PostgresAdapter;
                 let adapter = PostgresAdapter::from_pool("default", pool.clone());
                 let result = adapter.execute(sql, params).await?;
                 Ok(result.rows_affected)
             }
+            #[cfg(feature = "db-mysql")]
             AnyDatabase::MySQL(pool) => {
                 use crate::database::adapters::MySqlAdapter;
                 let adapter = MySqlAdapter::from_pool("default", pool.clone());
                 let result = adapter.execute(sql, params).await?;
                 Ok(result.rows_affected)
             }
+            #[cfg(feature = "db-sqlite")]
             AnyDatabase::SQLite(pool) => {
                 use crate::database::adapters::SqliteAdapter;
                 let adapter = SqliteAdapter::from_pool("default", pool.clone());
@@ -417,16 +431,19 @@ impl DB {
 
         // Use the appropriate adapter based on database type
         match db.as_ref() {
+            #[cfg(feature = "db-postgres")]
             AnyDatabase::Postgres(pool) => {
                 use crate::database::adapters::PostgresAdapter;
                 let adapter = PostgresAdapter::from_pool("default", pool.clone());
                 adapter.fetch_all(sql, params).await
             }
+            #[cfg(feature = "db-mysql")]
             AnyDatabase::MySQL(pool) => {
                 use crate::database::adapters::MySqlAdapter;
                 let adapter = MySqlAdapter::from_pool("default", pool.clone());
                 adapter.fetch_all(sql, params).await
             }
+            #[cfg(feature = "db-sqlite")]
             AnyDatabase::SQLite(pool) => {
                 use crate::database::adapters::SqliteAdapter;
                 let adapter = SqliteAdapter::from_pool("default", pool.clone());
@@ -463,16 +480,19 @@ impl DB {
 
         // Use the appropriate adapter based on database type
         match db.as_ref() {
+            #[cfg(feature = "db-postgres")]
             AnyDatabase::Postgres(pool) => {
                 use crate::database::adapters::PostgresAdapter;
                 let adapter = PostgresAdapter::from_pool("default", pool.clone());
                 adapter.fetch_one(sql, params).await
             }
+            #[cfg(feature = "db-mysql")]
             AnyDatabase::MySQL(pool) => {
                 use crate::database::adapters::MySqlAdapter;
                 let adapter = MySqlAdapter::from_pool("default", pool.clone());
                 adapter.fetch_one(sql, params).await
             }
+            #[cfg(feature = "db-sqlite")]
             AnyDatabase::SQLite(pool) => {
                 use crate::database::adapters::SqliteAdapter;
                 let adapter = SqliteAdapter::from_pool("default", pool.clone());
@@ -570,6 +590,7 @@ impl DB {
 
         // Use the appropriate adapter based on database type
         match db.as_ref() {
+            #[cfg(feature = "db-postgres")]
             AnyDatabase::Postgres(pool) => {
                 use crate::database::adapters::PostgresAdapter;
                 let adapter = PostgresAdapter::from_pool("default", pool.clone());
@@ -577,6 +598,7 @@ impl DB {
                 let sql_with_returning = format!("{} RETURNING *", sql);
                 adapter.fetch_one(&sql_with_returning, params).await
             }
+            #[cfg(feature = "db-mysql")]
             AnyDatabase::MySQL(pool) => {
                 use crate::database::adapters::MySqlAdapter;
                 let adapter = MySqlAdapter::from_pool("default", pool.clone());
@@ -590,6 +612,7 @@ impl DB {
                     Ok(None)
                 }
             }
+            #[cfg(feature = "db-sqlite")]
             AnyDatabase::SQLite(pool) => {
                 use crate::database::adapters::SqliteAdapter;
                 let adapter = SqliteAdapter::from_pool("default", pool.clone());
@@ -611,6 +634,7 @@ impl DB {
     /// # Safety
     /// This method executes raw SQL. Ensure the SQL is safe and parameterized
     /// to prevent SQL injection attacks.
+    #[cfg(feature = "db-mysql")]
     pub async fn execute_raw(sql: &str) -> Result<sqlx::mysql::MySqlQueryResult> {
         let db = Self::connection()
             .ok_or_else(|| Error::template("Database not configured".to_string()))?;
@@ -620,9 +644,11 @@ impl DB {
                 .execute(pool)
                 .await
                 .map_err(|e| Error::template(format!("SQL execution failed: {}", e))),
+            #[cfg(feature = "db-postgres")]
             AnyDatabase::Postgres(_) => Err(Error::template(
                 "Raw query execution not yet implemented for PostgreSQL".to_string(),
             )),
+            #[cfg(feature = "db-sqlite")]
             AnyDatabase::SQLite(_) => Err(Error::template(
                 "Raw query execution not yet implemented for SQLite".to_string(),
             )),
@@ -666,6 +692,7 @@ impl DB {
 
         // Test connectivity based on database type
         match db.as_ref() {
+            #[cfg(feature = "db-postgres")]
             AnyDatabase::Postgres(pool) => {
                 // PostgreSQL: SELECT 1
                 sqlx::query("SELECT 1")
@@ -674,6 +701,7 @@ impl DB {
                     .map(|_| true)
                     .map_err(|e| Error::template(format!("PostgreSQL ping failed: {}", e)))
             }
+            #[cfg(feature = "db-mysql")]
             AnyDatabase::MySQL(pool) => {
                 // MySQL: SELECT 1
                 sqlx::query("SELECT 1")
@@ -682,6 +710,7 @@ impl DB {
                     .map(|_| true)
                     .map_err(|e| Error::template(format!("MySQL ping failed: {}", e)))
             }
+            #[cfg(feature = "db-sqlite")]
             AnyDatabase::SQLite(pool) => {
                 // SQLite: SELECT 1
                 sqlx::query("SELECT 1")
@@ -716,12 +745,15 @@ impl DB {
         if let Some(db_option) = DATABASE.get() {
             if let Some(connection) = db_option.as_ref() {
                 match connection.as_ref() {
+                    #[cfg(feature = "db-postgres")]
                     AnyDatabase::Postgres(pool) => {
                         pool.close().await;
                     }
+                    #[cfg(feature = "db-mysql")]
                     AnyDatabase::MySQL(pool) => {
                         pool.close().await;
                     }
+                    #[cfg(feature = "db-sqlite")]
                     AnyDatabase::SQLite(pool) => {
                         pool.close().await;
                     }

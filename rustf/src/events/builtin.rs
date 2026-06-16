@@ -345,16 +345,19 @@ pub fn health_check(
         log::info!("Running health checks");
 
         // Check database connectivity
-        use crate::db::DB;
-        match DB::ping().await {
-            Ok(true) => log::info!("✓ Database health check passed"),
-            Ok(false) => log::info!("⚠ Database not configured (skipping health check)"),
-            Err(e) => {
-                log::error!("✗ Database health check failed: {}", e);
-                return Err(crate::error::Error::internal(format!(
-                    "Database health check failed: {}",
-                    e
-                )));
+        #[cfg(feature = "database")]
+        {
+            use crate::db::DB;
+            match DB::ping().await {
+                Ok(true) => log::info!("✓ Database health check passed"),
+                Ok(false) => log::info!("⚠ Database not configured (skipping health check)"),
+                Err(e) => {
+                    log::error!("✗ Database health check failed: {}", e);
+                    return Err(crate::error::Error::internal(format!(
+                        "Database health check failed: {}",
+                        e
+                    )));
+                }
             }
         }
 

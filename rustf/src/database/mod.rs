@@ -12,7 +12,12 @@ pub mod types;
 
 // Re-export main types for convenience
 pub use adapter::{DatabaseAdapter, QueryResult};
-pub use adapters::{MySqlAdapter, PostgresAdapter, SqliteAdapter};
+#[cfg(feature = "db-mysql")]
+pub use adapters::MySqlAdapter;
+#[cfg(feature = "db-postgres")]
+pub use adapters::PostgresAdapter;
+#[cfg(feature = "db-sqlite")]
+pub use adapters::SqliteAdapter;
 pub use config::{DatabaseConnectionConfig, DatabasesConfig};
 pub use registry::{DatabaseRegistry, RegistryStats};
 pub use types::{DatabaseBackend, SqlValue, TypeConverter, TypeRegistry};

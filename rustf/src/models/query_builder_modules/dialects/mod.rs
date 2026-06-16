@@ -68,19 +68,37 @@ pub trait SqlDialect: Send + Sync {
     fn as_any(&self) -> &dyn std::any::Any;
 }
 
+#[cfg(feature = "db-mysql")]
 pub mod mysql;
+#[cfg(feature = "db-postgres")]
 pub mod postgres;
+#[cfg(feature = "db-sqlite")]
 pub mod sqlite;
 
+#[cfg(feature = "db-mysql")]
 pub use mysql::MySQLDialect;
+#[cfg(feature = "db-postgres")]
 pub use postgres::PostgresDialect;
+#[cfg(feature = "db-sqlite")]
 pub use sqlite::SQLiteDialect;
 
 /// Factory function to create the appropriate dialect for a database backend
+///
+/// # Panics
+/// Panics if the requested backend's driver feature is not enabled.
+#[cfg_attr(not(test), allow(clippy::panic))]
 pub fn create_dialect(backend: DatabaseBackend) -> Box<dyn SqlDialect> {
     match backend {
+        #[cfg(feature = "db-postgres")]
         DatabaseBackend::Postgres => Box::new(PostgresDialect::new()),
+        #[cfg(feature = "db-mysql")]
         DatabaseBackend::MySQL | DatabaseBackend::MariaDB => Box::new(MySQLDialect::new()),
+        #[cfg(feature = "db-sqlite")]
         DatabaseBackend::SQLite => Box::new(SQLiteDialect::new()),
+        #[allow(unreachable_patterns)]
+        other => panic!(
+            "Dialect for backend {:?} is unavailable: the corresponding database driver feature is not enabled",
+            other
+        ),
     }
 }

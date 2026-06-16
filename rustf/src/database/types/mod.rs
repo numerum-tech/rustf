@@ -4,17 +4,23 @@
 //! mappings, and operations across PostgreSQL, MySQL, and SQLite.
 
 pub mod converter;
+#[cfg(feature = "db-mysql")]
 pub mod mysql_converter;
+#[cfg(feature = "db-postgres")]
 pub mod postgres_converter;
 pub mod registry;
+#[cfg(feature = "db-sqlite")]
 pub mod sqlite_converter;
 pub mod value;
 
 // Re-export the main types
 pub use converter::{ColumnMetadata, ConversionUtils, DatabaseBackend, TypeConverter};
+#[cfg(feature = "db-mysql")]
 pub use mysql_converter::MySqlTypeConverter;
+#[cfg(feature = "db-postgres")]
 pub use postgres_converter::PostgresTypeConverter;
 pub use registry::{DatabaseTypeInfo, RustType, SqlType, TypeMapping, TypeRegistry};
+#[cfg(feature = "db-sqlite")]
 pub use sqlite_converter::SqliteTypeConverter;
 pub use value::SqlValue;
 
@@ -36,11 +42,24 @@ pub fn get_type_registry() -> Arc<TypeRegistry> {
 }
 
 /// Create a type converter for the specified database backend
+///
+/// # Panics
+/// Panics if the requested backend's driver feature is not enabled
+/// (e.g. requesting a Postgres converter when `db-postgres` is off).
+#[cfg_attr(not(test), allow(clippy::panic))]
 pub fn create_type_converter(backend: DatabaseBackend) -> Box<dyn TypeConverter> {
     match backend {
+        #[cfg(feature = "db-postgres")]
         DatabaseBackend::Postgres => Box::new(PostgresTypeConverter::new()),
+        #[cfg(feature = "db-mysql")]
         DatabaseBackend::MySQL | DatabaseBackend::MariaDB => Box::new(MySqlTypeConverter::new()),
+        #[cfg(feature = "db-sqlite")]
         DatabaseBackend::SQLite => Box::new(SqliteTypeConverter::new()),
+        #[allow(unreachable_patterns)]
+        other => panic!(
+            "Type converter for backend {:?} is unavailable: the corresponding database driver feature is not enabled",
+            other
+        ),
     }
 }
 

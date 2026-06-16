@@ -70,20 +70,33 @@ impl SessionStorageFactory {
                 connection_timeout,
                 command_timeout,
             } => {
-                use crate::session::redis::RedisSessionStorage;
-                let storage = Arc::new(
-                    RedisSessionStorage::from_url(
-                        url,
-                        prefix,
-                        *pool_size,
-                        fingerprint_mode,
-                        Duration::from_secs(30 * 60), // Default 30 minutes TTL
-                        Duration::from_millis(*connection_timeout),
-                        Duration::from_millis(*command_timeout),
-                    )
-                    .await?,
-                );
-                Ok(storage)
+                #[cfg(feature = "redis")]
+                {
+                    use crate::session::redis::RedisSessionStorage;
+                    let storage = Arc::new(
+                        RedisSessionStorage::from_url(
+                            url,
+                            prefix,
+                            *pool_size,
+                            fingerprint_mode,
+                            Duration::from_secs(30 * 60), // Default 30 minutes TTL
+                            Duration::from_millis(*connection_timeout),
+                            Duration::from_millis(*command_timeout),
+                        )
+                        .await?,
+                    );
+                    Ok(storage)
+                }
+                #[cfg(not(feature = "redis"))]
+                {
+                    let _ = (url, prefix, pool_size, connection_timeout, command_timeout);
+                    Err(crate::error::Error::internal(
+                        "Redis session storage requires the `redis` feature (enabled by \
+                         default). It was disabled via --no-default-features; re-enable it \
+                         or provide a custom SessionStorage implementation."
+                            .to_string(),
+                    ))
+                }
             }
 
             SessionStorageConfig::Database {
@@ -109,6 +122,7 @@ impl SessionStorageFactory {
     }
 
     /// Create Redis storage with URL
+    #[cfg(feature = "redis")]
     pub async fn create_redis_storage(
         redis_url: &str,
         fingerprint_mode: FingerprintMode,

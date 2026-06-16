@@ -47,12 +47,15 @@ pub mod workers;
 pub mod cli;
 
 // Database module for multi-database support
+#[cfg(feature = "database")]
 pub mod database;
 
 // Global database access (backward compatible)
+#[cfg(feature = "database")]
 pub mod db;
 
 // Migration system for database schema management
+#[cfg(feature = "database")]
 pub mod migrations;
 
 // Schema support through rustf-schema crate
@@ -70,6 +73,7 @@ pub use routing::{BeforeAction, BeforeFn, Route, RouteHandler};
 
 // Re-export database access for backward compatibility
 pub use configuration::{CONF, DEBUG};
+#[cfg(feature = "database")]
 pub use db::DB;
 pub use events::{builtin, EventContext, EventEmitter};
 pub use pool::{global_request_pool, PooledRequest, RequestPool};
@@ -78,15 +82,18 @@ pub use security::{
     CsrfConfig, CsrfMiddleware, HtmlEscaper, InputValidator, PathValidator, SecurityConfig,
 };
 pub use session::factory::SessionStorageFactory;
+#[cfg(feature = "redis")]
 pub use session::redis::RedisSessionStorage;
 pub use session::{Session, SessionData, SessionStorage, SessionStore, StorageStats};
 pub use shared::{SharedModule, SharedModuleType, SharedRegistry, MODULE};
 pub use utils::{Utils, U};
 
 // Re-export database functions
+#[cfg(feature = "database")]
 pub use db::database_status;
 
 // Re-export migration system
+#[cfg(feature = "database")]
 pub use migrations::{Migration, MigrationDirection, MigrationManager};
 
 // Re-export worker system
@@ -144,9 +151,11 @@ pub mod prelude {
     pub use crate::events::{builtin, EventContext, EventEmitter};
 
     // Database model traits for generated models
+    #[cfg(feature = "database")]
     pub use crate::models::{DatabaseModel, ModelQuery, OrderDirection, PagedResult, SqlValue};
 
     // Global database access
+    #[cfg(feature = "database")]
     pub use crate::db::DB;
 
     // File upload types
