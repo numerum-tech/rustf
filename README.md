@@ -41,8 +41,8 @@ a leaner build, opt out and enable only what you use:
 ```toml
 # PostgreSQL only — skips MySQL, SQLite, and Redis
 rustf = { version = "1.0.0-rc1", default-features = false, features = [
-    "config", "embedded-views", "auto-discovery", "schema", "decimal", "uuid",
-    "db-postgres",
+    "config", "embedded-views", "auto-discovery", "schema", "uuid",
+    "db-postgres",   # pulls in `database` + `decimal` automatically
 ] }
 ```
 

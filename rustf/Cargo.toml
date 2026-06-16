@@ -62,7 +62,6 @@ default = [
     "embedded-views",
     "auto-discovery",
     "schema",
-    "decimal",
     "uuid",
     "redis",
     "db-postgres",
@@ -76,8 +75,9 @@ config = []
 # SQL database support. `database` pulls in the driverless sqlx core; each
 # `db-*` feature turns on one sqlx driver. All three are on by default
 # (opt-out): use --no-default-features to drop them, then enable only the
-# driver(s) you need (e.g. "db-postgres").
-database = ["dep:sqlx"]
+# driver(s) you need (e.g. "db-postgres"). `decimal` (DECIMAL/NUMERIC support)
+# is implied — it is only meaningful with a database.
+database = ["dep:sqlx", "decimal"]
 db-postgres = ["database", "sqlx/postgres"]
 db-mysql = ["database", "sqlx/mysql"]
 db-sqlite = ["database", "sqlx/sqlite"]
@@ -91,6 +91,8 @@ embedded-views = ["rust-embed", "rustf-macros/embedded-views"]
 # compatibility with consumers that list `features = ["auto-discovery"]`.
 auto-discovery = []
 schema = ["rustf-schema"]
+# Implied by `database` (decimal support is only useful with a DB). Listed
+# separately so it can still be referenced explicitly.
 decimal = ["rust_decimal", "sqlx?/rust_decimal"]
 # The `uuid` crate is a non-optional dependency (used pervasively for IDs), so
 # UUID support is always available. This feature is a no-op kept for backward
