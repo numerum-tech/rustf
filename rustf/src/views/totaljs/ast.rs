@@ -79,12 +79,20 @@ pub enum Node {
     /// (deferred); the layout outputs it via @{title}. Renders nothing inline.
     Title(Expression),
 
-    /// Form input helper, e.g. @{text('field', { class: 'x', required: true })}
-    /// or @{textarea('field', { ... })}. Auto-binds its value to the model
-    /// field `name` and renders the corresponding HTML element with `attrs`.
+    /// Description meta setter @{description('value')} — stores the description
+    /// in meta data (deferred); read back via @{description}. Renders nothing.
+    Description(Expression),
+
+    /// Form input helper, e.g. @{text('field', { class: 'x', required: true })},
+    /// @{checkbox('agree', 'I agree')}, @{radio('g', 'male', 'Male')}. Auto-binds
+    /// to the model field `name`; renders the matching HTML element.
     FormField {
         kind: FormFieldKind,
         name: String,
+        /// Radio button value (compared to the model field for `checked`).
+        value: Option<String>,
+        /// Optional label text — wraps the input in a `<label>`.
+        label: Option<String>,
         attrs: Vec<(String, AttrValue)>,
     },
 
@@ -120,8 +128,16 @@ pub enum Node {
 pub enum FormFieldKind {
     /// `@{text('field', {...})}` → `<input type="text" ...>`
     Text,
+    /// `@{password('field', {...})}` → `<input type="password" ...>`
+    Password,
+    /// `@{hidden('field', {...})}` → `<input type="hidden" ...>`
+    Hidden,
     /// `@{textarea('field', {...})}` → `<textarea ...>value</textarea>`
     Textarea,
+    /// `@{checkbox('field', [label])}` → `<input type="checkbox" ...>`
+    Checkbox,
+    /// `@{radio('field', 'value', [label])}` → `<input type="radio" ...>`
+    Radio,
 }
 
 /// A parsed HTML attribute value from a form-helper object literal

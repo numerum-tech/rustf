@@ -478,9 +478,10 @@ impl TotalJsEngine {
 
         let content = renderer.render(&template_ast)?;
 
-        // Carry any page title set in the view via @{title('value')} so the
-        // layout can output it through @{title}.
+        // Carry any page title/description set in the view (via @{title('...')}
+        // / @{description('...')}) so the layout can output them.
         let page_title = renderer.meta_title();
+        let page_description = renderer.meta_description();
 
         // Apply layout if specified
         if let Some(layout_name) = layout {
@@ -504,9 +505,13 @@ impl TotalJsEngine {
             // This allows child views to define sections that parent layouts can render
             layout_context = layout_context.with_sections(template_ast.sections.clone());
 
-            // Carry the view's page title into the layout so @{title} resolves
+            // Carry the view's page title/description into the layout so
+            // @{title} / @{description} resolve there.
             if let Some(ref t) = page_title {
                 layout_context.set_title(t.clone());
+            }
+            if let Some(ref d) = page_description {
+                layout_context.set_description(d.clone());
             }
 
             // Create template loader for layout

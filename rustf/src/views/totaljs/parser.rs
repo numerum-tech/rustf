@@ -186,24 +186,16 @@ impl Parser {
                 Ok(Node::Title(expr))
             }
 
-            TokenKind::FormField(kind, args) => {
-                let field_kind = match kind.as_str() {
-                    "text" => FormFieldKind::Text,
-                    "textarea" => FormFieldKind::Textarea,
-                    other => {
-                        return Err(Error::template(format!(
-                            "Unknown form helper: {}",
-                            other
-                        )))
-                    }
-                };
-                let (name, attrs) = Self::parse_form_args(args)?;
+            TokenKind::Description(arg) => {
+                let expr = self.parse_expression(arg)?;
                 self.advance();
-                Ok(Node::FormField {
-                    kind: field_kind,
-                    name,
-                    attrs,
-                })
+                Ok(Node::Description(expr))
+            }
+
+            TokenKind::FormField(kind, args) => {
+                let node = Self::parse_form_field(kind.clone(), args)?;
+                self.advance();
+                Ok(node)
             }
 
             TokenKind::Body => {
@@ -593,27 +585,88 @@ impl Parser {
         Ok(args)
     }
 
-    /// Parse a form-helper argument list into (field_name, attributes).
-    /// Input e.g.: `'nick', { class: 'form', maxlength: 30, required: true }`
-    fn parse_form_args(args: &str) -> Result<(String, Vec<(String, AttrValue)>)> {
+    /// Parse a form-helper argument list into a `Node::FormField`, dispatching
+    /// on the helper kind (different helpers take different argument shapes).
+    fn parse_form_field(kind: String, args: &str) -> Result<Node> {
         let parts = Self::split_top_level(args, ',');
         let name = parts
             .first()
             .map(|s| Self::unquote(s.trim()))
-            .ok_or_else(|| Error::template("Form helper requires a field name".to_string()))?;
-        if name.is_empty() {
-            return Err(Error::template(
-                "Form helper requires a non-empty field name".to_string(),
-            ));
-        }
+            .filter(|s| !s.is_empty())
+            .ok_or_else(|| {
+                Error::template(format!("{} helper requires a field name", kind))
+            })?;
 
-        let mut attrs = Vec::new();
-        if let Some(obj) = parts.iter().skip(1).map(|s| s.trim()).find(|s| {
-            s.starts_with('{') && s.ends_with('}')
-        }) {
-            attrs = Self::parse_attr_object(&obj[1..obj.len() - 1]);
+        // Find the trailing attribute object `{ ... }`, if any.
+        let attr_object = |parts: &[String]| -> Vec<(String, AttrValue)> {
+            parts
+                .iter()
+                .map(|s| s.trim())
+                .find(|s| s.starts_with('{') && s.ends_with('}'))
+                .map(|obj| Self::parse_attr_object(&obj[1..obj.len() - 1]))
+                .unwrap_or_default()
+        };
+
+        match kind.as_str() {
+            "text" | "password" | "hidden" | "textarea" => {
+                let field_kind = match kind.as_str() {
+                    "text" => FormFieldKind::Text,
+                    "password" => FormFieldKind::Password,
+                    "hidden" => FormFieldKind::Hidden,
+                    _ => FormFieldKind::Textarea,
+                };
+                Ok(Node::FormField {
+                    kind: field_kind,
+                    name,
+                    value: None,
+                    label: None,
+                    attrs: attr_object(&parts[1..]),
+                })
+            }
+            "checkbox" => {
+                // @{checkbox('field', [label])} — optional string label.
+                let label = parts
+                    .get(1)
+                    .map(|s| Self::unquote(s.trim()))
+                    .filter(|s| !s.is_empty());
+                Ok(Node::FormField {
+                    kind: FormFieldKind::Checkbox,
+                    name,
+                    value: None,
+                    label,
+                    attrs: Vec::new(),
+                })
+            }
+            "radio" => {
+                // @{radio('field', 'value', [label | { label, ...attrs }])}
+                let value = parts.get(1).map(|s| Self::unquote(s.trim()));
+                let mut label = None;
+                let mut attrs = Vec::new();
+                if let Some(third) = parts.get(2).map(|s| s.trim()) {
+                    if third.starts_with('{') && third.ends_with('}') {
+                        for (k, v) in Self::parse_attr_object(&third[1..third.len() - 1]) {
+                            if k == "label" {
+                                if let AttrValue::Str(s) = v {
+                                    label = Some(s);
+                                }
+                            } else {
+                                attrs.push((k, v));
+                            }
+                        }
+                    } else {
+                        label = Some(Self::unquote(third));
+                    }
+                }
+                Ok(Node::FormField {
+                    kind: FormFieldKind::Radio,
+                    name,
+                    value,
+                    label,
+                    attrs,
+                })
+            }
+            other => Err(Error::template(format!("Unknown form helper: {}", other))),
         }
-        Ok((name, attrs))
     }
 
     /// Parse an HTML-attribute object body like
