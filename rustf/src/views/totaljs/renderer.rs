@@ -74,6 +74,10 @@ pub struct RenderContext {
     /// Page description set via @{description('value')} (deferred meta data),
     /// read back via @{description}. Shared like `meta_title`.
     meta_description: Arc<std::sync::Mutex<Option<String>>>,
+
+    /// Whether the request comes from a mobile device (User-Agent based).
+    /// Exposed to templates as the boolean `@{mobile}`.
+    mobile: bool,
 }
 
 #[derive(Clone)]
@@ -104,6 +108,7 @@ impl Clone for RenderContext {
             helpers: self.helpers.clone(),
             meta_title: self.meta_title.clone(),
             meta_description: self.meta_description.clone(),
+            mobile: self.mobile,
         };
 
         // Re-register built-in functions for the cloned context
@@ -142,6 +147,7 @@ impl RenderContext {
             translator: None,
             meta_title: Arc::new(std::sync::Mutex::new(None)),
             meta_description: Arc::new(std::sync::Mutex::new(None)),
+            mobile: false,
         };
 
         // Register context-aware functions
@@ -276,6 +282,12 @@ impl RenderContext {
     }
 
     /// Set hostname
+    /// Set whether the request is from a mobile device (`@{mobile}`).
+    pub fn with_mobile(mut self, mobile: bool) -> Self {
+        self.mobile = mobile;
+        self
+    }
+
     pub fn with_hostname(mut self, hostname: String) -> Self {
         self.hostname = hostname.clone();
 
@@ -598,6 +610,10 @@ impl RenderContext {
             }
             if name == "hostname" {
                 return Value::String(self.hostname.clone());
+            }
+            // Mobile-device flag (User-Agent based); used as `@{if mobile}`.
+            if name == "mobile" {
+                return Value::Bool(self.mobile);
             }
             // Model data access (entire model)
             if name == "model" || name == "M" {
@@ -1320,6 +1336,36 @@ impl Renderer {
                 }
                 Node::Continue => {
                     return Ok((output, LoopControl::Continue));
+                }
+                // Propagate @{break}/@{continue} that appear inside conditionals
+                // (e.g. `@{if cond}@{break}@{fi}`) up to the enclosing loop.
+                Node::Conditional {
+                    condition,
+                    then_branch,
+                    else_if_branches,
+                    else_branch,
+                } => {
+                    let cond = self.context.evaluate_expression(condition)?;
+                    let branch: Option<&[Node]> = if self.context.is_truthy(&cond) {
+                        Some(then_branch.as_slice())
+                    } else {
+                        let mut chosen: Option<&[Node]> = None;
+                        for (elif_cond, elif_body) in else_if_branches {
+                            let v = self.context.evaluate_expression(elif_cond)?;
+                            if self.context.is_truthy(&v) {
+                                chosen = Some(elif_body.as_slice());
+                                break;
+                            }
+                        }
+                        chosen.or(else_branch.as_deref())
+                    };
+                    if let Some(branch) = branch {
+                        let (out, ctrl) = self.render_nodes_with_control(branch)?;
+                        output.push_str(&out);
+                        if !matches!(ctrl, LoopControl::None) {
+                            return Ok((output, ctrl));
+                        }
+                    }
                 }
                 _ => {
                     output.push_str(&self.render_node(node)?);

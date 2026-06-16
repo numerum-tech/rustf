@@ -8,6 +8,33 @@ pub mod embed_provider;
 pub mod minifier;
 pub mod totaljs; // Total.js is the default built-in template engine // Global VIEW API for inline template rendering
 
+/// Per-request metadata exposed to templates: `@{url}`, `@{hostname}`,
+/// and the `@{mobile}` boolean. Built from the incoming request.
+#[derive(Debug, Clone, Default)]
+pub struct RequestMeta {
+    pub url: String,
+    pub hostname: String,
+    pub mobile: bool,
+}
+
+/// Heuristic mobile-device detection from a User-Agent string, exposed to
+/// templates via `@{mobile}`.
+pub fn is_mobile(user_agent: &str) -> bool {
+    let ua = user_agent.to_ascii_lowercase();
+    [
+        "mobi",
+        "android",
+        "iphone",
+        "ipod",
+        "windows phone",
+        "blackberry",
+        "opera mini",
+        "iemobile",
+    ]
+    .iter()
+    .any(|token| ua.contains(token))
+}
+
 /// Trait for view engine implementations
 pub trait ViewEngineImpl: Send + Sync {
     fn render(&self, template: &str, data: &Value, layout: Option<&str>) -> Result<String>;
@@ -25,7 +52,10 @@ pub trait ViewEngineImpl: Send + Sync {
         layout: Option<&str>,
         repository: Option<&Value>,
         session: Option<&Value>,
+        request: Option<&RequestMeta>,
     ) -> Result<String> {
+        // Default implementation ignores request metadata.
+        let _ = request;
         // Fallback: re-pack into hidden fields and delegate to render()
         let mut packed = data.clone();
         if let Value::Object(ref mut map) = packed {
@@ -162,8 +192,10 @@ impl ViewEngine {
         layout: Option<&str>,
         repository: Option<&Value>,
         session: Option<&Value>,
+        request: Option<&RequestMeta>,
     ) -> Result<String> {
-        self.engine.render_rich(template, data, layout, repository, session)
+        self.engine
+            .render_rich(template, data, layout, repository, session, request)
     }
 }
 

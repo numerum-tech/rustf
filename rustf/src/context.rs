@@ -299,6 +299,17 @@ impl Context {
             None
         };
 
+        // Per-request metadata for @{url} / @{hostname} / @{mobile}.
+        let request_meta = crate::views::RequestMeta {
+            url: self.req.path().to_string(),
+            hostname: self.req.host().unwrap_or_default().to_string(),
+            mobile: self
+                .req
+                .user_agent()
+                .map(crate::views::is_mobile)
+                .unwrap_or(false),
+        };
+
         // Pass repository and session as separate arguments — avoids hidden-field
         // packing and the data.clone() needed to strip those fields in the engine.
         let rendered = views.render_rich(
@@ -307,6 +318,7 @@ impl Context {
             self.layout_name.as_deref(),
             Some(&repository_value),
             session_value.as_ref(),
+            Some(&request_meta),
         )?;
         self.update_response_body(rendered.into_bytes(), "text/html; charset=utf-8", None);
         Ok(())
