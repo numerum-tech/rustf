@@ -1,4 +1,6 @@
-use super::ast::{BinaryOperator, Expression, Helper, Node, Template, UnaryOperator};
+use super::ast::{
+    AttrValue, BinaryOperator, Expression, FormFieldKind, Helper, Node, Template, UnaryOperator,
+};
 use super::translation::TranslationSystem;
 use crate::error::Result;
 use crate::security::HtmlEscaper;
@@ -1211,6 +1213,34 @@ impl Renderer {
         self.context.get_title()
     }
 
+    /// Render a form-helper attribute object into an HTML attribute string,
+    /// e.g. `[("class","form"),("required",true)]` -> ` class="form" required`.
+    fn render_attrs(attrs: &[(String, AttrValue)]) -> String {
+        let mut out = String::new();
+        for (key, val) in attrs {
+            let key = HtmlEscaper::escape_attribute(key);
+            match val {
+                AttrValue::Bool(true) => {
+                    out.push(' ');
+                    out.push_str(&key);
+                }
+                AttrValue::Bool(false) => {}
+                AttrValue::Str(s) => {
+                    out.push_str(&format!(" {}=\"{}\"", key, HtmlEscaper::escape_attribute(s)));
+                }
+                AttrValue::Number(n) => {
+                    let num = if n.fract() == 0.0 && n.is_finite() {
+                        format!("{}", *n as i64)
+                    } else {
+                        n.to_string()
+                    };
+                    out.push_str(&format!(" {}=\"{}\"", key, num));
+                }
+            }
+        }
+        out
+    }
+
     /// Render a template to string
     pub fn render(&mut self, template: &Template) -> Result<String> {
         // Merge sections: keep existing sections (e.g., from child views),
@@ -1660,6 +1690,32 @@ impl Renderer {
                 self.context
                     .set_title(self.context.value_to_string(&value, false));
                 Ok(String::new())
+            }
+
+            Node::FormField { kind, name, attrs } => {
+                // Auto-bind the value from the model field `name`.
+                let value = match &self.context.data {
+                    Value::Object(map) => map
+                        .get(name)
+                        .map(|v| self.context.value_to_string(v, false))
+                        .unwrap_or_default(),
+                    _ => String::new(),
+                };
+                let attr_str = Self::render_attrs(attrs);
+                Ok(match kind {
+                    FormFieldKind::Text => format!(
+                        "<input type=\"text\" name=\"{}\" value=\"{}\"{} />",
+                        HtmlEscaper::escape_attribute(name),
+                        HtmlEscaper::escape_attribute(&value),
+                        attr_str
+                    ),
+                    FormFieldKind::Textarea => format!(
+                        "<textarea name=\"{}\"{}>{}</textarea>",
+                        HtmlEscaper::escape_attribute(name),
+                        attr_str,
+                        HtmlEscaper::escape(&value)
+                    ),
+                })
             }
 
             Node::Body => {

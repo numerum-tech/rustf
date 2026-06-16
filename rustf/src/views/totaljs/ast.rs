@@ -79,6 +79,15 @@ pub enum Node {
     /// (deferred); the layout outputs it via @{title}. Renders nothing inline.
     Title(Expression),
 
+    /// Form input helper, e.g. @{text('field', { class: 'x', required: true })}
+    /// or @{textarea('field', { ... })}. Auto-binds its value to the model
+    /// field `name` and renders the corresponding HTML element with `attrs`.
+    FormField {
+        kind: FormFieldKind,
+        name: String,
+        attrs: Vec<(String, AttrValue)>,
+    },
+
     /// Special placeholders
     Body,
     Head,
@@ -104,6 +113,27 @@ pub enum Node {
     Session(String),
     Query(String),
     User(Option<String>),
+}
+
+/// Kind of form-input helper.
+#[derive(Debug, Clone, PartialEq)]
+pub enum FormFieldKind {
+    /// `@{text('field', {...})}` → `<input type="text" ...>`
+    Text,
+    /// `@{textarea('field', {...})}` → `<textarea ...>value</textarea>`
+    Textarea,
+}
+
+/// A parsed HTML attribute value from a form-helper object literal
+/// (e.g. `{ class: 'form', maxlength: 30, required: true }`).
+#[derive(Debug, Clone, PartialEq)]
+pub enum AttrValue {
+    /// `key: 'string'` → rendered as `key="string"`
+    Str(String),
+    /// `key: 30` → rendered as `key="30"`
+    Number(f64),
+    /// `key: true` → rendered as a boolean attribute `key`; `false` → omitted
+    Bool(bool),
 }
 
 /// Expression types for conditions and values
