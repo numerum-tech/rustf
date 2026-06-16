@@ -209,6 +209,22 @@ impl RenderContext {
         self.meta_description.lock().ok().and_then(|g| g.clone())
     }
 
+    /// Resolve `@{root}` — the configured `views.default_root` with the trailing
+    /// `/` removed (Total.js semantics). Falls back to a top-level `default_root`
+    /// key (legacy config) and finally to an empty string.
+    fn resolve_root(&self) -> String {
+        let raw = if let Value::Object(conf) = &self.conf {
+            conf.get("views")
+                .and_then(|v| v.get("default_root"))
+                .and_then(|v| v.as_str())
+                .or_else(|| conf.get("default_root").and_then(|v| v.as_str()))
+                .unwrap_or("")
+        } else {
+            ""
+        };
+        raw.strip_suffix('/').unwrap_or(raw).to_string()
+    }
+
     /// Set query parameters
     pub fn with_query(mut self, query: Value) -> Self {
         self.query = query;
@@ -623,13 +639,7 @@ impl RenderContext {
                 return Value::Null;
             }
             if name == "root" {
-                // Get root from CONF.default_root
-                if let Value::Object(conf_map) = &self.conf {
-                    if let Some(Value::String(root)) = conf_map.get("default_root") {
-                        return Value::String(root.clone());
-                    }
-                }
-                return Value::String("".to_string());
+                return Value::String(self.resolve_root());
             }
 
             // Model data should NOT be directly accessible
@@ -684,16 +694,7 @@ impl RenderContext {
                 } else if base == "hostname" {
                     Value::String(self.hostname.clone())
                 } else if base == "root" {
-                    // Get root from CONF.default_root
-                    if let Value::Object(conf_map) = &self.conf {
-                        if let Some(Value::String(root)) = conf_map.get("default_root") {
-                            Value::String(root.clone())
-                        } else {
-                            Value::String("".to_string())
-                        }
-                    } else {
-                        Value::String("".to_string())
-                    }
+                    Value::String(self.resolve_root())
                 } else if base == "M" || base == "model" {
                     // Handle M.field or model.field access
                     self.data.clone()
