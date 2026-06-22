@@ -16,10 +16,11 @@
 - [Middleware](guides/middleware.md)
 - [Sessions](guides/sessions.md)
 - [Database Integration](guides/database.md)
+- [Schema Format Reference](guides/schema-format.md)
 - [Configuration](guides/configuration.md)
 - [Security](guides/security.md)
 - [Error Handling](guides/error-handling.md)
-- [Schemas & Definitions](guides/schemas.md)
+- [Definitions System](guides/schemas.md)
 
 # Advanced Topics
 
