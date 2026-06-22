@@ -8,6 +8,9 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/numerum-tech/rustf"
 keywords = ["rustf", "cli", "mcp", "ai", "framework"]
 categories = ["command-line-utilities", "development-tools"]
+readme = "README.md"
+documentation = "https://docs.rs/rustf-cli"
+homepage = "https://numerum-tech.github.io/rustf/"
 
 [[bin]]
 name = "rustf-cli"

@@ -7,6 +7,8 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/numerum-tech/rustf"
 keywords = ["database", "schema", "codegen", "ai-friendly"]
 categories = ["database", "development-tools"]
+readme = "README.md"
+documentation = "https://docs.rs/rustf-schema"
 
 [dependencies]
 # Serialization
