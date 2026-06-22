@@ -12,6 +12,12 @@ readme = "README.md"
 documentation = "https://docs.rs/rustf-cli"
 homepage = "https://numerum-tech.github.io/rustf/"
 
+# Lets `cargo binstall rustf-cli` fetch the prebuilt binary attached to the
+# GitHub Release (see .github/workflows/release.yml) instead of compiling.
+[package.metadata.binstall]
+pkg-url = "{ repo }/releases/download/v{ version }/{ name }-v{ version }-{ target }{ archive-suffix }"
+bin-dir = "{ bin }{ binary-ext }"
+
 [[bin]]
 name = "rustf-cli"
 path = "src/main.rs"

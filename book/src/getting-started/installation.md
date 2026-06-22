@@ -6,16 +6,32 @@ This guide covers multiple ways to install and set up RustF for development.
 
 The easiest way to create a new RustF project is using the CLI tool:
 
-### Install RustF CLI
+### Install the RustF CLI
+
+**Prebuilt binary — fastest, no compile** (recommended):
 
 ```bash
-# Clone the repository
-git clone https://github.com/numerum-tech/rustf.git
-cd rustf/rustf-cli
-
-# Build and install
-cargo install --path .
+# install the binstall helper once, if you don't have it:
+cargo install cargo-binstall
+# then fetch the prebuilt rustf-cli binary from the GitHub Release:
+cargo binstall rustf-cli
 ```
+
+**From crates.io** (compiles from source — needs a few minutes):
+
+```bash
+cargo install rustf-cli
+```
+
+**From source** (pre-release / local development):
+
+```bash
+git clone https://github.com/numerum-tech/rustf.git
+cargo install --path rustf/rustf-cli
+```
+
+> Until `rustf-cli` is published to crates.io, use the **from source** method.
+> After publishing, `cargo binstall rustf-cli` is the quickest path.
 
 ### Create a New Project
 
