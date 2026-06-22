@@ -18,7 +18,7 @@ model. One declarative schema drives both sides of the database:
 ```text
                        ┌─ schema generate models ──► src/models/base/*.inc.rs
 schemas/*.yaml ────────┤
-   (source of truth)   └─ schema generate migrations ─► migrations/*.sql ──► DB
+   (source of truth)   └─ schema generate sql ─────────► sql/schema.sql ──► DB
 ```
 
 You version the schema in git, review changes in pull requests, and
@@ -39,10 +39,10 @@ rustf-cli db generate-schema --database-url <url> --output schemas
 
 This introspects every table (PostgreSQL, MySQL/MariaDB, or SQLite) and writes
 `schemas/*.yaml`. After this bootstrap, the schema becomes the source of truth:
-edit the YAML, regenerate models and migrations — don't hand-edit the database.
+edit the YAML, regenerate models and SQL — don't hand-edit the database.
 
 > **Direction summary:** `database → schema` is a one-time bootstrap for
-> existing databases. `schema → models` and `schema → migrations` are the
+> existing databases. `schema → models` and `schema → sql` are the
 > steady-state loop you run from then on.
 
 ## Quick Start
@@ -188,13 +188,13 @@ This creates:
 - `src/models/base/users.inc.rs` - Generated base model
 - `src/models/users.rs` - Wrapper for your business logic (if doesn't exist)
 
-### Generating Migrations
+### Generating SQL (DDL)
 
 The same schema also generates the SQL to create your tables:
 
 ```bash
-# Generate a timestamped SQL migration from your schemas
-rustf-cli schema generate migrations --output migrations
+# Generate the full SQL schema (DDL) from your schemas
+rustf-cli schema generate sql --output sql
 ```
 
 The target dialect is detected from the schema metadata, and the generated

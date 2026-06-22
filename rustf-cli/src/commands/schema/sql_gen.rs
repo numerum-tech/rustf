@@ -2,7 +2,7 @@
 //!
 //! This replaces three near-identical per-dialect copies that had drifted and
 //! all emitted Postgres-flavoured SQL regardless of the target dialect. Those
-//! copies also had concrete bugs that made `schema generate migrations`
+//! copies also had concrete bugs that made `schema generate sql`
 //! unusable:
 //!   * native introspected type names (`tinyint`, `mediumint`, …) were unknown
 //!     to the type map and silently became `TEXT`;
