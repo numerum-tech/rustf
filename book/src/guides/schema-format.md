@@ -59,7 +59,7 @@ Users:                  # logical name (used for the generated model)
 | `fields` | map | **yes** | Field definitions (see below). |
 | `relations` | map | no | Relationships to other tables (see below). |
 | `indexes` | list | no | Index definitions (see below). |
-| `constraints` | list | no | Table-level validation constraints (model-side). |
+| `constraints` | list | no | Table-level constraints. *(reserved — parsed but not yet enforced)* |
 
 ## Field definition
 
@@ -75,34 +75,47 @@ email:
 
 ### Field keys
 
-| Key | Type | Consumed by | Purpose |
-|-----|------|-------------|---------|
-| `type` | string | DDL + models | Column type. See [Type system](#type-system). **Required.** |
-| `values` | string[] | DDL + models | Allowed values — required when `type: enum`. |
-| `primary_key` | bool | DDL | Marks the primary key. |
-| `auto` | bool | DDL | Auto-increment (`SERIAL` / `AUTO_INCREMENT` / `AUTOINCREMENT`). |
-| `required` | bool | DDL | Emits `NOT NULL`. |
-| `nullable` | bool | DDL | `nullable: false` also emits `NOT NULL`. |
+The **Effect** column says where a key actually changes output:
+- **DDL** — emitted in the generated SQL schema.
+- **model** — changes the generated Rust struct/types.
+- **metadata** — parsed and exposed to tooling and AI assistants (via the CLI),
+  but **not enforced** at runtime or in SQL. Validation keys live here today:
+  they document intent but the generated model does not check them.
+
+| Key | Type | Effect | Purpose |
+|-----|------|--------|---------|
+| `type` | string | DDL + model | Column type. See [Type system](#type-system). **Required.** |
+| `values` | string[] | DDL + model | Allowed values — required when `type: enum`. |
+| `primary_key` | bool | DDL + model | Marks the primary key. |
+| `auto` | bool | DDL + model | Auto-increment (`SERIAL` / `AUTO_INCREMENT` / `AUTOINCREMENT`). |
+| `required` | bool | DDL + model | Emits `NOT NULL`; checked by the model builder. |
+| `nullable` | bool | DDL + model | `nullable: false` also emits `NOT NULL`; otherwise `Option<T>`. |
 | `unique` | bool | DDL | Emits a `UNIQUE` constraint. |
-| `default` | scalar | DDL | Column default (string/number/bool). |
+| `default` | scalar | DDL + model | Column default (string/number/bool). |
 | `foreign_key` | string | DDL | `"table.column"` (or `"table"`, defaulting to `id`). |
 | `on_delete` | enum | DDL | FK action: `cascade`, `restrict`, `set_null`, `set_default`, `no_action`. |
 | `on_update` | enum | DDL | Same actions as `on_delete`. |
-| `lang_type` | string | models | Override the generated Rust type (e.g. `Option<i32>`). |
-| `postgres_type_name` | string | models | Named Postgres enum type for query casting. |
-| `min` / `max` | number | models | Numeric range validation. |
-| `min_length` / `max_length` | integer | models | String length validation. |
-| `pattern` | string | models | Regex validation. |
-| `validation` | string \| map | models | Named validator (`email`) or a rule map. |
-| `computed` | string | models | Marks a computed/derived field. |
-| `hidden` | bool | models | Exclude from serialization. |
-| `transitions` | map | models | Allowed enum state transitions. |
-| `ai` | string | — | AI hint for code generation. |
-| `example` | any | — | Example value (documentation). |
-| `enum`, `index`, `indexed`, `search_weight`, `column_comment` | — | — | *(accepted, ignored)* |
+| `lang_type` | string | model | Override the generated Rust type (e.g. `Option<u8>`). |
+| `min` / `max` | number | metadata | Intended numeric range — **not enforced**. |
+| `min_length` / `max_length` | integer | metadata | Intended string length — **not enforced**. |
+| `pattern` | string | metadata | Intended regex — **not enforced**. |
+| `validation` | string \| map | metadata | Named validator (`email`) or rule map — **not enforced**. |
+| `computed` | string | metadata | Marks a derived field — not generated. |
+| `hidden` | bool | metadata | Intended to hide from serialization — **not enforced**. |
+| `postgres_type_name` | string | metadata | Named Postgres enum type hint. |
+| `transitions` | map | metadata | Intended enum state transitions — not enforced. |
+| `ai` | string | metadata | AI hint, emitted as a doc comment. |
+| `example` | any | metadata | Example value (documentation). |
+| `enum`, `index`, `indexed`, `search_weight`, `column_comment` | — | ignored | *(accepted, parsed, no effect)* |
 
 `NOT NULL` is emitted when `required: true`, `nullable: false`, or the field
 is the primary key.
+
+> **Validation is not yet enforced.** `min`, `max`, `min_length`,
+> `max_length`, `pattern`, and `validation` are recorded as schema metadata and
+> surfaced to tooling, but the generated models do not validate against them at
+> runtime. Enforce these in your own code (e.g. a controller `before` hook)
+> until runtime validation lands.
 
 ## Type system
 
@@ -193,7 +206,12 @@ indexes:
 
 ## Table-level constraints
 
-Model-side validation constraints (not SQL `CHECK`s):
+> **Reserved — not yet enforced.** A `constraints:` block parses but is
+> currently **ignored** by both SQL and model generation. It is reserved for a
+> future release; don't rely on it for validation today. Use field-level keys
+> (`min`, `max`, `min_length`, `max_length`, `pattern`, `validation`) instead.
+
+The reserved shape, for forward-compatibility:
 
 ```yaml
 constraints:
@@ -203,8 +221,6 @@ constraints:
   - sql: "price >= 0"
     message: "Price cannot be negative"
 ```
-
-`message` is required; `field`, `sql`, `validate`, `min`, `max` are optional.
 
 ## Global metadata (`_meta.yaml`)
 
