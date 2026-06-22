@@ -179,31 +179,33 @@ Create `src/middleware/auth.rs`:
 
 ```rust
 use rustf::prelude::*;
+use async_trait::async_trait;
 
 pub struct AuthMiddleware;
 
+#[async_trait]
 impl InboundMiddleware for AuthMiddleware {
-    fn handle(&self, ctx: &mut Context) -> MiddlewareResult {
+    async fn process_request(&self, ctx: &mut Context) -> rustf::Result<InboundAction> {
         // Check if route requires authentication
-        let path = ctx.path();
+        let path = ctx.path().to_string();
         let protected_paths = ["/dashboard", "/profile", "/settings"];
-        
+
         if protected_paths.iter().any(|p| path.starts_with(p)) {
-            if let Some(session) = ctx.session() {
-                if session.is_authenticated() {
-                    return MiddlewareResult::Continue;
-                }
+            let authenticated = ctx
+                .session()
+                .map(|s| s.is_authenticated())
+                .unwrap_or(false);
+
+            if !authenticated {
+                // Not authenticated: set a redirect response on the context,
+                // then stop the chain (Stop uses the response set on ctx).
+                ctx.flash_error("Please login to access this page")?;
+                ctx.redirect("/auth/login")?;
+                return Ok(InboundAction::Stop);
             }
-            
-            // Not authenticated, redirect to login
-            ctx.flash_error("Please login to access this page")?;
-            if let Err(e) = ctx.redirect("/auth/login") {
-                return MiddlewareResult::Error(e);
-            }
-            return MiddlewareResult::Stop;
         }
-        
-        MiddlewareResult::Continue
+
+        Ok(InboundAction::Continue)
     }
 }
 

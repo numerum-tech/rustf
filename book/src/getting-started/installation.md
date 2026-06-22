@@ -224,11 +224,12 @@ tempfile = "3.8"
 **Issue: "cannot find crate `rustf`"**
 - Solution: Make sure you've added rustf to `Cargo.toml` dependencies
 - If using local development: Use `path = "../rustf"` in Cargo.toml
-- If using published version: Use `version = "0.1.0"` from crates.io
+- If using published version: Use `version = "1.0.0-rc1"` from crates.io
 
 **Issue: "proc macro not found"**
-- Solution: Make sure `rustf-macros` is available
-- Check that `auto-discovery` feature is enabled
+- Solution: Make sure `rustf` is a dependency (the auto-discovery macros are
+  re-exported from `rustf` and always available — there is no feature to enable)
+- Bring them into scope with `use rustf::prelude::*;`
 
 **Issue: "port already in use"**
 - Solution: Change the port in `config.toml` or stop the other process

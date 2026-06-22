@@ -18,7 +18,7 @@ RustF provides a modern, ergonomic database layer with:
 use rustf::prelude::*;
 
 // Find a user by ID
-let user = Users::find(123).await?;
+let user = Users::get_by_id(123).await?;
 
 // Count all active users
 let active_count = Users::query()?
@@ -39,7 +39,7 @@ let result = Users::query()?
 // result.total_pages - total pages
 
 // Delete a record
-if let Some(user) = Users::find(456).await? {
+if let Some(user) = Users::get_by_id(456).await? {
     user.delete().await?;
 }
 ```
@@ -160,7 +160,7 @@ This creates:
 
 ```rust
 // Find by ID - returns Option<Model>
-let user = Users::find(123).await?;
+let user = Users::get_by_id(123).await?;
 
 // Find first record
 let first_user = Users::first().await?;
@@ -205,7 +205,7 @@ Models track changes automatically - only modified fields are updated:
 
 ```rust
 // Find and update
-let mut user = Users::find(123).await?.unwrap();
+let mut user = Users::get_by_id(123).await?.unwrap();
 
 // Setters automatically track changes
 user.set_email("newemail@example.com");
@@ -224,7 +224,7 @@ if user.has_changes() {
 
 ```rust
 // Delete by finding first
-if let Some(user) = Users::find(123).await? {
+if let Some(user) = Users::get_by_id(123).await? {
     user.delete().await?;
 }
 
@@ -706,7 +706,7 @@ let users = Users::query()?
 Generated models provide getters and setters:
 
 ```rust
-let user = Users::find(123).await?.unwrap();
+let user = Users::get_by_id(123).await?.unwrap();
 
 // Getters
 let email = user.email();        // &str for String fields
@@ -1034,14 +1034,14 @@ All database operations return `Result<T>`:
 use rustf::Result;
 
 async fn get_user(id: i32) -> Result<Users> {
-    match Users::find(id).await? {
+    match Users::get_by_id(id).await? {
         Some(user) => Ok(user),
         None => Err(rustf::Error::NotFound(format!("User {} not found", id))),
     }
 }
 
 // Handle different cases
-match Users::find(id).await {
+match Users::get_by_id(id).await {
     Ok(Some(user)) => {
         // User found
     },
@@ -1074,14 +1074,14 @@ let users = DB::execute_raw("SELECT * FROM users WHERE is_active = 1").await?;
 
 ```rust
 // ✅ Good - Handle None case
-if let Some(user) = Users::find(id).await? {
+if let Some(user) = Users::get_by_id(id).await? {
     // Work with user
 } else {
     // Handle not found
 }
 
 // ❌ Bad - Will panic on None
-let user = Users::find(id).await?.unwrap();
+let user = Users::get_by_id(id).await?.unwrap();
 ```
 
 ### 3. Use Transactions for Multiple Operations
@@ -1095,7 +1095,7 @@ let user = Users::find(id).await?.unwrap();
 
 ```rust
 // ✅ Good - Only updates changed fields
-let mut user = Users::find(id).await?.unwrap();
+let mut user = Users::get_by_id(id).await?.unwrap();
 user.set_email("new@example.com");
 user.update().await?;  // Only updates email
 
@@ -1327,7 +1327,7 @@ async-trait = "0.1"
 use rustf::models::Users;
 
 // Simple model operations
-let user = Users::find(123).await?;
+let user = Users::get_by_id(123).await?;
 let admins = Users::where_eq("role", "admin").await?;
 
 // Model-scoped query builder

@@ -315,11 +315,14 @@ Values are evaluated as truthy or falsy in conditionals:
 ### Escaping
 ```html
 <!-- Auto-escaped (safe by default) -->
-<p>@{model.user_input}</p>
+<p>@{M.user_input}</p>
 
 <!-- Raw HTML (unescaped) -->
 <div>@{!M.html_content}</div>
 ```
+
+Raw output `@{!...}` accepts a full expression, not just a bare variable —
+e.g. `@{!M.url || '/default.jpg'}` renders the value-fallback unescaped.
 
 ### Expressions & Operators
 
@@ -605,21 +608,18 @@ Within `@{foreach}` loops, the iterator variable is directly accessible:
 
 ### Built-in Functions
 ```html
-<!-- URL helpers -->
-@{url('/path')}         <!-- Generate URL with root prefix -->
+<!-- Asset / URL helpers -->
+@{url('/path')}            <!-- Resolve a URL -->
 @{css('/static/app.css')}  <!-- CSS link tag -->
 @{js('/static/app.js')}    <!-- Script tag -->
+@{image('/logo.png')}      <!-- Image tag -->
 
 <!-- Data formatting -->
 @{json(data)}           <!-- JSON stringify -->
-@{encode(text)}         <!-- URL encode -->
-@{escape(html)}         <!-- HTML escape -->
 
-<!-- String manipulation -->
-@{upper(text)}          <!-- Uppercase -->
-@{lower(text)}          <!-- Lowercase -->
-@{trim(text)}           <!-- Trim whitespace -->
-@{capitalize(text)}     <!-- Capitalize first letter -->
+<!-- String case (HTML is auto-escaped; use @{!expr} to bypass) -->
+@{upper(text)}          <!-- Uppercase (alias: toUpperCase) -->
+@{lower(text)}          <!-- Lowercase (alias: toLowerCase) -->
 
 <!-- Iteration helpers -->
 @{range(10)}            <!-- Generate array [0,1,2,3,4,5,6,7,8,9] -->
@@ -654,6 +654,86 @@ The `range()` function generates numeric sequences for loops:
     @{else}
         <a href="?page=@{page}">@{page}</a>
     @{fi}
+@{end}
+```
+
+### Form Helpers
+
+Form helpers render an HTML form element and **auto-bind** its value from the
+model field named by the first argument. An optional object literal supplies
+HTML attributes:
+
+```html
+@{text('email', { class: 'form', placeholder: 'you@example.com', required: true })}
+<!-- with model { email: "a@b.com" }: -->
+<!-- <input type="text" name="email" value="a@b.com" class="form" placeholder="you@example.com" required /> -->
+```
+
+Attribute object rules: `key: 'str'` / `key: 30` → `key="..."`; `flag: true` →
+a bare boolean attribute (`required`); `flag: false` → omitted. Values and
+attributes are HTML-escaped; a missing model field renders an empty value.
+
+| Helper | Renders |
+|--------|---------|
+| `@{text('field', { ...attrs })}` | `<input type="text" name="field" value="{model.field}" ... />` |
+| `@{password('field', { ...attrs })}` | `<input type="password" ... />` |
+| `@{hidden('field', { ...attrs })}` | `<input type="hidden" ... />` |
+| `@{textarea('field', { ...attrs })}` | `<textarea name="field" ...>{model.field}</textarea>` |
+| `@{checkbox('field', [label])}` | `<input type="checkbox" name="field"[ checked] />`, checked when the model field is truthy |
+| `@{radio('field', 'value', [label])}` | `<input type="radio" name="field" value="value"[ checked] />`, checked when the model field == value |
+
+`checkbox` and `radio` take an optional label that wraps the input in a
+`<label>`. For `radio`, the third argument is either a label string or an
+object whose `label` key is the wrap text and whose other keys are attributes:
+
+```html
+@{checkbox('agree', 'I accept the terms')}
+<!-- <label><input type="checkbox" name="agree" checked /> I accept the terms</label> -->
+
+@{radio('gender', 'male', 'Male')}
+@{radio('gender', 'female', { label: 'Female', class: 'opt' })}
+```
+
+### Meta Helpers (title & description)
+
+`@{title('...')}` and `@{description('...')}` are **setters** — they store the
+value in meta data (carried from the view into its layout) and render nothing
+inline. The layout reads them back with `@{title}` / `@{description}`:
+
+```html
+<!-- view: auth/login.html -->
+@{title('Sign in')}
+@{description('Access your account')}
+
+<!-- layouts/default.html -->
+<head>
+  <title>@{title} · @{MAIN.site_name}</title>
+  <meta name="description" content="@{description}">
+</head>
+```
+
+`@{meta('Title', 'Description', 'Keywords')}` is the all-in-one variant that
+emits the `<title>` and `<meta>` tags directly at its position.
+
+### Request Properties
+
+Read-only values available in any template:
+
+| Property | Description |
+|----------|-------------|
+| `@{url}` | the request's relative URL |
+| `@{hostname}` | the request host |
+| `@{mobile}` | boolean — `true` for mobile-device User-Agents (`@{if mobile}…@{fi}`) |
+| `@{root}` | configured `views.default_root` with the trailing `/` stripped — for apps served under a sub-path |
+
+Inside a `@{foreach}` loop, `@{break}` and `@{continue}` work both directly and
+**inside `@{if}` / `@{elif}`** blocks:
+
+```html
+@{foreach item in M.items}
+  @{if item.sold_out}@{continue}@{fi}
+  <li>@{item.name}</li>
+  @{if index >= 9}@{break}@{fi}
 @{end}
 ```
 
