@@ -2,7 +2,7 @@
 
 RustF schemas are YAML files that describe your data model. They are the
 **single source of truth**: the CLI generates both Rust models
-(`schema generate models`) and SQL migrations (`schema generate migrations`)
+(`schema generate models`) and full SQL DDL (`schema generate sql`)
 from them. SQL is a standard, but this YAML format is RustF-specific — this
 page is its complete specification.
 
@@ -43,7 +43,7 @@ Users:                  # logical name (used for the generated model)
 | Key | Type | Required | Purpose |
 |-----|------|:--------:|---------|
 | `table` | string | **yes** | Physical table name used in generated SQL/queries. |
-| `version` | integer | **yes** | Schema version for migrations and consistency checks. |
+| `version` | integer | **yes** | Schema version for change tracking and consistency checks. |
 | `name` | string | no | Override for the generated model name (defaults to the YAML key). |
 | `description` | string | no | Human-readable description (emitted as a SQL comment). |
 | `database_type` | string | no | `mysql` \| `postgres` \| `sqlite` (per-table override of `_meta`). |
@@ -72,17 +72,17 @@ email:
 
 | Key | Type | Consumed by | Purpose |
 |-----|------|-------------|---------|
-| `type` | string | migrations + models | Column type. See [Type system](#type-system). **Required.** |
-| `values` | string[] | migrations + models | Allowed values — required when `type: enum`. |
-| `primary_key` | bool | migrations | Marks the primary key. |
-| `auto` | bool | migrations | Auto-increment (`SERIAL` / `AUTO_INCREMENT` / `AUTOINCREMENT`). |
-| `required` | bool | migrations | Emits `NOT NULL`. |
-| `nullable` | bool | migrations | `nullable: false` also emits `NOT NULL`. |
-| `unique` | bool | migrations | Emits a `UNIQUE` constraint. |
-| `default` | scalar | migrations | Column default (string/number/bool). |
-| `foreign_key` | string | migrations | `"table.column"` (or `"table"`, defaulting to `id`). |
-| `on_delete` | enum | migrations | FK action: `cascade`, `restrict`, `set_null`, `set_default`, `no_action`. |
-| `on_update` | enum | migrations | Same actions as `on_delete`. |
+| `type` | string | DDL + models | Column type. See [Type system](#type-system). **Required.** |
+| `values` | string[] | DDL + models | Allowed values — required when `type: enum`. |
+| `primary_key` | bool | DDL | Marks the primary key. |
+| `auto` | bool | DDL | Auto-increment (`SERIAL` / `AUTO_INCREMENT` / `AUTOINCREMENT`). |
+| `required` | bool | DDL | Emits `NOT NULL`. |
+| `nullable` | bool | DDL | `nullable: false` also emits `NOT NULL`. |
+| `unique` | bool | DDL | Emits a `UNIQUE` constraint. |
+| `default` | scalar | DDL | Column default (string/number/bool). |
+| `foreign_key` | string | DDL | `"table.column"` (or `"table"`, defaulting to `id`). |
+| `on_delete` | enum | DDL | FK action: `cascade`, `restrict`, `set_null`, `set_default`, `no_action`. |
+| `on_update` | enum | DDL | Same actions as `on_delete`. |
 | `lang_type` | string | models | Override the generated Rust type (e.g. `Option<i32>`). |
 | `postgres_type_name` | string | models | Named Postgres enum type for query casting. |
 | `min` / `max` | number | models | Numeric range validation. |
@@ -106,7 +106,7 @@ is the primary key.
 ### Simple types
 
 These map to dialect-correct SQL (see the per-dialect table in the
-[Database guide](database.md#generating-migrations)):
+[Database guide](database.md#generating-sql-ddl)):
 
 | Schema type | Notes |
 |-------------|-------|
@@ -170,7 +170,7 @@ relations:
 | `belongs_to` | `model`, `local_field`, `foreign_field` | `on_delete`, `on_update`, `ai` |
 | `many_to_many` | `model`, `through`, `local_through_field`, `foreign_through_field`, `local_field`, `foreign_field` | `ai` |
 
-Relations drive **model** generation. Foreign-key DDL in migrations comes from
+Relations drive **model** generation. Foreign-key DDL comes from
 a field's `foreign_key` key, not from `relations`.
 
 ## Indexes
@@ -208,13 +208,13 @@ Only these keys are honored:
 
 ```yaml
 version: "1.0"
-database_type: mysql          # default dialect for migration generation
+database_type: mysql          # default dialect for SQL generation
 database_name: myapp
 description: "Application schema"
 ai_context: "Guidance for AI assistants working with this schema"
 ```
 
-> The migration generator detects the target dialect from `description` /
+> The SQL generator detects the target dialect from `description` /
 > `database_type`. Set `database_type` (or mention the dialect in
 > `description`) so the right SQL flavour is produced. Any other keys in
 > `_meta.yaml` are ignored.
@@ -278,5 +278,5 @@ Generate from it:
 
 ```bash
 rustf-cli schema generate models       # -> src/models/base/users.inc.rs
-rustf-cli schema generate migrations   # -> migrations/<ts>_initial_schema.sql
+rustf-cli schema generate sql          # -> sql/schema.sql
 ```

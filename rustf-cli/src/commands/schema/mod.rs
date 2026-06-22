@@ -77,12 +77,15 @@ pub enum SchemaAction {
 /// Code generation targets
 #[derive(Debug, Subcommand, Clone)]
 pub enum GenerateTarget {
-    /// Generate SQL migrations
-    Migrations {
-        /// Output directory for migrations
-        #[arg(short = 'o', long, default_value = "migrations")]
+    /// Generate the full SQL schema (DDL) for all tables.
+    ///
+    /// This emits a complete CREATE TABLE snapshot of the whole schema, not an
+    /// incremental diff/ALTER against an existing database.
+    Sql {
+        /// Output directory for the generated schema.sql
+        #[arg(short = 'o', long, default_value = "sql")]
         output: PathBuf,
-        
+
         /// Path to schema directory
         #[arg(short = 's', long, default_value = "schemas")]
         schema_path: PathBuf,
@@ -118,7 +121,7 @@ impl SchemaCommand {
         // First, detect the database backend if we're doing generation
         let backend = if let SchemaAction::Generate { ref target } = self.action {
             match target {
-                GenerateTarget::Migrations { schema_path, .. } |
+                GenerateTarget::Sql { schema_path, .. } |
                 GenerateTarget::Models { schema_path, .. } => {
                     detect_database_backend_from_path(schema_path).await?
                 }

@@ -233,11 +233,11 @@ async fn generate_code(target: GenerateTarget) -> anyhow::Result<()> {
         } => {
             generate_models(&schema_path, &output, force, tables, exclude).await?;
         }
-        GenerateTarget::Migrations {
+        GenerateTarget::Sql {
             schema_path,
             output,
         } => {
-            generate_migrations(&schema_path, &output).await?;
+            generate_sql_file(&schema_path, &output).await?;
         }
     }
     Ok(())
@@ -424,9 +424,9 @@ async fn generate_models(
     Ok(())
 }
 
-/// Generate SQL migrations
-async fn generate_migrations(schema_path: &Path, output_path: &Path) -> anyhow::Result<()> {
-    println!("🚀 Generating SQL migrations...");
+/// Generate the full SQL schema (DDL) for all tables
+async fn generate_sql_file(schema_path: &Path, output_path: &Path) -> anyhow::Result<()> {
+    println!("🚀 Generating SQL schema (DDL)...");
 
     let schema = Schema::load_from_directory(schema_path).await?;
 
@@ -435,15 +435,14 @@ async fn generate_migrations(schema_path: &Path, output_path: &Path) -> anyhow::
         fs::create_dir_all(output_path).await?;
     }
 
-    // Generate initial migration
-    let timestamp = chrono::Utc::now().format("%Y%m%d_%H%M%S");
-    let migration_file = output_path.join(format!("{}_initial_schema.sql", timestamp));
+    // Full schema snapshot (regenerated in place; track changes in git).
+    let sql_file = output_path.join("schema.sql");
 
     let sql_code = super::sql_gen::generate_sql_schema(&schema, super::sql_gen::Dialect::Postgres)?;
-    fs::write(&migration_file, sql_code).await?;
+    fs::write(&sql_file, sql_code).await?;
 
-    println!("✅ Generated {}", migration_file.display());
-    println!("🎉 Migration generated successfully!");
+    println!("✅ Generated {}", sql_file.display());
+    println!("🎉 SQL schema generated successfully!");
 
     Ok(())
 }
