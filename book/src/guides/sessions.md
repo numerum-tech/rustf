@@ -10,15 +10,22 @@ RustF provides a comprehensive session management system with support for multip
 
 ### Session Data Structure
 
-The `Session` struct provides lock-free concurrent access using `DashMap`:
+The `Session` struct stores its data as JSON (`serde_json::Value`) behind an
+`RwLock`, which is zero-copy for template rendering and storage backends:
 
 ```rust
 pub struct Session {
     id: String,
-    data: Arc<DashMap<String, Value>>,       // Persistent session data
-    flash: Arc<DashMap<String, Value>>,      // Flash messages (consumed when read)
+    data: Arc<RwLock<serde_json::Value>>,   // Persistent session data (JSON)
+    flash: Arc<RwLock<serde_json::Value>>,  // Flash messages (consumed when read)
+    // ... plus fingerprint, timeouts, privilege level, and dirty/rotation flags
 }
 ```
+
+> **Note:** Sessions are *not* backed by `DashMap`. The framework's lock-free
+> `DashMap` usage applies to the session *store* (the manager that holds many
+> sessions), not to an individual `Session`'s data, which uses `RwLock` over a
+> single JSON value.
 
 ### Session Storage Backends
 
@@ -37,7 +44,7 @@ Sessions are available through the `Context` object in controllers:
 ```rust
 use rustf::prelude::*;
 
-async fn login(ctx: Context) -> Result<Response> {
+async fn login(ctx: &mut Context) -> rustf::Result<()> {
     // Set session data
     ctx.session_set("user_id", 123)?;
     ctx.session_set("username", "john_doe")?;
@@ -53,14 +60,14 @@ async fn login(ctx: Context) -> Result<Response> {
     }))
 }
 
-async fn logout(ctx: Context) -> Result<Response> {
+async fn logout(ctx: &mut Context) -> rustf::Result<()> {
     // Clear all session data but keep session active for tracking
     ctx.session_clear();
 
     // Alternative: completely destroy the session
     // ctx.session_destroy();
 
-    ctx.flash_success("You have been logged out successfully");
+    ctx.flash_success("You have been logged out successfully")?;
     ctx.redirect("/login")
 }
 ```
@@ -106,13 +113,13 @@ Flash messages are temporary messages that are consumed when read, perfect for d
 
 ```rust
 // Convenience methods for common message types
-ctx.flash_success("Account created successfully!");
-ctx.flash_error("Invalid credentials");
-ctx.flash_info("Please verify your email");
+ctx.flash_success("Account created successfully!")?;
+ctx.flash_error("Invalid credentials")?;
+ctx.flash_info("Please verify your email")?;
 
-// Custom flash messages
-ctx.flash_set("warning", "Your session will expire soon")?;
-ctx.flash_set("custom_data", json!({"type": "notification", "data": 123}))?;
+// Custom flash messages (the method is `flash`, not `flash_set`)
+ctx.flash("warning", "Your session will expire soon")?;
+ctx.flash("custom_data", json!({"type": "notification", "data": 123}))?;
 ```
 
 ### Reading Flash Messages
@@ -121,11 +128,11 @@ Flash messages are automatically consumed when read:
 
 ```rust
 // Get specific flash message (consumes it)
-let error_msg: Option<String> = ctx.flash_get("error");
-let success_msg: Option<String> = ctx.flash_get("success");
+let error_msg: Option<Value> = ctx.get_flash("error");
+let success_msg: Option<Value> = ctx.get_flash("success");
 
 // Get all flash messages at once (consumes all)
-let all_flash: HashMap<String, Value> = ctx.flash_get_all();
+let all_flash: HashMap<String, Value> = ctx.get_all_flash();
 ```
 
 ### Flash Messages in Views
@@ -145,7 +152,7 @@ Flash messages are automatically included in view contexts:
         <div class="alert alert-success">@{flash.success}</div>
     @{fi}
 
-    @{if flash.erro}
+    @{if flash.error}
         <div class="alert alert-error">@{flash.error}</div>
     @{fi}
 
@@ -187,31 +194,55 @@ let session_store = SessionStore::with_storage(Arc::new(storage));
 
 For production environments, use Redis for persistent session storage:
 
+The simplest way to enable Redis sessions is through configuration — set the
+session storage type to `redis` in `config.toml` and the framework wires the
+session middleware automatically (see [Configuration](#configuration) below).
+
+To build the storage explicitly and register your own session middleware, use
+`SessionMiddleware::with_storage(...)`. Note that `RedisSessionStorage::from_url`
+takes seven arguments:
+
 ```rust
 use rustf::session::redis::RedisSessionStorage;
+use rustf::session::FingerprintMode;
+use rustf::session::manager::SessionConfig;
+use rustf::middleware::builtin::SessionMiddleware;
+use std::sync::Arc;
+use std::time::Duration;
 
 #[tokio::main]
-async fn main() -> Result<()> {
+async fn main() -> rustf::Result<()> {
     // Default Redis connection (redis://localhost:6379)
     let redis_storage = RedisSessionStorage::new().await?;
 
-    // Custom Redis configuration
+    // Custom Redis configuration (7 args)
     let redis_storage = RedisSessionStorage::from_url(
-        "redis://localhost:6379",
-        "myapp:session:",  // Key prefix
-        20                 // Pool size
+        "redis://localhost:6379",       // redis_url
+        "myapp:session:",               // prefix
+        20,                             // pool_size
+        FingerprintMode::Soft,          // fingerprint_mode
+        Duration::from_secs(30 * 60),   // default_ttl
+        Duration::from_secs(5),         // connection_timeout
+        Duration::from_secs(5),         // command_timeout
     ).await?;
 
-    let session_store = SessionStore::with_storage(Arc::new(redis_storage));
+    // Register a session middleware backed by this storage:
+    let session_mw =
+        SessionMiddleware::with_storage(Arc::new(redis_storage), SessionConfig::default());
 
-    // Configure app with Redis sessions
-    let app = RustF::new()
-        .with_session_store(session_store)
-        .controllers(auto_controllers!());
-
-    app.serve(None).await
+    RustF::new()
+        .controllers(auto_controllers!())
+        .middleware_from(move |registry| {
+            registry.register_dual("session", session_mw.clone());
+        })
+        .serve(None)
+        .await
 }
 ```
+
+> **Note:** There is no `app.with_session_store(...)` builder method. Session
+> storage is selected via `config.toml` (which auto-registers the middleware) or
+> by registering `SessionMiddleware::with_storage(...)` yourself as shown above.
 
 ## Session Lifecycle Management
 
@@ -689,47 +720,38 @@ For more details on the Definitions System, see [Schemas & Definitions](schemas.
 RustF provides comprehensive session management methods:
 
 ```rust
-async fn session_management(ctx: Context) -> Result<Response> {
-    let session = &ctx.session;
+async fn session_management(ctx: &mut Context) -> rustf::Result<()> {
+    // ctx.session() returns Option<&Session>; the Session methods below take &self.
+    let info = if let Some(session) = ctx.session() {
+        // Basic session operations
+        session.set("user_id", 123)?;
+        let _user_id: Option<i32> = session.get("user_id");
+        let _removed_value = session.remove("temp_data");
 
-    // Basic session operations
-    session.set("user_id", 123)?;
-    let user_id: Option<i32> = session.get("user_id");
-    let removed_value = session.remove("temp_data");
+        // Session lifecycle management
+        session.clear();        // Clear all data but keep session active
+        session.flush();        // Alias for clear() (Laravel compatibility)
+        session.destroy();      // Mark session for destruction
 
-    // Session lifecycle management
-    session.clear();        // Clear all data but keep session active
-    session.flush();        // Alias for clear() (Laravel compatibility)
-    session.destroy();      // Mark session for destruction
+        // Session information
+        json!({
+            "session_id": session.id(),
+            "is_empty": session.is_empty(),
+            "data_entries": session.data_count(),
+            "flash_messages": session.flash_count()
+        })
+    } else {
+        json!({ "error": "no session" })
+    };
 
-    // Session information
-    let session_id = session.id();
-    let is_empty = session.is_empty();
-    let data_count = session.data_count();
-    let flash_count = session.flash_count();
-
-    ctx.json(json!({
-        "session_id": session_id,
-        "is_empty": is_empty,
-        "data_entries": data_count,
-        "flash_messages": flash_count
-    }))
+    ctx.json(info)
 }
 
-// Security: Session ID regeneration for fixation protection
-async fn regenerate_session(ctx: Context) -> Result<Response> {
-    // Get mutable reference to session
-    let session = &mut ctx.session;
-
-    // Regenerate session ID while keeping all data
-    session.regenerate_id();
-
-    ctx.flash_info("Session ID regenerated for security");
-    ctx.json(json!({"new_session_id": session.id()}))
-}
-
-// Context convenience methods
-async fn context_session_methods(ctx: Context) -> Result<Response> {
+// Security: Session ID regeneration for fixation protection.
+// `Session::regenerate_id` takes `&mut self`, but the context only exposes an
+// immutable `&Session`, so regeneration is performed at the store level via
+// `SessionStore::regenerate_session_id(...)` (see "Session Store Operations").
+async fn context_session_methods(ctx: &mut Context) -> rustf::Result<()> {
     // Convenience methods available on Context
     ctx.session_set("key", "value")?;
     let value: Option<String> = ctx.session_get("key");
@@ -839,12 +861,10 @@ use serde::{Serialize, Deserialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SessionFingerprint {
-    /// IP prefix for soft validation (first 3 octets for IPv4, first 3 segments for IPv6)
-    pub ip_prefix: String,
-    /// Hashed user agent for privacy (stored as u64 hash, not plaintext)
-    pub user_agent_hash: u64,
-    /// Original creation IP address for audit logging
-    pub created_ip: String,
+    /// Full IP address
+    pub ip: String,
+    /// Full user agent string
+    pub user_agent: String,
     /// Creation timestamp (Unix seconds)
     pub created_at: u64,
 }
@@ -853,30 +873,20 @@ impl SessionFingerprint {
     /// Create fingerprint from request (called automatically by session middleware)
     pub fn from_request(request: &Request) -> Self {
         let created_at = unix_timestamp();
-        let created_ip = request.client_ip();  // Supports X-Forwarded-For and X-Real-IP
-        let ip_prefix = Self::extract_ip_prefix(&created_ip);
-        let user_agent_hash = Self::hash_user_agent(request.user_agent());
+        let ip = request.client_ip();  // Supports X-Forwarded-For and X-Real-IP
+        let user_agent = request.user_agent().unwrap_or("unknown").to_string();
 
-        Self {
-            ip_prefix,
-            user_agent_hash,
-            created_ip,
-            created_at,
-        }
-    }
-
-    /// Validate fingerprint against request based on FingerprintMode
-    pub fn validate(&self, request: &Request, mode: FingerprintMode) -> bool {
-        // Implementation varies based on mode (see FingerprintMode below)
+        Self { ip, user_agent, created_at }
     }
 }
 ```
 
 **Important Notes:**
 - IP address and user agent are **automatically captured** when a session is created
-- User agent is stored as a hash for privacy protection
-- The `created_ip` field stores the full original IP for audit purposes
-- The `ip_prefix` is used for soft validation (allows some IP mobility)
+- The `ip` field stores the full client IP; the `user_agent` field stores the
+  full User-Agent string
+- The `FingerprintMode` (below) controls how strictly these are compared on
+  subsequent requests
 
 #### FingerprintMode Enum
 
@@ -888,8 +898,8 @@ pub enum FingerprintMode {
     /// No fingerprint validation - sessions work from any IP/browser
     Disabled,
 
-    /// Soft validation (default) - validates IP prefix + user agent hash
-    /// Allows mobility within same subnet (e.g., WiFi to cellular on same network)
+    /// Soft validation (default) - lenient comparison of IP and user agent
+    /// Allows some client mobility
     Soft,
 
     /// Strict validation - exact IP and user agent must match
@@ -906,33 +916,28 @@ impl Default for FingerprintMode {
 
 **Validation Behavior:**
 - **Disabled**: No validation, session works from anywhere
-- **Soft**: IP must match first 3 octets (IPv4) or first 3 segments (IPv6), and user agent hash must match
-- **Strict**: Exact IP address and user agent hash must match
+- **Soft**: lenient comparison of the stored `ip` and `user_agent` (allows some client mobility)
+- **Strict**: exact `ip` and `user_agent` must match
 
 **Accessing Fingerprint Data in Controllers:**
 
 ```rust
-async fn show_session_info(ctx: Context) -> Result<Response> {
-    if let Some(session) = ctx.session() {
-        // Get the fingerprint if it exists
-        if let Some(fingerprint) = session.fingerprint() {
-            // Access captured client information
-            let created_ip = &fingerprint.created_ip;
-            let created_at = fingerprint.created_at;
-            let ip_prefix = &fingerprint.ip_prefix;
+async fn show_session_info(ctx: &mut Context) -> rustf::Result<()> {
+    // Read the fingerprint fields into an owned value before re-borrowing ctx mutably.
+    let info = ctx.session().and_then(|session| {
+        let id = session.id().to_string();
+        session.fingerprint().map(|fp| json!({
+            "session_id": id,
+            "ip": fp.ip,                 // full client IP
+            "user_agent": fp.user_agent, // full User-Agent string
+            "created_at": fp.created_at,
+        }))
+    });
 
-            return ctx.json(json!({
-                "session_id": session.id(),
-                "created_from_ip": created_ip,
-                "created_at": created_at,
-                "ip_prefix": ip_prefix,
-                // Note: user_agent_hash is a u64, not human-readable
-                "user_agent_hash": fingerprint.user_agent_hash,
-            }));
-        }
+    match info {
+        Some(value) => ctx.json(value),
+        None => ctx.json(json!({"error": "No session found"})),
     }
-
-    ctx.json(json!({"error": "No session found"}))
 }
 ```
 
@@ -1300,7 +1305,7 @@ let retrieved: Option<CustomData> = ctx.session_get("custom");
 Session operations return `Result<T>` for proper error handling:
 
 ```rust
-async fn safe_session_usage(ctx: Context) -> Result<Response> {
+async fn safe_session_usage(ctx: &mut Context) -> rustf::Result<()> {
     // Handle serialization errors
     match ctx.session_set("user_id", 123) {
         Ok(()) => log::info!("Session data saved"),
@@ -1314,7 +1319,7 @@ async fn safe_session_usage(ctx: Context) -> Result<Response> {
     }
 
     // Flash message errors are typically ignored
-    let _ = ctx.flash_set("message", "Hello");
+    let _ = ctx.flash("message", "Hello");
 
     ctx.json(json!({"status": "ok"}))
 }
@@ -1504,6 +1509,7 @@ Create a factory that handles different storage backends based on configuration:
 
 ```rust
 use rustf::session::factory::SessionStorageFactory;
+use rustf::session::FingerprintMode;
 use rustf::config::SessionStorageConfig;
 
 pub struct MyAppSessionFactory;
@@ -1511,16 +1517,19 @@ pub struct MyAppSessionFactory;
 impl MyAppSessionFactory {
     pub async fn create_middleware(
         app_config: &AppConfig
-    ) -> Result<SessionMiddleware> {
+    ) -> rustf::Result<SessionMiddleware> {
+        // create_storage is async and takes (config, fingerprint_mode):
+        let fp_mode = FingerprintMode::Soft;
+
         // Create storage based on config
         let storage = match &app_config.session.storage {
             SessionStorageConfig::Memory { .. } => {
                 // Use built-in factory for memory
-                SessionStorageFactory::create_storage(&app_config.session.storage).await?
+                SessionStorageFactory::create_storage(&app_config.session.storage, fp_mode).await?
             }
             SessionStorageConfig::Redis { .. } => {
                 // Use built-in factory for Redis
-                SessionStorageFactory::create_storage(&app_config.session.storage).await?
+                SessionStorageFactory::create_storage(&app_config.session.storage, fp_mode).await?
             }
             SessionStorageConfig::Database { connection_url, .. } => {
                 // Use your custom database storage
@@ -1561,10 +1570,15 @@ async fn main() -> Result<()> {
 ### What DOESN'T Work
 
 ```rust
-// ❌ WRONG - These methods don't exist:
-app.with_session_store(session_store)  // No such method
-SessionStore::with_storage(storage)    // SessionStore is internal to SessionManager
+// ❌ WRONG - This method does not exist:
+app.with_session_store(session_store)  // No such method on the app builder
 ```
+
+> **Note:** `SessionStore::with_storage(storage)` *is* a real, public method
+> (`SessionStore` is re-exported from `rustf::session`). It builds a session
+> store, but it is **not** how you wire sessions into the app — register a
+> `SessionMiddleware` instead (see below), or configure sessions via
+> `config.toml`.
 
 ### What DOES Work
 
@@ -1639,14 +1653,14 @@ ctx.session_set("full_user_profile", large_user_object)?;
 Flash messages are perfect for one-time user notifications:
 
 ```rust
-async fn create_user(ctx: Context) -> Result<Response> {
+async fn create_user(ctx: &mut Context) -> rustf::Result<()> {
     match create_user_in_db(&user_data).await {
         Ok(_) => {
-            ctx.flash_success("User created successfully!");
+            ctx.flash_success("User created successfully!")?;
             ctx.redirect("/users")
         }
         Err(e) => {
-            ctx.flash_error(&format!("Failed to create user: {}", e));
+            ctx.flash_error(&format!("Failed to create user: {}", e))?;
             ctx.redirect("/users/new")
         }
     }
@@ -1657,14 +1671,14 @@ async fn create_user(ctx: Context) -> Result<Response> {
 Check for required session data and handle missing sessions:
 
 ```rust
-async fn protected_route(ctx: Context) -> Result<Response> {
+async fn protected_route(ctx: &mut Context) -> rustf::Result<()> {
     match ctx.session_get::<i32>("user_id") {
         Some(user_id) => {
             // User is logged in, continue
             handle_authenticated_request(ctx, user_id).await
         }
         None => {
-            ctx.flash_info("Please log in to continue");
+            ctx.flash_info("Please log in to continue")?;
             ctx.redirect("/login")
         }
     }
@@ -1698,22 +1712,26 @@ Choose the right method for different scenarios:
 
 ```rust
 // User logout - clear data but keep session for analytics
-async fn logout(ctx: Context) -> Result<Response> {
+async fn logout(ctx: &mut Context) -> rustf::Result<()> {
     ctx.session_clear();  // Keep session ID for tracking
-    ctx.flash_success("You have been logged out");
+    ctx.flash_success("You have been logged out")?;
     ctx.redirect("/login")
 }
 
-// Security incident - completely destroy session
-async fn security_logout(ctx: Context, session_store: &SessionStore) -> Result<Response> {
-    let session_id = ctx.session.id();
-    session_store.destroy_session(session_id).await?;  // Complete removal
+// Security incident - completely destroy session.
+// (This is a helper that receives the store; it is not itself a route handler.)
+async fn security_logout(ctx: &mut Context, session_store: &SessionStore) -> rustf::Result<()> {
+    if let Some(session) = ctx.session() {
+        let session_id = session.id().to_string();
+        session_store.destroy_session(&session_id).await?;  // Complete removal
+    }
     ctx.redirect("/login")
 }
 
-// After login - regenerate ID to prevent session fixation
-async fn after_login(ctx: Context) -> Result<Response> {
-    ctx.session.regenerate_id();  // Security best practice
+// After login - regenerate ID to prevent session fixation.
+// Note: Session::regenerate_id takes &mut self, so it is applied at the store
+// level (see SessionStore::regenerate_session_id) rather than through ctx.session().
+async fn after_login(ctx: &mut Context) -> rustf::Result<()> {
     ctx.session_set("user_id", user.id)?;
     ctx.redirect("/dashboard")
 }

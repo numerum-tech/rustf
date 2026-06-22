@@ -19,19 +19,22 @@ your_project/
 │   │   ├── users.rs         # User model wrapper
 │   │   ├── posts.rs         # Post model wrapper
 │   │   └── base/            # Auto-generated base models (DO NOT EDIT)
-│   │       ├── users_base.rs
-│   │       └── posts_base.rs
+│   │       ├── users.inc.rs
+│   │       └── posts.inc.rs
 │   ├── modules/             # Business logic modules
 │   │   ├── user_service.rs  # User business logic
 │   │   └── email_service.rs # Email functionality
+│   ├── definitions/         # Template helpers & validators
+│   ├── events/              # Event handlers (optional)
 │   ├── middleware/          # Custom middleware
 │   │   └── auth.rs          # Authentication middleware
+│   ├── workers/             # Background workers (optional)
 │   ├── _controllers.rs      # Auto-generated (IDE support only)
 │   ├── _models.rs           # Auto-generated (IDE support only)
 │   └── _modules.rs          # Auto-generated (IDE support only)
 ├── views/                   # Template files
 │   ├── layouts/
-│   │   └── application.html # Default layout
+│   │   └── default.html     # Default layout
 │   ├── home/
 │   │   ├── index.html       # Home page template
 │   │   └── about.html       # About page template
@@ -47,7 +50,7 @@ your_project/
 │   └── images/
 ├── uploads/                 # File uploads directory
 ├── config.toml              # Base configuration
-├── config.prod.toml         # Production overrides
+├── config.dev.toml          # Development overrides (created by scaffold)
 └── Cargo.toml               # Rust project configuration
 ```
 
@@ -114,24 +117,18 @@ Models represent database tables and provide type-safe database access.
 
 **Structure:**
 - `src/models/users.rs` - User model wrapper (your code)
-- `src/models/base/users_base.rs` - Auto-generated base model (don't edit)
+- `src/models/base/users.inc.rs` - Auto-generated base model (don't edit)
 
 **Example: `src/models/users.rs`**
 ```rust
 use rustf::prelude::*;
-use crate::models::base::users_base::UsersBase;
 
-pub struct Users {
-    base: UsersBase,
-}
+// The generated `Users` struct + CRUD are included directly from the base
+// file (do not edit base/users.inc.rs).
+include!("base/users.inc.rs");
 
+// Add your custom business logic to the generated `Users` type:
 impl Users {
-    pub fn new() -> Self {
-        Self {
-            base: UsersBase::new(),
-        }
-    }
-    
     // Add custom methods here
 }
 ```
@@ -162,19 +159,23 @@ Middleware processes requests before they reach controllers.
 
 **Example: `src/middleware/auth.rs`**
 ```rust
+use async_trait::async_trait;
+use rustf::middleware::{InboundAction, InboundMiddleware, MiddlewareRegistry};
 use rustf::prelude::*;
 
 pub struct AuthMiddleware;
 
+#[async_trait]
 impl InboundMiddleware for AuthMiddleware {
-    fn handle(&self, ctx: &mut Context) -> MiddlewareResult {
-        // Authentication logic
-        MiddlewareResult::Continue
+    async fn process_request(&self, ctx: &mut Context) -> rustf::Result<InboundAction> {
+        // Authentication logic. Return InboundAction::Stop to short-circuit
+        // the chain (after setting a response on ctx), otherwise continue.
+        Ok(InboundAction::Continue)
     }
 }
 
 pub fn install(registry: &mut MiddlewareRegistry) {
-    registry.register("auth", AuthMiddleware::new());
+    registry.register_inbound("auth", AuthMiddleware);
 }
 ```
 
@@ -195,7 +196,7 @@ Template files organized by feature.
 ```
 views/
 ├── layouts/
-│   └── application.html     # Default layout
+│   └── default.html         # Default layout
 ├── home/
 │   ├── index.html           # Home page
 │   └── about.html           # About page
@@ -203,15 +204,15 @@ views/
     └── login.html           # Login form
 ```
 
-**Layout Example: `views/layouts/application.html`**
+**Layout Example: `views/layouts/default.html`**
 ```html
 <!DOCTYPE html>
 <html>
 <head>
-    <title>{{title}}</title>
+    <title>@{title}</title>
 </head>
 <body>
-    {{@body}}
+    @{body}
 </body>
 </html>
 ```
@@ -219,7 +220,7 @@ views/
 **View Example: `views/home/index.html`**
 ```html
 <h1>Welcome</h1>
-<p>Hello, {{name}}!</p>
+<p>Hello, @{name}!</p>
 ```
 
 ### `schemas/` - Database Schemas
@@ -279,18 +280,20 @@ directory = "views"
 cache_enabled = false
 ```
 
-#### `config.prod.toml` - Production Overrides
+#### `config.dev.toml` - Development Overrides
+
+The scaffold creates `config.dev.toml`, merged over `config.toml` in
+development. Create a `config.prod.toml` yourself for production — it works
+the same way, merged when running in the production environment.
 
 ```toml
+# config.prod.toml (you create this for production)
 [server]
 host = "0.0.0.0"
 port = 8080
 
 [views]
 cache_enabled = true
-
-[session]
-secure = true
 ```
 
 ## File Naming Conventions
@@ -371,7 +374,6 @@ Now that you understand the project structure:
 2. **[Models Guide](../guides/database.md)** - Work with databases
 3. **[Views Guide](../guides/views.md)** - Use templates
 4. **[Modules Guide](../advanced/modules.md)** - Share business logic
-
 
 
 

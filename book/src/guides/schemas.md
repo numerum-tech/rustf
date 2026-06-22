@@ -99,21 +99,25 @@ async fn main() -> rustf::Result<()> {
 
 ### 3. Use Your Definitions
 
-In views (for helpers):
+In views (for helpers), using Total.js syntax:
 ```html
-<!-- Price: {{ price | format_money }} -->
+<!-- Price: @{format_money(price)} -->
 <!-- Outputs: Price: $99.99 -->
 ```
 
 In controllers (for validators):
 ```rust
-async fn create_user(ctx: Context) -> Result<Response> {
-    let email = ctx.param("email")?;
+async fn create_user(ctx: &mut Context) -> rustf::Result<()> {
+    let email = ctx.param("email")
+        .ok_or_else(|| rustf::Error::internal("missing email param"))?
+        .to_string();
     
     // Get validators from global definitions
     let definitions = rustf::definitions::get().await;
     let defs = definitions.read().await;
-    let validator = defs.validators.get("email")?;
+    // `validators.get` returns Option<Arc<dyn Validator>>, not Result.
+    let validator = defs.validators.get("email")
+        .ok_or_else(|| rustf::Error::internal("email validator not registered"))?;
     validator.validate(&json!(email), None)?;
     
     // Proceed with user creation...
@@ -165,44 +169,32 @@ impl Helper for DateFormatHelper {
 #### Using Helpers in Views
 
 ```html
-<!-- TotalJS syntax -->
+<!-- Total.js syntax (the only supported template engine) -->
 @{date_format(user.created_at, "%B %d, %Y")}
 
-<!-- Tera syntax -->
-{{ user.created_at | date_format("%B %d, %Y") }}
-
 <!-- With default format -->
-{{ timestamp | date_format }}
+@{date_format(timestamp)}
 ```
 
 #### Built-in Helper Registry
 
-RustF provides a `HelperRegistry` with several built-in helpers:
+RustF provides a `HelperRegistry` that registers the following built-in helpers
+out of the box (registered internally with `register_fn` closures):
 
-```rust
-pub struct HelperRegistry {
-    helpers: HashMap<String, Box<dyn Helper>>,
-}
+- `format_currency`
+- `truncate`
+- `pluralize`
+- `time_ago`
+- `format_date`
+- `url_encode`
+- `url_decode`
+- `json`
+- `capitalize`
+- `slugify`
+- `default`
+- `file_size`
 
-impl HelperRegistry {
-    pub fn new() -> Self {
-        let mut registry = Self { helpers: HashMap::new() };
-        
-        // Register built-in helpers
-        registry.register("format_currency", FormatCurrencyHelper);
-        registry.register("truncate", TruncateHelper);
-        registry.register("pluralize", PluralizeHelper);
-        registry.register("time_ago", TimeAgoHelper);
-        registry.register("format_date", FormatDateHelper);
-        registry.register("url_encode", UrlEncodeHelper);
-        registry.register("url_decode", UrlDecodeHelper);
-        registry.register("json", JsonHelper);
-        registry.register("default", DefaultHelper);
-        
-        registry
-    }
-}
-```
+All of these are available in templates via `@{helper_name(...)}`.
 
 ### Validators
 
@@ -257,13 +249,17 @@ impl Validator for PasswordStrengthValidator {
 #### Using Validators
 
 ```rust
-async fn update_password(ctx: Context) -> Result<Response> {
-    let new_password = ctx.param("new_password")?;
+async fn update_password(ctx: &mut Context) -> rustf::Result<()> {
+    let new_password = ctx.param("new_password")
+        .ok_or_else(|| rustf::Error::internal("missing new_password param"))?
+        .to_string();
     
     // Get validator from global definitions
     let definitions = rustf::definitions::get().await;
     let defs = definitions.read().await;
-    let validator = defs.validators.get("password_strength")?;
+    // `validators.get` returns Option, not Result.
+    let validator = defs.validators.get("password_strength")
+        .ok_or_else(|| rustf::Error::internal("password_strength validator not registered"))?;
     
     // Validate with options
     let options = json!({
@@ -554,17 +550,19 @@ async fn main() -> rustf::Result<()> {
 #### In Controllers
 
 ```rust
-async fn my_controller(ctx: Context) -> Result<Response> {
+async fn my_controller(ctx: &mut Context) -> rustf::Result<()> {
     // Get definitions from global registry
     let definitions = rustf::definitions::get().await;
     let defs = definitions.read().await;
     
-    // Access helpers
-    let helper = defs.helpers.get("format_money")?;
+    // Access helpers (`get` returns Option<Arc<dyn Helper>>, not Result)
+    let helper = defs.helpers.get("format_money")
+        .ok_or_else(|| rustf::Error::internal("format_money helper not registered"))?;
     let formatted = helper.call(&[json!(99.99)], None)?;
     
-    // Access validators  
-    let validator = defs.validators.get("email")?;
+    // Access validators (`get` returns Option<Arc<dyn Validator>>, not Result)
+    let validator = defs.validators.get("email")
+        .ok_or_else(|| rustf::Error::internal("email validator not registered"))?;
     validator.validate(&json!("user@example.com"), None)?;
     
     ctx.json(json!({"formatted": formatted}))
@@ -582,8 +580,11 @@ pub struct ValidationMiddleware;
 
 impl InboundMiddleware for ValidationMiddleware {
     fn process_request(&self, ctx: &mut Context) -> Result<InboundAction> {
-        // Get email from request
-        let email = ctx.param("email")?;
+        // Get email from request (param returns Option<&str>)
+        let email = match ctx.param("email") {
+            Some(e) => e.to_string(),
+            None => return Ok(InboundAction::Continue),
+        };
         
         // Get validator from global definitions
         // Note: Using block_on since middleware is synchronous
@@ -591,8 +592,10 @@ impl InboundMiddleware for ValidationMiddleware {
             rustf::definitions::get()
         );
         let defs = futures::executor::block_on(definitions.read());
-        let validator = defs.validators.get("email")?;
-        validator.validate(&json!(email), None)?;
+        // `validators.get` returns Option, not Result.
+        if let Some(validator) = defs.validators.get("email") {
+            validator.validate(&json!(email), None)?;
+        }
         
         Ok(InboundAction::Continue)
     }
@@ -722,7 +725,7 @@ impl Helper for MyHelper {
     
     fn description(&self) -> &str {
         "Formats user data for display. \
-         Usage: {{ user | my_helper }} or {{ my_helper(user, 'option') }}"
+         Usage: @{my_helper(user)} or @{my_helper(user, 'option')}"
     }
 }
 ```
@@ -760,17 +763,15 @@ fn test_phone_formatting() {
 
 ### View System Integration
 
-Helpers are automatically available in both TotalJS and Tera templates:
+Helpers are automatically available in Total.js templates (the only supported
+template engine):
 
 ```rust
 // Registered in definitions
 defs.register_helper("user_avatar", UserAvatarHelper);
 
-// Available in TotalJS views
+// Available in Total.js views
 // @{user_avatar(user.email, 200)}
-
-// Available in Tera templates
-// {{ user.email | user_avatar(200) }}
 ```
 
 ### Validation System Integration
@@ -778,17 +779,22 @@ defs.register_helper("user_avatar", UserAvatarHelper);
 Validators work with RustF's error handling:
 
 ```rust
-async fn api_endpoint(ctx: Context) -> Result<Response> {
-    let data = ctx.json_body()?;
+async fn api_endpoint(ctx: &mut Context) -> rustf::Result<()> {
+    let data: serde_json::Value = ctx.body_json()?;
     
     // Get validators from global definitions
     let definitions = rustf::definitions::get().await;
     let defs = definitions.read().await;
     
-    // Validate multiple fields
-    defs.validators.get("email")?.validate(&data["email"], None)?;
-    defs.validators.get("password")?.validate(&data["password"], None)?;
-    defs.validators.get("age")?.validate(&data["age"], Some(&json!({"min": 18})))?;
+    // Validate multiple fields. `validators.get` returns Option, not Result,
+    // so resolve each validator with `ok_or_else` before calling validate.
+    let get = |name: &str| {
+        defs.validators.get(name)
+            .ok_or_else(|| rustf::Error::internal(format!("{name} validator not registered")))
+    };
+    get("email")?.validate(&data["email"], None)?;
+    get("password")?.validate(&data["password"], None)?;
+    get("age")?.validate(&data["age"], Some(&json!({"min": 18})))?;
     
     // All validations passed
     process_data(data).await?;
@@ -806,7 +812,7 @@ Custom session storage integrates seamlessly with RustF's session middleware:
 // src/definitions/session_storage.rs exists and has an install() function
 
 // In controllers, sessions work normally
-async fn login(ctx: Context) -> Result<Response> {
+async fn login(ctx: &mut Context) -> rustf::Result<()> {
     ctx.session_set("user_id", user.id)?;
     ctx.session_set("username", user.username)?;
     

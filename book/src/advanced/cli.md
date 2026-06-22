@@ -44,7 +44,7 @@ All commands support these global options:
 
 ## Command Reference
 
-The CLI provides 9 main commands, each with specific functionality:
+The CLI provides 10 main commands, each with specific functionality: `analyze`, `db`, `export`, `new`, `perf`, `query`, `schema`, `translations`, `serve`, and `validate`.
 
 ### 1. `analyze` - Project Component Analysis
 
@@ -227,23 +227,27 @@ rustf-cli new <SUBCOMMAND>
   # NAME is converted to kebab-case for WORKER::register
   ```
 
-- **`crud`** - Generate the HTTP + business layer around an EXISTING model
+- **`crud`** - Generate a full CRUD scaffold wired to the layering rule
   ```bash
   rustf-cli new crud -n <PLURAL_NAME>
   # Example: rustf-cli new crud -n posts
   ```
-  Emits 7 files all wired to the **layering rule**
+  Emits the full stack all wired to the **layering rule**
   (Base Model → Model → Module → Controller):
 
-  - `src/controllers/<name>.rs` — thin handlers (7 RESTful routes), calls only `crate::modules::<name>_service`
-  - `src/modules/<name>_service.rs` — the only place that touches the model; uses `Model::query()` etc.
-  - `views/<name>/{index,show,new,edit}.html`
-  - `tests/<name>_test.rs`
+  - `src/controllers/<name>.rs` — thin controller, calls only `crate::modules::<name>_service`
+  - `src/modules/<name>_service.rs` — the business-logic module, the only place that touches the model
+  - `views/<name>/{index,show,new,edit}.html` — four views
+  - `tests/<name>_test.rs` — an integration-test stub
 
-  **Precondition:** `src/models/<name>.rs` must already exist
-  (generate it first via `rustf-cli schema generate models` after
-  defining `schemas/<name>.yaml`). The CRUD command refuses to run
-  otherwise and prints clear guidance.
+  **Precondition:** `src/models/<name>.rs` must already exist. The command
+  scaffolds the HTTP + business layers around an **existing** model — it never
+  creates or edits the model itself, and fails with `Model not found` if it's
+  missing. Generate the model first:
+
+  1. Define `schemas/<name>.yaml`
+  2. Run `rustf-cli schema generate models`
+  3. Then run `rustf-cli new crud -n <name>`
 
   The `create` and `update` methods in the emitted service have
   `TODO` markers where you need to map form fields to the model's
@@ -312,9 +316,13 @@ rustf-cli schema <SUBCOMMAND>
 
 - **`generate`** - Generate code from schemas
   ```bash
-  rustf-cli schema generate <TARGET> [--schema-path <DIR>] [-o <DIR>] [--force]
-  # TARGET: models, migrations, postgres, mysql, sqlite
-  # ⚠️ --force creates backups in .rustf/backups/models/
+  # Generate Rust model structs (default output: src/models)
+  rustf-cli schema generate models [-s <SCHEMA_PATH>] [-o <OUTPUT>] [--force] [-t <TABLES>] [-e <EXCLUDE>]
+
+  # Generate the full SQL schema (DDL) for all tables (default output: sql)
+  rustf-cli schema generate sql [-s <SCHEMA_PATH>] [-o <OUTPUT>]
+  # Only two subcommands exist: `models` and `sql`
+  # ⚠️ models --force creates backups in .rustf/backups/models/
   ```
 
 - **`validate`** - Validate schema files
@@ -324,7 +332,8 @@ rustf-cli schema <SUBCOMMAND>
 
 - **`watch`** - Auto-regenerate on schema changes
   ```bash
-  rustf-cli schema watch [-s <SCHEMA_PATH>] [-o <OUTPUT>]
+  rustf-cli schema watch [-w <PATH>] [--auto-generate]
+  # -w/--path defaults to "schemas"; --auto-generate regenerates models on change
   ```
 
 ### 8. `serve` - MCP Server Management

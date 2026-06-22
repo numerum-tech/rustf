@@ -210,7 +210,8 @@ impl InboundMiddleware for AuthMiddleware {
 }
 
 pub fn install(registry: &mut MiddlewareRegistry) {
-    registry.register("auth", AuthMiddleware);
+    // Inbound-only middleware: register with register_inbound.
+    registry.register_inbound("auth", AuthMiddleware);
 }
 ```
 
@@ -263,11 +264,13 @@ async fn dashboard(ctx: &mut Context) -> Result<()> {
    let hashed = bcrypt::hash(password, bcrypt::DEFAULT_COST)?;
    ```
 
-2. **Session Security**: Use secure, HTTP-only cookies in production
+2. **Session Security**: Tune session cookie and timeout settings in production
    ```toml
    [session]
-   secure = true
-   http_only = true
+   cookie_name = "rustf_session"
+   same_site = "Strict"
+   idle_timeout = 1800      # seconds of inactivity before expiry
+   absolute_timeout = 28800 # max session lifetime in seconds
    ```
 
 3. **CSRF Protection**: Enable CSRF protection - See [Security Guide](../guides/security.md)

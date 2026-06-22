@@ -27,7 +27,6 @@ Configure appropriate pool size:
 
 ```toml
 [database]
-pool_size = 20
 max_connections = 50
 ```
 
@@ -47,10 +46,14 @@ for post in posts {
 }
 
 // Good: Single query with join
-let posts_with_authors = Posts::query()
-    .join("users", "posts.author_id", "users.id")
-    .select("posts.*, users.name as author_name")
-    .find()?;
+// Posts::query() returns Result, so use `?`. join() takes (table, on_expr).
+// select() takes a slice of columns (use select_raw for raw expressions).
+// Use .get().await? to fetch the list.
+let posts_with_authors = Posts::query()?
+    .join("users", "posts.author_id = users.id")
+    .select_raw(&["posts.*", "users.name as author_name"])
+    .get()
+    .await?;
 ```
 
 ## Session Storage
@@ -60,9 +63,9 @@ let posts_with_authors = Posts::query()
 For better performance and scalability:
 
 ```toml
-[session]
-storage = "redis"
-redis_url = "redis://localhost:6379"
+[session.storage]
+type = "redis"
+url = "redis://localhost:6379"
 ```
 
 Benefits:
@@ -128,34 +131,41 @@ Set appropriate cache headers:
 ctx.add_header("Cache-Control", "public, max-age=3600");
 ```
 
-## Request Pooling
+## Request Pooling (Intentionally Not Used)
 
-RustF includes request pooling for high-performance scenarios:
+RustF **does not** use object pooling for `Request` objects, and it is **not**
+a recommended optimization. Benchmarks (`rustf/benches/pool.rs`) show pooling is
+roughly **2x slower** than direct allocation here: the mutex-lock and reset
+overhead outweigh any reuse benefit, and Rust's allocator already handles small
+objects efficiently. Prefer direct allocation.
+
+A `RequestPool` type still exists (`rustf::pool::global_request_pool()`), but its
+`get()` is **synchronous** and returns a `PooledRequest` (no `.await`, no `?`):
 
 ```rust
 use rustf::pool::global_request_pool;
 
-// Get pooled request
-let pooled_req = global_request_pool().get().await?;
-
-// Use pooled request
-// ... process request ...
-
-// Return to pool (automatic)
+// Note: kept for benchmarking/documentation; not used on the hot path.
+let pooled_req = global_request_pool().get(); // sync, returns PooledRequest
 ```
 
 ## Async Operations
 
 ### Use Async for I/O
 
-Always use async for database and network operations:
+Always use async for database and network operations. Database access goes
+through the async query builder or the parameterized helpers — there is no
+`db.query("SELECT ...")` that takes a raw SQL string (`DB::query()` takes no
+arguments and returns a `QueryBuilder`):
 
 ```rust
-// Good: Async database query
-let users = db.query_async("SELECT * FROM users").await?;
+// Query builder (async)
+let users = Users::query()?.get().await?;
 
-// Bad: Blocking operation
-let users = db.query("SELECT * FROM users")?; // Blocks thread
+// Or run parameterized raw SQL via the async helpers
+use rustf::db::DB;
+let rows = DB::fetch_all_with_params("SELECT * FROM users WHERE active = $1", vec![true.into()]).await?;
+let affected = DB::execute_with_params("DELETE FROM sessions WHERE expired = $1", vec![true.into()]).await?;
 ```
 
 ## Memory Management
@@ -248,12 +258,15 @@ async fn optimized_handler(ctx: &mut Context) -> Result<()> {
     }
     
     // Optimized query with join
-    let posts = Posts::query()
-        .join("users", "posts.author_id", "users.id")
+    // Posts::query() returns Result (use `?`); join() takes (table, on_expr);
+    // use .get().await? to fetch the list (find(id) is for a single row by id).
+    let posts = Posts::query()?
+        .join("users", "posts.author_id = users.id")
         .where_eq("published", true)
         .order_by("created_at", OrderDirection::Desc)
         .limit(10)
-        .find()?;
+        .get()
+        .await?;
     
     // Cache result
     set_cached_data("recent_posts".to_string(), json!(posts));

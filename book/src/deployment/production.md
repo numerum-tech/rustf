@@ -187,8 +187,9 @@ ordered migration log. The supported flow is:
 ```bash
 # 1. Define / update YAML schemas/<table>.yaml from your design.
 
-# 2. Generate SQL migrations from the YAML diff.
-rustf-cli schema generate migrations
+# 2. Generate the full SQL DDL from the YAML (writes sql/schema.sql, a complete
+#    CREATE TABLE snapshot of the whole schema, not an incremental diff/ALTER).
+rustf-cli schema generate sql
 
 # 3. Apply the generated SQL with your tool of choice (psql, mysql, sqlite3,
 #    Flyway, Liquibase, etc.). RustF does not ship its own migration runner.

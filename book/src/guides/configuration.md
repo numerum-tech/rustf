@@ -123,18 +123,21 @@ app.on("startup", |ctx| Box::pin(async move {
 
 #### In Middleware
 ```rust
+use async_trait::async_trait;
+use rustf::middleware::{InboundAction, InboundMiddleware};
 use rustf::prelude::*;  // CONF is included in the prelude
 
 pub struct RateLimitMiddleware;
 
-impl Middleware for RateLimitMiddleware {
-    fn handle(&self, ctx: &mut Context, next: Next) -> MiddlewareResult {
+#[async_trait]
+impl InboundMiddleware for RateLimitMiddleware {
+    async fn process_request(&self, ctx: &mut Context) -> rustf::Result<InboundAction> {
         // Access rate limit configuration
         let max_requests = CONF::get_int("custom.rate_limit_max").unwrap_or(100);
         let window_seconds = CONF::get_int("custom.rate_limit_window").unwrap_or(60);
-        
-        // Apply rate limiting...
-        next.run(ctx)
+
+        // Apply rate limiting... return InboundAction::Stop to reject.
+        Ok(InboundAction::Continue)
     }
 }
 ```
@@ -475,19 +478,24 @@ The framework supports configuration via command-line arguments:
 use rustf::prelude::*;
 use rustf::config::AppConfig;
 
-fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> rustf::Result<()> {
     // Create configuration programmatically
     let mut config = AppConfig::default();
     config.server.port = 3000;
     config.server.host = "0.0.0.0".to_string();
     config.database.url = Some("postgresql://localhost/mydb".to_string());
-    config.custom.insert("api_key".to_string(), "secret".to_string());
-    
+
     // Use the configuration
     let app = RustF::with_config(config);
     app.start().await
 }
 ```
+
+> **Custom config sections** are loaded from TOML into `AppConfig::sections`
+> (`HashMap<String, toml::Value>`) and read back via `config.section::<T>("name")`,
+> which deserializes the named section into your own struct. There is no
+> `config.custom` field to insert into at runtime.
 
 ## Environment Detection
 
@@ -722,7 +730,8 @@ mod tests {
         
         // Test configuration values
         assert_eq!(CONF::get_int("server.port"), Some(8080));
-        assert_eq!(CONF::env(), Some("testing".to_string()));
+        // Environment is "development" or "production" (default: "development")
+        assert_eq!(CONF::env(), Some("development".to_string()));
         assert!(CONF::has("database.url"));
     }
 }
