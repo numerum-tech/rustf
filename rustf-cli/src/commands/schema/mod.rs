@@ -5,6 +5,7 @@
 pub mod postgres;
 pub mod mysql;
 pub mod sqlite;
+pub mod sql_gen;
 
 use crate::analyzer::OutputFormat;
 use clap::{Args, Subcommand};

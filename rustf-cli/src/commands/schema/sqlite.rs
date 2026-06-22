@@ -463,7 +463,7 @@ async fn generate_migrations(schema_path: &Path, output_path: &Path) -> anyhow::
     let timestamp = chrono::Utc::now().format("%Y%m%d_%H%M%S");
     let migration_file = output_path.join(format!("{}_initial_schema.sql", timestamp));
 
-    let sql_code = generate_sql_schema(&schema)?;
+    let sql_code = super::sql_gen::generate_sql_schema(&schema, super::sql_gen::Dialect::Sqlite)?;
     fs::write(&migration_file, sql_code).await?;
 
     println!("✅ Generated {}", migration_file.display());
@@ -624,140 +624,6 @@ async fn extract_generated_checksums(
 // removed unused function generate_manual_model_code
 /// Generate Rust model code for a table (legacy function for compatibility)
 // removed unused function generate_model_code
-
-/// Generate SQL schema
-fn generate_sql_schema(schema: &Schema) -> anyhow::Result<String> {
-    let mut sql = String::new();
-
-    sql.push_str("-- Generated SQL schema\n");
-    if let Some(meta) = &schema.meta {
-        sql.push_str(&format!(
-            "-- Database: {} v{}\n",
-            meta.database_name, meta.version
-        ));
-        if let Some(desc) = &meta.description {
-            sql.push_str(&format!("-- {}\n", desc));
-        }
-    }
-    sql.push_str("-- DO NOT EDIT - Auto-generated from schema\n\n");
-
-    // Create tables in dependency order (simplified)
-    for (_table_name, table) in &schema.tables {
-        sql.push_str(&format!("-- Table: {}\n", table.table));
-        if let Some(desc) = &table.description {
-            sql.push_str(&format!("-- {}\n", desc));
-        }
-
-        sql.push_str(&format!("CREATE TABLE {} (\n", table.table));
-
-        let mut field_definitions = Vec::new();
-
-        for (field_name, field) in &table.fields {
-            let sql_type = field_type_to_sql(&field.field_type);
-            let mut definition = format!("    {} {}", field_name, sql_type);
-
-            if field.constraints.required == Some(true) || field.constraints.nullable != Some(true)
-            {
-                definition.push_str(" NOT NULL");
-            }
-
-            if field.constraints.primary_key == Some(true) {
-                definition.push_str(" PRIMARY KEY");
-            }
-
-            if field.constraints.unique == Some(true) && field.constraints.primary_key != Some(true)
-            {
-                definition.push_str(" UNIQUE");
-            }
-
-            if let Some(default) = &field.constraints.default {
-                match default {
-                    serde_json::Value::String(s) => {
-                        definition.push_str(&format!(" DEFAULT '{}'", s))
-                    }
-                    serde_json::Value::Number(n) => definition.push_str(&format!(" DEFAULT {}", n)),
-                    serde_json::Value::Bool(b) => definition.push_str(&format!(" DEFAULT {}", b)),
-                    _ => {}
-                }
-            }
-
-            field_definitions.push(definition);
-        }
-
-        sql.push_str(&field_definitions.join(",\n"));
-        sql.push_str("\n);\n\n");
-    }
-
-    Ok(sql)
-}
-
-/// Convert field type to Rust type
-// removed unused function field_type_to_rust
-/// Convert field type to SQL type
-fn field_type_to_sql(field_type: &rustf_schema::types::FieldType) -> String {
-    match field_type {
-        rustf_schema::types::FieldType::Simple(t) => {
-            match t.as_str() {
-                "int" | "integer" => "INTEGER".to_string(),
-                "bigint" => "BIGINT".to_string(),
-                "serial" => "SERIAL".to_string(),
-                "string" | "text" => "TEXT".to_string(),
-                "decimal" => "DECIMAL".to_string(),
-                "float" => "REAL".to_string(),
-                "double" => "DOUBLE PRECISION".to_string(),
-                "boolean" | "bool" => "BOOLEAN".to_string(),
-                "timestamp" | "datetime" => "TIMESTAMP".to_string(),
-                "date" => "DATE".to_string(),
-                "time" => "TIME".to_string(),
-                "json" => "JSON".to_string(),
-                "jsonb" => "JSONB".to_string(),
-                "uuid" => "UUID".to_string(),
-                "blob" => "BYTEA".to_string(),
-                "enum" => "TEXT".to_string(), // Will add CHECK constraint
-                _ => "TEXT".to_string(),
-            }
-        }
-        rustf_schema::types::FieldType::Parameterized { base_type, params } => {
-            match base_type.as_str() {
-                "string" | "varchar" => {
-                    if let Some(rustf_schema::types::TypeParam::Number(len)) = params.first() {
-                        format!("VARCHAR({})", len)
-                    } else {
-                        "VARCHAR".to_string()
-                    }
-                }
-                "decimal" => {
-                    if params.len() >= 2 {
-                        if let (
-                            Some(rustf_schema::types::TypeParam::Number(p)),
-                            Some(rustf_schema::types::TypeParam::Number(s)),
-                        ) = (params.get(0), params.get(1))
-                        {
-                            format!("DECIMAL({},{})", p, s)
-                        } else {
-                            "DECIMAL".to_string()
-                        }
-                    } else {
-                        "DECIMAL".to_string()
-                    }
-                }
-                _ => "TEXT".to_string(),
-            }
-        }
-        rustf_schema::types::FieldType::Enum { values, .. } => {
-            format!(
-                "TEXT CHECK ({} IN ({}))",
-                "column_name", // This would need the actual column name
-                values
-                    .iter()
-                    .map(|v| format!("'{}'", v))
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            )
-        }
-        rustf_schema::types::FieldType::Json { .. } => "JSON".to_string(),
-    }
-}
 
 /// Print schema in table format
 fn print_schema_table(schema: &Schema) {
