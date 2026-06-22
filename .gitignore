@@ -27,6 +27,7 @@ rustf-schema/Cargo.lock
 
 # IDE and editor files
 .vscode/
+.wolf/
 .idea/
 *.iml
 *.swp
@@ -89,3 +90,4 @@ rust-project.json
 
 # System files
 *.tmp
+*_controllers.rs

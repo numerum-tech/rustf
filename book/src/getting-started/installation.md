@@ -27,7 +27,7 @@ cargo install rustf-cli
 
 ```bash
 git clone https://github.com/numerum-tech/rustf.git
-cargo install --path rustf/rustf-cli
+cargo install --path rustf/rustf-cli   # repo root is the clone dir 'rustf', crate is 'rustf-cli'
 ```
 
 > Until `rustf-cli` is published to crates.io, use the **from source** method.
