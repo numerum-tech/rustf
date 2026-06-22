@@ -69,18 +69,18 @@ if CONF::is_development() {
 ```rust
 use rustf::prelude::*;  // CONF is included in the prelude
 
-async fn handler(ctx: Context) -> Result<Response> {
+async fn handler(ctx: &mut Context) -> rustf::Result<()> {
     // Configuration is accessed via CONF, not through ctx
     let upload_dir = CONF::get_string("uploads.directory").unwrap_or_else(|| "uploads".to_string());
     let max_size = CONF::get_int("uploads.max_file_size").unwrap_or(10485760);
-    
+
     // Use configuration values
     if file.size > max_size as usize {
         return ctx.throw400(Some("File too large"));
     }
-    
+
     // Save file to upload_dir...
-    Ok(Response::ok())
+    ctx.json(json!({ "status": "ok" }))
 }
 ```
 
@@ -734,7 +734,7 @@ If you're migrating from an older version of RustF that had `ctx.config()`:
 
 ### Before (Old Way)
 ```rust
-async fn handler(ctx: Context) -> Result<Response> {
+async fn handler(ctx: &mut Context) -> rustf::Result<()> {
     let upload_dir = ctx.config().uploads.directory.clone();
     let max_size = ctx.config().uploads.max_file_size;
     // ...
@@ -745,7 +745,7 @@ async fn handler(ctx: Context) -> Result<Response> {
 ```rust
 use rustf::prelude::*;  // CONF is included in the prelude
 
-async fn handler(ctx: Context) -> Result<Response> {
+async fn handler(ctx: &mut Context) -> rustf::Result<()> {
     let upload_dir = CONF::get_string("uploads.directory").unwrap_or_else(|| "uploads".to_string());
     let max_size = CONF::get_int("uploads.max_file_size").unwrap_or(10485760);
     // ...

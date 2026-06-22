@@ -69,7 +69,7 @@ pub trait OutboundMiddleware: Send + Sync + 'static {
 }
 ```
 
-**Important Change:** The outbound middleware now receives `&mut Context` instead of separate context and response parameters. The response is accessed and modified through `ctx.response` field.
+**Important Change:** The outbound middleware now receives `&mut Context` instead of separate context and response parameters. The response is accessed and modified through `ctx.res` field.
 
 ### DualPhaseMiddleware Trait
 
@@ -144,8 +144,8 @@ pub struct CompressionMiddleware;
 #[async_trait]
 impl OutboundMiddleware for CompressionMiddleware {
     async fn process_response(&self, ctx: &mut Context) -> Result<()> {
-        // Access the response through ctx.response
-        if let Some(response) = ctx.response.as_mut() {
+        // Access the response through ctx.res
+        if let Some(response) = ctx.res.as_mut() {
             // Add compression headers
             response.headers.push((
                 "Content-Encoding".to_string(),
@@ -187,8 +187,8 @@ impl OutboundMiddleware for TimingMiddleware {
         if let Some(start) = ctx.get::<Instant>("request_start") {
             let duration = start.elapsed();
             
-            // Access response through ctx.response
-            if let Some(response) = ctx.response.as_mut() {
+            // Access response through ctx.res
+            if let Some(response) = ctx.res.as_mut() {
                 response.headers.push((
                     "X-Response-Time".to_string(),
                     format!("{}ms", duration.as_millis())
@@ -439,7 +439,7 @@ With the new architecture, outbound middleware accesses the response through the
 impl OutboundMiddleware for MyMiddleware {
     fn process_response(&self, ctx: &mut Context) -> Result<()> {
         // The response might be None if an error occurred
-        if let Some(response) = ctx.response.as_mut() {
+        if let Some(response) = ctx.res.as_mut() {
             // Modify response headers
             response.headers.push(("X-Custom".to_string(), "value".to_string()));
             
@@ -520,7 +520,7 @@ impl OutboundMiddleware for MetricsMiddleware {
             let duration = start.elapsed();
             
             // Get status from response
-            let status = ctx.response.as_ref()
+            let status = ctx.res.as_ref()
                 .map(|r| r.status.as_u16())
                 .unwrap_or(500);
             
@@ -578,7 +578,7 @@ mod tests {
         let action = middleware.process_request(&mut ctx).await.unwrap();
         assert!(matches!(action, InboundAction::Stop));
         // Check that response was set on context
-        assert!(ctx.response.is_some());
+        assert!(ctx.res.is_some());
         
         // Test with auth
         ctx.session_set("user", User { role: "admin".into() });
@@ -599,7 +599,7 @@ mod tests {
         middleware.process_response(&mut ctx).await.unwrap();
         
         // Verify headers were added
-        if let Some(response) = &ctx.response {
+        if let Some(response) = &ctx.res {
             let has_encoding = response.headers.iter()
                 .any(|(k, _)| k == "Content-Encoding");
             assert!(has_encoding);
