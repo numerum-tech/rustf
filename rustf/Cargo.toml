@@ -7,6 +7,9 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/numerum-tech/rustf"
 keywords = ["web", "framework", "mvc", "totaljs"]
 categories = ["web-programming::http-server"]
+readme = "README.md"
+documentation = "https://docs.rs/rustf"
+homepage = "https://numerum-tech.github.io/rustf/"
 
 [dependencies]
 tokio = { version = "1.0", features = ["full"] }

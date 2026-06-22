@@ -7,6 +7,8 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/numerum-tech/rustf"
 keywords = ["rustf", "macros", "proc-macro", "auto-discovery", "mvc"]
 categories = ["web-programming", "development-tools::procedural-macro-helpers"]
+readme = "README.md"
+documentation = "https://docs.rs/rustf-macros"
 
 [lib]
 proc-macro = true
