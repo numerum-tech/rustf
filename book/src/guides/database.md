@@ -10,6 +10,41 @@ RustF provides a modern, ergonomic database layer with:
 - **Schema-driven development** - YAML schemas generate type-safe models
 - **Smart change tracking** - Only update modified fields
 
+## Schema-Driven Workflow
+
+In RustF the **YAML schema is the single source of truth** for your data
+model. One declarative schema drives both sides of the database:
+
+```text
+                       ┌─ schema generate models ──► src/models/base/*.inc.rs
+schemas/*.yaml ────────┤
+   (source of truth)   └─ schema generate migrations ─► migrations/*.sql ──► DB
+```
+
+You version the schema in git, review changes in pull requests, and
+regenerate models and SQL from it. The database is never the master copy —
+it's a target the schema produces, so new environments are reproducible and
+two developers can't silently diverge.
+
+### Adopting an existing database (one-time bootstrap)
+
+If you're adding RustF to a project that already has a database, generate the
+initial schema **from** the live database, then switch to the schema-first
+loop above:
+
+```bash
+# Reverse-engineer YAML schemas from an existing database (one time)
+rustf-cli db generate-schema --database-url <url> --output schemas
+```
+
+This introspects every table (PostgreSQL, MySQL/MariaDB, or SQLite) and writes
+`schemas/*.yaml`. After this bootstrap, the schema becomes the source of truth:
+edit the YAML, regenerate models and migrations — don't hand-edit the database.
+
+> **Direction summary:** `database → schema` is a one-time bootstrap for
+> existing databases. `schema → models` and `schema → migrations` are the
+> steady-state loop you run from then on.
+
 ## Quick Start
 
 ### Basic Usage
@@ -153,6 +188,28 @@ rustf-cli schema generate models --force
 This creates:
 - `src/models/base/users.inc.rs` - Generated base model
 - `src/models/users.rs` - Wrapper for your business logic (if doesn't exist)
+
+### Generating Migrations
+
+The same schema also generates the SQL to create your tables:
+
+```bash
+# Generate a timestamped SQL migration from your schemas
+rustf-cli schema generate migrations --output migrations
+```
+
+The target dialect is detected from the schema metadata, and the generated
+DDL is dialect-correct:
+
+| Concern | PostgreSQL | MySQL | SQLite |
+|---------|-----------|-------|--------|
+| Auto-increment PK | `SERIAL` | `AUTO_INCREMENT` | `INTEGER PRIMARY KEY AUTOINCREMENT` |
+| Enum field | `TEXT CHECK (col IN (…))` | native `ENUM(…)` | `TEXT CHECK (col IN (…))` |
+| JSON field | `JSONB` | `JSON` | `TEXT` |
+| Foreign keys | `ALTER TABLE … ADD FOREIGN KEY` | same | declared inline (no `ALTER ADD`) |
+
+Foreign keys are emitted as trailing statements so table creation order never
+matters.
 
 ## CRUD Operations
 
