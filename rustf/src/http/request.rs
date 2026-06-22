@@ -1,7 +1,6 @@
 use crate::error::{Error, Result};
 use crate::http::files::{FileCollection, MultipartParser};
 use http_body_util::BodyExt;
-use hyper::body::Incoming;
 use hyper::Request as HyperRequest;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -172,7 +171,14 @@ impl Request {
         self.body_bytes = body;
     }
 
-    pub async fn from_hyper(req: HyperRequest<Incoming>) -> Result<Self> {
+    /// Build a `Request` from any hyper body. Production passes
+    /// `hyper::body::Incoming` (network); tests/benches pass an in-memory body
+    /// like `http_body_util::Full<Bytes>` — both collect the same way.
+    pub async fn from_hyper<B>(req: HyperRequest<B>) -> Result<Self>
+    where
+        B: hyper::body::Body,
+        B::Error: std::fmt::Display,
+    {
         let method = req.method().to_string();
         let uri = req.uri().to_string();
 
@@ -187,8 +193,16 @@ impl Request {
         // Extract query parameters
         let query = Self::parse_query(req.uri().query().unwrap_or(""));
 
-        // Read body (hyper 1.x: collect the Incoming body into bytes)
-        let body_bytes = req.into_body().collect().await?.to_bytes().to_vec();
+        // Read body (hyper 1.x: collect the body into bytes). Generic over the
+        // body type, so map its error into our own rather than relying on the
+        // `From<hyper::Error>` impl (which only covers `Incoming`).
+        let body_bytes = req
+            .into_body()
+            .collect()
+            .await
+            .map_err(|e| Error::Internal(format!("failed to read request body: {e}")))?
+            .to_bytes()
+            .to_vec();
 
         Ok(Request {
             method,
