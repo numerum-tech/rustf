@@ -1394,12 +1394,14 @@ impl Renderer {
                     self.context.resolve_variable(name)
                 };
 
-                // Don't escape certain system variables that contain safe paths/URLs
+                // Escape by default. Only `root` is exempt: it comes from
+                // config (`views.default_root`) and is trusted. `url` and
+                // `hostname` are NOT exempt — they are derived from the request
+                // path and the `Host` header, both attacker-controlled, so
+                // emitting them unescaped is a reflected-XSS vector. Use the
+                // explicit raw form `@{!url}` only when the value is trusted.
                 let should_escape = if !raw {
-                    match name.as_str() {
-                        "root" | "url" | "hostname" => false,
-                        _ => true,
-                    }
+                    !matches!(name.as_str(), "root")
                 } else {
                     false
                 };
@@ -2509,13 +2511,24 @@ mod tests {
             helpers: HashMap::new(),
         };
 
+        // `url` and `hostname` are request-derived (request path + `Host`
+        // header) and therefore attacker-controlled. They MUST be HTML-escaped
+        // — emitting them raw is a reflected-XSS vector.
         let context = RenderContext::new(json!({}))
             .with_url("/test".to_string())
-            .with_hostname("example.com".to_string());
+            .with_hostname("evil\"><script>alert(1)</script>".to_string());
         let mut renderer = Renderer::new(context);
         let result = renderer.render(&template).unwrap();
 
-        assert_eq!(result, "/test example.com");
+        // The script payload from the Host header must not survive unescaped.
+        assert!(
+            !result.contains("<script>"),
+            "hostname must be HTML-escaped, got: {result}"
+        );
+        assert!(
+            result.contains("&lt;script&gt;"),
+            "expected escaped hostname, got: {result}"
+        );
     }
 
     #[test]

@@ -9,7 +9,11 @@ pub enum Node {
     /// Variable interpolation @{variable} or @{expression}
     Variable {
         name: String,
-        raw: bool, // true for @{!variable}
+        /// `true` for the raw form `@{!variable}`, which emits the value
+        /// WITHOUT HTML-escaping. SECURITY: only use raw output for values you
+        /// fully trust — never wrap user/request-derived data in `@{!...}`, or
+        /// you create an XSS hole. The default `@{variable}` form escapes.
+        raw: bool,
         expression: Option<Expression>, // Some(expr) when name contains an expression like ternary
     },
 
