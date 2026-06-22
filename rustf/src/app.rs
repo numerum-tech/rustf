@@ -1094,8 +1094,11 @@ impl RustF {
 
     /// Execute the route handler (final step in the chain)
     async fn execute_route_handler(&self, ctx: &mut Context) -> Result<MiddlewareResult> {
-        // Try to match route
-        if let Some((route_info, params)) = self.router.match_route(&ctx.req.method, &ctx.req.uri) {
+        // Try to match route. Use `path()` (not the raw `uri`) so HTTP/2 — where
+        // the URI is the absolute `http://host/path` form — routes like HTTP/1.
+        if let Some((route_info, params)) =
+            self.router.match_route(&ctx.req.method, ctx.req.path())
+        {
             // Check XHR constraint if the route requires it
             if route_info.xhr_only && !ctx.is_xhr() {
                 return Ok(MiddlewareResult::Stop(

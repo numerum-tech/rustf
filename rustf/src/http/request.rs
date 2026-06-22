@@ -977,6 +977,22 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_path_normalizes_origin_and_absolute_forms() {
+        // HTTP/1 origin-form
+        let h1 = Request::new("GET", "/api/status?x=1", "HTTP/1.1");
+        assert_eq!(h1.path(), "/api/status");
+
+        // HTTP/2 absolute-form (scheme + authority) — must yield the same path
+        // so the router matches identically over h2 (regression: was 404 over h2).
+        let h2 = Request::new("GET", "http://127.0.0.1:8000/api/status?x=1", "HTTP/2");
+        assert_eq!(h2.path(), "/api/status");
+
+        // absolute-form, no query, root path
+        let root = Request::new("GET", "http://example.com/", "HTTP/2");
+        assert_eq!(root.path(), "/");
+    }
+
+    #[test]
     fn test_secure_url_decoding() {
         use super::urlencoding::decode;
 
