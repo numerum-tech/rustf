@@ -91,3 +91,6 @@ rust-project.json
 # System files
 *.tmp
 *_controllers.rs
+
+# mdBook generated output (Pages rebuilds via CI)
+book/book/
