@@ -12,7 +12,7 @@ use crate::views::minifier::minify_html;
 use crate::views::ViewEngineImpl;
 use serde_json::Value;
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use std::sync::{Arc, RwLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -124,6 +124,46 @@ pub struct TotalJsEngine {
     resource_translator: Arc<RwLock<Option<ResourceTranslationSystem>>>,
     /// Whether to minify rendered HTML output
     minify: bool,
+}
+
+/// Append `.html` to a template name if it isn't already present.
+fn ensure_html_extension(name: &str) -> String {
+    if name.ends_with(".html") {
+        name.to_string()
+    } else {
+        format!("{}.html", name)
+    }
+}
+
+/// Reject a relative template/partial path that would escape the views base
+/// directory. Purely lexical (no filesystem access) so it works for
+/// not-yet-created files and can't be defeated by a missing-file race. Blocks
+/// `..` traversal and absolute paths; view names are otherwise developer-
+/// supplied, but this contains the damage if one is ever built from input.
+fn reject_traversal(relative: &str) -> Result<()> {
+    let mut depth: i32 = 0;
+    for comp in Path::new(relative).components() {
+        match comp {
+            Component::Normal(_) => depth += 1,
+            Component::CurDir => {}
+            Component::ParentDir => {
+                depth -= 1;
+                if depth < 0 {
+                    return Err(Error::template(format!(
+                        "template name '{}' escapes the views directory",
+                        relative
+                    )));
+                }
+            }
+            Component::RootDir | Component::Prefix(_) => {
+                return Err(Error::template(format!(
+                    "template name '{}' must be a relative path",
+                    relative
+                )));
+            }
+        }
+    }
+    Ok(())
 }
 
 impl TotalJsEngine {
@@ -279,45 +319,25 @@ impl TotalJsEngine {
     }
 
     /// Get the path to a template file
-    fn template_path(&self, template: &str) -> PathBuf {
-        let mut path = self.base_dir.clone();
-
-        // Simply remove leading slash if present for consistency
-        // Both '/someview' and 'someview' should work the same way
+    fn template_path(&self, template: &str) -> Result<PathBuf> {
+        // Both '/someview' and 'someview' should work the same way.
         let template_clean = template.strip_prefix('/').unwrap_or(template);
-
-        // Add .html extension if not present
-        if template_clean.ends_with(".html") {
-            path.push(template_clean);
-        } else {
-            path.push(format!("{}.html", template_clean));
-        }
-
-        path
+        let relative = ensure_html_extension(template_clean);
+        reject_traversal(&relative)?;
+        Ok(self.base_dir.join(&relative))
     }
 
     /// Get the path to a layout file
-    fn layout_path(&self, layout: &str) -> PathBuf {
-        let mut path = self.base_dir.clone();
-
-        // If layout contains a path separator, use it as-is
-        if layout.contains('/') {
-            if layout.ends_with(".html") {
-                path.push(layout);
-            } else {
-                path.push(format!("{}.html", layout));
-            }
+    fn layout_path(&self, layout: &str) -> Result<PathBuf> {
+        let relative = if layout.contains('/') {
+            // Path given explicitly — use as-is (under base_dir).
+            ensure_html_extension(layout)
         } else {
-            // For simple names, look in layouts/ subdirectory first
-            path.push("layouts");
-            if layout.ends_with(".html") {
-                path.push(layout);
-            } else {
-                path.push(format!("{}.html", layout));
-            }
-        }
-
-        path
+            // Simple name — look in the layouts/ subdirectory.
+            format!("layouts/{}", ensure_html_extension(layout))
+        };
+        reject_traversal(&relative)?;
+        Ok(self.base_dir.join(&relative))
     }
 
     /// Load and compile a template, returning a shared Arc (zero-copy on cache hit).
@@ -424,7 +444,7 @@ impl TotalJsEngine {
         session_data: Option<&Value>,
         request: Option<&crate::views::RequestMeta>,
     ) -> Result<String> {
-        let template_path = self.template_path(template);
+        let template_path = self.template_path(template)?;
         let template_ast = self.load_template(&template_path)?;
 
         // Create render context with session data
@@ -442,14 +462,10 @@ impl TotalJsEngine {
         let base_dir = self.base_dir.clone();
         let cache = self.cache.clone();
         let loader: TemplateLoader = Box::new(move |name: &str| {
-            let mut path = base_dir.clone();
             let clean_name = name.strip_prefix('/').unwrap_or(name);
-
-            if clean_name.ends_with(".html") {
-                path.push(clean_name);
-            } else {
-                path.push(format!("{}.html", clean_name));
-            }
+            let relative = ensure_html_extension(clean_name);
+            reject_traversal(&relative)?;
+            let path = base_dir.join(&relative);
 
             let content = std::fs::read_to_string(&path).map_err(|e| {
                 crate::error::Error::template(format!("Failed to load partial '{}': {}", name, e))
@@ -494,7 +510,7 @@ impl TotalJsEngine {
 
         // Apply layout if specified
         if let Some(layout_name) = layout {
-            let layout_path = self.layout_path(layout_name);
+            let layout_path = self.layout_path(layout_name)?;
             let layout_ast = self.load_template(&layout_path)?;
 
             // Create new context with content
@@ -533,14 +549,10 @@ impl TotalJsEngine {
             let base_dir = self.base_dir.clone();
             let cache = self.cache.clone();
             let loader: TemplateLoader = Box::new(move |name: &str| {
-                let mut path = base_dir.clone();
                 let clean_name = name.strip_prefix('/').unwrap_or(name);
-
-                if clean_name.ends_with(".html") {
-                    path.push(clean_name);
-                } else {
-                    path.push(format!("{}.html", clean_name));
-                }
+                let relative = ensure_html_extension(clean_name);
+                reject_traversal(&relative)?;
+                let path = base_dir.join(&relative);
 
                 let content = std::fs::read_to_string(&path).map_err(|e| {
                     Error::template(format!("Failed to load partial '{}': {}", name, e))
@@ -1036,6 +1048,22 @@ Page: @{M.page_title}"#;
         assert!(result.contains("App: GlobalApp v1.0.0"));
         assert!(result.contains("User: admin"));
         assert!(result.contains("Page: Dashboard"));
+    }
+
+    #[test]
+    fn rejects_path_traversal_in_view_and_layout_names() {
+        let (engine, _temp) = create_test_engine();
+
+        // `..` that escapes the views directory must be rejected, never read.
+        assert!(engine.template_path("../secret").is_err());
+        assert!(engine.template_path("../../etc/passwd").is_err());
+        assert!(engine.layout_path("../../etc/passwd").is_err());
+        // Rendering a traversal name fails rather than reading outside the dir.
+        assert!(engine.render("../../../../etc/passwd", &json!({}), None).is_err());
+
+        // Normal relative names still resolve.
+        assert!(engine.template_path("home/index").is_ok());
+        assert!(engine.layout_path("default").is_ok());
     }
 
     #[test]
