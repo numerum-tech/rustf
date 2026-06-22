@@ -190,6 +190,11 @@ This creates:
 
 ### Generating SQL (DDL)
 
+> **Experimental.** `schema generate sql` is verified on representative schemas
+> across all three dialects, but has not yet been exercised at scale. Review the
+> generated DDL before applying it to a database, and please report any
+> mismatch.
+
 The same schema also generates the SQL to create your tables:
 
 ```bash
