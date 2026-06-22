@@ -120,59 +120,58 @@ Models are generated from YAML schemas using the RustF CLI. Each model consists 
 
 ### Creating a Schema
 
-Create a YAML schema in `schemas/users.yaml`:
+Create a YAML schema in `schemas/users.yaml`. Fields are a **map** (keyed by
+column name), not a list. See the [Schema Format Reference](schema-format.md)
+for the full specification.
 
 ```yaml
-table: users
-description: User accounts for the application
-fields:
-  - name: id
-    type: integer
-    primary_key: true
-    auto_increment: true
-    
-  - name: email
-    type: string
-    max_length: 255
-    nullable: false
-    unique: true
-    description: User's email address
-    
-  - name: username
-    type: string
-    max_length: 100
-    nullable: false
-    
-  - name: is_active
-    type: boolean
-    default: true
-    
-  - name: created_at
-    type: datetime
-    nullable: true
-    
-  - name: status
-    type: enum
-    values: ["active", "inactive", "pending"]
-    default: "pending"
-    description: Account status
-    
-  - name: role
-    type: enum  
-    values: ["admin", "user", "moderator"]
-    nullable: false
-    default: "user"
-    description: User role in the system
-    
-  - name: updated_at
-    type: datetime
-    nullable: true
+Users:
+  table: users
+  version: 1
+  description: User accounts for the application
+  fields:
+    id:
+      type: integer
+      primary_key: true
+      auto: true
+      required: true
 
-indexes:
-  - columns: [email]
-    unique: true
-  - columns: [username]
-    unique: true
+    email:
+      type: string(255)
+      required: true
+      unique: true
+      description: User's email address
+
+    username:
+      type: string(100)
+      required: true
+
+    is_active:
+      type: boolean
+      default: true
+
+    status:
+      type: enum
+      values: ["active", "inactive", "pending"]
+      default: "pending"
+      description: Account status
+
+    role:
+      type: enum
+      values: ["admin", "user", "moderator"]
+      required: true
+      default: "user"
+      description: User role in the system
+
+    created_at:
+      type: datetime
+
+    updated_at:
+      type: datetime
+
+  indexes:
+    - email
+    - username
 ```
 
 ### Generating Models
