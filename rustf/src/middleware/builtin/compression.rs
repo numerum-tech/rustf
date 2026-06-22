@@ -140,6 +140,12 @@ impl OutboundMiddleware for CompressionMiddleware {
             response.body = compressed;
 
             // Update headers
+            // Strong ETags are representation-specific; once we rewrite the
+            // body to gzip bytes, any pre-existing ETag for the identity
+            // representation is no longer valid.
+            response
+                .headers
+                .retain(|(k, _)| !k.eq_ignore_ascii_case("etag"));
             response
                 .headers
                 .push(("Content-Encoding".to_string(), "gzip".to_string()));

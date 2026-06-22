@@ -293,7 +293,7 @@ impl RustF {
             .register_dual("csp", CspMiddleware::permissive());
 
         log::info!("Default security middleware enabled (security headers, input validation, CSP in report-only mode)");
-        log::info!("For rate limiting, explicitly add: .middleware_from(|r| r.register_inbound(\"rate_limit\", RateLimitMiddleware::default()))");
+        log::info!("For rate limiting, explicitly add: .middleware_from(|r| r.register_dual(\"rate_limit\", RateLimitMiddleware::default()))");
 
         self
     }
@@ -750,7 +750,7 @@ impl RustF {
                     }
                     "rate_limit" => {
                         let rate_limit = RateLimitMiddleware::from_config();
-                        registry.register_inbound("rate_limit", rate_limit);
+                        registry.register_dual("rate_limit", rate_limit);
                     }
                     "csrf" => {
                         let csrf = CsrfMiddleware::from_config();

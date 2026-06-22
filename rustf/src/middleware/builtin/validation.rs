@@ -1,7 +1,13 @@
 //! Security validation middleware for RustF
 //!
-//! This middleware provides security-focused validation to detect and block
-//! common attack patterns like SQL injection, XSS, and path traversal.
+//! This middleware provides heuristic request screening for obviously suspicious
+//! input patterns such as path traversal and some common XSS/SQLi payload
+//! shapes.
+//!
+//! It is not a substitute for primary defenses like parameterized queries,
+//! output encoding, CSRF protection, and authorization checks. Regex matching
+//! is bypassable and can produce false positives, so this middleware should be
+//! treated as an optional early filter, not a full WAF.
 
 use crate::context::Context;
 use crate::error::Result;
@@ -11,7 +17,7 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 use serde_json::json;
 
-/// Common SQL injection patterns
+/// Heuristic SQL injection indicators.
 static SQL_INJECTION_PATTERNS: Lazy<Vec<Regex>> = Lazy::new(|| {
     vec![
         Regex::new(r"(?i)(\bunion\b.*\bselect\b|\bselect\b.*\bfrom\b|\binsert\b.*\binto\b)")
@@ -27,7 +33,7 @@ static SQL_INJECTION_PATTERNS: Lazy<Vec<Regex>> = Lazy::new(|| {
     ]
 });
 
-/// XSS attack patterns
+/// Heuristic XSS indicators.
 static XSS_PATTERNS: Lazy<Vec<Regex>> = Lazy::new(|| {
     vec![
         Regex::new(r"(?i)<script[^>]*>.*?</script>")
@@ -57,11 +63,11 @@ static PATH_TRAVERSAL_PATTERNS: Lazy<Vec<Regex>> = Lazy::new(|| {
 /// Validation middleware configuration
 #[derive(Clone)]
 pub struct ValidationConfig {
-    /// Check for SQL injection patterns
+    /// Check heuristic SQL injection indicators.
     pub check_sql_injection: bool,
-    /// Check for XSS patterns
+    /// Check heuristic XSS indicators.
     pub check_xss: bool,
-    /// Check for path traversal
+    /// Check for path traversal indicators.
     pub check_path_traversal: bool,
     /// Maximum allowed parameter length
     pub max_param_length: usize,
@@ -86,7 +92,7 @@ impl Default for ValidationConfig {
     }
 }
 
-/// Validation middleware for detecting common attack patterns
+/// Validation middleware for heuristic suspicious-input detection.
 #[derive(Clone)]
 pub struct ValidationMiddleware {
     config: ValidationConfig,
@@ -119,7 +125,7 @@ impl ValidationMiddleware {
         }
     }
 
-    /// Create strict validation (all checks)
+    /// Create strict validation (more aggressive heuristics).
     pub fn strict() -> Self {
         Self {
             config: ValidationConfig {

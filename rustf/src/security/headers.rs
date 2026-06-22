@@ -296,6 +296,14 @@ impl SecurityHeaders {
         self
     }
 
+    /// Apply security headers directly to an existing header list in place.
+    pub fn apply_to_headers(&self, headers: &mut Vec<(String, String)>) {
+        let mut response = Response::ok();
+        response.headers = headers.clone();
+        let secure_response = self.apply_to_response(response);
+        *headers = secure_response.headers;
+    }
+
     /// Apply security headers to a response
     pub fn apply_to_response(&self, mut response: Response) -> Response {
         // Content Security Policy

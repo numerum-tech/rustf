@@ -187,15 +187,33 @@ impl Default for CorsMiddleware {
 #[async_trait]
 impl InboundMiddleware for CorsMiddleware {
     async fn process_request(&self, ctx: &mut Context) -> Result<InboundAction> {
-        // Handle preflight OPTIONS requests
-        if ctx.req.method == "OPTIONS" {
+        // Short-circuit ONLY genuine browser preflights. A CORS preflight is an
+        // OPTIONS request that carries BOTH `Origin` and
+        // `Access-Control-Request-Method`. Plain `OPTIONS` requests (e.g. an
+        // app-defined OPTIONS route, or a same-origin capabilities query) must
+        // still reach their handler — gating on method alone would force every
+        // OPTIONS to 204 and make those routes unreachable.
+        if ctx.req.method == "OPTIONS"
+            && ctx.req.headers.contains_key("origin")
+            && ctx
+                .req
+                .headers
+                .contains_key("access-control-request-method")
+        {
+            if self.determine_allowed_origin(ctx).is_none() {
+                log::debug!("Rejecting CORS preflight from disallowed origin");
+                ctx.status(hyper::StatusCode::FORBIDDEN);
+                return Ok(InboundAction::Stop);
+            }
+
             log::debug!("Handling CORS preflight request for {}", ctx.req.uri);
             // Set OK status - headers will be added in outbound phase
             ctx.status(hyper::StatusCode::NO_CONTENT);
             return Ok(InboundAction::Stop);
         }
 
-        // All non-preflight requests should go through outbound phase for CORS headers
+        // All other requests (including non-preflight OPTIONS) continue to the
+        // handler and get CORS headers added in the outbound phase.
         Ok(InboundAction::Capture)
     }
 
@@ -212,48 +230,73 @@ impl InboundMiddleware for CorsMiddleware {
 impl OutboundMiddleware for CorsMiddleware {
     async fn process_response(&self, ctx: &mut Context) -> Result<()> {
         // Determine which origin to allow before getting mutable reference
-        let allowed_origin = self.determine_allowed_origin(ctx);
+        let Some(allowed_origin) = self.determine_allowed_origin(ctx) else {
+            return Ok(());
+        };
+
+        // Enforce the spec invariant at emission, not just in the constructors:
+        // `Access-Control-Allow-Origin: *` and `Access-Control-Allow-Credentials:
+        // true` are mutually exclusive. A hand-built `CorsConfig` (via
+        // `with_config`) or a builder ordering like
+        // `new().allow_credentials(true).allow_origin("*")` can produce this
+        // invalid combination, which the per-constructor guards miss. Emitting
+        // it is invalid (browsers reject it), so we send NO CORS headers for
+        // this response — safely blocking the cross-origin read and forcing the
+        // app to configure explicit origins for credentialed requests.
+        if self.config.allow_credentials && allowed_origin == "*" {
+            log::warn!(
+                "CORS: refusing to emit `Access-Control-Allow-Origin: *` together with \
+                 credentials. Configure explicit origins (allow_origins) for credentialed \
+                 CORS. No CORS headers sent for this response."
+            );
+            return Ok(());
+        }
 
         if let Some(response) = ctx.res.as_mut() {
             // Add CORS headers to the response
-            response.headers.push((
+            Self::upsert_header(
+                &mut response.headers,
                 "Access-Control-Allow-Origin".to_string(),
                 allowed_origin.clone(),
-            ));
+            );
 
             // Add Vary: Origin for dynamic origin handling (security best practice)
             if !self.config.allow_origins.is_empty() || self.config.allow_credentials {
-                response.headers.push((
-                    "Vary".to_string(),
-                    "Origin".to_string(),
-                ));
+                Self::merge_vary_header(&mut response.headers, "Origin");
             }
 
             if !self.config.allow_methods.is_empty() {
                 let methods = self.config.allow_methods.join(", ");
-                response
-                    .headers
-                    .push(("Access-Control-Allow-Methods".to_string(), methods));
+                Self::upsert_header(
+                    &mut response.headers,
+                    "Access-Control-Allow-Methods".to_string(),
+                    methods,
+                );
             }
 
             if !self.config.allow_headers.is_empty() {
                 let headers = self.config.allow_headers.join(", ");
-                response
-                    .headers
-                    .push(("Access-Control-Allow-Headers".to_string(), headers));
+                Self::upsert_header(
+                    &mut response.headers,
+                    "Access-Control-Allow-Headers".to_string(),
+                    headers,
+                );
             }
 
             if self.config.allow_credentials {
-                response.headers.push((
+                Self::upsert_header(
+                    &mut response.headers,
                     "Access-Control-Allow-Credentials".to_string(),
                     "true".to_string(),
-                ));
+                );
             }
 
             if let Some(max_age) = self.config.max_age {
-                response
-                    .headers
-                    .push(("Access-Control-Max-Age".to_string(), max_age.to_string()));
+                Self::upsert_header(
+                    &mut response.headers,
+                    "Access-Control-Max-Age".to_string(),
+                    max_age.to_string(),
+                );
             }
         }
 
@@ -263,10 +306,14 @@ impl OutboundMiddleware for CorsMiddleware {
 
 impl CorsMiddleware {
     /// Determine which origin to allow based on request and configuration
-    fn determine_allowed_origin(&self, ctx: &Context) -> String {
+    fn determine_allowed_origin(&self, ctx: &Context) -> Option<String> {
+        if self.config.allow_origin.is_empty() && self.config.allow_origins.is_empty() {
+            return None;
+        }
+
         // If wildcard is set and no additional origins, use wildcard
         if self.config.allow_origin == "*" && self.config.allow_origins.is_empty() {
-            return "*".to_string();
+            return Some("*".to_string());
         }
 
         // If multiple origins configured, validate against request Origin header
@@ -274,15 +321,48 @@ impl CorsMiddleware {
             if let Some(request_origin) = ctx.req.headers.get("origin") {
                 // Check if request origin is in the allowed list
                 if self.config.allow_origins.iter().any(|o| o == request_origin) {
-                    return request_origin.clone();
+                    return Some(request_origin.clone());
                 }
             }
-            // Request origin not allowed - return empty (will block CORS)
-            return String::new();
+            // Request origin not allowed - omit CORS headers entirely.
+            return None;
+        }
+
+        // Explicit single origin configuration: if the request carries an
+        // Origin header, emit ACAO only when it matches the configured origin.
+        if let Some(request_origin) = ctx.req.headers.get("origin") {
+            if request_origin != &self.config.allow_origin {
+                return None;
+            }
         }
 
         // Single origin configured
-        self.config.allow_origin.clone()
+        Some(self.config.allow_origin.clone())
+    }
+
+    fn upsert_header(headers: &mut Vec<(String, String)>, name: String, value: String) {
+        headers.retain(|(existing, _)| !existing.eq_ignore_ascii_case(&name));
+        headers.push((name, value));
+    }
+
+    fn merge_vary_header(headers: &mut Vec<(String, String)>, value: &str) {
+        if let Some((_, existing)) = headers
+            .iter_mut()
+            .find(|(name, _)| name.eq_ignore_ascii_case("vary"))
+        {
+            let already_present = existing
+                .split(',')
+                .any(|part| part.trim().eq_ignore_ascii_case(value));
+            if !already_present {
+                if !existing.is_empty() {
+                    existing.push_str(", ");
+                }
+                existing.push_str(value);
+            }
+            return;
+        }
+
+        headers.push(("Vary".to_string(), value.to_string()));
     }
 }
 
@@ -297,10 +377,17 @@ mod tests {
     async fn test_cors_preflight() {
         let middleware = CorsMiddleware::new();
 
-        // Create OPTIONS request (preflight)
+        // Create a GENUINE preflight: OPTIONS + Origin + Access-Control-Request-Method
         let mut request = Request::default();
         request.method = "OPTIONS".to_string();
         request.uri = "/api/test".to_string();
+        request
+            .headers
+            .insert("origin".to_string(), "https://example.com".to_string());
+        request.headers.insert(
+            "access-control-request-method".to_string(),
+            "POST".to_string(),
+        );
 
         let views = Arc::new(ViewEngine::from_directory("views"));
         let mut ctx = Context::new(request, views);
@@ -477,13 +564,11 @@ mod tests {
         middleware.process_response(&mut ctx).await.unwrap();
 
         if let Some(response) = &ctx.res {
-            let origin_header = response
+            let has_origin_header = response
                 .headers
                 .iter()
-                .find(|(k, _)| k == "Access-Control-Allow-Origin")
-                .map(|(_, v)| v.as_str());
-            // Should return empty string (blocks CORS)
-            assert_eq!(origin_header, Some(""));
+                .any(|(k, _)| k == "Access-Control-Allow-Origin");
+            assert!(!has_origin_header, "disallowed origins must not emit ACAO");
         } else {
             panic!("Expected response in context");
         }
@@ -504,13 +589,14 @@ mod tests {
         middleware.process_response(&mut ctx).await.unwrap();
 
         if let Some(response) = &ctx.res {
-            let origin_header = response
+            let has_origin_header = response
                 .headers
                 .iter()
-                .find(|(k, _)| k == "Access-Control-Allow-Origin")
-                .map(|(_, v)| v.as_str());
-            // Origin should be empty (blocked due to security validation)
-            assert_eq!(origin_header, Some(""));
+                .any(|(k, _)| k == "Access-Control-Allow-Origin");
+            assert!(
+                !has_origin_header,
+                "wildcard + credentials must not emit ACAO"
+            );
         } else {
             panic!("Expected response in context");
         }
@@ -546,5 +632,144 @@ mod tests {
         } else {
             panic!("Expected response in context");
         }
+    }
+
+    // Helper: run outbound and return whether the response carries a given header.
+    async fn emits_header(middleware: &CorsMiddleware, header: &str) -> bool {
+        let views = Arc::new(ViewEngine::from_directory("views"));
+        let mut ctx = Context::new(Request::default(), views);
+        ctx.set_response(crate::http::Response::ok());
+        middleware.process_response(&mut ctx).await.unwrap();
+        ctx.res
+            .as_ref()
+            .unwrap()
+            .headers
+            .iter()
+            .any(|(k, _)| k.eq_ignore_ascii_case(header))
+    }
+
+    // The `*` + credentials invariant must be enforced at emission, not just in
+    // the constructors — `with_config` bypasses the constructor guards entirely.
+    #[tokio::test]
+    async fn wildcard_with_credentials_via_with_config_emits_no_cors_headers() {
+        let mut cfg = CorsConfig::default();
+        cfg.allow_origin = "*".to_string();
+        cfg.allow_credentials = true;
+        let mw = CorsMiddleware::with_config(cfg);
+
+        assert!(
+            !emits_header(&mw, "Access-Control-Allow-Origin").await,
+            "must not emit ACAO:* with credentials"
+        );
+        assert!(
+            !emits_header(&mw, "Access-Control-Allow-Credentials").await,
+            "must not emit credentials with wildcard origin"
+        );
+    }
+
+    // Builder ordering that re-sets `*` after enabling credentials also bypasses
+    // the constructor guard; emission-time enforcement still catches it.
+    #[tokio::test]
+    async fn wildcard_with_credentials_via_builder_order_emits_no_cors_headers() {
+        let mw = CorsMiddleware::new().allow_credentials(true).allow_origin("*");
+
+        assert!(!emits_header(&mw, "Access-Control-Allow-Origin").await);
+        assert!(!emits_header(&mw, "Access-Control-Allow-Credentials").await);
+    }
+
+    // A plain OPTIONS request (no Origin / Access-Control-Request-Method) is NOT
+    // a preflight — it must continue to the route handler, not be forced to 204.
+    #[tokio::test]
+    async fn plain_options_is_not_treated_as_preflight() {
+        let mw = CorsMiddleware::new();
+        let mut req = Request::default();
+        req.method = "OPTIONS".to_string();
+        req.uri = "/api/widgets".to_string();
+        let views = Arc::new(ViewEngine::from_directory("views"));
+        let mut ctx = Context::new(req, views);
+
+        let action = mw.process_request(&mut ctx).await.unwrap();
+        // Must Capture (continue to handler), NOT Stop.
+        assert!(matches!(action, InboundAction::Capture));
+    }
+
+    // OPTIONS with Origin but WITHOUT Access-Control-Request-Method is also not a
+    // preflight (e.g. a same-origin or manual OPTIONS call).
+    #[tokio::test]
+    async fn options_with_origin_but_no_request_method_is_not_preflight() {
+        let mw = CorsMiddleware::new();
+        let mut req = Request::default();
+        req.method = "OPTIONS".to_string();
+        req.headers
+            .insert("origin".to_string(), "https://example.com".to_string());
+        let views = Arc::new(ViewEngine::from_directory("views"));
+        let mut ctx = Context::new(req, views);
+
+        let action = mw.process_request(&mut ctx).await.unwrap();
+        assert!(matches!(action, InboundAction::Capture));
+    }
+
+    #[tokio::test]
+    async fn disallowed_preflight_returns_forbidden() {
+        let mw = CorsMiddleware::new().allow_origins(vec!["https://good.example".to_string()]);
+        let mut req = Request::default();
+        req.method = "OPTIONS".to_string();
+        req.headers
+            .insert("origin".to_string(), "https://evil.example".to_string());
+        req.headers.insert(
+            "access-control-request-method".to_string(),
+            "POST".to_string(),
+        );
+        let views = Arc::new(ViewEngine::from_directory("views"));
+        let mut ctx = Context::new(req, views);
+
+        let action = mw.process_request(&mut ctx).await.unwrap();
+        assert!(matches!(action, InboundAction::Stop));
+        assert_eq!(
+            ctx.res.as_ref().map(|res| res.status),
+            Some(hyper::StatusCode::FORBIDDEN)
+        );
+    }
+
+    #[tokio::test]
+    async fn existing_cors_headers_are_replaced_without_duplicates() {
+        let mw = CorsMiddleware::new().allow_origins(vec!["https://app1.example.com".to_string()]);
+        let mut req = Request::default();
+        req.method = "GET".to_string();
+        req.headers.insert(
+            "origin".to_string(),
+            "https://app1.example.com".to_string(),
+        );
+
+        let views = Arc::new(ViewEngine::from_directory("views"));
+        let mut ctx = Context::new(req, views);
+        if let Some(response) = ctx.res.as_mut() {
+            response.headers.push((
+                "Access-Control-Allow-Origin".to_string(),
+                "https://stale.example.com".to_string(),
+            ));
+            response
+                .headers
+                .push(("Vary".to_string(), "Accept-Encoding".to_string()));
+        }
+
+        mw.process_response(&mut ctx).await.unwrap();
+
+        let response = ctx.res.as_ref().unwrap();
+        let acao_values: Vec<_> = response
+            .headers
+            .iter()
+            .filter(|(name, _)| name.eq_ignore_ascii_case("access-control-allow-origin"))
+            .map(|(_, value)| value.as_str())
+            .collect();
+        assert_eq!(acao_values, vec!["https://app1.example.com"]);
+
+        let vary_values: Vec<_> = response
+            .headers
+            .iter()
+            .filter(|(name, _)| name.eq_ignore_ascii_case("vary"))
+            .map(|(_, value)| value.as_str())
+            .collect();
+        assert_eq!(vary_values, vec!["Accept-Encoding, Origin"]);
     }
 }

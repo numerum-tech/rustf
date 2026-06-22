@@ -6,7 +6,7 @@
 use crate::context::Context;
 use crate::error::Result;
 use crate::http::Response;
-use crate::middleware::{InboundAction, InboundMiddleware};
+use crate::middleware::{InboundAction, InboundMiddleware, OutboundMiddleware};
 use async_trait::async_trait;
 use dashmap::DashMap;
 use serde_json::json;
@@ -47,7 +47,7 @@ impl RateLimitMiddleware {
                 "/metrics".to_string(),
                 "/favicon.ico".to_string(),
             ],
-            trust_proxy: true,
+            trust_proxy: false,
         }
     }
 
@@ -87,7 +87,7 @@ impl RateLimitMiddleware {
     /// max_requests = 100
     /// window_seconds = 60
     /// excluded_paths = ["/health", "/metrics"]
-    /// trust_proxy = true
+    /// trust_proxy = false
     /// ```
     ///
     /// If configuration is not found, uses sensible defaults (100 req/min).
@@ -131,9 +131,15 @@ impl RateLimitMiddleware {
 
     /// Check if path is excluded from rate limiting
     fn is_excluded(&self, path: &str) -> bool {
-        self.excluded_paths
-            .iter()
-            .any(|excluded| path == excluded || path.starts_with(excluded))
+        self.excluded_paths.iter().any(|excluded| {
+            path == excluded
+                || (path.starts_with(excluded)
+                    && path
+                        .as_bytes()
+                        .get(excluded.len())
+                        .map(|b| *b == b'/')
+                        .unwrap_or(false))
+        })
     }
 
     /// Clean up old entries periodically
@@ -144,7 +150,7 @@ impl RateLimitMiddleware {
             .as_secs();
 
         // Remove entries older than 2x the window
-        let cutoff = current_time - (self.window_seconds * 2);
+        let cutoff = current_time.saturating_sub(self.window_seconds.saturating_mul(2));
 
         self.storage.retain(|_, entry| entry.window_start > cutoff);
     }
@@ -154,7 +160,7 @@ impl RateLimitMiddleware {
 impl InboundMiddleware for RateLimitMiddleware {
     async fn process_request(&self, ctx: &mut Context) -> Result<InboundAction> {
         // Skip rate limiting for excluded paths
-        if self.is_excluded(&ctx.req.uri) {
+        if self.is_excluded(ctx.req.path()) {
             return Ok(InboundAction::Continue);
         }
 
@@ -179,7 +185,8 @@ impl InboundMiddleware for RateLimitMiddleware {
             });
 
         // Reset window if expired
-        if current_time - entry.window_start >= self.window_seconds {
+        let elapsed = current_time.saturating_sub(entry.window_start);
+        if elapsed >= self.window_seconds {
             entry.count = 0;
             entry.window_start = current_time;
         }
@@ -197,7 +204,7 @@ impl InboundMiddleware for RateLimitMiddleware {
             );
 
             // Calculate retry after
-            let retry_after = self.window_seconds - (current_time - entry.window_start);
+            let retry_after = self.window_seconds.saturating_sub(elapsed);
 
             // Set rate limit error response using context
             ctx.set_response(Response::new(hyper::StatusCode::TOO_MANY_REQUESTS)
@@ -234,15 +241,55 @@ impl InboundMiddleware for RateLimitMiddleware {
     }
 }
 
+#[async_trait]
+impl OutboundMiddleware for RateLimitMiddleware {
+    async fn process_response(&self, ctx: &mut Context) -> Result<()> {
+        let Some(&limit) = ctx.get::<u32>("rate_limit_limit") else {
+            return Ok(());
+        };
+        let Some(&remaining) = ctx.get::<u32>("rate_limit_remaining") else {
+            return Ok(());
+        };
+        let Some(&reset) = ctx.get::<u64>("rate_limit_reset") else {
+            return Ok(());
+        };
+
+        let Some(response) = ctx.res.as_mut() else {
+            return Ok(());
+        };
+
+        response
+            .headers
+            .push(("X-RateLimit-Limit".to_string(), limit.to_string()));
+        response.headers.push((
+            "X-RateLimit-Remaining".to_string(),
+            remaining.to_string(),
+        ));
+        response
+            .headers
+            .push(("X-RateLimit-Reset".to_string(), reset.to_string()));
+
+        Ok(())
+    }
+
+    fn priority(&self) -> i32 {
+        -900
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::http::Request;
+    use crate::views::ViewEngine;
+    use std::sync::Arc;
 
     #[test]
     fn test_rate_limit_creation() {
         let limiter = RateLimitMiddleware::default();
         assert_eq!(limiter.max_requests, 100);
         assert_eq!(limiter.window_seconds, 60);
+        assert!(!limiter.trust_proxy);
 
         let api_limiter = RateLimitMiddleware::api();
         assert_eq!(api_limiter.max_requests, 60);
@@ -257,6 +304,38 @@ mod tests {
 
         assert!(limiter.is_excluded("/public/file.js"));
         assert!(limiter.is_excluded("/static/image.png"));
+        assert!(limiter.is_excluded("/public"));
+        assert!(!limiter.is_excluded("/publicity"));
         assert!(!limiter.is_excluded("/api/users"));
+    }
+
+    #[tokio::test]
+    async fn client_id_ignores_proxy_headers_by_default() {
+        let limiter = RateLimitMiddleware::default();
+        let mut request = Request::default();
+        request
+            .headers
+            .insert("x-forwarded-for".to_string(), "203.0.113.10".to_string());
+        request
+            .headers
+            .insert("x-real-ip".to_string(), "198.51.100.7".to_string());
+        let views = Arc::new(ViewEngine::from_directory("views"));
+        let ctx = Context::new(request, views);
+
+        assert_eq!(limiter.get_client_id(&ctx), ctx.ip());
+    }
+
+    #[tokio::test]
+    async fn client_id_uses_proxy_headers_only_when_enabled() {
+        let limiter = RateLimitMiddleware::default().trust_proxy(true);
+        let mut request = Request::default();
+        request.headers.insert(
+            "x-forwarded-for".to_string(),
+            "203.0.113.10, 198.51.100.7".to_string(),
+        );
+        let views = Arc::new(ViewEngine::from_directory("views"));
+        let ctx = Context::new(request, views);
+
+        assert_eq!(limiter.get_client_id(&ctx), "203.0.113.10");
     }
 }

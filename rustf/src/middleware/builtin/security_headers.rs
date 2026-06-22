@@ -5,7 +5,6 @@
 
 use crate::context::Context;
 use crate::error::Result;
-use crate::http::Response;
 use crate::middleware::OutboundMiddleware;
 use crate::security::headers::SecurityHeaders;
 use async_trait::async_trait;
@@ -70,22 +69,7 @@ impl OutboundMiddleware for SecurityHeadersMiddleware {
     async fn process_response(&self, ctx: &mut Context) -> Result<()> {
         if self.enabled {
             if let Some(response) = ctx.res.as_mut() {
-                // We need to clone and replace the response since apply_to_response returns a new one
-                // This is not ideal but works with the current SecurityHeaders API
-                let current_response =
-                    Response::new(response.status).with_body(response.body.clone());
-
-                // Copy existing headers
-                let mut temp_response = current_response;
-                for (key, value) in &response.headers {
-                    temp_response.headers.push((key.clone(), value.clone()));
-                }
-
-                // Apply security headers
-                let secure_response = self.headers.apply_to_response(temp_response);
-
-                // Replace the response headers
-                response.headers = secure_response.headers;
+                self.headers.apply_to_headers(&mut response.headers);
             }
         }
         Ok(())

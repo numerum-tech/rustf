@@ -85,7 +85,7 @@ impl InboundMiddleware for LoggingMiddleware {
 
             // Use references - no clones needed
             let method = &ctx.req.method;
-            let path = &ctx.req.uri;
+            let path = ctx.req.path();
             let ip = ctx.ip();
 
             // Conditional logging - only formats if enabled
@@ -118,7 +118,7 @@ impl OutboundMiddleware for LoggingMiddleware {
 
                 // Read directly from request - no clones stored
                 let method = &ctx.req.method;
-                let path = &ctx.req.uri;
+                let path = ctx.req.path();
                 let status = ctx.res.as_ref().map(|r| r.status.as_u16()).unwrap_or(500);
 
                 // Conditional logging - only formats if enabled
