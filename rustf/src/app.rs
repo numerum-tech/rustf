@@ -1042,6 +1042,11 @@ impl RustF {
 
         // Phase 1: INBOUND - Process request through middleware
         for middleware in middleware_list {
+            if middleware.inbound.is_none() && middleware.has_outbound() {
+                outbound_stack.push(middleware);
+                continue;
+            }
+
             // Only process if middleware has inbound phase and should run
             if let Some(ref inbound) = middleware.inbound {
                 if inbound.should_run(ctx) {
@@ -1056,10 +1061,18 @@ impl RustF {
                             }
                         }
                         InboundAction::Stop => {
+                            if middleware.has_outbound() {
+                                outbound_stack.push(middleware);
+                            }
+
                             // Early return - use response set on context
                             let response =
                                 ctx.take_response().unwrap_or_else(Response::internal_error);
-                            return Ok(MiddlewareResult::Stop(response));
+                            ctx.set_response(response);
+                            self.run_outbound_stack(ctx, &outbound_stack).await?;
+                            let final_response =
+                                ctx.take_response().unwrap_or_else(Response::internal_error);
+                            return Ok(MiddlewareResult::Stop(final_response));
                         }
                         InboundAction::Capture => {
                             // This middleware wants to process the response
@@ -1083,16 +1096,26 @@ impl RustF {
 
         // Phase 3: OUTBOUND - Process response through middleware (in reverse order)
         // Context has all modifications from both inbound middleware and handler
+        self.run_outbound_stack(ctx, &outbound_stack).await?;
+
+        // Get the final response from context
+        let final_response = ctx.take_response().unwrap_or_else(Response::internal_error);
+
+        Ok(MiddlewareResult::Stop(final_response))
+    }
+
+    async fn run_outbound_stack(
+        &self,
+        ctx: &mut Context,
+        outbound_stack: &[&crate::middleware::DualPhaseMiddlewareInstance],
+    ) -> Result<()> {
         for middleware in outbound_stack.iter().rev() {
             if let Some(ref outbound) = middleware.outbound {
                 outbound.process_response(ctx).await?;
             }
         }
 
-        // Get the final response from context
-        let final_response = ctx.take_response().unwrap_or_else(Response::internal_error);
-
-        Ok(MiddlewareResult::Stop(final_response))
+        Ok(())
     }
 
     /// Execute the route handler (final step in the chain)

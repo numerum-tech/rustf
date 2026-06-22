@@ -192,9 +192,10 @@ impl InboundMiddleware for CorsMiddleware {
             log::debug!("Handling CORS preflight request for {}", ctx.req.uri);
             // Set OK status - headers will be added in outbound phase
             ctx.status(hyper::StatusCode::NO_CONTENT);
+            return Ok(InboundAction::Stop);
         }
 
-        // All requests (including OPTIONS) should go through outbound phase for CORS headers
+        // All non-preflight requests should go through outbound phase for CORS headers
         Ok(InboundAction::Capture)
     }
 
@@ -307,8 +308,9 @@ mod tests {
         // Process preflight request
         let action = middleware.process_request(&mut ctx).await.unwrap();
 
-        // Should now use Capture action (goes through outbound phase)
-        assert!(matches!(action, InboundAction::Capture));
+        // Preflight should short-circuit routing while still allowing
+        // outbound processing in the application chain.
+        assert!(matches!(action, InboundAction::Stop));
 
         // Process outbound to add CORS headers
         middleware.process_response(&mut ctx).await.unwrap();

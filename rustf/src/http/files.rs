@@ -259,7 +259,10 @@ impl MultipartParser {
         let separator = b"\r\n\r\n";
         if let Some(pos) = Self::find_bytes(part, separator, 0) {
             let headers_bytes = &part[..pos];
-            let body = part[pos + separator.len()..].to_vec();
+            let mut body = part[pos + separator.len()..].to_vec();
+            if body.ends_with(b"\r\n") {
+                body.truncate(body.len() - 2);
+            }
 
             let mut headers = HashMap::new();
             let headers_str = String::from_utf8_lossy(headers_bytes);
