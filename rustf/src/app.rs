@@ -9,7 +9,7 @@ use crate::routing::{Route, Router};
 use crate::shared::SharedRegistry;
 use crate::views::ViewEngine;
 use crate::workers::WorkerManager;
-use hyper::Body;
+use hyper::body::Incoming;
 use std::collections::HashMap;
 use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
@@ -981,7 +981,7 @@ impl RustF {
         Ok(())
     }
 
-    pub async fn handle_request(&self, req: hyper::Request<Body>) -> Result<Response> {
+    pub async fn handle_request(&self, req: hyper::Request<Incoming>) -> Result<Response> {
         let request = Request::from_hyper(req).await?;
 
         // Check for static files first (match prefix safely using request path without query)

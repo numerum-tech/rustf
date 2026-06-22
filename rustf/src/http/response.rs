@@ -1,4 +1,6 @@
 use crate::error::Result;
+use bytes::Bytes;
+use http_body_util::Full;
 use hyper::StatusCode;
 use serde::Serialize;
 use std::path::Path;
@@ -281,7 +283,7 @@ impl Response {
         self.body.len()
     }
 
-    pub fn into_hyper(self) -> hyper::Response<hyper::Body> {
+    pub fn into_hyper(self) -> hyper::Response<Full<Bytes>> {
         let mut builder = hyper::Response::builder().status(self.status);
 
         for (name, value) in self.headers {
@@ -289,7 +291,7 @@ impl Response {
         }
 
         builder
-            .body(hyper::Body::from(self.body))
-            .unwrap_or_else(|_| hyper::Response::new(hyper::Body::empty()))
+            .body(Full::new(Bytes::from(self.body)))
+            .unwrap_or_else(|_| hyper::Response::new(Full::new(Bytes::new())))
     }
 }

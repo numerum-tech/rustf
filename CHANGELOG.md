@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - **Template `||` / `&&`**: now return the operand value (JS / Total.js value-fallback semantics), so `@{M.a || 'default'}` renders the default; conditions still evaluate via truthiness.
 - **SQL drivers & Redis** are now optional (opt-out) Cargo features instead of mandatory dependencies; default builds are unchanged.
+- **HTTP server migrated to hyper 1.x** (hyper-util `auto` server + graceful shutdown, `http-body-util`); off the EOL-track hyper 0.14.
 - Bumped `thiserror` to 2.0; updated transitive `slab` off a yanked version.
 - Refactored `auto_modules!` macro to specified declaration-only behavior.
 - Simplified environment configuration from 4 to 2 environments.
