@@ -25,6 +25,9 @@ Before you begin, make sure you have:
 The fastest way to get started:
 
 ```bash
+# 0. Install the CLI (one time)
+cargo install rustf-cli
+
 # 1. Create a new project using the CLI
 rustf-cli new project my-app
 
@@ -36,6 +39,9 @@ cargo run
 ```
 
 That's it! Your server will be running at `http://127.0.0.1:8000`.
+
+> Want a prebuilt binary instead of compiling the CLI? Use
+> `cargo binstall rustf-cli` — see [Installation](installation.md) for all options.
 
 ## What's Next?
 
