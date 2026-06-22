@@ -33,8 +33,11 @@ initial schema **from** the live database, then switch to the schema-first
 loop above:
 
 ```bash
-# Reverse-engineer YAML schemas from an existing database (one time)
-rustf-cli db generate-schema --database-url <url> --output schemas
+# Reverse-engineer YAML schemas from an existing database (one time).
+# The connection is read from your project config (config.toml /
+# config.dev.toml); DATABASE_URL overrides it. Use --connection <name> to
+# pick a named connection.
+rustf-cli db generate-schema --output schemas
 ```
 
 This introspects every table (PostgreSQL, MySQL/MariaDB, or SQLite) and writes
