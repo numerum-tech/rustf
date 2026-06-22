@@ -49,22 +49,22 @@ Visit [Getting Started](getting-started/README.md) for detailed installation and
 
 This documentation is organized to help you learn RustF at your own pace:
 
-### 🚀 [Getting Started](getting-started/README.md)
+### [Getting Started](getting-started/README.md)
 Perfect for beginners. Learn how to install RustF, create your first application, and understand the project structure.
 
-### 📖 [Core Guides](guides/controllers.md)
+### [Core Guides](guides/controllers.md)
 Essential framework concepts: controllers, views, middleware, sessions, databases, and more.
 
-### 🔧 [Advanced Topics](advanced/performance.md)
+### [Advanced Topics](advanced/performance.md)
 For experienced developers: performance optimization, workers, events, and advanced patterns.
 
-### 📚 [API Reference](api-reference/context.md)
+### [API Reference](api-reference/context.md)
 Complete API documentation for all framework components.
 
-### 💡 [Examples & Tutorials](examples/rest-api.md)
+### [Examples & Tutorials](examples/rest-api.md)
 Step-by-step tutorials for building real-world applications.
 
-### 🚢 [Deployment](deployment/production.md)
+### [Deployment](deployment/production.md)
 Production deployment guides, Docker setup, and performance tuning.
 
 ## Who is This Documentation For?
