@@ -11,6 +11,11 @@ listed here are **ignored** by the parser; a few keys are accepted for
 forward-compatibility but have no effect yet — those are marked
 *(accepted, ignored)*.
 
+> **`schema generate sql` is experimental.** The DDL generator is verified on
+> representative schemas across all three dialects, but has not yet been
+> exercised at scale. Review the generated SQL before applying it. Model
+> generation (`schema generate models`) is stable.
+
 ## File layout
 
 ```text
