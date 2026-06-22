@@ -141,12 +141,16 @@ impl SessionManager {
     /// otherwise falls back to configuration-based storage (Memory/Redis).
     pub async fn with_configured_storage(
         config: SessionConfig,
-        storage_config: &crate::config::SessionStorageConfig,
+        file_session_config: &crate::config::SessionConfig,
     ) -> Result<Arc<Self>> {
         use crate::session::factory::SessionStorageFactory;
 
-        let storage =
-            SessionStorageFactory::create_storage(storage_config, config.fingerprint_mode).await?;
+        let storage = SessionStorageFactory::create_storage(
+            &file_session_config.storage,
+            config.fingerprint_mode,
+            Some(file_session_config),
+        )
+        .await?;
         Ok(Self::new(storage, config))
     }
 

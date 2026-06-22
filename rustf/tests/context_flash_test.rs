@@ -4,7 +4,9 @@ mod tests {
     use rustf::http::Request;
     use rustf::session::Session;
     use rustf::views::ViewEngine;
+    use serde_json::json;
     use std::sync::Arc;
+    use tempfile::tempdir;
 
     #[test]
     fn test_context_flash_integration() {
@@ -72,5 +74,23 @@ mod tests {
 
         let val1_again: Option<String> = ctx.session_get("key1");
         assert_eq!(val1_again, None);
+    }
+
+    #[test]
+    fn test_flash_survives_failed_view_render() {
+        let request = Request::new("GET", "/test", "1.1");
+        let dir = tempdir().unwrap();
+        let views = Arc::new(ViewEngine::from_directory(dir.path().to_str().unwrap()));
+        let mut ctx = Context::new(request, views);
+
+        let session = Arc::new(Session::new("test-session"));
+        ctx.set_session(Some(session));
+        ctx.flash_success("Keep me").unwrap();
+
+        let result = ctx.view("missing_template", json!({}));
+        assert!(result.is_err());
+
+        let flash = ctx.get_all_flash();
+        assert_eq!(flash.get("success").and_then(|v| v.as_str()), Some("Keep me"));
     }
 }

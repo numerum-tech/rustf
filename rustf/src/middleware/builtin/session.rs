@@ -28,9 +28,9 @@ impl SessionMiddleware {
     /// then falls back to config-based storage (Memory/Redis)
     pub async fn with_configured_storage(
         config: SessionConfig,
-        storage_config: &crate::config::SessionStorageConfig,
+        file_session_config: &crate::config::SessionConfig,
     ) -> crate::error::Result<Self> {
-        let manager = SessionManager::with_configured_storage(config, storage_config).await?;
+        let manager = SessionManager::with_configured_storage(config, file_session_config).await?;
         Ok(Self { manager })
     }
 
@@ -165,21 +165,27 @@ impl OutboundMiddleware for SessionMiddleware {
         }
 
         // Save session if needed and get session ID for cookie (now fully async)
+        let destroy_session = ctx.is_session_destroyed();
         let session_id = if let Some(session) = ctx.session_arc() {
-            // Save session if using EndOfRequest strategy
-            if matches!(
-                self.manager.config.save_strategy,
-                SaveStrategy::EndOfRequest
-            ) {
-                self.manager.force_save(session).await?;
-            } else if matches!(self.manager.config.save_strategy, SaveStrategy::Immediate) {
-                // For immediate strategy, save if dirty
-                if session.is_dirty() {
-                    self.manager.save_session(session).await?;
+            if destroy_session {
+                self.manager.destroy_session(session.id()).await?;
+                None
+            } else {
+                // Save session if using EndOfRequest strategy
+                if matches!(
+                    self.manager.config.save_strategy,
+                    SaveStrategy::EndOfRequest
+                ) {
+                    self.manager.force_save(session).await?;
+                } else if matches!(self.manager.config.save_strategy, SaveStrategy::Immediate) {
+                    // For immediate strategy, save if dirty
+                    if session.is_dirty() {
+                        self.manager.save_session(session).await?;
+                    }
                 }
-            }
 
-            Some(session.id().to_string())
+                Some(session.id().to_string())
+            }
         } else {
             None
         };
@@ -192,7 +198,7 @@ impl OutboundMiddleware for SessionMiddleware {
                 let cookie = self.manager.create_cookie(&session_id);
                 response.add_header("Set-Cookie", &cookie);
             }
-        } else {
+        } else if destroy_session || ctx.session_arc().is_none() {
             // Session was destroyed, send deletion cookie
             if let Some(response) = ctx.res.as_mut() {
                 let cookie = self.manager.create_destroy_cookie();

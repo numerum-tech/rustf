@@ -15,6 +15,7 @@ impl SessionStorageFactory {
     pub async fn create_storage(
         config: &SessionStorageConfig,
         fingerprint_mode: FingerprintMode,
+        session_config: Option<&crate::config::SessionConfig>,
     ) -> Result<Arc<dyn SessionStorage>> {
         // Check for user-defined session storage from definitions
         let definitions = crate::definitions::get().await;
@@ -25,16 +26,20 @@ impl SessionStorageFactory {
 
             // Convert SessionStorageConfig to SessionConfig for the factory
             // The factory expects SessionConfig, not SessionStorageConfig
-            let session_config = crate::config::SessionConfig {
+            let session_config = session_config.cloned().unwrap_or(crate::config::SessionConfig {
                 enabled: true,
-                cookie_name: "rustf.sid".to_string(), // Default, can be overridden
-                idle_timeout: 1800,                   // 30 minutes default
-                absolute_timeout: 86400,              // 24 hours default
+                cookie_name: "rustf.sid".to_string(),
+                idle_timeout: 1800,
+                absolute_timeout: 86400,
                 same_site: "lax".to_string(),
-                fingerprint_mode: "soft".to_string(),
-                exempt_routes: vec![],
+                fingerprint_mode: match fingerprint_mode {
+                    FingerprintMode::Disabled => "disabled".to_string(),
+                    FingerprintMode::Soft => "soft".to_string(),
+                    FingerprintMode::Strict => "strict".to_string(),
+                },
                 storage: config.clone(),
-            };
+                exempt_routes: vec![],
+            });
 
             // Call the custom factory
             match factory(&session_config) {
@@ -156,7 +161,7 @@ mod tests {
             cleanup_interval: 300,
         };
 
-        let storage = SessionStorageFactory::create_storage(&config, FingerprintMode::Soft)
+        let storage = SessionStorageFactory::create_storage(&config, FingerprintMode::Soft, None)
             .await
             .unwrap();
         assert_eq!(storage.backend_name(), "memory");
@@ -174,7 +179,7 @@ mod tests {
 
         // This test will only pass if Redis is running
         if let Ok(storage) =
-            SessionStorageFactory::create_storage(&config, FingerprintMode::Soft).await
+            SessionStorageFactory::create_storage(&config, FingerprintMode::Soft, None).await
         {
             assert_eq!(storage.backend_name(), "redis");
         } else {

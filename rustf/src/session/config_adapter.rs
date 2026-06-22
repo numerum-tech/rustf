@@ -102,7 +102,7 @@ pub async fn create_session_middleware(
     // Try to use configured storage (checks definitions first, then config)
     match crate::middleware::builtin::session::SessionMiddleware::with_configured_storage(
         session_config.clone(),
-        &config.session.storage,
+        &config.session,
     )
     .await
     {
