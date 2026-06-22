@@ -51,8 +51,8 @@ pub async fn run(project_path: PathBuf, relationships: bool) -> Result<()> {
     if model_files.is_empty() && schema_files.is_empty() {
         println!("\n💡 No models or schemas found. Consider:");
         println!("   - Creating schema files in schemas/ directory");
-        println!("   - Running 'rustf schema generate' to create models from schemas");
-        println!("   - Running 'rustf db generate-schemas' to create schemas from database");
+        println!("   - Running 'rustf-cli schema generate models' to create models from schemas");
+        println!("   - Running 'rustf-cli db generate-schema' to create schemas from the database");
         return Ok(());
     }
     
@@ -146,7 +146,7 @@ pub async fn run(project_path: PathBuf, relationships: bool) -> Result<()> {
     
     if schema_files.is_empty() {
         println!("📝 Consider creating schema files for better code generation");
-        println!("   Run: rustf db generate-schemas --database-url <url>");
+        println!("   Run: rustf-cli db generate-schema   (connection comes from your project config)");
     }
     
     if model_files.is_empty() && !schema_files.is_empty() {
