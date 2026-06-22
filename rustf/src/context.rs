@@ -12,6 +12,7 @@ use std::any::Any;
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 /// HTTP request context focused on request/response operations
 ///
@@ -38,6 +39,9 @@ pub struct Context {
     repository: HashMap<String, Value>,
     /// Storage for middleware data (not accessible in views)
     data: HashMap<String, Box<dyn Any + Send + Sync>>,
+    /// Signals that the session must be removed from storage and the cookie
+    /// cleared in the outbound middleware.
+    session_destroyed: AtomicBool,
     /// Cached form data to avoid re-parsing
     cached_form_data: Option<Result<HashMap<String, String>>>,
     /// Cached form data with array support
@@ -64,6 +68,7 @@ impl Context {
             layout_name: Some(default_layout),
             repository: HashMap::new(),
             data: HashMap::new(),
+            session_destroyed: AtomicBool::new(false),
             cached_form_data: None,
             cached_form_data_arrays: None,
         }
@@ -160,6 +165,9 @@ impl Context {
     /// Set session (used by middleware)
     pub fn set_session(&mut self, session: Option<Arc<Session>>) {
         self.session = session;
+        if self.session.is_some() {
+            self.session_destroyed.store(false, Ordering::Relaxed);
+        }
     }
 
     /// Get session reference
@@ -274,7 +282,7 @@ impl Context {
 
         // Build per-request session Value if a session is active
         let session_value = if let Some(session) = self.session() {
-            let flash = session.flash_get_all();
+            let flash = session.flash_peek_all();
             let mut session_data = session.to_value();
             if let Value::Object(ref mut map) = session_data {
                 map.insert("id".to_string(), Value::String(session.id().to_string()));
@@ -320,6 +328,12 @@ impl Context {
             session_value.as_ref(),
             Some(&request_meta),
         )?;
+
+        if let Some(session) = self.session() {
+            if !session.flash_peek_all().is_empty() {
+                session.flash_clear();
+            }
+        }
         self.update_response_body(rendered.into_bytes(), "text/html; charset=utf-8", None);
         Ok(())
     }
@@ -1093,6 +1107,12 @@ impl Context {
         if let Some(session) = self.session() {
             session.clear();
         }
+        self.session_destroyed.store(true, Ordering::Relaxed);
+    }
+
+    /// Whether the current session should be destroyed in the outbound phase.
+    pub fn is_session_destroyed(&self) -> bool {
+        self.session_destroyed.load(Ordering::Relaxed)
     }
 
     pub fn session_remove(&self, key: &str) -> Option<Value> {

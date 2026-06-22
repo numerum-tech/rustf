@@ -449,6 +449,11 @@ impl Session {
         if let Value::Object(ref mut map) = *flash {
             map.insert(key.to_string(), value);
         }
+        *self
+            .dirty
+            .lock()
+            .map_err(|_| Error::Session("Failed to acquire lock for dirty flag".to_string()))? =
+            true;
         Ok(())
     }
 
@@ -456,7 +461,13 @@ impl Session {
     pub fn flash_get<T: serde::de::DeserializeOwned>(&self, key: &str) -> Option<T> {
         let mut flash = self.flash.write().ok()?;
         if let Value::Object(ref mut map) = *flash {
-            map.remove(key).and_then(|v| serde_json::from_value(v).ok())
+            let removed = map.remove(key);
+            if removed.is_some() {
+                if let Ok(mut dirty) = self.dirty.lock() {
+                    *dirty = true;
+                }
+            }
+            removed.and_then(|v| serde_json::from_value(v).ok())
         } else {
             None
         }
@@ -472,7 +483,12 @@ impl Session {
         if let Value::Object(ref mut map) = *flash {
             // Clone the map and clear the original
             let all_flash: HashMap<String, Value> = map.clone().into_iter().collect();
-            map.clear();
+            if !map.is_empty() {
+                map.clear();
+                if let Ok(mut dirty) = self.dirty.lock() {
+                    *dirty = true;
+                }
+            }
             all_flash
         } else {
             HashMap::new()
@@ -486,7 +502,12 @@ impl Session {
     pub fn flash_clear(&self) {
         if let Ok(mut flash) = self.flash.write() {
             if let Value::Object(ref mut map) = *flash {
-                map.clear();
+                if !map.is_empty() {
+                    map.clear();
+                    if let Ok(mut dirty) = self.dirty.lock() {
+                        *dirty = true;
+                    }
+                }
             }
         }
     }
@@ -498,9 +519,29 @@ impl Session {
     pub fn flash_remove(&self, key: &str) -> Option<Value> {
         let mut flash = self.flash.write().ok()?;
         if let Value::Object(ref mut map) = *flash {
-            map.remove(key)
+            let removed = map.remove(key);
+            if removed.is_some() {
+                if let Ok(mut dirty) = self.dirty.lock() {
+                    *dirty = true;
+                }
+            }
+            removed
         } else {
             None
+        }
+    }
+
+    /// Read all flash messages without consuming them.
+    pub fn flash_peek_all(&self) -> HashMap<String, Value> {
+        let flash = match self.flash.read() {
+            Ok(f) => f,
+            Err(_) => return HashMap::new(),
+        };
+
+        if let Value::Object(ref map) = *flash {
+            map.clone().into_iter().collect()
+        } else {
+            HashMap::new()
         }
     }
 
