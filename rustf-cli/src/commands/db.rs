@@ -129,8 +129,10 @@ pub enum DbAction {
 
         /// Skip emitting the full SQL DDL dump alongside the YAML files.
         /// By default, `db generate-schema` also writes
-        /// `<output>/_schema.sql` so the canonical DB structure stays in
-        /// source control (database-first workflow).
+        /// `<output>/_database_dump.sql` (the raw live-database DDL) so the
+        /// canonical DB structure stays in source control. This is distinct
+        /// from `schema generate sql`, which writes DDL *generated from the
+        /// YAML* to `sql/schema.sql`.
         #[arg(long)]
         no_sql: bool,
     },
@@ -146,7 +148,7 @@ pub enum DbAction {
         connection: Option<String>,
 
         /// Output file for the SQL dump
-        #[arg(short, long, default_value = "schemas/_schema.sql")]
+        #[arg(short, long, default_value = "schemas/_database_dump.sql")]
         output: PathBuf,
     },
 
@@ -474,7 +476,7 @@ async fn generate_schema(
     // alongside the YAML so reviewers see real structural diffs and a
     // fresh environment can rebuild the DB from the SQL dump.
     if !no_sql {
-        let sql_output = output.join("_schema.sql");
+        let sql_output = output.join("_database_dump.sql");
         match run_dump_to_file(&database_url, &sql_output).await {
             Ok(()) => {
                 println!("🗄️  Dumped DDL to: {:?}", sql_output);

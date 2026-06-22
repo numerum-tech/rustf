@@ -38,8 +38,20 @@ rustf-cli db generate-schema --database-url <url> --output schemas
 ```
 
 This introspects every table (PostgreSQL, MySQL/MariaDB, or SQLite) and writes
-`schemas/*.yaml`. After this bootstrap, the schema becomes the source of truth:
-edit the YAML, regenerate models and SQL — don't hand-edit the database.
+`schemas/*.yaml`. It also writes `schemas/_database_dump.sql` — the raw DDL of
+the live database (via `pg_dump` / `mysqldump` / `sqlite3 .schema`) — so the
+original structure stays in source control as a safety reference. Pass
+`--no-sql` to skip it.
+
+There are two different SQL files in a RustF project; they never collide:
+
+| File | Written by | Contents |
+|------|-----------|----------|
+| `schemas/_database_dump.sql` | `db generate-schema` | Raw dump of the **live database** (bootstrap safety reference). |
+| `sql/schema.sql` | `schema generate sql` | DDL **generated from your YAML** (experimental). |
+
+After the bootstrap, the YAML schema becomes the source of truth: edit the
+YAML, regenerate models and SQL — don't hand-edit the database.
 
 > **Direction summary:** `database → schema` is a one-time bootstrap for
 > existing databases. `schema → models` and `schema → sql` are the
