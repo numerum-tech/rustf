@@ -5,7 +5,9 @@
 //! asserts on the resulting `Response`. Same pattern as
 //! `benches/request_lifecycle.rs`.
 
-use hyper::{Body, Request as HyperRequest};
+use bytes::Bytes;
+use http_body_util::Full;
+use hyper::Request as HyperRequest;
 use rustf::prelude::*;
 use rustf::RustF;
 
@@ -60,7 +62,7 @@ async fn before_runs_and_continues() {
     let req = HyperRequest::builder()
         .method("GET")
         .uri("/users/42")
-        .body(Body::empty())
+        .body(Full::<Bytes>::new(Bytes::new()))
         .unwrap();
 
     let res = app
@@ -117,7 +119,7 @@ async fn before_stops_short_circuits_handler() {
     let req = HyperRequest::builder()
         .method("GET")
         .uri("/protected")
-        .body(Body::empty())
+        .body(Full::<Bytes>::new(Bytes::new()))
         .unwrap();
 
     let res = app
@@ -179,7 +181,7 @@ async fn before_absent_is_backward_compatible() {
     let req = HyperRequest::builder()
         .method("GET")
         .uri("/ping")
-        .body(Body::empty())
+        .body(Full::<Bytes>::new(Bytes::new()))
         .unwrap();
 
     let res = app

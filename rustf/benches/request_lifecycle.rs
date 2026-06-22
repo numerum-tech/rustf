@@ -15,7 +15,9 @@
 //!     `Accept-Encoding: gzip` header — shows the compression tax in situ.
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use hyper::{Body, Request as HyperRequest};
+use bytes::Bytes;
+use http_body_util::Full;
+use hyper::Request as HyperRequest;
 use rustf::prelude::*;
 use rustf::RustF;
 use tokio::runtime::Runtime;
@@ -42,14 +44,14 @@ fn build_app(with_compression: bool) -> RustF {
     }
 }
 
-fn make_request(with_gzip_accept: bool) -> HyperRequest<Body> {
+fn make_request(with_gzip_accept: bool) -> HyperRequest<Full<Bytes>> {
     let mut builder = HyperRequest::builder()
         .method("GET")
         .uri("/bench?q=hello");
     if with_gzip_accept {
         builder = builder.header("accept-encoding", "gzip");
     }
-    builder.body(Body::empty()).unwrap()
+    builder.body(Full::<Bytes>::new(Bytes::new())).unwrap()
 }
 
 fn bench_request_lifecycle(c: &mut Criterion) {
