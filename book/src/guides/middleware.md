@@ -237,17 +237,23 @@ let app = RustF::new()
     });
 ```
 
-#### Method 3: Direct Registration (Advanced - requires mutable app)
+#### Method 3: Registration via `middleware_from`
+
+The `middleware` registry is private, so it is registered to through the
+`.middleware_from(...)` builder method, which hands you the registry:
 
 ```rust
-// Register inbound middleware
-app.middleware.register_inbound("auth", AuthMiddleware::new());
+let app = RustF::new()
+    .middleware_from(|registry| {
+        // Register inbound middleware
+        registry.register_inbound("auth", AuthMiddleware::new());
 
-// Register outbound middleware  
-app.middleware.register_outbound("compression", CompressionMiddleware);
+        // Register outbound middleware
+        registry.register_outbound("compression", CompressionMiddleware);
 
-// Register dual-phase middleware
-app.middleware.register_dual("timing", TimingMiddleware);
+        // Register dual-phase middleware
+        registry.register_dual("timing", TimingMiddleware);
+    });
 ```
 
 ### Setting Middleware Priority
@@ -431,13 +437,14 @@ Middleware executes based on priority (lower numbers first):
 
 ## Accessing Response in Outbound Phase
 
-With the new architecture, outbound middleware accesses the response through the Context's `response` field:
+With the new architecture, outbound middleware accesses the response through the Context's `res` field:
 
 ### Response Access Pattern
 
 ```rust
+#[async_trait]
 impl OutboundMiddleware for MyMiddleware {
-    fn process_response(&self, ctx: &mut Context) -> Result<()> {
+    async fn process_response(&self, ctx: &mut Context) -> Result<()> {
         // The response might be None if an error occurred
         if let Some(response) = ctx.res.as_mut() {
             // Modify response headers
@@ -486,7 +493,7 @@ use async_trait::async_trait;
 impl InboundMiddleware for ApiAuthMiddleware {
     fn should_run(&self, ctx: &Context) -> bool {
         // Only run for API routes
-        ctx.request.uri.starts_with("/api/")
+        ctx.req.uri.starts_with("/api/")
     }
     
     async fn process_request(&self, ctx: &mut Context) -> Result<InboundAction> {
@@ -506,7 +513,7 @@ impl InboundMiddleware for MetricsMiddleware {
     async fn process_request(&self, ctx: &mut Context) -> Result<InboundAction> {
         // Store request data for metrics
         ctx.set("metrics_start", Instant::now());
-        ctx.set("metrics_path", ctx.request.uri.clone());
+        ctx.set("metrics_path", ctx.req.uri.clone());
         
         Ok(InboundAction::Capture)
     }
@@ -540,7 +547,7 @@ use async_trait::async_trait;
 #[async_trait]
 impl InboundMiddleware for CacheMiddleware {
     async fn process_request(&self, ctx: &mut Context) -> Result<InboundAction> {
-        let cache_key = generate_cache_key(&ctx.request);
+        let cache_key = generate_cache_key(&ctx.req);
         
         if let Some(cached) = self.cache.get(&cache_key) {
             // Return cached response immediately

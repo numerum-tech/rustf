@@ -1112,7 +1112,7 @@ use rustf::Result;
 async fn get_user(id: i32) -> Result<Users> {
     match Users::get_by_id(id).await? {
         Some(user) => Ok(user),
-        None => Err(rustf::Error::NotFound(format!("User {} not found", id))),
+        None => Err(rustf::Error::ModelNotFound(format!("User {} not found", id))),
     }
 }
 
@@ -1404,7 +1404,7 @@ use rustf::models::Users;
 
 // Simple model operations
 let user = Users::get_by_id(123).await?;
-let admins = Users::where_eq("role", "admin").await?;
+let admins = Users::query()?.where_eq("role", "admin").get().await?;
 
 // Model-scoped query builder
 let active_users = Users::query()?
@@ -1881,10 +1881,9 @@ match query.right_join("posts", "posts.user_id = users.id") {
 ## 🔗 Related Documentation
 
 - **[CLI Tool Guide](../advanced/cli.md)** - Database tools and code generation
-- **[Schemas Guide](schemas.md)** - Schema-driven development
-- **[Model Generation Guide](../../docs/MODEL_GENERATION.md)** - Schema-driven development
-- **[RustF CLI Reference](../../docs/CLI_REFERENCE.md)** - Database and schema commands
-- **[Multi-Database Best Practices](../../docs/MULTI_DATABASE.md)** - Cross-database compatibility
+- **[Schema Format Reference](schema-format.md)** - The full YAML schema specification
+- **[Definitions System](schemas.md)** - Template helpers and validators
+- **[Cargo Features](../getting-started/installation.md#cargo-features)** - Per-driver multi-database setup
 
 ## 🤝 Contributing
 

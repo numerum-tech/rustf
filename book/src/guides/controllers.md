@@ -248,7 +248,7 @@ async fn handler_name(ctx: &mut Context) -> Result<()>
 1. **Response Storage**: The Context struct now contains an `Option<Response>` field initialized with a default 200 OK response
 2. **Setting Responses**: All response helper methods (`json()`, `view()`, `redirect()`, etc.) internally call `ctx.set_response()`
 3. **Return Type**: Methods return `Result<()>` to indicate success/failure of setting the response
-4. **Middleware Access**: Both inbound and outbound middleware can access and modify the response via `ctx.response`
+4. **Middleware Access**: Both inbound and outbound middleware can access and modify the response via `ctx.res`
 5. **Response Helpers in Middleware**: Since Context initializes with a default response, middleware can use the same response helpers (`ctx.json()`, `ctx.throw403()`, etc.) as handlers
 
 #### Custom Response Creation
@@ -556,7 +556,7 @@ ctx.flash("items", vec!["one", "two", "three"])?;
 ctx.flash_clear();                    // Clear all flash messages
 ctx.flash_clear_key("error_msg");     // Clear specific flash message
 
-// Flash messages automatically appear in views via @{flash.success_msg}, @{flash.custom_key}, etc.
+// Flash messages automatically appear in views via @{flash.success}, @{flash.custom_key}, etc.
 ```
 
 #### Client Information
@@ -1569,7 +1569,10 @@ async fn comprehensive_error_handler(ctx: &mut Context) -> Result<()> {
 // 1. Application setup
 let app = RustF::new()
     .controllers(auto_controllers!())  // Register all controllers
-    .middleware("auth", AuthMiddleware::new());  // Add middleware
+    // Register middleware via the registry passed into middleware_from(...)
+    .middleware_from(|registry| {
+        registry.register_inbound("auth", AuthMiddleware::new());
+    });
 
 // 2. Server startup
 app.start().await;  // Starts HTTP server

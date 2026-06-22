@@ -122,6 +122,13 @@ RustF emits events automatically during application startup, providing hooks for
 
 ### Custom Events
 
+> **Note:** `ctx.emit(...)` from within an event handler is **not currently wired**.
+> `EventContext::emit` (rustf/src/events.rs) only forwards to an emitter when one
+> has been injected into the context, and the built-in event executors do not
+> inject one. As a result, emitting custom events from inside a handler is a
+> silent no-op today. The example below illustrates the intended API but will not
+> trigger the chained `custom.initialization` handler until this is wired.
+
 You can also emit custom events from within handlers:
 
 ```rust
@@ -303,17 +310,22 @@ RustF provides ready-to-use event handlers for common startup tasks:
 
 ### Database Seeder
 
-Automatically runs SQL seed files from a directory:
+Scans a directory for `.sql` seed files:
 
 ```rust
 .on("database.ready", builtin::database_seeder("seeds/"))
 ```
 
-**Features:**
-- Executes SQL files in alphabetical order
+> **Note:** This handler is currently a **stub/placeholder**. It discovers and
+> sorts `.sql` files but does **not** execute them against the database — for
+> each file it only logs `"Would execute SQL from: ..."` (see
+> rustf/src/events/builtin.rs). Direct SQL execution is pending. Until then,
+> seed your database by other means.
+
+**Behavior:**
+- Discovers `.sql` files and sorts them alphabetically (intended execution order)
 - Only runs in development by default
-- Handles multiple database types
-- Continues on individual file failures
+- Logs the intended action per file rather than executing it
 
 ### Directory Setup
 
@@ -478,6 +490,9 @@ async fn handler_example(ctx: EventContext) -> rustf::Result<()> {
     }
     
     // Emit other events
+    // NOTE: ctx.emit is currently a no-op unless an emitter is injected into
+    // the context, which the built-in executors do not do. Emitting events
+    // from inside a handler does not trigger other handlers today.
     ctx.emit("custom.event", Some(json!({"from": ctx.event}))).await?;
     
     Ok(())
@@ -494,7 +509,7 @@ async fn handler_example(ctx: EventContext) -> rustf::Result<()> {
 | `ctx.is_production()` | Production check | `false` |
 | `ctx.config` | Application config | `ctx.config.server.port` |
 | `ctx.data` | Event data | `json!({"key": "value"})` |
-| `ctx.emit(event, data)` | Emit another event | Custom event emission |
+| `ctx.emit(event, data)` | Emit another event (currently a no-op unless an emitter is injected — see note in Custom Events) | Custom event emission |
 
 ## Priority System
 
@@ -635,6 +650,13 @@ app.on("ready", |ctx| Box::pin(async move {
 
 ### Dependency Chain Pattern
 
+> **Note:** This pattern depends on `ctx.emit(...)` triggering the next
+> handler in the chain. As described in **Custom Events**, in-handler
+> `ctx.emit` is currently a no-op (no emitter is injected by the executors),
+> so the `services.ready` / `dependencies.ready` handlers below will **not**
+> fire from these emits today. Treat this as the intended design, not current
+> behavior. For now, sequence work using priorities within a single event.
+
 ```rust
 app
     // Step 1: Initialize core services
@@ -659,6 +681,12 @@ app
 ```
 
 ### Error Recovery Pattern
+
+> **Note:** The `ctx.emit("database.connected", ...)` /
+> `ctx.emit("database.fallback", ...)` calls below are currently no-ops
+> (see **Custom Events**), so they will not notify other handlers today.
+> The error-handling logic itself (returning `Err` in production, running a
+> fallback in development) works as written.
 
 ```rust
 app.on("database.ready", |ctx| Box::pin(async move {
@@ -856,6 +884,8 @@ app.on("database.ready", |ctx| Box::pin(async move {
 
 ```rust
 // Emitting event with data
+// NOTE: ctx.emit is currently a no-op (see Custom Events) — the receiving
+// handler below will not fire from this emit yet.
 ctx.emit("custom.event", Some(json!({
     "message": "Hello",
     "timestamp": chrono::Utc::now()

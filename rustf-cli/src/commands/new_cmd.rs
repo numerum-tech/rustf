@@ -92,10 +92,11 @@ pub enum NewCommand {
     /// Generate a full CRUD scaffold enforcing the
     /// Base Model -> Model -> Module -> Controller layering rule.
     ///
-    /// Emits a thin controller, a business-logic module (only caller of
-    /// the model), an in-memory model stub, four views (index/show/new/
-    /// edit), and an integration-test stub. Replace the stub model with
-    /// the schema-generated base once you define schemas/<name>.yaml.
+    /// Scaffolds the HTTP + business layers around an EXISTING model:
+    /// a thin controller, a business-logic module (only caller of the
+    /// model), four views (index/show/new/edit), and an integration-test
+    /// stub. Requires src/models/<name>.rs to already exist (run
+    /// `schema generate models` first); it never creates or edits the model.
     Crud {
         /// Feature name (plural form, e.g. "posts", "users", "articles").
         /// Used as-is for routes, views dir, and controller/module filenames.

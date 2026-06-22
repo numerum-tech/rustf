@@ -101,7 +101,7 @@ async fn main() -> Result<()> {
 
     let app = RustF::new()
         .auto_load()  // ← Loads all discovered workers
-        .run("127.0.0.1:3000")
+        .start()  // bind address comes from config
         .await?;
 
     Ok(())
@@ -327,7 +327,7 @@ async fn main() -> Result<()> {
         .with_workers()
         .auto_load();  // ← Loads workers from src/workers/
 
-    app.run("127.0.0.1:3000").await
+    app.start().await
 }
 ```
 
@@ -344,7 +344,7 @@ async fn main() -> Result<()> {
     let app = RustF::new()
         .with_workers()
         .workers_from(auto_workers!())  // ← Scans src/workers/ at compile time
-        .run("127.0.0.1:3000")
+        .start()  // bind address comes from config
         .await?;
 
     Ok(())
@@ -648,13 +648,32 @@ Environment is determined from `RUSTF_ENV` or `NODE_ENV` environment variables.
 
 Access application configuration from workers:
 
+There is no generic dotted-path getter on `AppConfig`. Read a whole custom
+section into a struct with `section::<T>("api")`, or grab the raw TOML value
+with `get_value("api")`:
+
 ```rust
+#[derive(serde::Deserialize)]
+struct ApiConfig {
+    base_url: String,
+}
+
 WORKER::register("config-example", |ctx| async move {
     let config = ctx.config();
 
-    // Use configuration values
-    let base_url = config.get::<String>("api.base_url")
-        .unwrap_or_else(|| "http://localhost".to_string());
+    // Deserialize the [api] section into a struct
+    let base_url = config
+        .section::<ApiConfig>("api")
+        .map(|api| api.base_url)
+        .unwrap_or_else(|_| "http://localhost".to_string());
+
+    // Alternatively, read the raw TOML value:
+    // let base_url = config
+    //     .get_value("api")
+    //     .and_then(|v| v.get("base_url"))
+    //     .and_then(|v| v.as_str())
+    //     .unwrap_or("http://localhost")
+    //     .to_string();
 
     ctx.info(&format!("Using API: {}", base_url));
     Ok(())
@@ -848,7 +867,7 @@ async fn main() -> Result<()> {
             }).await?;
             Ok(())
         })
-        .run("127.0.0.1:3000")
+        .start()  // bind address comes from config
         .await?;
 
     // When app shuts down (Ctrl+C, etc.):
@@ -1534,14 +1553,14 @@ async fn main() -> Result<()> {
 // Recommended: Use auto_load
 let app = RustF::new()
     .auto_load()  // Automatically enables workers
-    .run("127.0.0.1:3000")
+    .start()  // bind address comes from config
     .await?;
 
 // Or explicitly:
 let app = RustF::new()
     .with_workers()
     .workers_from(auto_workers!())
-    .run("127.0.0.1:3000")
+    .start()  // bind address comes from config
     .await?;
 ```
 

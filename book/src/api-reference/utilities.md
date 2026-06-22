@@ -501,7 +501,7 @@ async fn process_form(ctx: Context) -> Result<Response> {
     let email_slug = U::String::to_slug(&name); // For URL-friendly usernames
     
     if name.is_empty() || age <= 0 {
-        ctx.flash_set("error_msg", "Please fill in all required fields");
+        ctx.flash_error("Please fill in all required fields")?;
         return ctx.redirect("/form");
     }
     
@@ -519,7 +519,7 @@ async fn process_form(ctx: Context) -> Result<Response> {
     };
     
     user.save().await?;
-    ctx.flash_set("success_msg", "User created successfully!");
+    ctx.flash_success("User created successfully!")?;
     ctx.redirect("/users")
 }
 ```

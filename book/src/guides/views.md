@@ -468,16 +468,36 @@ Use parentheses to control evaluation order and clarify complex expressions:
 
 #### Practical Examples
 
+> **Important:** The Total.js engine does **not** support template-level variable
+> assignment (`@{var x = ...}` and reassignment do **not** work) and there is no
+> `Math.*` object. Inline arithmetic and boolean expressions *are* supported
+> (e.g. `@{price * quantity}`, `@{a && b}`), but any value that needs to be
+> *computed once and reused* — a subtotal, a page count, an access-control flag —
+> should be calculated in the handler and passed in via the repository.
+
 **Shopping Cart Total:**
+
+Compute the per-item and subtotal values in the handler, then pass them in. Inline
+arithmetic is fine for purely derived display values:
+
+```rust
+// In the handler
+async fn cart(ctx: &mut Context) -> rustf::Result<()> {
+    // ... build `items` (each with a pre-computed `total`) and `subtotal` ...
+    ctx.repository_set("items", json!(items));
+    ctx.repository_set("subtotal", json!(subtotal));
+    ctx.repository_set("tax_rate", json!(0.2));
+    ctx.repository_set("grand_total", json!(subtotal * 1.2));
+    ctx.view("cart/index").await
+}
+```
+
 ```html
-@{var subtotal = 0}
-@{foreach item in cart.items}
-    @{var item_total = item.price * item.quantity}
-    @{subtotal = subtotal + item_total}
+@{foreach item in items}
     <tr>
         <td>@{item.name}</td>
         <td>@{item.quantity} × $@{item.price}</td>
-        <td>$@{item_total}</td>
+        <td>$@{item.total}</td>
     </tr>
 @{end}
 <tr class="total">
@@ -490,16 +510,24 @@ Use parentheses to control evaluation order and clarify complex expressions:
 </tr>
 <tr class="grand-total">
     <td colspan="2">Total:</td>
-    <td>$@{subtotal + (subtotal * tax_rate)}</td>
+    <td>$@{grand_total}</td>
 </tr>
 ```
 
 **Pagination Logic:**
-```html
-@{var total_pages = Math.ceil(total_items / items_per_page)}
-@{var has_prev = current_page > 1}
-@{var has_next = current_page < total_pages}
 
+Compute `total_pages`, `has_prev`, and `has_next` in the handler (no `Math.ceil`
+in templates), then read them in the view:
+
+```rust
+let total_pages = (total_items + items_per_page - 1) / items_per_page; // ceil
+ctx.repository_set("current_page", json!(current_page));
+ctx.repository_set("total_pages", json!(total_pages));
+ctx.repository_set("has_prev", json!(current_page > 1));
+ctx.repository_set("has_next", json!(current_page < total_pages));
+```
+
+```html
 <div class="pagination">
     @{if has_prev}
         <a href="?page=@{current_page - 1}">Previous</a>
@@ -514,11 +542,17 @@ Use parentheses to control evaluation order and clarify complex expressions:
 ```
 
 **Access Control:**
-```html
-@{var can_edit = (user.id === post.author_id) || user.is_admin}
-@{var can_delete = user.is_admin || (user.is_moderator && post.flagged)}
-@{var can_publish = (user.role === "editor" || user.role === "admin") && !post.published}
 
+Resolve permission flags in the handler and pass them through the repository:
+
+```rust
+let can_edit = user.id == post.author_id || user.is_admin;
+ctx.repository_set("can_edit", json!(can_edit));
+ctx.repository_set("can_delete", json!(user.is_admin || (user.is_moderator && post.flagged)));
+ctx.repository_set("can_publish", json!((user.role == "editor" || user.role == "admin") && !post.published));
+```
+
+```html
 @{if can_edit}
     <button onclick="editPost()">Edit</button>
 @{fi}
@@ -600,9 +634,10 @@ Within `@{foreach}` loops, the iterator variable is directly accessible:
     <p>Index: @{index}</p>  <!-- Loop index is available -->
 @{end}
 
-<!-- Looping over objects -->
-@{foreach key, value in CONF}
-    <p>Config @{key}: @{value}</p>
+<!-- foreach binds a SINGLE loop variable. Two-variable key/value object
+     iteration (e.g. `foreach key, value in obj`) is NOT supported. -->
+@{foreach tag in post.tags}
+    <span class="tag">@{tag}</span>
 @{end}
 ```
 
@@ -862,8 +897,6 @@ Define a layout (`views/layouts/default.html`):
 
 Use in child template (`views/home/index.html`):
 ```html
-@{layout('layouts/default')}  <!-- Optional: Override controller layout -->
-
 <h1>@{model.title}</h1>
 <p>@{M.message}</p>
 
@@ -871,6 +904,11 @@ Use in child template (`views/home/index.html`):
     <div>@{feature}</div>
 @{end}
 ```
+
+> **Note:** `@{layout('...')}` is **not** a template directive in RustF. The
+> layout is chosen by the handler with `ctx.layout("layouts/default")` (or falls
+> back to the `views.default_layout` value in `config.toml`). Set it before
+> calling `ctx.view(...)`.
 
 ## Sections
 
@@ -1237,39 +1275,49 @@ The `@{head}` placeholder is a convenience feature inherited from Total.js for a
 
 ### Custom Template Functions
 
-Register custom functions for Total.js templates:
+Custom functions usable in templates (`@{my_helper(...)}`) are registered as
+**helpers** through the Definitions system — there is no public
+`engine.register_function(...)` method. Register the helper inside a definitions
+module's `install` function:
 
 ```rust
-use rustf::views::TotalJsEngine;
+use rustf::definitions::Definitions;
 
-// In your app setup
-let mut engine = TotalJsEngine::new("views");
-engine.register_function("format_price", |args| {
-    if let Some(Value::Number(n)) = args.first() {
-        Value::String(format!("${:.2}", n.as_f64().unwrap_or(0.0)))
-    } else {
-        Value::String("$0.00".to_string())
-    }
-});
+pub fn install(defs: &mut Definitions) {
+    // `defs.helpers` is the public HelperRegistry; `register_fn` takes a
+    // name, description, and a closure `Fn(&[Value], _) -> Result<Value>`.
+    defs.helpers.register_fn(
+        "format_price",
+        "Format a number as a price",
+        |args, _| {
+            let amount = args.first().and_then(|v| v.as_f64()).unwrap_or(0.0);
+            Ok(serde_json::Value::String(format!("${:.2}", amount)))
+        },
+    );
+}
 
 // Use in template
 // @{format_price(19.99)} => "$19.99"
 ```
+
+See the [Definitions guide](./schemas.md) for the full helper API
+(`register_helper`, `register_fn`) and how definitions modules are auto-discovered.
 
 ### CSRF Protection
 
 Automatic CSRF token injection:
 
 ```rust
-// In controller - generate token and render view
-ctx.generate_csrf()?;
-ctx.view("form", data)
+// In controller - generate token and render view.
+// generate_csrf takes an Option<&str> token id; pass None for the default.
+ctx.generate_csrf(None)?;
+ctx.view("form", data).await
 ```
 
 ```html
 <!-- In template - Total.js -->
 <form method="POST">
-    @{csrf_field}  <!-- Renders hidden input with token -->
+    @{csrf}  <!-- Renders hidden input with the default token -->
     <!-- or manually -->
     <input type="hidden" name="_token" value="@{csrf_token}">
 </form>
@@ -1337,27 +1385,29 @@ async fn dashboard(mut ctx: Context) -> Result<Response> {
 The global repository is application-wide data shared across all requests. It's typically set during application initialization and contains site-wide settings, application metadata, or shared constants.
 
 **Setting During Application Setup:**
+
+Use the `APP` global repository. It accepts dotted paths, so nested values are
+set directly:
+
 ```rust
 // In your main.rs or app initialization
-use rustf::views::TotalJsEngine;
+use rustf::APP;
 
-let engine = TotalJsEngine::new("views");
-engine.set_global_repository(json!({
-    "site_name": "My Application",
-    "version": "2.1.0",
-    "copyright": "© 2024 MyCompany",
-    "contact_email": "support@example.com",
-    "features": {
-        "comments": true,
-        "notifications": true,
-        "api_v2": false
-    },
-    "social_links": {
-        "twitter": "https://twitter.com/myapp",
-        "github": "https://github.com/myapp"
-    }
-}));
+APP::set("site_name", "My Application")?;
+APP::set("version", "2.1.0")?;
+APP::set("copyright", "© 2024 MyCompany")?;
+APP::set("contact_email", "support@example.com")?;
+
+APP::set("features.comments", true)?;
+APP::set("features.notifications", true)?;
+APP::set("features.api_v2", false)?;
+
+APP::set("social_links.twitter", "https://twitter.com/myapp")?;
+APP::set("social_links.github", "https://github.com/myapp")?;
 ```
+
+> **Deprecated:** `TotalJsEngine::set_global_repository(...)` is marked
+> `#[deprecated]` — use `APP::set()` as shown above instead.
 
 **Accessing in Templates:**
 ```html
@@ -1548,21 +1598,21 @@ Flash messages are stored in the session but are aliased for convenience, so you
 
 ```html
 <!-- Standard flash messages - Total.js -->
-@{if flash.success_msg}
-    <div class="alert alert-success">@{flash.success_msg}</div>
+@{if flash.success}
+    <div class="alert alert-success">@{flash.success}</div>
 @{fi}
 
-@{if flash.error_msg}
-    <div class="alert alert-error">@{flash.error_msg}</div>
+@{if flash.error}
+    <div class="alert alert-error">@{flash.error}</div>
 @{fi}
 
-@{if flash.info_msg}
-    <div class="alert alert-info">@{flash.info_msg}</div>
+@{if flash.info}
+    <div class="alert alert-info">@{flash.info}</div>
 @{fi}
 
 <!-- Custom flash messages -->
-@{if flash.warning_msg}
-    <div class="alert alert-warning">@{flash.warning_msg}</div>
+@{if flash.warning}
+    <div class="alert alert-warning">@{flash.warning}</div>
 @{fi}
 
 <!-- Complex flash data -->
@@ -2121,13 +2171,18 @@ match ctx.view("missing-template", data) {
 
 ### Syntax Errors
 - **Total.js**: Errors shown with line numbers during development
-- **Tera**: Compile-time checking with detailed error messages
+
+> **Note:** Total.js is the **only** supported template engine in RustF. Tera and
+> other engines are not supported.
 
 ## Migration Guide
 
-### From Tera to Total.js
+### Coming From Tera (Syntax Cheat Sheet)
 
-| Tera | Total.js |
+If you're used to Tera, here's how the equivalent Total.js syntax looks. (RustF
+itself does not run Tera — this table is only to ease the transition.)
+
+| Tera (other engine) | Total.js (RustF) |
 |------|----------|
 | `{{ variable }}` | `@{variable}` |
 | `{% if condition %}` | `@{if condition}` |
@@ -2136,17 +2191,6 @@ match ctx.view("missing-template", data) {
 | `{% endfor %}` | `@{end}` |
 | `{{ var \| escape }}` | `@{var}` (auto-escaped) |
 | `{{ var \| safe }}` | `@{!var}` |
-
-### From Total.js to Tera
-
-| Total.js | Tera |
-|----------|------|
-| `@{variable}` | `{{ variable }}` |
-| `@{if condition}` | `{% if condition %}` |
-| `@{fi}` | `{% endif %}` |
-| `@{foreach item in items}` | `{% for item in items %}` |
-| `@{end}` | `{% endfor %}` |
-| `@{!raw_html}` | `{{ raw_html \| safe }}` |
 
 ## Best Practices
 
@@ -2253,9 +2297,9 @@ async fn purchase(ctx: &mut Context) -> rustf::Result<()> {
 
 ### Template with All Features Including Repositories
 
+<!-- The layout is selected by the handler via ctx.layout("layouts/default")
+     (or the views.default_layout config), not with an @{layout(...)} directive. -->
 ```html
-@{layout('layouts/default')}
-
 <!-- Page specific CSS -->
 @{css('/static/css/products.css')}
 
@@ -2344,4 +2388,4 @@ async fn purchase(ctx: &mut Context) -> rustf::Result<()> {
 @{js('/static/js/products.js')}
 ```
 
-This documentation provides a complete guide to using the RustF view system with practical examples and best practices for both Total.js and Tera template engines.
+This documentation provides a complete guide to using the RustF view system with practical examples and best practices for the Total.js template engine (the only supported engine).

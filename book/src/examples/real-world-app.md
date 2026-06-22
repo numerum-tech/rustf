@@ -245,28 +245,31 @@ use rustf::prelude::*;
 
 pub struct AuthMiddleware;
 
+#[async_trait]
 impl InboundMiddleware for AuthMiddleware {
-    fn handle(&self, ctx: &mut Context) -> MiddlewareResult {
+    async fn process_request(&self, ctx: &mut Context) -> Result<InboundAction> {
         let path = ctx.path();
-        
-        // Protected paths
-        if path.starts_with("/posts/create") || 
-           path.starts_with("/posts/") && ctx.req.method() == "POST" {
-            
-            if !ctx.has_session() || 
+
+        // Protected paths (ctx.req.method is a String)
+        if path.starts_with("/posts/create") ||
+           (path.starts_with("/posts/") && ctx.req.method == "POST") {
+
+            if !ctx.has_session() ||
                !ctx.session().map(|s| s.is_authenticated()).unwrap_or(false) {
                 ctx.flash_error("Please login to continue")?;
-                ctx.redirect("/auth/login");
-                return MiddlewareResult::Stop;
+                ctx.redirect("/auth/login")?;
+                // Stop the chain; the redirect response set on ctx is used.
+                return Ok(InboundAction::Stop);
             }
         }
-        
-        MiddlewareResult::Continue
+
+        Ok(InboundAction::Continue)
     }
 }
 
 pub fn install(registry: &mut MiddlewareRegistry) {
-    registry.register("auth", AuthMiddleware);
+    // Inbound-only middleware: register with register_inbound.
+    registry.register_inbound("auth", AuthMiddleware);
 }
 ```
 
@@ -283,9 +286,10 @@ port = 8000
 url = "sqlite:blog.db"
 
 [session]
-timeout = 3600
-secure = false
-http_only = true
+cookie_name = "rustf_session"
+same_site = "Lax"
+idle_timeout = 1800
+absolute_timeout = 28800
 
 [views]
 directory = "views"
@@ -317,12 +321,12 @@ default_layout = "layouts/application"
         @{fi}
     </nav>
     
-    @{if flash.success_msg}
-        <div class="alert success">@{flash.success_msg}</div>
+    @{if flash.success}
+        <div class="alert success">@{flash.success}</div>
     @{fi}
     
-    @{if flash.error_msg}
-        <div class="alert error">@{flash.error_msg}</div>
+    @{if flash.error}
+        <div class="alert error">@{flash.error}</div>
     @{fi}
     
     <main>
