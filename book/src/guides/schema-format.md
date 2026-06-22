@@ -206,21 +206,14 @@ indexes:
 
 ## Table-level constraints
 
-> **Reserved — not yet enforced.** A `constraints:` block parses but is
-> currently **ignored** by both SQL and model generation. It is reserved for a
-> future release; don't rely on it for validation today. Use field-level keys
-> (`min`, `max`, `min_length`, `max_length`, `pattern`, `validation`) instead.
+A `constraints:` key is accepted by the parser but **does nothing today** — it
+is ignored by both SQL and model generation. In particular there is **no
+raw-SQL `CHECK` support**: a `sql: "price >= 0"` entry produces no SQL and no
+validation. The key exists only as a reserved slot for a future release.
 
-The reserved shape, for forward-compatibility:
-
-```yaml
-constraints:
-  - field: age
-    min: 18
-    message: "Must be at least 18"
-  - sql: "price >= 0"
-    message: "Price cannot be negative"
-```
+For checks today, use field-level keys (which still record metadata) and
+enforce rules in your own code (e.g. a controller `before` hook) — see the
+[validation note](#field-keys) above.
 
 ## Global metadata (`_meta.yaml`)
 
