@@ -1,6 +1,8 @@
 use crate::error::{Error, Result};
 use crate::http::files::{FileCollection, MultipartParser};
-use hyper::{Body, Request as HyperRequest};
+use http_body_util::BodyExt;
+use hyper::body::Incoming;
+use hyper::Request as HyperRequest;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use simd_json;
@@ -170,7 +172,7 @@ impl Request {
         self.body_bytes = body;
     }
 
-    pub async fn from_hyper(req: HyperRequest<Body>) -> Result<Self> {
+    pub async fn from_hyper(req: HyperRequest<Incoming>) -> Result<Self> {
         let method = req.method().to_string();
         let uri = req.uri().to_string();
 
@@ -185,8 +187,8 @@ impl Request {
         // Extract query parameters
         let query = Self::parse_query(req.uri().query().unwrap_or(""));
 
-        // Read body
-        let body_bytes = hyper::body::to_bytes(req.into_body()).await?.to_vec();
+        // Read body (hyper 1.x: collect the Incoming body into bytes)
+        let body_bytes = req.into_body().collect().await?.to_bytes().to_vec();
 
         Ok(Request {
             method,
