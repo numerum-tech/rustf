@@ -128,7 +128,7 @@ rustf-cli db <SUBCOMMAND>
   rustf-cli db generate-schema [-o <DIR>] [--force] [--tables <T1,T2>] [--no-sql]
   # ⚠️ --force creates backups in .rustf/backups/schemas/
   ```
-  By default also writes `<DIR>/_schema.sql` (full DDL via mysqldump /
+  By default also writes `<DIR>/_database_dump.sql` (full DDL via mysqldump /
   pg_dump / sqlite3 .schema). The SQL dump is the canonical
   source-controlled representation of the live DB structure
   (database-first workflow). Pass `--no-sql` to skip it.
@@ -136,7 +136,7 @@ rustf-cli db <SUBCOMMAND>
 - **`dump-schema`** - Dump full DB DDL only (no YAML regeneration)
   ```bash
   rustf-cli db dump-schema [-o <FILE>]
-  # Default output: schemas/_schema.sql
+  # Default output: schemas/_database_dump.sql
   ```
   Shells out to the dialect-specific native tool: `pg_dump --schema-only`,
   `mysqldump --no-data --skip-lock-tables --routines --triggers --force`,

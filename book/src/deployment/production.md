@@ -195,7 +195,7 @@ rustf-cli schema generate migrations
 
 # 4. After the DB is updated, sync the YAML back from the live DB and
 #    keep the canonical DDL in source control:
-rustf-cli db generate-schema       # writes schemas/*.yaml + schemas/_schema.sql
+rustf-cli db generate-schema       # writes schemas/*.yaml + schemas/_database_dump.sql
 ```
 
 For a one-off SQL dump without regenerating the YAML, use
