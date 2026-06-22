@@ -248,11 +248,28 @@ impl Request {
     }
 
     /// Parse form data with support for arrays (field[] syntax)
-    pub fn body_as_form_data(&self) -> Result<HashMap<String, FormValue>> {
-        // Optimize: Check if multipart form data was already parsed
-        // Note: This requires &mut self, but we can't change the signature easily
-        // For now, we'll parse urlencoded forms here and multipart is handled separately
-        // TODO: Consider caching multipart form data in Context instead
+    pub fn body_as_form_data(&mut self) -> Result<HashMap<String, FormValue>> {
+        if let Some(ref form) = self.multipart_form_data {
+            return Ok(form
+                .iter()
+                .map(|(key, value)| (key.clone(), FormValue::Single(value.clone())))
+                .collect());
+        }
+
+        if self
+            .headers
+            .get("content-type")
+            .map(|v| v.starts_with("multipart/form-data"))
+            == Some(true)
+        {
+            self.parse_files()?;
+            if let Some(ref form) = self.multipart_form_data {
+                return Ok(form
+                    .iter()
+                    .map(|(key, value)| (key.clone(), FormValue::Single(value.clone())))
+                    .collect());
+            }
+        }
 
         // Optimize: Check if body is valid UTF-8 to avoid unnecessary allocation
         let body_str = match std::str::from_utf8(&self.body_bytes) {
@@ -772,6 +789,7 @@ impl Request {
         self.body_bytes.clear();
         self.files = None;
         self.multipart_form_data = None;
+        self.cookies_cache = once_cell::sync::OnceCell::new();
 
         // Shrink collections if they've grown too large
         // This prevents memory bloat from requests with large payloads
@@ -1203,6 +1221,33 @@ mod tests {
     }
 
     #[test]
+    fn test_multipart_form_data_uses_cached_fields() {
+        let mut request = Request::default();
+        request.headers.insert(
+            "content-type".to_string(),
+            "multipart/form-data; boundary=boundary123".to_string(),
+        );
+        request.set_body(
+            b"--boundary123\r\n\
+Content-Disposition: form-data; name=\"title\"\r\n\r\n\
+Hello multipart\r\n\
+--boundary123\r\n\
+Content-Disposition: form-data; name=\"upload\"; filename=\"test.txt\"\r\n\
+Content-Type: text/plain\r\n\r\n\
+file contents\r\n\
+--boundary123--\r\n"
+                .to_vec(),
+        );
+
+        let form = request.body_as_form_data().unwrap();
+        assert_eq!(
+            form.get("title").map(FormValue::as_string),
+            Some("Hello multipart")
+        );
+        assert!(form.get("upload").is_none());
+    }
+
+    #[test]
     fn test_form_parsing_malicious_input() {
         // Test that malicious patterns are filtered out
         let query = Request::parse_query("safe=value&bad=../etc/passwd&normal=test");
@@ -1272,6 +1317,22 @@ mod tests {
         assert_eq!(request.cookie("c"), Some("3".to_string()));
         let third = request.cookies() as *const _;
         assert_eq!(first, third);
+    }
+
+    #[test]
+    fn test_reset_clears_cookie_cache() {
+        let mut request = Request::default();
+        request
+            .headers
+            .insert("cookie".to_string(), "session=first".to_string());
+        assert_eq!(request.cookie("session"), Some("first".to_string()));
+
+        request.reset();
+        request
+            .headers
+            .insert("cookie".to_string(), "session=second".to_string());
+
+        assert_eq!(request.cookie("session"), Some("second".to_string()));
     }
 
     #[test]
