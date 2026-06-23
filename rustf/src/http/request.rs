@@ -193,16 +193,29 @@ impl Request {
         // Extract query parameters
         let query = Self::parse_query(req.uri().query().unwrap_or(""));
 
+        let content_length = req
+            .headers()
+            .get("content-length")
+            .and_then(|value| value.to_str().ok())
+            .and_then(|value| value.parse::<u64>().ok())
+            .unwrap_or(0);
+        let has_transfer_encoding = req.headers().contains_key("transfer-encoding");
+        let body_hint = req.body().size_hint();
+        let has_body = content_length > 0 || has_transfer_encoding || body_hint.lower() > 0;
+
         // Read body (hyper 1.x: collect the body into bytes). Generic over the
         // body type, so map its error into our own rather than relying on the
         // `From<hyper::Error>` impl (which only covers `Incoming`).
-        let body_bytes = req
-            .into_body()
-            .collect()
-            .await
-            .map_err(|e| Error::Internal(format!("failed to read request body: {e}")))?
-            .to_bytes()
-            .to_vec();
+        let body_bytes = if has_body {
+            req.into_body()
+                .collect()
+                .await
+                .map_err(|e| Error::Internal(format!("failed to read request body: {e}")))?
+                .to_bytes()
+                .to_vec()
+        } else {
+            Vec::new()
+        };
 
         Ok(Request {
             method,
@@ -1302,14 +1315,16 @@ file contents\r\n\
         // Two calls to cookies() must return the exact same HashMap —
         // proves the lazy cache isn't re-parsing per call.
         let mut request = Request::default();
-        request.headers.insert(
-            "cookie".to_string(),
-            "a=1; b=2; c=3".to_string(),
-        );
+        request
+            .headers
+            .insert("cookie".to_string(), "a=1; b=2; c=3".to_string());
 
         let first = request.cookies() as *const _;
         let second = request.cookies() as *const _;
-        assert_eq!(first, second, "cookies() must cache — got different HashMap pointers");
+        assert_eq!(
+            first, second,
+            "cookies() must cache — got different HashMap pointers"
+        );
 
         // And multiple cookie(name) calls go through the same cache.
         assert_eq!(request.cookie("a"), Some("1".to_string()));

@@ -61,26 +61,36 @@ impl TemplateCache {
             .map(|d| d.as_secs())
     }
 
-    fn get_or_compile(
+    fn get_cached(&self, cache_key: &str) -> Option<Arc<Template>> {
+        if let Ok(cache) = self.cache.read() {
+            if let Some(entry) = cache.get(cache_key) {
+                return Some(Arc::clone(&entry.template));
+            }
+        }
+        None
+    }
+
+    fn get_if_version_matches(
+        &self,
+        cache_key: &str,
+        version: Option<&str>,
+    ) -> Option<Arc<Template>> {
+        if let Ok(cache) = self.cache.read() {
+            if let Some(entry) = cache.get(cache_key) {
+                if entry.version.as_deref() == version {
+                    return Some(Arc::clone(&entry.template));
+                }
+            }
+        }
+        None
+    }
+
+    fn compile_and_store(
         &self,
         cache_key: &str,
         content: &str,
         version: Option<String>,
     ) -> Result<Arc<Template>> {
-        // Check cache first — return a cheap Arc clone (refcount increment only)
-        if let Ok(cache) = self.cache.read() {
-            if let Some(entry) = cache.get(cache_key) {
-                if self.trust_cache {
-                    return Ok(Arc::clone(&entry.template));
-                }
-
-                if entry.version == version {
-                    return Ok(Arc::clone(&entry.template));
-                }
-            }
-        }
-
-        // Cache miss or stale — compile and store
         let mut parser = Parser::new(content)?;
         let template_arc = Arc::new(parser.parse()?);
 
@@ -114,6 +124,8 @@ pub struct TotalJsEngine {
     config: Arc<RwLock<HashMap<String, String>>>,
     /// Full application configuration for CONF global
     app_config: Option<Arc<AppConfig>>,
+    /// Cached JSON representation of CONF to avoid re-serializing config every render.
+    conf_value: Arc<RwLock<Value>>,
     /// Translation system (legacy JSON-based)
     translator: Arc<RwLock<Option<TranslationSystem>>>,
     /// Resource translation system (new .res file based)
@@ -124,7 +136,9 @@ pub struct TotalJsEngine {
 
 #[derive(Clone)]
 enum TemplateSource {
-    Filesystem { base_dir: PathBuf },
+    Filesystem {
+        base_dir: PathBuf,
+    },
     #[cfg(feature = "embedded-views")]
     Embedded,
 }
@@ -132,6 +146,25 @@ enum TemplateSource {
 struct TemplateAsset {
     content: String,
     version: Option<String>,
+}
+
+fn config_to_conf_value(config: &HashMap<String, String>) -> Value {
+    let mut conf_obj = serde_json::Map::new();
+    for (key, value) in config {
+        conf_obj.insert(key.clone(), Value::String(value.clone()));
+    }
+    Value::Object(conf_obj)
+}
+
+fn build_conf_value(
+    config: &HashMap<String, String>,
+    app_config: Option<&Arc<AppConfig>>,
+) -> Value {
+    if let Some(app_config) = app_config {
+        serde_json::to_value(app_config.as_ref()).unwrap_or_else(|_| config_to_conf_value(config))
+    } else {
+        config_to_conf_value(config)
+    }
 }
 
 /// Append `.html` to a template name if it isn't already present.
@@ -207,9 +240,7 @@ fn load_asset(source: &TemplateSource, relative: &str, name: &str) -> Result<Tem
                 ))
             })?;
             let content = std::str::from_utf8(&data)
-                .map_err(|e| {
-                    Error::template(format!("Invalid UTF-8 in template {}: {}", name, e))
-                })?
+                .map_err(|e| Error::template(format!("Invalid UTF-8 in template {}: {}", name, e)))?
                 .to_string();
 
             use std::collections::hash_map::DefaultHasher;
@@ -253,6 +284,8 @@ impl TotalJsEngine {
 
         let minify = view_config.map(|vc| vc.minify).unwrap_or(false);
 
+        let conf_value = build_conf_value(&config, None);
+
         Self {
             source: TemplateSource::Filesystem {
                 base_dir: PathBuf::from(base_dir),
@@ -260,6 +293,7 @@ impl TotalJsEngine {
             cache: TemplateCache::new(enable_hot_reload),
             config: Arc::new(RwLock::new(config)),
             app_config: None,
+            conf_value: Arc::new(RwLock::new(conf_value)),
             translator: Arc::new(RwLock::new(None)),
             resource_translator: Arc::new(RwLock::new(None)),
             minify,
@@ -270,7 +304,7 @@ impl TotalJsEngine {
     pub fn with_app_config(base_dir: &str, app_config: Arc<AppConfig>) -> Self {
         // Respect cache_enabled setting from config
         let enable_hot_reload = !app_config.views.cache_enabled;
-        
+
         // In production with caching enabled, trust the cache (skip mtime checks)
         // This eliminates blocking filesystem operations on every render
         let trust_cache = app_config.views.cache_enabled && app_config.environment.is_production();
@@ -293,6 +327,8 @@ impl TotalJsEngine {
 
         let minify = app_config.views.minify;
 
+        let conf_value = build_conf_value(&config, Some(&app_config));
+
         Self {
             source: TemplateSource::Filesystem {
                 base_dir: PathBuf::from(base_dir),
@@ -300,6 +336,7 @@ impl TotalJsEngine {
             cache: TemplateCache::new_with_trust_cache(enable_hot_reload, trust_cache),
             config: Arc::new(RwLock::new(config)),
             app_config: Some(app_config),
+            conf_value: Arc::new(RwLock::new(conf_value)),
             translator: Arc::new(RwLock::new(None)),
             resource_translator: Arc::new(RwLock::new(None)),
             minify,
@@ -328,11 +365,14 @@ impl TotalJsEngine {
 
         let minify = view_config.map(|vc| vc.minify).unwrap_or(false);
 
+        let conf_value = build_conf_value(&config, None);
+
         Self {
             source: TemplateSource::Embedded,
             cache: TemplateCache::new(enable_hot_reload),
             config: Arc::new(RwLock::new(config)),
             app_config: None,
+            conf_value: Arc::new(RwLock::new(conf_value)),
             translator: Arc::new(RwLock::new(None)),
             resource_translator: Arc::new(RwLock::new(None)),
             minify,
@@ -360,11 +400,14 @@ impl TotalJsEngine {
 
         let minify = app_config.views.minify;
 
+        let conf_value = build_conf_value(&config, Some(&app_config));
+
         Self {
             source: TemplateSource::Embedded,
             cache: TemplateCache::new_with_trust_cache(enable_hot_reload, trust_cache),
             config: Arc::new(RwLock::new(config)),
             app_config: Some(app_config),
+            conf_value: Arc::new(RwLock::new(conf_value)),
             translator: Arc::new(RwLock::new(None)),
             resource_translator: Arc::new(RwLock::new(None)),
             minify,
@@ -394,6 +437,9 @@ impl TotalJsEngine {
     pub fn set_config(&self, config: HashMap<String, String>) {
         if let Ok(mut cfg) = self.config.write() {
             *cfg = config;
+            if let Ok(mut conf) = self.conf_value.write() {
+                *conf = build_conf_value(&cfg, self.app_config.as_ref());
+            }
         }
     }
 
@@ -434,6 +480,9 @@ impl TotalJsEngine {
     pub fn set_config_value(&self, key: &str, value: &str) {
         if let Ok(mut config) = self.config.write() {
             config.insert(key.to_string(), value.to_string());
+            if let Ok(mut conf) = self.conf_value.write() {
+                *conf = build_conf_value(&config, self.app_config.as_ref());
+            }
         }
     }
 
@@ -453,6 +502,9 @@ impl TotalJsEngine {
                 "cache_enabled".to_string(),
                 app_config.views.cache_enabled.to_string(),
             );
+            if let Ok(mut conf) = self.conf_value.write() {
+                *conf = build_conf_value(&cfg, Some(&app_config));
+            }
         }
         self.app_config = Some(app_config);
     }
@@ -504,16 +556,50 @@ impl TotalJsEngine {
 
     fn template_root_for_renderer(&self) -> Option<String> {
         match &self.source {
-            TemplateSource::Filesystem { base_dir } => {
-                Some(base_dir.to_string_lossy().to_string())
-            }
+            TemplateSource::Filesystem { base_dir } => Some(base_dir.to_string_lossy().to_string()),
             #[cfg(feature = "embedded-views")]
             TemplateSource::Embedded => None,
         }
     }
 
-    fn load_template_asset(&self, relative_path: &str) -> Result<TemplateAsset> {
-        load_asset(&self.source, relative_path, relative_path)
+    fn load_template_from_source(
+        source: &TemplateSource,
+        cache: &TemplateCache,
+        relative_path: &str,
+        display_name: &str,
+    ) -> Result<Arc<Template>> {
+        if cache.trust_cache {
+            if let Some(template) = cache.get_cached(relative_path) {
+                return Ok(template);
+            }
+        }
+
+        match source {
+            TemplateSource::Filesystem { base_dir } => {
+                let path = base_dir.join(relative_path);
+                let version = TemplateCache::get_file_mtime(&path).map(|mtime| mtime.to_string());
+                if let Some(template) =
+                    cache.get_if_version_matches(relative_path, version.as_deref())
+                {
+                    return Ok(template);
+                }
+
+                let content = std::fs::read_to_string(&path).map_err(|e| {
+                    Error::template(format!("Failed to load template '{}': {}", display_name, e))
+                })?;
+                cache.compile_and_store(relative_path, &content, version)
+            }
+            #[cfg(feature = "embedded-views")]
+            TemplateSource::Embedded => {
+                let asset = load_asset(source, relative_path, display_name)?;
+                if let Some(template) =
+                    cache.get_if_version_matches(relative_path, asset.version.as_deref())
+                {
+                    return Ok(template);
+                }
+                cache.compile_and_store(relative_path, &asset.content, asset.version)
+            }
+        }
     }
 
     /// Build a partial-template loader closure that resolves names through the
@@ -526,16 +612,13 @@ impl TotalJsEngine {
             let clean_name = name.strip_prefix('/').unwrap_or(name);
             let relative = ensure_html_extension(clean_name);
             reject_traversal(&relative)?;
-            let asset = load_asset(&source, &relative, name)?;
-            cache.get_or_compile(&relative, &asset.content, asset.version)
+            Self::load_template_from_source(&source, &cache, &relative, name)
         })
     }
 
     /// Load and compile a template, returning a shared Arc (zero-copy on cache hit).
     fn load_template(&self, relative_path: &str) -> Result<Arc<Template>> {
-        let asset = self.load_template_asset(relative_path)?;
-        self.cache
-            .get_or_compile(relative_path, &asset.content, asset.version)
+        Self::load_template_from_source(&self.source, &self.cache, relative_path, relative_path)
     }
 
     /// Create a render context with common data
@@ -564,21 +647,8 @@ impl TotalJsEngine {
             context = context.with_config(cfg.clone());
         }
 
-        // Set CONF global for templates
-        if let Some(app_config) = &self.app_config {
-            // Use full AppConfig if available - serialize it to JSON for full access
-            if let Ok(conf_json) = serde_json::to_value(app_config.as_ref()) {
-                context = context.with_conf(conf_json);
-            }
-        } else {
-            // Fallback to legacy behavior if no AppConfig
-            if let Ok(cfg) = self.config.read() {
-                let mut conf_obj = serde_json::Map::new();
-                for (key, value) in cfg.iter() {
-                    conf_obj.insert(key.clone(), Value::String(value.clone()));
-                }
-                context = context.with_conf(Value::Object(conf_obj));
-            }
+        if let Ok(conf) = self.conf_value.read() {
+            context = context.with_conf(conf.clone());
         }
 
         // Add translator if available
@@ -674,8 +744,7 @@ impl TotalJsEngine {
         };
 
         // Render the template with template loader for partials
-        let mut renderer = Renderer::new(context)
-            .with_template_loader(std::sync::Arc::new(loader));
+        let mut renderer = Renderer::new(context).with_template_loader(std::sync::Arc::new(loader));
         if let Some(path) = self.template_root_for_renderer() {
             renderer = renderer.with_template_path(path);
         }
@@ -747,8 +816,8 @@ impl TotalJsEngine {
                 layout_context
             };
 
-            let mut layout_renderer = Renderer::new(layout_context)
-                .with_template_loader(Arc::new(loader));
+            let mut layout_renderer =
+                Renderer::new(layout_context).with_template_loader(Arc::new(loader));
             if let Some(path) = self.template_root_for_renderer() {
                 layout_renderer = layout_renderer.with_template_path(path);
             }
@@ -820,9 +889,8 @@ impl ViewEngineImpl for TotalJsEngine {
     ) -> Result<String> {
         // Call render_with_layout_and_session directly — no hidden-field packing,
         // no data.clone() needed to strip those fields.
-        let html = self.render_with_layout_and_session(
-            template, data, layout, repository, session, request,
-        )?;
+        let html = self
+            .render_with_layout_and_session(template, data, layout, repository, session, request)?;
         if self.minify {
             Ok(minify_html(&html))
         } else {
@@ -1245,7 +1313,9 @@ Page: @{M.page_title}"#;
         assert!(engine.normalized_template_path("../../etc/passwd").is_err());
         assert!(engine.normalized_layout_path("../../etc/passwd").is_err());
         // Rendering a traversal name fails rather than reading outside the dir.
-        assert!(engine.render("../../../../etc/passwd", &json!({}), None).is_err());
+        assert!(engine
+            .render("../../../../etc/passwd", &json!({}), None)
+            .is_err());
 
         // Normal relative names still resolve.
         assert!(engine.normalized_template_path("home/index").is_ok());
