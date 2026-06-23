@@ -64,6 +64,12 @@ and modifies `ctx.res` in place via methods like `ctx.json`, `ctx.view`,
 `ctx.html`, `ctx.redirect`, `ctx.throw404`. The framework pulls the
 response back out after the handler returns.
 
+**Redirect rule:** `ctx.redirect("/path")` is now the safe default for
+local in-app redirects only. Use `ctx.redirect_permanent("/path")` for a
+local 301, and only use `ctx.redirect_external(...)` /
+`ctx.redirect_external_permanent(...)` when you intentionally want to
+leave the app.
+
 `async fn(ctx: Context) -> Result<Response>` does NOT compile. Always
 use `&mut Context` and `Result<()>`.
 
@@ -164,7 +170,7 @@ pub fn install() -> Vec<Route> {
     async fn before(ctx: &mut Context) -> rustf::Result<BeforeAction> {
         ctx.repository_set("section", "users");
 
-        if !ctx.has_session() {
+        if ctx.require_auth().is_err() {
             ctx.redirect("/login")?;
             return Ok(BeforeAction::Stop);
         }
@@ -239,7 +245,10 @@ ctx.view("home/index", json!({"title": "Home"})) // NO extension in the name
 ctx.json(value)
 ctx.html("<h1>hi</h1>")
 ctx.plain("text")
-ctx.redirect("/login")
+ctx.redirect("/login")                          // safe local redirect
+ctx.redirect_permanent("/moved")
+ctx.redirect_external("https://example.com")
+ctx.redirect_external_permanent("https://example.com/docs")
 ctx.throw400(Some("bad input"))                  // 400 Bad Request
 ctx.throw401(Some("login required"))             // 401 Unauthorized
 ctx.throw403(Some("forbidden"))
@@ -252,9 +261,12 @@ ctx.layout("admin")                               // switch the layout
 // --- Session (requires session middleware) ---
 ctx.has_session() -> bool
 ctx.session() -> Option<&Session>
+ctx.require_auth() -> rustf::Result<&Session>
 ctx.session_set("user_id", 42)?                 // T: Serialize — primitives, strings, your own types
 ctx.session_get::<i64>("user_id") -> Option<i64>
 ctx.session_remove("key")
+ctx.session_clear()                             // clears values, keeps current session
+ctx.session_destroy()                           // destroys + rotates the session
 ctx.login(user_id)?; ctx.logout()?
 
 // --- Flash (require session) ---
@@ -268,6 +280,21 @@ ctx.set::<T>("key", value)? / ctx.get::<T>("key") // middleware-only, NOT in vie
 ctx.repository_set("key", value)                  // goes to views as @{R.key}
 ctx.repository_get("key") -> Option<&Value>
 ```
+
+**Authentication/session lifecycle:** `ctx.login(user_id)?` marks the
+session for rotation and stores the authenticated user id. `ctx.logout()?`
+destroys the session, not just the auth flag. If you only want to wipe
+data but keep the same session identity, use `ctx.session_clear()`.
+
+**CSRF convention:** generate tokens with `ctx.generate_csrf(None)?` and
+verify with `ctx.verify_csrf(None)?`. The default token field name is
+`_csrf_token`, and the framework also accepts the `X-CSRF-Token` header.
+
+**Private file convention:** `ctx.file_download("uploads/report.pdf", None)?`
+and `ctx.file_inline("uploads/report.pdf")?` resolve paths relative to the
+configured private directory by default. For files outside the private root,
+use the explicit `ctx.file_download_from(...)` / `ctx.file_inline_from(...)`
+variants.
 
 **`ctx.data` vs `ctx.repository`** — different stores, different audiences.
 If a template can't see a value, it is probably in `data` instead of
@@ -386,6 +413,14 @@ before deserialization, so custom sections also merge cleanly.
 Load via `RustF::with_args()?` (supports `--config` flag), then
 `.auto_load()` or `.auto_load_with(&["logging", "cors", "rate_limit", "csrf"])`.
 
+Security-sensitive defaults to remember:
+
+- `server.trusted_proxies = []` by default. Keep it empty unless a reverse
+  proxy in front of RustF rewrites forwarded IP headers.
+- `[private].directory = "private"` is the private file root.
+- `[uploads].directory = "uploads"` resolves under `[private].directory`
+  by default, so uploads land under `private/uploads/`.
+
 ---
 
 ## 10. Autodiscovery macros + `#[rustf::auto_discover]`
@@ -470,6 +505,8 @@ After any generator runs, confirm:
 - Middleware impls carry `#[async_trait]` and the struct is `Clone`.
 - Module files default to a stateless unit struct unless `--shared` was passed.
 - Model wrappers include `pub fn register(registry: &mut rustf::models::ModelRegistry)`.
+- Generated CRUD forms include `_csrf_token`, but you still must replace the
+  placeholder fields in the scaffold with your schema's real fields.
 
 ### Hand-writing: when it's still the right call
 
@@ -501,6 +538,8 @@ After any generator runs, confirm:
 11. Templates using JSX-ish `{ var }` or Jinja `{{ var }}` → Total.js uses `@{var}`.
 12. `ctx.set` used for data that the view needs → switch to `ctx.repository_set`.
 13. Reaching for middleware when only one controller cares → use `routes![before: <fn>, ...]` inside `install()` instead.
+14. Using `ctx.redirect("https://evil.example")` for an external hop → use the explicit `redirect_external*` methods.
+15. Passing absolute/untrusted paths into `ctx.file_download_from(...)` or `ctx.file_inline_from(...)` without a controlled base dir → keep normal app files under `private/` and prefer the private-rooted helpers.
 
 ---
 
@@ -533,4 +572,3 @@ For deeper questions about WHY the framework behaves a certain way:
 > `{id}`. Middleware needs `#[async_trait]`, lower priority runs first.
 > Templates no extension. Built-ins imported from `rustf::middleware::builtin`.
 > Workers kebab-case. Module state ? `SharedModule` : plain functions.
-

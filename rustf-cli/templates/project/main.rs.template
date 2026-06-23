@@ -17,10 +17,16 @@ async fn main() -> rustf::Result<()> {
     // Falls back to config.toml or environment variables
     let app = RustF::with_args()?;
 
-    // Auto-load ALL components and builtin middleware
+    // Auto-load ALL custom components
     // This single line replaces all manual configuration:
     // - Controllers, models, workers, middleware, events, definitions (from src/ directories)
-    // - Builtin middleware: logging, cors, rate_limit, csrf (configured via config.toml)
+    // - Session middleware from config.toml (enabled by default unless disabled)
+    //
+    // Builtin middleware is NOT enabled by plain auto_load().
+    // To enable it explicitly, use:
+    // let app = app
+    //     .auto_load_with(&["logging", "cors", "rate_limit", "csrf"])
+    //     .with_method_override();
     //
     // .with_method_override() upgrades POST + _method=PUT/DELETE to the real method so
     // HTML forms from `rustf-cli new crud` scaffolds work out of the box (Rails-style).
@@ -33,7 +39,8 @@ async fn main() -> rustf::Result<()> {
     println!("🚀 Server starting on http://{}", addr);
     println!("📁 Views directory: {}", config.views.directory);
     println!("📁 Static files: {} -> {}", config.static_files.url_prefix, config.static_files.directory);
-    println!("🛡️  Middleware: logging, cors, rate_limit, csrf + custom middleware + session");
+    println!("🛡️  Middleware: custom middleware + session");
+    println!("   Built-ins sample: app.auto_load_with(&[\"logging\", \"cors\", \"rate_limit\", \"csrf\"])");
     println!("👷 Workers: Auto-loaded from src/workers/");
     println!();
     println!("💡 CLI Usage:");

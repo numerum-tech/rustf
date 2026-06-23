@@ -67,7 +67,8 @@ blocked_extensions = ["exe", "bat", "sh", "cmd", "scr"]
 create_directories = true
 
 # Builtin Middleware Configuration
-# These settings are used when .auto_load() is called in main.rs
+# These settings are used when main.rs calls:
+# .auto_load_with(&["logging", "cors", "rate_limit", "csrf"])
 
 [middleware.cors]
 allow_origin = "*"
