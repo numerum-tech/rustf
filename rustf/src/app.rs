@@ -1232,6 +1232,7 @@ impl RustF {
                         if if_none_match == Some(etag.as_str()) {
                             Response::not_modified()
                                 .with_header("ETag", &etag)
+                                .with_header("X-Content-Type-Options", "nosniff")
                                 .with_header(
                                     "Cache-Control",
                                     &format!("public, max-age={}", cache_max_age),
@@ -1239,6 +1240,7 @@ impl RustF {
                         } else {
                             Response::ok()
                                 .with_header("Content-Type", content_type)
+                                .with_header("X-Content-Type-Options", "nosniff")
                                 .with_header(
                                     "Cache-Control",
                                     &format!("public, max-age={}", cache_max_age),
@@ -1250,6 +1252,7 @@ impl RustF {
                     } else {
                         Response::ok()
                             .with_header("Content-Type", content_type)
+                            .with_header("X-Content-Type-Options", "nosniff")
                             .with_header("Cache-Control", "no-store, no-cache")
                             .with_body(data)
                     };
@@ -1258,10 +1261,16 @@ impl RustF {
             }
         }
 
+        let canonical_base = match base_dir.canonicalize() {
+            Ok(path) => path,
+            Err(_) => return Ok(Response::not_found()),
+        };
+
         // 2. Try the suffix after the prefix first (preferred behaviour)
-        if let Some(candidate) = Self::sanitize_and_join(base_dir, relative_suffix) {
+        if let Some(candidate) = Self::sanitize_and_join(&canonical_base, relative_suffix) {
             if let Some(response) = Self::try_read_static_file(
                 &candidate,
+                &canonical_base,
                 cache_enabled,
                 cache_max_age,
                 if_none_match,
@@ -1275,9 +1284,10 @@ impl RustF {
 
         // 3. Fall back to historical behaviour (prefix included) for compatibility
         let trimmed_full = full_request_path.trim_start_matches('/');
-        if let Some(candidate) = Self::sanitize_and_join(base_dir, trimmed_full) {
+        if let Some(candidate) = Self::sanitize_and_join(&canonical_base, trimmed_full) {
             if let Some(response) = Self::try_read_static_file(
                 &candidate,
+                &canonical_base,
                 cache_enabled,
                 cache_max_age,
                 if_none_match,
@@ -1342,6 +1352,7 @@ impl RustF {
 
     async fn try_read_static_file(
         path: &Path,
+        canonical_base: &Path,
         cache_enabled: bool,
         cache_max_age: u64,
         if_none_match: Option<&str>,
@@ -1359,13 +1370,22 @@ impl RustF {
             Err(e) => return Err(e.into()),
         };
 
+        let canonical_path = match tokio::fs::canonicalize(path).await {
+            Ok(path) => path,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+            Err(e) => return Err(e.into()),
+        };
+        if !canonical_path.starts_with(canonical_base) {
+            return Ok(None);
+        }
+
         // fstat() on the open fd — no second path lookup
         let metadata = file.metadata().await?;
         if !metadata.is_file() {
             return Ok(None);
         }
 
-        let content_type = Self::infer_content_type(path);
+        let content_type = Self::infer_content_type(&canonical_path);
 
         if cache_enabled {
             let mtime = metadata
@@ -1383,6 +1403,7 @@ impl RustF {
                     return Ok(Some(
                         Response::not_modified()
                             .with_header("ETag", &etag)
+                            .with_header("X-Content-Type-Options", "nosniff")
                             .with_header(
                                 "Cache-Control",
                                 &format!("public, max-age={}", cache_max_age),
@@ -1396,6 +1417,7 @@ impl RustF {
                         return Ok(Some(
                             Response::not_modified()
                                 .with_header("ETag", &etag)
+                                .with_header("X-Content-Type-Options", "nosniff")
                                 .with_header(
                                     "Cache-Control",
                                     &format!("public, max-age={}", cache_max_age),
@@ -1412,6 +1434,7 @@ impl RustF {
             Ok(Some(
                 Response::ok()
                     .with_header("Content-Type", content_type)
+                    .with_header("X-Content-Type-Options", "nosniff")
                     .with_header(
                         "Cache-Control",
                         &format!("public, max-age={}", cache_max_age),
@@ -1429,6 +1452,7 @@ impl RustF {
             Ok(Some(
                 Response::ok()
                     .with_header("Content-Type", content_type)
+                    .with_header("X-Content-Type-Options", "nosniff")
                     .with_header("Cache-Control", "no-store, no-cache")
                     .with_body(content),
             ))
@@ -1466,5 +1490,55 @@ impl RustF {
             "ico" => "image/x-icon",
             _ => "application/octet-stream",
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::RustF;
+    use tempfile::TempDir;
+
+    #[tokio::test]
+    async fn app_static_serving_sets_nosniff_header() {
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("app.js");
+        tokio::fs::write(&file_path, b"console.log('ok');")
+            .await
+            .unwrap();
+
+        let canonical_base = temp_dir.path().canonicalize().unwrap();
+        let response =
+            RustF::try_read_static_file(&file_path, &canonical_base, false, 0, None, None)
+                .await
+                .unwrap()
+                .unwrap();
+
+        assert!(response
+            .headers
+            .iter()
+            .any(|(name, value)| name == "X-Content-Type-Options" && value == "nosniff"));
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn app_static_serving_rejects_symlink_escape() {
+        use std::os::unix::fs::symlink;
+
+        let public_dir = TempDir::new().unwrap();
+        let outside_dir = TempDir::new().unwrap();
+        let outside_file = outside_dir.path().join("secret.txt");
+        tokio::fs::write(&outside_file, b"secret").await.unwrap();
+
+        let link_path = public_dir.path().join("outside-link");
+        symlink(outside_dir.path(), &link_path).unwrap();
+
+        let canonical_base = public_dir.path().canonicalize().unwrap();
+        let escaped_path = link_path.join("secret.txt");
+        let response =
+            RustF::try_read_static_file(&escaped_path, &canonical_base, false, 0, None, None)
+                .await
+                .unwrap();
+
+        assert!(response.is_none());
     }
 }

@@ -32,7 +32,7 @@ Cross-Site Request Forgery (CSRF) attacks trick users into performing unintended
 ✅ **Automatic HTTP Method Detection** - Only unsafe methods (POST, PUT, PATCH, DELETE) require validation  
 ✅ **Session Integration** - Tokens stored and validated via the session system  
 ✅ **Route Exemption Patterns** - Flexible wildcard and exact matching  
-✅ **Multiple Token Sources** - Headers, form fields, and query parameters  
+✅ **Multiple Token Sources** - Headers and form fields  
 ✅ **Smart Error Handling** - Context-aware responses (JSON for APIs, HTML for web)  
 ✅ **Zero Configuration** - Works out-of-the-box with sensible defaults  
 ✅ **Context Methods** - Convenient `verify_csrf()` and `generate_csrf()` methods  
@@ -103,7 +103,7 @@ async fn main() -> rustf::Result<()> {
 
 With zero configuration, the CSRF middleware:
 - Protects POST, PUT, PATCH, DELETE requests
-- Exempts all `/api/*` routes (configurable)
+- Exempts no routes by default
 - Stores tokens in the session
 - Returns appropriate error responses
 
@@ -216,19 +216,18 @@ let csrf_config = CsrfConfig::new()
 
 ### Default Exemptions
 
-`CsrfConfig::new()` (and `default()`) starts with `/api/*` already exempt.
-`.exempt(...)` only **appends** — it does not remove the default. So this:
+`CsrfConfig::new()` (and `default()`) starts with an empty exemption list.
+`.exempt(...)` appends routes to that list. So this:
 
 ```rust
 let csrf_config = CsrfConfig::new()
     .exempt("/external/webhooks/*")
     .exempt("/integrations/*");
-// exempt_routes is now ["/api/*", "/external/webhooks/*", "/integrations/*"]
+// exempt_routes is now ["/external/webhooks/*", "/integrations/*"]
 ```
 
-To drop the `/api/*` default, set the full list explicitly via config
-(`middleware.csrf.exempt_routes` in `config.toml`), which **replaces** the
-defaults rather than appending to them.
+To replace the full exemption list from configuration, set
+`middleware.csrf.exempt_routes` in `config.toml`.
 
 ### Common Exemption Patterns
 
@@ -497,7 +496,7 @@ async fn csrf_token_api(ctx: &mut Context) -> rustf::Result<()> {
     
     ctx.json(json!({
         "csrf_token": token,
-        "field_name": "_token",
+        "field_name": "_csrf_token",
         "header_name": "X-CSRF-Token"
     }))
 }
@@ -536,18 +535,11 @@ const response = await fetch('/api/users', {
 const formData = new FormData();
 formData.append('name', 'John Doe');
 formData.append('email', 'john@example.com');
-formData.append('_token', csrfToken);  // Form field method
+formData.append('_csrf_token', csrfToken);  // Form field method
 
 await fetch('/api/users', {
     method: 'POST',
     body: formData
-});
-
-// Method 3: Query Parameter
-await fetch(`/api/users?_token=${csrfToken}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(userData)
 });
 ```
 
@@ -823,13 +815,11 @@ let csrf_config = CsrfConfig::new()
 // Verify token submission method
 // For default token:
 // - Header: X-CSRF-Token
-// - Form field: _token or _csrf_token  
-// - Query param: _token
+// - Form field: _csrf_token or _token
 
 // For custom token (e.g., "upload_csrf"):
 // - Header: X-CSRF-Token
 // - Form field: upload_csrf
-// - Query param: upload_csrf
 
 // Check token expiration (tokens expire after 1 hour)
 // Generate a fresh token if needed
@@ -854,7 +844,7 @@ fetch('/api/endpoint', {
 });
 
 // Method 2: Check API route exemptions
-// Ensure /api/* routes are exempted or add specific exemptions
+// Add explicit exemptions only for routes that truly cannot carry CSRF tokens
 ```
 
 #### 3. Webhooks Failing
@@ -978,11 +968,11 @@ Organize routes to minimize exemptions:
 
 ```rust
 // Good: Group exempt routes under common prefixes (in a controller's install()).
-// With the default /api/* exemption, these are auto-exempt:
+// These become exempt only if you configure the matching prefix:
 routes![
-    POST "/api/webhook/stripe"   => stripe_handler,   // Auto-exempt
-    POST "/api/webhook/github"   => github_handler,   // Auto-exempt
-    POST "/api/integration/slack" => slack_handler,   // Auto-exempt
+    POST "/api/webhook/stripe"   => stripe_handler,
+    POST "/api/webhook/github"   => github_handler,
+    POST "/api/integration/slack" => slack_handler,
 ]
 
 // Better than scattered exemptions in the config:
@@ -1098,7 +1088,7 @@ RustF's CSRF protection provides:
 ✅ **Automatic Protection** - HTTP method-based validation  
 ✅ **Flexible Configuration** - Extensive customization options  
 ✅ **Session Integration** - Seamless token storage and validation  
-✅ **Multiple Token Sources** - Headers, forms, and query parameters  
+✅ **Multiple Token Sources** - Headers and forms  
 ✅ **Smart Error Handling** - Context-aware error responses  
 ✅ **Developer Friendly** - Convenient context methods and helpers  
 

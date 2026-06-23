@@ -789,17 +789,11 @@ impl Request {
     /// In a full implementation, this would typically be stored in the session
     /// and validated against form submissions.
     pub fn csrf(&self) -> String {
-        // Check if CSRF token already exists in headers (for validation)
-        if let Some(existing_token) = self.headers.get("x-csrf-token") {
-            return existing_token.clone();
-        }
-
-        // Generate new CSRF token
         Self::generate_csrf_token()
     }
 
     /// Generate a cryptographically secure CSRF token
-    fn generate_csrf_token() -> String {
+    pub(crate) fn generate_csrf_token() -> String {
         use rand::{thread_rng, Rng};
 
         // Generate 32-byte random token and encode as base64
@@ -1704,7 +1698,7 @@ file contents\r\n\
 
     #[test]
     fn test_csrf_token() {
-        let mut request = Request::default();
+        let request = Request::default();
 
         // Test CSRF token generation
         let token1 = request.csrf();
@@ -1724,13 +1718,6 @@ file contents\r\n\
         // Tokens should have reasonable length (base64 encoding of 32 bytes = 44 chars with padding)
         assert!(token1.len() >= 40);
         assert!(token2.len() >= 40);
-
-        // Test with existing CSRF token in headers
-        request
-            .headers
-            .insert("x-csrf-token".to_string(), "existing-token-123".to_string());
-        let existing_token = request.csrf();
-        assert_eq!(existing_token, "existing-token-123");
     }
 
     #[test]

@@ -239,7 +239,7 @@ ctx.session_remove(key: &str) -> Option<Value>
 // Lifecycle
 ctx.session_clear()
 ctx.session_flush()                          // alias for clear
-ctx.session_destroy()                        // alias for clear
+ctx.session_destroy()                        // full invalidation at end of request
 ```
 
 ### Authentication

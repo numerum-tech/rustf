@@ -279,6 +279,8 @@ pub struct Session {
     privilege_level: Arc<Mutex<u32>>,
     /// Flag indicating session needs rotation
     requires_rotation: Arc<Mutex<bool>>,
+    /// Flag indicating session should be destroyed at the end of the request
+    destroyed: Arc<Mutex<bool>>,
     /// Flag indicating session has been modified
     dirty: Arc<Mutex<bool>>,
 }
@@ -296,6 +298,7 @@ impl Default for Session {
             absolute_timeout: now + (24 * 60 * 60), // Default 24 hours
             privilege_level: Arc::new(Mutex::new(0)),
             requires_rotation: Arc::new(Mutex::new(false)),
+            destroyed: Arc::new(Mutex::new(false)),
             dirty: Arc::new(Mutex::new(false)),
         }
     }
@@ -315,6 +318,7 @@ impl Session {
             absolute_timeout: now + (24 * 60 * 60), // Default 24 hours
             privilege_level: Arc::new(Mutex::new(0)),
             requires_rotation: Arc::new(Mutex::new(false)),
+            destroyed: Arc::new(Mutex::new(false)),
             dirty: Arc::new(Mutex::new(false)),
         }
     }
@@ -338,6 +342,7 @@ impl Session {
             absolute_timeout: now + absolute_timeout_secs,
             privilege_level: Arc::new(Mutex::new(0)),
             requires_rotation: Arc::new(Mutex::new(false)),
+            destroyed: Arc::new(Mutex::new(false)),
             dirty: Arc::new(Mutex::new(false)),
         }
     }
@@ -354,6 +359,7 @@ impl Session {
             absolute_timeout: session_data.absolute_timeout,
             privilege_level: Arc::new(Mutex::new(session_data.privilege_level)),
             requires_rotation: Arc::new(Mutex::new(false)),
+            destroyed: Arc::new(Mutex::new(false)),
             dirty: Arc::new(Mutex::new(false)),
         }
     }
@@ -665,14 +671,22 @@ impl Session {
             .collect();
     }
 
-    /// Mark session for destruction
+    /// Mark session for destruction at the end of the current request.
     ///
-    /// This clears all session data locally. For complete session destruction
-    /// including removal from storage backend, use SessionStore::destroy_session().
-    ///
-    /// After calling this method, the session should be considered invalid.
+    /// Unlike `clear()`, this requests full invalidation: the session storage
+    /// entry should be deleted and the session cookie should be cleared by the
+    /// middleware. Session contents are cleared immediately as well.
     pub fn destroy(&self) {
         self.clear();
+        self.mark_for_rotation();
+        if let Ok(mut destroyed) = self.destroyed.lock() {
+            *destroyed = true;
+        }
+    }
+
+    /// Check if the session has been marked for destruction.
+    pub fn is_destroyed(&self) -> bool {
+        self.destroyed.lock().map(|d| *d).unwrap_or(false)
     }
 
     /// Convert session data to a serde_json::Value
