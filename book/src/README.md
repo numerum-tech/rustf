@@ -2,7 +2,7 @@
 
 <div align="center">
 
-🤖 **AI-Agent Optimized** | 🚀 **Production Ready** | 🛡️ **Enterprise Security** | ⚡ **High Performance**
+🤖 **AI-Agent Optimized** | 🚧 **Release Candidate** | 🛡️ **Security-Focused** | ⚡ **High Performance**
 
 </div>
 
@@ -45,32 +45,34 @@ cargo run
 
 Visit [Getting Started](getting-started/README.md) for detailed installation and setup instructions.
 
+## Most Common Paths
+
+If you only need the common workflows, start here:
+
+- [Create a new app with the CLI](cli/new-project.md)
+- [Generate controllers, middleware, and CRUD](cli/generate-components.md)
+- [Set up database and schema workflow](cli/database-schemas.md)
+- [Learn controllers and routing](guides/controllers.md)
+- [Learn views and templates](guides/views.md)
+- [Review the Context API](api-reference/context.md)
+
 ## Documentation Structure
 
 This documentation is organized to help you learn RustF at your own pace:
 
-### [Getting Started](getting-started/README.md)
-Perfect for beginners. Learn how to install RustF, create your first application, and understand the project structure.
-
-### [Core Guides](guides/controllers.md)
-Essential framework concepts: controllers, views, middleware, sessions, databases, and more.
-
-### [Advanced Topics](advanced/performance.md)
-For experienced developers: performance optimization, workers, events, and advanced patterns.
-
-### [API Reference](api-reference/context.md)
-Complete API documentation for all framework components.
-
-### [Examples & Tutorials](examples/rest-api.md)
-Step-by-step tutorials for building real-world applications.
-
-### [Deployment](deployment/production.md)
-Production deployment guides, Docker setup, and performance tuning.
+- [Getting Started](getting-started/README.md) - Perfect for beginners. Learn how to install RustF, create your first application, and understand the project structure.
+- [CLI](cli/README.md) - The fastest path for most users. Create projects, generate components, inspect applications, and run schema workflows.
+- [Core Guides](guides/controllers.md) - Essential framework concepts: controllers, views, middleware, sessions, databases, and more.
+- [Advanced Topics](advanced/performance.md) - For experienced developers: performance optimization, workers, events, and advanced patterns.
+- [API Reference](api-reference/context.md) - Complete API documentation for all framework components.
+- [Examples & Tutorials](examples/rest-api.md) - Step-by-step tutorials for building real-world applications.
+- [Deployment](deployment/production.md) - Production deployment guides, Docker setup, and performance tuning.
 
 ## Who is This Documentation For?
 
 ### Beginners
 - Start with [Getting Started](getting-started/README.md)
+- Use the [CLI section](cli/README.md) early, not as an advanced topic
 - Follow the [Hello World](getting-started/hello-world.md) tutorial
 - Read through [Core Guides](guides/controllers.md) step by step
 - Check out [Examples](examples/rest-api.md) for practical applications
@@ -114,8 +116,6 @@ RustF is dual-licensed under MIT and Apache 2.0 licenses.
 ---
 
 **Ready to get started?** Head to [Getting Started](getting-started/README.md) to begin your RustF journey!
-
-
 
 
 

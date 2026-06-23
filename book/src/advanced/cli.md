@@ -2,6 +2,9 @@
 
 **Comprehensive documentation for rustf-cli - The AI-friendly command-line tool for RustF framework**
 
+> Prefer the new [CLI section](../cli/README.md) for normal navigation.
+> This page remains as the exhaustive single-page reference.
+
 ## Overview
 
 RustF CLI is a powerful command-line tool designed for analyzing, managing, and developing RustF web applications. It provides comprehensive project analysis, database introspection, schema management, code generation, and includes built-in MCP (Model Context Protocol) server support for AI coding assistants.
