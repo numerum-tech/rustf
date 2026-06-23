@@ -8,7 +8,7 @@
 
 📖 **[Read the Documentation →](https://numerum-tech.github.io/rustf/)**
 
-🤖 **AI-Agent Optimized** | 🚀 **Production Ready** | 🛡️ **Enterprise Security** | ⚡ **High Performance**
+🤖 **AI-Agent Optimized** | 🚧 **Release Candidate** | 🛡️ **Security-Focused** | ⚡ **High Performance**
 
 RustF is a convention-based MVC web framework for Rust, inspired by [Total.js](https://www.totaljs.com/) v4 . Designed to be equally intuitive for human developers and AI coding assistants, with auto-discovery, predictable patterns, comprehensive documentation, enterprise-grade security, and optimized performance.
 
@@ -102,33 +102,23 @@ cargo run
 
 ## 📚 Documentation
 
-### 🚀 Core Guides
-- **[Framework Overview](docs/ABOUT_RUSTF.md)** - Understanding RustF architecture
-- **[Controllers](docs/ABOUT_CONTROLLERS.md)** - Route handling and controllers
-- **[Middleware System](docs/ABOUT_MIDDLEWARES.md)** - Custom middleware development
-- **[Configuration](docs/ABOUT_CONFIGURATION.md)** - Environment and file-based config
-- **[Views & Templates](docs/ABOUT_VIEWS.md)** - Template system and rendering
+Primary documentation lives in the RustF book:
 
-### 🛠️ Development Tools
-- **[CLI Tool](docs/ABOUT_CLI.md)** - Project scaffolding and MCP server
-- **[Database Integration](docs/ABOUT_DATABASES.md)** - Working with databases
-- **[Query Builder](docs/QUERY_BUILDER.md)** - Building database queries
-- **[Workers](docs/ABOUT_WORKERS.md)** - Background task processing
+- **[Read the online book](https://numerum-tech.github.io/rustf/)** - Published documentation
+- **[Getting Started](https://numerum-tech.github.io/rustf/getting-started/installation.html)** - Installation and first app
+- **[Controllers](https://numerum-tech.github.io/rustf/guides/controllers.html)** - Route handling and controllers
+- **[Middleware](https://numerum-tech.github.io/rustf/guides/middleware.html)** - Built-in and custom middleware
+- **[Views](https://numerum-tech.github.io/rustf/guides/views.html)** - Template system and rendering
+- **[Sessions](https://numerum-tech.github.io/rustf/guides/sessions.html)** - Sessions, auth state, and flash messages
+- **[Configuration](https://numerum-tech.github.io/rustf/guides/configuration.html)** - File-based and environment configuration
+- **[CLI Tool](https://numerum-tech.github.io/rustf/advanced/cli.html)** - Project scaffolding and tooling
+- **[API Reference](https://numerum-tech.github.io/rustf/api-reference/context.html)** - Public framework API
 
-### 🔐 Security & Sessions
-- **[Session Management](docs/ABOUT_SESSION.md)** - User sessions and state
-- **[CSRF Protection](docs/CSRF_GUIDE.md)** - Cross-site request forgery prevention
-- **[Error Handling](docs/ABOUT_ERRORS.md)** - Secure error management
-
-### 📖 Additional Resources
-- **[Definitions](docs/ABOUT_DEFINITIONS.md)** - Schema and model definitions
-- **[Events](docs/ABOUT_EVENTS.md)** - Event system
-- **[Utilities](docs/ABOUT_UTILS.md)** - Helper functions and utilities
-- **[Pagination](docs/PAGINATION_HELPER.md)** - Paginating query results
+Documentation source lives under `book/src/`.
 
 ## 🏗️ Project Structure
 
-This repository contains a complete framework ecosystem:
+This repository contains the full RustF framework workspace:
 
 ```
 rustf/
@@ -136,8 +126,9 @@ rustf/
 ├── rustf-cli/              # CLI tool for project management & MCP server
 ├── rustf-schema/           # Schema utilities, validation & code generation
 ├── rustf-macros/           # Auto-discovery procedural macros
-├── sample-app/             # Example application (coming soon)
-├── docs/                   # Comprehensive documentation
+├── sample-app/             # Example application / playground
+├── book/                   # mdBook documentation source + build config
+├── docs/                   # Legacy markdown docs (deprecated; book is canonical)
 ├── CLAUDE.md               # AI coding assistant guidance
 ├── LICENSE-APACHE          # Apache 2.0 license
 ├── LICENSE-MIT             # MIT license
@@ -145,7 +136,7 @@ rustf/
 ```
 
 ### 🏛️ Framework (`rustf/`)
-Core framework library with stable API:
+Core framework library:
 
 ```
 rustf/
@@ -178,7 +169,7 @@ Auto-discovery procedural macros:
 - `auto_middleware!()` - Discovers `src/middleware/*.rs`
 
 ### 🚀 Sample App (`sample-app/`)
-Example application demonstrating best practices (coming soon):
+Example application and framework playground:
 
 ```
 sample-app/
@@ -229,7 +220,7 @@ let app = RustF::new()
 - **🛑 XSS Prevention**: Context-aware HTML, JS, CSS, and attribute escaping
 - **🔐 Session Security**: Cryptographic ID generation, CSRF protection, hijacking detection
 - **📋 Security Headers**: CSP, HSTS, X-Frame-Options, X-Content-Type-Options
-- **🚦 Rate Limiting**: Sliding window algorithm with configurable limits
+- **🚦 Rate Limiting**: Fixed-window algorithm with configurable limits
 - **📝 Input Validation**: Comprehensive sanitization and validation framework
 - **🎭 Secure Error Handling**: Information leak prevention with sanitization
 
@@ -242,7 +233,7 @@ async fn handler(ctx: &mut Context) -> rustf::Result<()> {
     ctx.session_set("user_id", &user.id)?;
 
     // Flash messages
-    ctx.flash_success("Operation successful!");
+    ctx.flash_success("Operation successful!")?;
 
     // Redirects and responses
     ctx.redirect("/dashboard")
@@ -260,18 +251,25 @@ async fn handler(ctx: &mut Context) -> rustf::Result<()> {
 This dual-phase architecture eliminates complex state management while maintaining flexibility for sophisticated middleware implementations.
 
 ```rust
+use rustf::prelude::*;
 use rustf::middleware::{InboundMiddleware, OutboundMiddleware, InboundAction};
 use async_trait::async_trait;
 use std::time::Instant;
+
+#[derive(Clone)]
 pub struct TimingMiddleware;
 
 #[async_trait]
 impl InboundMiddleware for TimingMiddleware {
     async fn process_request(&self, ctx: &mut Context) -> Result<InboundAction> {
         // Store start time
-        ctx.set("request_start", Instant::now());
+        ctx.set("request_start", Instant::now())?;
         // Capture response to add timing header
         Ok(InboundAction::Capture)
+    }
+
+    fn name(&self) -> &'static str {
+        "timing"
     }
 }
 
@@ -280,8 +278,7 @@ impl OutboundMiddleware for TimingMiddleware {
     async fn process_response(&self, ctx: &mut Context) -> Result<()> {
         if let Some(start) = ctx.get::<Instant>("request_start") {
             let duration = start.elapsed();
-            // Access response through ctx.response
-            if let Some(response) = ctx.response.as_mut() {
+            if let Some(response) = ctx.res.as_mut() {
                 response.headers.push((
                     "X-Response-Time".to_string(),
                     format!("{}ms", duration.as_millis())
@@ -363,7 +360,7 @@ Options:
 - **Query-Oriented Structure**: Documentation organized by "what you want to do"
 - **Template-Driven**: Copy-paste ready code patterns
 
-### Production Ready
+### Release Candidate
 - **Type Safety**: Leverages Rust's compile-time guarantees  
 - **High Performance**: Trie-based routing, template caching, object pooling
 - **Enterprise Security**: Path traversal protection, XSS prevention, secure sessions
@@ -393,7 +390,7 @@ RustF delivers exceptional performance with production-ready optimizations:
 ### 🛡️ Security Operations
 - **Path Validation**: Microsecond-level path traversal protection
 - **HTML Escaping**: High-throughput XSS prevention
-- **Rate Limiting**: Efficient sliding window algorithm
+- **Rate Limiting**: Efficient fixed-window algorithm
 - **Input Validation**: Regex-based pattern matching with caching
 
 *All benchmarks run on standard development hardware. Production performance may vary.*
@@ -402,12 +399,11 @@ RustF delivers exceptional performance with production-ready optimizations:
 
 ### Near Term
 - 📚 **Documentation accuracity**
-- 📚 **GitHub Pages documentation site**
 - 🧪 **Testing framework and utilities**
 - 🗄️ **Database integration examples** (PostgreSQL, MySQL, SQLite)
 - 🐳 **Docker deployment templates**
 - 📊 **Monitoring and observability** integration
-- 📱 **Sample application** showcasing best practices
+- 📱 **Sample application** cleanup and test-fixture hardening
 
 ### Future Enhancements
 - 🎨 **Enhanced template engine** with more features
@@ -444,8 +440,8 @@ We especially welcome contributions from experienced Rustaceans to:
 
 ### Ways to Contribute
 
-- 🐛 **Report Issues**: Found a bug or anti-pattern? [Open an issue](https://github.com/yourusername/rustf/issues)
-- 💡 **Suggest Enhancements**: Have ideas for improvement? [Start a discussion](https://github.com/yourusername/rustf/discussions)
+- 🐛 **Report Issues**: Found a bug or anti-pattern? [Open an issue](https://github.com/numerum-tech/rustf/issues)
+- 💡 **Suggest Enhancements**: Have ideas for improvement? [Start a discussion](https://github.com/numerum-tech/rustf/discussions)
 - 🔧 **Submit PRs**: Fix bugs, improve code quality, or add features
 - 📖 **Improve Docs**: Help make documentation clearer and more comprehensive
 - ⭐ **Star & Share**: Help others discover the project
@@ -466,4 +462,4 @@ MIT OR Apache-2.0
 
 ---
 
-**🎉 Ready to build?** Get started with `rustf-cli new project my-app` or explore the [documentation](docs/)!
+**🎉 Ready to build?** Get started with `rustf-cli new project my-app` or explore the [documentation](https://numerum-tech.github.io/rustf/)!

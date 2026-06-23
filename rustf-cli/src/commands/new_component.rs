@@ -374,7 +374,8 @@ pub async fn generate_worker(name: String) -> Result<()> {
         "   - For progress updates: WORKER::call(\"{}\", None, payload).await",
         kebab_name
     );
-    println!("   - See docs/ABOUT_WORKERS.md for examples (email, batch, cleanup, etc.)");
+    println!("   - See the RustF book worker guide for examples:");
+    println!("     https://numerum-tech.github.io/rustf/advanced/workers.html");
 
     Ok(())
 }

@@ -1,127 +1,84 @@
 # Modules Directory
 
-This directory contains reusable business logic modules for your {{project_title}} application.
+This directory contains business logic and reusable application services.
 
-## What are Modules?
+The canonical module guide lives in the RustF book:
 
-Modules in RustF separate business logic from HTTP request handling. They contain:
+- Book: <https://numerum-tech.github.io/rustf/advanced/modules.html>
 
-- **Services** - Stateful business logic (user management, payment processing)
-- **Utilities** - Stateless helper functions (validation, formatting)  
-- **Helpers** - Template and view helpers
-- **Traits** - Custom interfaces and trait definitions
+## Layering Rule
 
-## Directory Structure
-
-```
-src/modules/
-├── user_service.rs      # User business logic
-├── email_service.rs     # Email operations  
-├── payment_service.rs   # Payment processing
-└── validation_utils.rs  # Utility functions
+```text
+Base Model -> Model -> Module -> Controller
 ```
 
-## Creating a Module
+- Controllers handle HTTP only.
+- Modules contain business logic.
+- Models handle data access.
 
-### Basic Service Module
+## Two Module Styles
+
+### 1. Stateless module (default)
+
+Use plain associated functions on a unit struct.
 
 ```rust
-// src/modules/user_service.rs
-use rustf::prelude::*;
-
-#[derive(Debug)]
-pub struct UserService {
-    // Service state
-}
+pub struct UserService;
 
 impl UserService {
-    pub fn new() -> Self {
-        Self { }
+    pub async fn find_dashboard_data(user_id: i64) -> rustf::Result<serde_json::Value> {
+        Ok(serde_json::json!({ "user_id": user_id }))
     }
-    
-    pub async fn register_user(&self, email: &str, password: &str) -> Result<Value> {
-        // Business logic here
-        Ok(json!({"user_id": 1, "email": email}))
-    }
-}
-
-// Required for auto-discovery
-pub fn install() -> UserService {
-    UserService::new()
 }
 ```
 
-### Using Modules in Controllers
+Use directly from controllers:
 
 ```rust
-// src/controllers/auth.rs
-use rustf::prelude::*;
-use crate::modules::user_service;
+let data = crate::modules::user_service::UserService::find_dashboard_data(42).await?;
+```
 
-async fn register(ctx: Context) -> Result<Response> {
-    let user_svc = user_service::UserService::new();
-    // Use the service
-    let user = user_svc.register_user("user@example.com", "password").await?;
-    ctx.json(user)
+### 2. Shared/stateful module
+
+Use a stateful type only when you need long-lived state such as a mailer,
+payment client, cache, or connection wrapper.
+
+Register explicitly:
+
+```rust
+MODULE::init()?;
+MODULE::register("email-primary", EmailService::new(...))?;
+let service = MODULE::get("email-primary")?;
+```
+
+## Important Notes
+
+- `auto_modules!()` is for module discovery / IDE support, not automatic
+  stateful service registration.
+- Do not return `Request` or `Response` from modules.
+- Keep framework-specific response work in controllers.
+- Put repeated business rules in modules before duplicating controller code.
+
+## Example Split
+
+Controller:
+
+```rust
+async fn dashboard(ctx: &mut Context) -> rustf::Result<()> {
+    let user_id = ctx.param_int("id")? as i64;
+    let data = crate::modules::user_service::UserService::find_dashboard_data(user_id).await?;
+    ctx.json(data)
 }
 ```
 
-## Key Principles
-
-- **Single Responsibility** - Each module handles one domain
-- **Framework Independent** - Business logic doesn't depend on HTTP concerns
-- **Testable** - Easy to unit test without HTTP mocking
-- **Reusable** - Can be used across different controllers
-
-## Auto-Discovery
-
-Modules are automatically discovered and registered when you use:
-```rust
-.modules_from(auto_modules!())
-```
-
-Each module must have an `install()` function that returns an instance of the module.
-
-## Advanced: SharedModule Trait
-
-For modules requiring lifecycle management:
+Module:
 
 ```rust
-use async_trait::async_trait;
+pub struct UserService;
 
-#[async_trait]
-impl SharedModule for UserService {
-    fn name(&self) -> &'static str {
-        "UserService"
-    }
-    
-    fn module_type(&self) -> SharedModuleType {
-        SharedModuleType::Service
-    }
-    
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-    
-    async fn initialize(&self) -> Result<()> {
-        // Setup connections, load config, etc.
-        Ok(())
+impl UserService {
+    pub async fn find_dashboard_data(user_id: i64) -> rustf::Result<serde_json::Value> {
+        Ok(serde_json::json!({ "user_id": user_id }))
     }
 }
 ```
-
-This enables:
-- Automatic initialization during app startup
-- Graceful shutdown handling
-- Type-safe module access throughout the application
-
-## Best Practices
-
-1. Keep modules focused on single domains
-2. Use Result<T> for operations that can fail
-3. Include comprehensive error handling
-4. Add unit tests for your business logic
-5. Use environment variables for configuration
-6. Log important operations for debugging
-
-Happy coding! 🦀

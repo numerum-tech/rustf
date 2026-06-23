@@ -1,325 +1,106 @@
 # Controllers Directory
 
-This directory contains your application's route handlers and business logic. Controllers in RustF follow the Total.js-inspired pattern with auto-discovery.
+This directory contains your HTTP layer: routes, request parsing, flash
+messages, redirects, and view / JSON responses.
 
-## 🤖 AI Agent Quick Reference
+The canonical controller guide lives in the RustF book:
 
-**Purpose**: Handle HTTP requests, define routes, and coordinate between models and views  
-**File Pattern**: `*.rs` files in this directory are auto-discovered  
-**Key Function**: Each controller must have `pub fn install() -> Vec<Route>`
+- Book: <https://numerum-tech.github.io/rustf/guides/controllers.html>
+- Context API: <https://numerum-tech.github.io/rustf/api-reference/context.html>
+- Routing API: <https://numerum-tech.github.io/rustf/api-reference/routing.html>
 
-## 📁 File Organization
+## Quick Rules
 
-```
-src/controllers/
-├── home.rs          # Homepage and main navigation
-├── auth.rs          # Authentication (login, logout, register)
-├── api.rs           # API endpoints
-├── admin.rs         # Administrative functionality
-└── your_feature.rs  # Feature-specific controllers
-```
+- Each controller exports `pub fn install() -> Vec<Route>`.
+- Handlers use `async fn(ctx: &mut Context) -> rustf::Result<()>`.
+- Route params use `{id}`, not `:id`.
+- Controllers stay thin: call modules for business logic.
+- Values needed in templates go through `ctx.repository_set(...)`, not `ctx.set(...)`.
 
-## 🚀 Quick Start Template
-
-Create a new controller file `src/controllers/example.rs`:
+## Minimal Example
 
 ```rust
 use rustf::prelude::*;
 
-// Required: Export routes for auto-discovery
 pub fn install() -> Vec<Route> {
     routes![
-        GET "/example" => index,
-        GET "/example/:id" => show,
-        POST "/example" => create,
-        PUT "/example/:id" => update,
-        DELETE "/example/:id" => delete,
+        GET "/" => index,
+        GET "/articles/{id}" => show,
+        POST "/articles" => create,
     ]
 }
 
-// Handler functions
-async fn index(ctx: Context) -> Result<Response> {
-    let data = json!({
-        "title": "Example Page",
-        "items": ["item1", "item2", "item3"]
-    });
-    ctx.view("/example/index", data)
+async fn index(ctx: &mut Context) -> rustf::Result<()> {
+    ctx.view("home/index", json!({"title": "Home"}))
 }
 
-async fn show(ctx: Context) -> Result<Response> {
-    let id = ctx.param("id").unwrap_or("0");
-    let data = json!({
-        "title": "Example Item",
-        "id": id
-    });
-    ctx.view("/example/show", data)
+async fn show(ctx: &mut Context) -> rustf::Result<()> {
+    let id = ctx.param_int("id")? as i64;
+    ctx.json(json!({"id": id}))
 }
 
-async fn create(ctx: Context) -> Result<Response> {
-    // Get JSON data from request body
-    let data: serde_json::Value = ctx.body_json().await?;
-    
-    // Process the data...
-    
-    ctx.flash_success("Item created successfully");
-    ctx.redirect("/example")
-}
-
-async fn update(ctx: Context) -> Result<Response> {
-    let id = ctx.param("id").unwrap_or("0");
-    let data: serde_json::Value = ctx.body_json().await?;
-    
-    // Update logic...
-    
-    ctx.json(json!({"success": true, "id": id}))
-}
-
-async fn delete(ctx: Context) -> Result<Response> {
-    let id = ctx.param("id").unwrap_or("0");
-    
-    // Delete logic...
-    
-    ctx.json(json!({"success": true}))
+async fn create(ctx: &mut Context) -> rustf::Result<()> {
+    let form = ctx.body_form()?;
+    ctx.json(json!({"received": form}))
 }
 ```
 
-## 📊 Context API Reference
+## Common APIs
 
-The `Context` parameter provides access to request data and response generation:
-
-### Request Data
 ```rust
-// URL parameters
-let id = ctx.param("id");           // /users/:id -> Some("123")
-let page = ctx.param("page");       // None if not defined
+ctx.param("id");
+ctx.param_int("id")?;
+ctx.query("q");
+ctx.body_form()?;
+ctx.body_json::<MyInput>()?;
 
-// Query parameters  
-let search = ctx.query("q");        // ?q=test -> Some("test")
-let limit = ctx.query("limit");     // ?limit=10 -> Some("10")
+ctx.view("users/show", data)?;
+ctx.json(json!({"ok": true}))?;
+ctx.html("<h1>Hello</h1>")?;
+ctx.redirect("/login")?;
+ctx.redirect_permanent("/moved")?;
 
-// Headers
-let auth = ctx.header("authorization");
-let content_type = ctx.header("content-type");
-
-// Request body
-let form_data = ctx.body_form().await?;    // Form data
-let json_data = ctx.body_json().await?;    // JSON data
-let raw_body = ctx.body_raw().await?;      // Raw bytes
+ctx.flash_success("Saved")?;
+ctx.session_set("user_id", 42)?;
+let user_id: Option<i64> = ctx.session_get("user_id");
 ```
 
-### Response Generation
+## Controller-Level `before`
+
+Use `routes![before: ..., ...]` when every route in one controller needs
+the same setup or access gate.
+
 ```rust
-// JSON responses
-ctx.json(json!({"status": "ok"}))
+use rustf::prelude::*;
 
-// HTML responses  
-ctx.html("<h1>Hello World</h1>")
-
-// Template rendering
-ctx.view("/path/to/template", data)  // Uses default layout
-
-// Custom layout (requires mut ctx)
-ctx.layout("layouts/custom")
-    .view("/path/to/template", data)
-
-// No layout
-ctx.layout("")
-    .view("/path/to/template", data)
-
-// Redirects
-ctx.redirect("/login")
-
-// File responses
-ctx.file("/path/to/file.pdf")
-ctx.download("/path/to/file.pdf", "download-name.pdf")
-```
-
-### Session Management
-```rust
-// Session data
-ctx.session_set("user_id", user.id)?;
-let user_id: Option<i32> = ctx.session_get("user_id");
-ctx.session_remove("user_id")?;
-
-// Flash messages (survive one redirect)
-ctx.flash_success("Operation completed successfully");
-ctx.flash_error("Something went wrong");
-ctx.flash_info("Information message");
-ctx.flash_warning("Warning message");
-```
-
-## 🛠️ Common Patterns
-
-### REST API Controller
-```rust
 pub fn install() -> Vec<Route> {
+    async fn before(ctx: &mut Context) -> rustf::Result<BeforeAction> {
+        if ctx.require_auth().is_err() {
+            ctx.redirect("/login")?;
+            return Ok(BeforeAction::Stop);
+        }
+        Ok(BeforeAction::Continue)
+    }
+
     routes![
-        GET "/api/users" => list_users,
-        GET "/api/users/:id" => get_user,
-        POST "/api/users" => create_user,
-        PUT "/api/users/:id" => update_user,
-        DELETE "/api/users/:id" => delete_user,
+        before: before,
+        GET "/dashboard" => dashboard,
     ]
 }
-```
 
-### Form Handling
-```rust
-async fn handle_form(ctx: Context) -> Result<Response> {
-    let form = ctx.body_form().await?;
-    
-    let name = form.get("name").unwrap_or("");
-    let email = form.get("email").unwrap_or("");
-    
-    if name.is_empty() {
-        ctx.flash_error("Name is required");
-        return ctx.redirect("/form");
-    }
-    
-    // Process form...
-    
-    ctx.flash_success("Form submitted successfully");
-    ctx.redirect("/success")
+async fn dashboard(ctx: &mut Context) -> rustf::Result<()> {
+    ctx.view("dashboard/index", json!({}))
 }
 ```
 
-### Authentication Check
-```rust
-async fn protected_handler(ctx: Context) -> Result<Response> {
-    let user_id: Option<i32> = ctx.session_get("user_id");
-    
-    match user_id {
-        Some(id) => {
-            // User is authenticated
-            let data = json!({"user_id": id});
-            ctx.view("/protected/dashboard", data)
-        }
-        None => {
-            ctx.flash_error("Please log in to access this page");
-            ctx.redirect("/login")
-        }
-    }
-}
-```
+## Files
 
-### Error Handling
-```rust
-async fn api_handler(ctx: Context) -> Result<Response> {
-    match some_operation().await {
-        Ok(data) => ctx.json(json!({"success": true, "data": data})),
-        Err(e) => {
-            log::error!("Operation failed: {}", e);
-            ctx.json(json!({"success": false, "error": "Internal server error"}))
-        }
-    }
-}
-```
+- `ctx.file_download("uploads/report.pdf", None)?` resolves from the app's
+  private directory.
+- `ctx.file_inline("uploads/report.pdf")?` does the same for inline display.
+- Use the explicit `_from(...)` variants only for controlled external paths.
 
-## 🔐 Security Best Practices
+## Notes
 
-### Input Validation
-```rust
-async fn validate_input(ctx: Context) -> Result<Response> {
-    let data: serde_json::Value = ctx.body_json().await?;
-    
-    // Validate required fields
-    let email = data["email"].as_str()
-        .filter(|e| e.contains('@'))
-        .ok_or_else(|| "Invalid email format")?;
-    
-    let age = data["age"].as_u64()
-        .filter(|&a| a >= 18 && a <= 120)
-        .ok_or_else(|| "Age must be between 18 and 120")?;
-    
-    // Process validated data...
-}
-```
-
-### CSRF Protection
-```rust
-async fn form_handler(ctx: Context) -> Result<Response> {
-    // Verify CSRF token
-    if !ctx.verify_csrf(None)? {
-        ctx.json(json!({"error": "Invalid CSRF token"}))?;
-        return Ok(());
-    }
-    
-    // Process form...
-}
-```
-
-## 🧪 Testing Controllers
-
-```rust
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use rustf::testing::*;
-    
-    #[tokio::test]
-    async fn test_index_handler() {
-        let ctx = MockContext::new().with_method("GET").with_path("/example");
-        let response = index(ctx).await.unwrap();
-        
-        assert_eq!(response.status(), 200);
-        assert!(response.body().contains("Example Page"));
-    }
-    
-    #[tokio::test]
-    async fn test_create_handler() {
-        let data = json!({"name": "Test Item"});
-        let ctx = MockContext::new()
-            .with_method("POST")
-            .with_json_body(data);
-        
-        let response = create(ctx).await.unwrap();
-        assert_eq!(response.status(), 302); // Redirect after creation
-    }
-}
-```
-
-## 🚀 Advanced Features
-
-### Middleware Integration
-```rust
-// Apply middleware to specific routes
-pub fn install() -> Vec<Route> {
-    routes![
-        GET "/public" => public_handler,
-        GET "/admin" => admin_handler.with_middleware("auth"),
-        POST "/api" => api_handler.with_middleware("rate_limit"),
-    ]
-}
-```
-
-### File Uploads
-```rust
-async fn upload_handler(ctx: Context) -> Result<Response> {
-    let files = ctx.files().await?;
-    
-    for file in files {
-        let filename = file.name();
-        let content = file.content();
-        
-        // Save file...
-        std::fs::write(&format!("uploads/{}", filename), content)?;
-    }
-    
-    ctx.flash_success("Files uploaded successfully");
-    ctx.redirect("/uploads")
-}
-```
-
-## 🤖 AI Agent Instructions
-
-When creating controllers:
-1. Always include `pub fn install() -> Vec<Route>` function
-2. Use `routes![]` macro for route definitions
-3. Handler functions: `async fn(Context) -> Result<Response>`
-4. Import `use rustf::prelude::*;` at the top
-5. Use `ctx.param()` for URL parameters, `ctx.query()` for query strings
-6. Return responses with `ctx.json()`, `ctx.view()`, `ctx.redirect()`, etc.
-7. Handle errors gracefully with flash messages or error responses
-8. Follow RESTful conventions when appropriate
-
-**Auto-Discovery**: No need to manually register controllers - they're automatically discovered and loaded!
+- Built-in middleware is configured in app startup, not here.
+- For auth/session/CSRF patterns, use the book as the source of truth.
