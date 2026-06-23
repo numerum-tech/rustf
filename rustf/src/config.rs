@@ -68,6 +68,9 @@ pub struct AppConfig {
     #[serde(default)]
     pub uploads: UploadConfig,
 
+    #[serde(default, rename = "private")]
+    pub r#private: PrivateConfig,
+
     // All other sections - user-defined configuration sections
     // These sections are stored as TOML values and can be deserialized on-demand
     #[serde(flatten)]
@@ -94,11 +97,17 @@ pub struct ServerConfig {
     #[serde(default)]
     pub ssl_key: Option<String>,
 
+    #[serde(default)]
+    pub public_url: Option<String>,
+
     #[serde(default = "default_max_connections")]
     pub max_connections: usize,
 
     #[serde(default = "default_shutdown_timeout")]
     pub shutdown_timeout: u64,
+
+    #[serde(default)]
+    pub trusted_proxies: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -288,6 +297,12 @@ pub struct UploadConfig {
     pub create_directories: bool,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PrivateConfig {
+    #[serde(default = "default_private_dir")]
+    pub directory: String,
+}
+
 // Default value functions
 fn default_host() -> String {
     "127.0.0.1".to_string()
@@ -349,6 +364,9 @@ fn default_log_level() -> String {
 fn default_upload_dir() -> String {
     "uploads".to_string()
 }
+fn default_private_dir() -> String {
+    "private".to_string()
+}
 fn default_max_file_size() -> u64 {
     10 * 1024 * 1024
 } // 10MB
@@ -385,8 +403,10 @@ impl Default for ServerConfig {
             ssl_enabled: false,
             ssl_cert: None,
             ssl_key: None,
+            public_url: None,
             max_connections: default_max_connections(),
             shutdown_timeout: default_shutdown_timeout(),
+            trusted_proxies: Vec::new(),
         }
     }
 }
@@ -466,6 +486,14 @@ impl Default for UploadConfig {
                 "cmd".to_string(),
             ],
             create_directories: true,
+        }
+    }
+}
+
+impl Default for PrivateConfig {
+    fn default() -> Self {
+        Self {
+            directory: default_private_dir(),
         }
     }
 }
@@ -975,10 +1003,24 @@ impl AppConfig {
         if let Ok(log_file) = env::var("RUSTF_LOG_FILE") {
             self.logging.file = Some(log_file);
         }
+        if let Ok(trusted_proxies) = env::var("RUSTF_TRUSTED_PROXIES") {
+            self.server.trusted_proxies = trusted_proxies
+                .split(',')
+                .map(|s| s.trim())
+                .filter(|s| !s.is_empty())
+                .map(|s| s.to_string())
+                .collect();
+        }
+        if let Ok(public_url) = env::var("RUSTF_PUBLIC_URL") {
+            self.server.public_url = Some(public_url);
+        }
 
         // Upload overrides
         if let Ok(upload_dir) = env::var("RUSTF_UPLOAD_DIR") {
             self.uploads.directory = upload_dir;
+        }
+        if let Ok(private_dir) = env::var("RUSTF_PRIVATE_DIR") {
+            self.r#private.directory = private_dir;
         }
         if let Ok(max_size) = env::var("RUSTF_MAX_FILE_SIZE") {
             self.uploads.max_file_size = max_size
@@ -1016,7 +1058,7 @@ impl AppConfig {
         Ok(())
     }
 
-    /// Resolve all directory paths (views, static, uploads) relative to the config base dir.
+    /// Resolve all directory paths (views, static, private, uploads) relative to the config base dir.
     ///
     /// Relative paths like `"public"` or `"views"` are joined to `base_dir` so they
     /// resolve correctly regardless of the process CWD. Absolute paths are kept as-is.
@@ -1028,9 +1070,13 @@ impl AppConfig {
             self.views.directory = Self::resolve_dir(&self.views.directory, base);
         }
 
-        // Static files and uploads are always path-sensitive
+        // Static files and the private root are always path-sensitive
         self.static_files.directory = Self::resolve_dir(&self.static_files.directory, base);
-        self.uploads.directory = Self::resolve_dir(&self.uploads.directory, base);
+        self.r#private.directory = Self::resolve_dir(&self.r#private.directory, base);
+
+        // Uploads live under the private root unless configured as an absolute path.
+        let private_root = Path::new(&self.r#private.directory);
+        self.uploads.directory = Self::resolve_dir(&self.uploads.directory, private_root);
 
         Ok(())
     }
@@ -1395,5 +1441,86 @@ environment = "production"
         let toml_value = toml::Value::Table(toml::map::Map::new());
         let env = AppConfig::resolve_environment(&toml_value);
         assert_eq!(env, Environment::Development);
+    }
+
+    #[test]
+    fn test_private_and_upload_defaults() {
+        let config = AppConfig::default();
+        assert_eq!(config.r#private.directory, "private");
+        assert_eq!(config.uploads.directory, "uploads");
+        assert!(config.server.trusted_proxies.is_empty());
+    }
+
+    #[test]
+    fn test_trusted_proxies_toml_loading() {
+        let config_toml = r#"
+[server]
+trusted_proxies = ["127.0.0.1/32", "10.0.0.0/8"]
+"#;
+
+        let config: AppConfig = toml::from_str(config_toml).unwrap();
+        assert_eq!(
+            config.server.trusted_proxies,
+            vec!["127.0.0.1/32".to_string(), "10.0.0.0/8".to_string()]
+        );
+    }
+
+    #[test]
+    fn test_upload_directory_resolves_under_private_root() {
+        let base_dir = std::env::temp_dir().join(format!(
+            "rustf-config-private-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&base_dir).unwrap();
+
+        let mut config = AppConfig::default();
+        config.resolve_relative_paths(&base_dir).unwrap();
+
+        let expected_private = base_dir.join("private");
+        let expected_uploads = expected_private.join("uploads");
+
+        assert_eq!(
+            std::path::Path::new(&config.r#private.directory),
+            expected_private
+        );
+        assert_eq!(
+            std::path::Path::new(&config.uploads.directory),
+            expected_uploads
+        );
+
+        std::fs::remove_dir_all(&base_dir).unwrap();
+    }
+
+    #[test]
+    fn test_absolute_upload_directory_stays_absolute() {
+        let base_dir = std::env::temp_dir().join(format!(
+            "rustf-config-absolute-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let absolute_uploads = std::env::temp_dir().join(format!(
+            "rustf-absolute-uploads-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&base_dir).unwrap();
+
+        let mut config = AppConfig::default();
+        config.uploads.directory = absolute_uploads.to_string_lossy().into_owned();
+        config.resolve_relative_paths(&base_dir).unwrap();
+
+        assert_eq!(
+            std::path::Path::new(&config.uploads.directory),
+            absolute_uploads
+        );
+
+        std::fs::remove_dir_all(&base_dir).unwrap();
     }
 }

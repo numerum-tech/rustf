@@ -7,7 +7,6 @@ use crate::views::ViewEngine;
 use hyper::StatusCode;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
-use simd_json;
 use std::any::Any;
 use std::collections::HashMap;
 use std::path::Path;
@@ -188,14 +187,14 @@ impl Context {
     /// Require session (returns error if missing)
     pub fn require_session(&self) -> Result<&Session> {
         self.session()
-            .ok_or_else(|| Error::internal("Session required"))
+            .ok_or_else(|| Error::authentication("Session required"))
     }
 
     /// Require authenticated session
     pub fn require_auth(&self) -> Result<&Session> {
         let session = self.require_session()?;
         if !session.is_authenticated() {
-            return Err(Error::internal("Authentication required"));
+            return Err(Error::authentication("Authentication required"));
         }
         Ok(session)
     }
@@ -338,16 +337,29 @@ impl Context {
 
     /// Redirect to another URL
     pub fn redirect(&mut self, path: &str) -> Result<()> {
-        // For redirects, we need to preserve headers but also set Location and status
-        let response = self.res.as_mut().unwrap();
-        response.status = StatusCode::FOUND;
-        response.body = Vec::new();
+        let redirect = Response::redirect(path)?;
+        self.update_response(redirect);
+        Ok(())
+    }
 
-        // Remove any existing Location header
-        response
-            .headers
-            .retain(|(name, _)| name.to_lowercase() != "location");
-        response.add_header("Location", path);
+    /// Redirect permanently to a local application path.
+    pub fn redirect_permanent(&mut self, path: &str) -> Result<()> {
+        let redirect = Response::redirect_permanent(path)?;
+        self.update_response(redirect);
+        Ok(())
+    }
+
+    /// Redirect to an external URL explicitly.
+    pub fn redirect_external(&mut self, url: &str) -> Result<()> {
+        let redirect = Response::redirect_external(url);
+        self.update_response(redirect);
+        Ok(())
+    }
+
+    /// Redirect permanently to an external URL explicitly.
+    pub fn redirect_external_permanent(&mut self, url: &str) -> Result<()> {
+        let redirect = Response::redirect_external_permanent(url);
+        self.update_response(redirect);
         Ok(())
     }
 
@@ -542,9 +554,32 @@ impl Context {
         Ok(())
     }
 
+    /// Send file download response constrained to a base directory.
+    pub fn file_download_from<B: AsRef<Path>, P: AsRef<Path>>(
+        &mut self,
+        base_dir: B,
+        path: P,
+        download_name: Option<&str>,
+    ) -> Result<()> {
+        let new_response = Response::file_download_from(base_dir, path, download_name)?;
+        self.update_response(new_response);
+        Ok(())
+    }
+
     /// Send file for inline viewing
     pub fn file_inline<P: AsRef<Path>>(&mut self, path: P) -> Result<()> {
         let new_response = Response::file_inline(path)?;
+        self.update_response(new_response);
+        Ok(())
+    }
+
+    /// Send inline file response constrained to a base directory.
+    pub fn file_inline_from<B: AsRef<Path>, P: AsRef<Path>>(
+        &mut self,
+        base_dir: B,
+        path: P,
+    ) -> Result<()> {
+        let new_response = Response::file_inline_from(base_dir, path)?;
         self.update_response(new_response);
         Ok(())
     }
@@ -924,16 +959,11 @@ impl Context {
             let form_data = self.body_form_data()?;
             Ok(Self::form_to_json(form_data))
         } else {
-            // Try to parse text as JSON
             let text = self.req.body_as_string();
             if text.is_empty() {
                 Ok(serde_json::Value::Null)
             } else {
-                // Try to parse as JSON using simd-json (2-3x faster), fallback to string value
-                let mut text_bytes = text.into_bytes();
-                Ok(simd_json::from_slice(&mut text_bytes).unwrap_or_else(|_| {
-                    serde_json::Value::String(String::from_utf8_lossy(&text_bytes).to_string())
-                }))
+                Ok(serde_json::Value::String(text))
             }
         }
     }
@@ -1001,17 +1031,13 @@ impl Context {
             .unwrap_or("");
 
         let body = if content_type.contains("application/json") {
-            match self.body_json::<serde_json::Value>() {
-                Ok(json) => BodyData::Json(json),
-                Err(_) => BodyData::Empty,
-            }
+            let json = self.body_json::<serde_json::Value>()?;
+            BodyData::Json(json)
         } else if content_type.contains("application/x-www-form-urlencoded")
             || content_type.contains("multipart/form-data")
         {
-            match self.body_form_data() {
-                Ok(form) => BodyData::Form(form.clone()),
-                Err(_) => BodyData::Empty,
-            }
+            let form = self.body_form_data()?;
+            BodyData::Form(form.clone())
         } else {
             let text = self.req.body_as_string();
             if text.is_empty() {
@@ -1033,13 +1059,16 @@ impl Context {
 
     /// Get a header value
     pub fn header(&self, name: &str) -> Option<&str> {
-        self.req.headers.get(name).map(|s| s.as_str())
+        let normalized = name.to_ascii_lowercase();
+        self.req.headers.get(&normalized).map(|s| s.as_str())
     }
 
     /// Add a header to the response
     pub fn add_header(&mut self, name: impl Into<String>, value: impl Into<String>) {
         if let Some(response) = self.res.as_mut() {
-            response.headers.push((name.into(), value.into()));
+            let name = name.into();
+            let value = value.into();
+            response.add_header(&name, &value);
         }
     }
 
@@ -1321,6 +1350,7 @@ fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::session::Session;
 
     fn create_test_context() -> Context {
         let mut request = Request::new("GET", "/test", "1.1");
@@ -1338,6 +1368,73 @@ mod tests {
 
         let views = Arc::new(ViewEngine::new());
         Context::new(request, views)
+    }
+
+    #[test]
+    fn test_require_session_and_auth_return_401_errors() {
+        let ctx = create_test_context();
+
+        let err = ctx.require_session().err().unwrap();
+        assert_eq!(err.status_code(), 401);
+
+        let err = ctx.require_auth().err().unwrap();
+        assert_eq!(err.status_code(), 401);
+
+        let mut ctx = create_test_context();
+        ctx.set_session(Some(Arc::new(Session::new("sess-1"))));
+        let err = ctx.require_auth().err().unwrap();
+        assert_eq!(err.status_code(), 401);
+    }
+
+    #[test]
+    fn test_header_lookup_is_case_insensitive() {
+        let mut request = Request::new("GET", "/test", "1.1");
+        request
+            .headers
+            .insert("content-type".to_string(), "application/json".to_string());
+
+        let views = Arc::new(ViewEngine::new());
+        let ctx = Context::new(request, views);
+
+        assert_eq!(ctx.header("Content-Type"), Some("application/json"));
+        assert_eq!(ctx.header("content-type"), Some("application/json"));
+    }
+
+    #[test]
+    fn test_request_data_returns_error_for_invalid_json() {
+        let mut request = Request::new("POST", "/test", "1.1");
+        request
+            .headers
+            .insert("content-type".to_string(), "application/json".to_string());
+        request.set_body(br#"{"broken": }"#.to_vec());
+
+        let views = Arc::new(ViewEngine::new());
+        let mut ctx = Context::new(request, views);
+
+        assert!(ctx.request_data().is_err());
+    }
+
+    #[test]
+    fn test_redirect_replaces_stale_content_headers() {
+        let mut ctx = create_test_context();
+        ctx.text("hello").unwrap();
+        ctx.add_header("X-Test", "keep");
+        ctx.redirect("/next").unwrap();
+
+        let response = ctx.get_response().unwrap();
+        assert_eq!(response.status, StatusCode::FOUND);
+        assert!(response
+            .headers
+            .iter()
+            .any(|(k, v)| k == "Location" && v == "/next"));
+        assert!(response
+            .headers
+            .iter()
+            .any(|(k, v)| k == "X-Test" && v == "keep"));
+        assert!(!response
+            .headers
+            .iter()
+            .any(|(k, _)| k.eq_ignore_ascii_case("Content-Type")));
     }
 
     #[test]
@@ -1586,10 +1683,9 @@ mod tests {
         let views = Arc::new(ViewEngine::new());
         let mut ctx = Context::new(request, views);
 
-        // Should parse as JSON even though content-type is text
+        // Non-JSON content types stay as strings even if the payload looks like JSON.
         let json = ctx.full_body().unwrap();
-        assert!(json.is_object());
-        assert_eq!(json["key"], "value");
+        assert_eq!(json, serde_json::Value::String(json_text.to_string()));
     }
 
     #[test]

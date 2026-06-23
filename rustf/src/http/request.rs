@@ -2,11 +2,15 @@ use crate::error::{Error, Result};
 use crate::http::files::{FileCollection, MultipartParser};
 use http_body_util::BodyExt;
 use hyper::Request as HyperRequest;
+use ipnetwork::IpNetwork;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use simd_json;
 use std::collections::HashMap;
+use std::net::{IpAddr, SocketAddr};
 use std::path::Path;
+use std::sync::Arc;
+use url::Url;
 
 /// Represents form data that can be either a single value or an array of values
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -128,6 +132,8 @@ pub struct Request {
     /// same request; without this cache each would re-tokenise the header
     /// and allocate a fresh `HashMap`.
     cookies_cache: once_cell::sync::OnceCell<HashMap<String, String>>,
+    peer_addr: Option<SocketAddr>,
+    trusted_proxies: Arc<Vec<IpNetwork>>,
 }
 
 impl Default for Request {
@@ -142,6 +148,8 @@ impl Default for Request {
             files: None,
             multipart_form_data: None,
             cookies_cache: once_cell::sync::OnceCell::new(),
+            peer_addr: None,
+            trusted_proxies: Arc::new(Vec::new()),
         }
     }
 }
@@ -161,6 +169,8 @@ impl Request {
             files: None,
             multipart_form_data: None,
             cookies_cache: once_cell::sync::OnceCell::new(),
+            peer_addr: None,
+            trusted_proxies: Arc::new(Vec::new()),
         }
     }
 
@@ -175,6 +185,19 @@ impl Request {
     /// `hyper::body::Incoming` (network); tests/benches pass an in-memory body
     /// like `http_body_util::Full<Bytes>` — both collect the same way.
     pub async fn from_hyper<B>(req: HyperRequest<B>) -> Result<Self>
+    where
+        B: hyper::body::Body,
+        B::Error: std::fmt::Display,
+    {
+        Self::from_hyper_with_connection(req, None, Arc::new(Vec::new())).await
+    }
+
+    /// Build a `Request` from Hyper plus connection metadata.
+    pub async fn from_hyper_with_connection<B>(
+        req: HyperRequest<B>,
+        peer_addr: Option<SocketAddr>,
+        trusted_proxies: Arc<Vec<IpNetwork>>,
+    ) -> Result<Self>
     where
         B: hyper::body::Body,
         B::Error: std::fmt::Display,
@@ -227,6 +250,8 @@ impl Request {
             files: None,               // Will be parsed on demand
             multipart_form_data: None, // Will be parsed on demand
             cookies_cache: once_cell::sync::OnceCell::new(),
+            peer_addr,
+            trusted_proxies,
         })
     }
 
@@ -303,27 +328,20 @@ impl Request {
     fn parse_query(query: &str) -> HashMap<String, String> {
         let mut result = HashMap::new();
         for pair in query.split('&') {
-            if let Some((key, value)) = pair.split_once('=') {
-                // Use safe decoding that filters malicious input
-                let decoded_key = urlencoding::decode(key);
-                let decoded_value = urlencoding::decode(value);
+            if pair.is_empty() {
+                continue;
+            }
 
-                match (decoded_key, decoded_value) {
-                    (Some(k), Some(v)) => {
-                        result.insert(k.to_string(), v.to_string());
-                    }
-                    (Some(k), None) => {
-                        // Value is malicious - insert empty string
-                        result.insert(k.to_string(), String::new());
-                    }
-                    (None, Some(v)) => {
-                        // Key is malicious - insert empty key with value
-                        result.insert(String::new(), v.to_string());
-                    }
-                    (None, None) => {
-                        // Both malicious - insert empty key and value
-                        result.insert(String::new(), String::new());
-                    }
+            let (key, value) = pair.split_once('=').unwrap_or((pair, ""));
+            if key.is_empty() {
+                continue;
+            }
+
+            if let (Some(decoded_key), Some(decoded_value)) =
+                (urlencoding::decode(key), urlencoding::decode(value))
+            {
+                if !decoded_key.is_empty() {
+                    result.insert(decoded_key.to_string(), decoded_value.to_string());
                 }
             }
         }
@@ -336,53 +354,66 @@ impl Request {
         let mut result: HashMap<String, FormValue> = HashMap::new();
 
         for pair in query.split('&') {
-            if let Some((key, value)) = pair.split_once('=') {
-                // Use safe decoding that filters malicious input
-                if let (Some(decoded_key), Some(decoded_value)) =
-                    (urlencoding::decode(key), urlencoding::decode(value))
-                {
-                    // Check if key ends with [] (array notation) and extract actual key
-                    let (actual_key, is_array) = if decoded_key.ends_with("[]") {
-                        let key_len = decoded_key.len();
-                        (decoded_key[..key_len - 2].to_string(), true)
-                    } else {
-                        (decoded_key.to_string(), false)
-                    };
+            if pair.is_empty() {
+                continue;
+            }
 
-                    // Single-pass: directly create FormValue instead of intermediate Vec
-                    let decoded_value_str = decoded_value.to_string();
+            let (key, value) = pair.split_once('=').unwrap_or((pair, ""));
+            if key.is_empty() {
+                continue;
+            }
 
-                    match result.entry(actual_key) {
-                        std::collections::hash_map::Entry::Vacant(e) => {
-                            if is_array {
-                                // Array notation - always create Multiple even for first value
-                                e.insert(FormValue::Multiple(vec![decoded_value_str]));
-                            } else {
-                                // Single value
-                                e.insert(FormValue::Single(decoded_value_str));
-                            }
+            // Use safe decoding that filters malicious input
+            if let (Some(decoded_key), Some(decoded_value)) =
+                (urlencoding::decode(key), urlencoding::decode(value))
+            {
+                if decoded_key.is_empty() {
+                    continue;
+                }
+
+                // Check if key ends with [] (array notation) and extract actual key
+                let (actual_key, is_array) = if decoded_key.ends_with("[]") {
+                    let key_len = decoded_key.len();
+                    (decoded_key[..key_len - 2].to_string(), true)
+                } else {
+                    (decoded_key.to_string(), false)
+                };
+
+                if actual_key.is_empty() {
+                    continue;
+                }
+
+                // Single-pass: directly create FormValue instead of intermediate Vec
+                let decoded_value_str = decoded_value.to_string();
+
+                match result.entry(actual_key) {
+                    std::collections::hash_map::Entry::Vacant(e) => {
+                        if is_array {
+                            // Array notation - always create Multiple even for first value
+                            e.insert(FormValue::Multiple(vec![decoded_value_str]));
+                        } else {
+                            // Single value
+                            e.insert(FormValue::Single(decoded_value_str));
                         }
-                        std::collections::hash_map::Entry::Occupied(mut e) => {
-                            // Key already exists - convert to array if needed
-                            match e.get_mut() {
-                                FormValue::Single(existing) => {
-                                    // Convert single to multiple
-                                    let existing_value = std::mem::take(existing);
-                                    *e.get_mut() = FormValue::Multiple(vec![
-                                        existing_value,
-                                        decoded_value_str,
-                                    ]);
-                                }
-                                FormValue::Multiple(vec) => {
-                                    // Add to existing array
-                                    vec.push(decoded_value_str);
-                                }
+                    }
+                    std::collections::hash_map::Entry::Occupied(mut e) => {
+                        // Key already exists - convert to array if needed
+                        match e.get_mut() {
+                            FormValue::Single(existing) => {
+                                // Convert single to multiple
+                                let existing_value = std::mem::take(existing);
+                                *e.get_mut() =
+                                    FormValue::Multiple(vec![existing_value, decoded_value_str]);
+                            }
+                            FormValue::Multiple(vec) => {
+                                // Add to existing array
+                                vec.push(decoded_value_str);
                             }
                         }
                     }
                 }
-                // Skip pairs with invalid encoding
             }
+            // Skip pairs with invalid encoding
         }
 
         result
@@ -392,20 +423,35 @@ impl Request {
 
     /// Get client IP address (supports X-Forwarded-For and X-Real-IP)
     pub fn client_ip(&self) -> String {
-        // Check X-Forwarded-For header first (comma-separated list, first is client)
-        if let Some(forwarded) = self.headers.get("x-forwarded-for") {
-            if let Some(first_ip) = forwarded.split(',').next() {
-                return first_ip.trim().to_string();
+        if self.should_trust_forwarded_headers() {
+            if let Some(forwarded) = self.headers.get("x-forwarded-for") {
+                let forwarded_ips: Vec<IpAddr> = forwarded
+                    .split(',')
+                    .filter_map(|ip| ip.trim().parse::<IpAddr>().ok())
+                    .collect();
+                if !forwarded_ips.is_empty() {
+                    if let Some(ip) = forwarded_ips
+                        .iter()
+                        .rev()
+                        .find(|ip| !self.is_trusted_proxy_ip(**ip))
+                    {
+                        return ip.to_string();
+                    }
+
+                    return forwarded_ips[0].to_string();
+                }
+            }
+
+            if let Some(real_ip) = self.headers.get("x-real-ip") {
+                if let Ok(real_ip) = real_ip.parse::<IpAddr>() {
+                    return real_ip.to_string();
+                }
             }
         }
 
-        // Check X-Real-IP header
-        if let Some(real_ip) = self.headers.get("x-real-ip") {
-            return real_ip.to_string();
-        }
-
-        // Fallback to "remote" (not available in current implementation)
-        "127.0.0.1".to_string()
+        self.peer_addr
+            .map(|addr| addr.ip().to_string())
+            .unwrap_or_else(|| "127.0.0.1".to_string())
     }
 
     /// Get user agent string
@@ -447,9 +493,14 @@ impl Request {
 
     /// Check if request is HTTPS (via X-Forwarded-Proto or URI scheme)
     pub fn is_secure(&self) -> bool {
-        // Check X-Forwarded-Proto header
-        if let Some(proto) = self.headers.get("x-forwarded-proto") {
-            return proto.to_lowercase() == "https";
+        if self.should_trust_forwarded_headers() {
+            if let Some(proto) = self.headers.get("x-forwarded-proto") {
+                return proto
+                    .split(',')
+                    .next()
+                    .map(|value| value.trim().eq_ignore_ascii_case("https"))
+                    .unwrap_or(false);
+            }
         }
 
         // Check URI scheme
@@ -524,6 +575,11 @@ impl Request {
                     self.files = Some(files);
                     return Ok(());
                 }
+
+                return Err(Error::InvalidInput(
+                    "Invalid multipart/form-data Content-Type: missing or malformed boundary"
+                        .to_string(),
+                ));
             }
         }
 
@@ -536,10 +592,19 @@ impl Request {
     /// Extract boundary from Content-Type header
     fn extract_boundary(&self, content_type: &str) -> Option<String> {
         // Parse: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
-        for part in content_type.split(';') {
+        for part in content_type.split(';').skip(1) {
             let part = part.trim();
-            if part.starts_with("boundary=") {
-                return Some(part[9..].to_string());
+            if let Some((name, value)) = part.split_once('=') {
+                if name.trim().eq_ignore_ascii_case("boundary") {
+                    let boundary = value.trim().trim_matches('"');
+                    if !boundary.is_empty()
+                        && !boundary
+                            .chars()
+                            .any(|ch| ch.is_control() || ch.is_whitespace())
+                    {
+                        return Some(boundary.to_string());
+                    }
+                }
             }
         }
         None
@@ -573,8 +638,9 @@ impl Request {
 
     /// Get hostname with optional path (Total.js: request.hostname([path]))
     pub fn hostname(&self, path: Option<&str>) -> String {
-        let host = self.host().unwrap_or("localhost");
-        let scheme = if self.is_secure() { "https" } else { "http" };
+        let origin = self
+            .configured_origin()
+            .unwrap_or_else(|| "http://localhost".to_string());
 
         if let Some(path) = path {
             let path = if path.starts_with('/') {
@@ -582,9 +648,9 @@ impl Request {
             } else {
                 &format!("/{}", path)
             };
-            format!("{}://{}{}", scheme, host, path)
+            format!("{}{}", origin.trim_end_matches('/'), path)
         } else {
-            format!("{}://{}", scheme, host)
+            origin
         }
     }
 
@@ -635,12 +701,12 @@ impl Request {
 
     /// Check if request is from a proxy (Total.js: request.isProxy)
     pub fn is_proxy(&self) -> bool {
-        // Check for common proxy headers
-        self.headers.contains_key("x-forwarded-for")
-            || self.headers.contains_key("x-real-ip")
-            || self.headers.contains_key("x-forwarded-proto")
-            || self.headers.contains_key("x-forwarded-host")
-            || self.headers.contains_key("forwarded")
+        self.should_trust_forwarded_headers()
+            && (self.headers.contains_key("x-forwarded-for")
+                || self.headers.contains_key("x-real-ip")
+                || self.headers.contains_key("x-forwarded-proto")
+                || self.headers.contains_key("x-forwarded-host")
+                || self.headers.contains_key("forwarded"))
     }
 
     /// Check if request is for a static file (Total.js: request.isStaticFile)
@@ -760,6 +826,66 @@ impl Request {
         cookies
     }
 
+    fn should_trust_forwarded_headers(&self) -> bool {
+        self.peer_addr
+            .map(|addr| self.is_trusted_proxy_ip(addr.ip()))
+            .unwrap_or(false)
+    }
+
+    fn is_trusted_proxy_ip(&self, ip: IpAddr) -> bool {
+        self.trusted_proxies
+            .iter()
+            .any(|network| network.contains(ip))
+    }
+
+    fn configured_origin(&self) -> Option<String> {
+        if let Some(public_url) = crate::configuration::CONF::get_string("server.public_url") {
+            if let Some(origin) = Self::normalize_origin(&public_url) {
+                return Some(origin);
+            }
+        }
+
+        let host = crate::configuration::CONF::get_string("server.host")?;
+        let port = crate::configuration::CONF::get::<u16>("server.port")
+            .unwrap_or(if self.is_secure() { 443 } else { 80 });
+        let scheme = if self.is_secure()
+            || crate::configuration::CONF::get_bool("server.ssl_enabled").unwrap_or(false)
+        {
+            "https"
+        } else {
+            "http"
+        };
+
+        let default_port = match scheme {
+            "https" => 443,
+            _ => 80,
+        };
+        let port_suffix = if port == default_port {
+            String::new()
+        } else {
+            format!(":{}", port)
+        };
+
+        Some(format!("{}://{}{}", scheme, host, port_suffix))
+    }
+
+    fn normalize_origin(input: &str) -> Option<String> {
+        let parsed = Url::parse(input).ok()?;
+        let scheme = parsed.scheme();
+        let host = parsed.host_str()?;
+        let default_port = match scheme {
+            "http" => Some(80),
+            "https" => Some(443),
+            _ => None,
+        };
+        let port_suffix = match parsed.port() {
+            Some(port) if Some(port) != default_port => format!(":{}", port),
+            _ => String::new(),
+        };
+
+        Some(format!("{}://{}{}", scheme, host, port_suffix))
+    }
+
     /// Simple base64 encoding without external dependencies
     fn base64_encode(input: &[u8]) -> String {
         const CHARS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -840,11 +966,6 @@ mod urlencoding {
             return Err(UrlDecodeError::TooLong);
         }
 
-        // Check for obviously malicious patterns
-        if contains_malicious_patterns(input) {
-            return Err(UrlDecodeError::MaliciousPattern);
-        }
-
         let mut result = Vec::new();
         let mut chars = input.char_indices();
 
@@ -867,11 +988,6 @@ mod urlencoding {
                     // Parse hex value
                     let hex_value =
                         u8::from_str_radix(hex_str, 16).map_err(|_| UrlDecodeError::InvalidHex)?;
-
-                    // Validate the decoded byte
-                    if !is_safe_decoded_byte(hex_value) {
-                        return Err(UrlDecodeError::UnsafeByte);
-                    }
 
                     result.push(hex_value);
 
@@ -896,15 +1012,15 @@ mod urlencoding {
         // Convert bytes to string, validating UTF-8
         match String::from_utf8(result) {
             Ok(decoded) => {
-                // Final validation of the decoded result
-                if is_safe_decoded_string(&decoded) {
-                    if decoded == input {
-                        Ok(Cow::Borrowed(input))
-                    } else {
-                        Ok(Cow::Owned(decoded))
-                    }
+                if decoded
+                    .chars()
+                    .any(|c| c == '\0' || (c.is_control() && !matches!(c, '\n' | '\r' | '\t')))
+                {
+                    Err(UrlDecodeError::UnsafeByte)
+                } else if decoded == input {
+                    Ok(Cow::Borrowed(input))
                 } else {
-                    Err(UrlDecodeError::UnsafeResult)
+                    Ok(Cow::Owned(decoded))
                 }
             }
             Err(_) => Err(UrlDecodeError::InvalidUtf8),
@@ -916,41 +1032,11 @@ mod urlencoding {
     #[derive(Debug)]
     pub enum UrlDecodeError {
         TooLong,
-        MaliciousPattern,
         InvalidEncoding,
         InvalidHex,
         UnsafeByte,
         InvalidCharacter,
         InvalidUtf8,
-        UnsafeResult,
-    }
-
-    /// Check for malicious patterns in URL input
-    fn contains_malicious_patterns(input: &str) -> bool {
-        let dangerous_patterns = [
-            // Path traversal
-            "../",
-            "..\\",
-            "%2e%2e%2f",
-            "%2e%2e%5c",
-            // Null bytes
-            "%00",
-            "\0",
-            // Script injection attempts
-            "%3cscript",
-            "%3c%73%63%72%69%70%74",
-            // Unicode bypasses
-            "%c0%ae",
-            "%c1%9c",
-            // Double encoding
-            "%252e",
-            "%252f",
-        ];
-
-        let input_lower = input.to_lowercase();
-        dangerous_patterns
-            .iter()
-            .any(|pattern| input_lower.contains(pattern))
     }
 
     /// Check if a URL character is safe to include
@@ -965,61 +1051,12 @@ mod urlencoding {
             _ => false,
         }
     }
-
-    /// Check if a decoded byte value is safe
-    fn is_safe_decoded_byte(byte: u8) -> bool {
-        match byte {
-            // Null byte is never safe
-            0 => false,
-            // Control characters (except common whitespace)
-            1..=8 | 11..=12 | 14..=31 | 127 => false,
-            // DEL and high control characters
-            128..=159 => false,
-            // Everything else is potentially safe
-            _ => true,
-        }
-    }
-
-    /// Final validation of decoded string
-    fn is_safe_decoded_string(s: &str) -> bool {
-        // Check for null bytes
-        if s.contains('\0') {
-            return false;
-        }
-
-        // Check for malicious file patterns
-        let dangerous_files = [
-            "etc/passwd",
-            "windows/system32",
-            "boot.ini",
-            "web.config",
-            ".htaccess",
-            ".env",
-            "id_rsa",
-            "shadow",
-        ];
-
-        let s_lower = s.to_lowercase();
-        if dangerous_files
-            .iter()
-            .any(|pattern| s_lower.contains(pattern))
-        {
-            return false;
-        }
-
-        // Check for excessive control characters
-        let control_count = s.chars().filter(|c| c.is_control()).count();
-        if control_count > s.len() / 10 {
-            return false;
-        }
-
-        true
-    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Arc;
 
     #[test]
     fn test_path_normalizes_origin_and_absolute_forms() {
@@ -1045,12 +1082,15 @@ mod tests {
         assert_eq!(decode("hello%20world").unwrap(), "hello world");
         assert_eq!(decode("test+string").unwrap(), "test string");
         assert_eq!(decode("normal_string").unwrap(), "normal_string");
+        assert_eq!(decode("caf%C3%A9").unwrap(), "café");
 
-        // Test malicious pattern detection
-        assert!(decode("../etc/passwd").is_none());
-        assert!(decode("%2e%2e%2fpasswd").is_none());
+        // Decoding should be syntax-focused, not content-blocking.
+        assert_eq!(decode("../etc/passwd").unwrap(), "../etc/passwd");
+        assert_eq!(decode("%2e%2e%2fpasswd").unwrap(), "../passwd");
+        assert_eq!(decode("%3cscript%3e").unwrap(), "<script>");
+
+        // Null and control characters remain invalid.
         assert!(decode("%00null").is_none());
-        assert!(decode("%3cscript%3e").is_none());
 
         // Test length limits
         let long_string = "a".repeat(10000);
@@ -1076,8 +1116,8 @@ mod tests {
         ));
 
         assert!(matches!(
-            decode_safe("../passwd"),
-            Err(UrlDecodeError::MaliciousPattern)
+            decode_safe("caf%C3%A9"),
+            Ok(value) if value.as_ref() == "café"
         ));
         assert!(matches!(
             decode_safe("invalid%GG"),
@@ -1088,10 +1128,9 @@ mod tests {
             Err(UrlDecodeError::InvalidEncoding)
         ));
 
-        // Test malicious pattern first - %00 is caught by malicious pattern detection
         assert!(matches!(
             decode_safe("%00test"),
-            Err(UrlDecodeError::MaliciousPattern)
+            Err(UrlDecodeError::UnsafeByte)
         ));
 
         // Test unsafe byte with a different control character that's not in malicious patterns
@@ -1103,26 +1142,31 @@ mod tests {
 
     #[test]
     fn test_safe_query_parsing() {
-        // Test that query parsing handles malicious input safely
+        // Syntax-invalid values are skipped; content is preserved for later layers.
         let malicious_query = "key1=../passwd&key2=%00null&key3=normal";
         let parsed = Request::parse_query(malicious_query);
 
-        // Malicious values should be filtered out by the decode function returning None
-        // which causes unwrap_or_default() to return empty string, but the key will still exist
-        // Let's just verify the normal value works
+        assert_eq!(parsed.get("key1"), Some(&"../passwd".to_string()));
         assert_eq!(parsed.get("key3"), Some(&"normal".to_string()));
-
-        // And that malicious patterns get replaced with empty strings
-        assert_eq!(parsed.get("key1"), Some(&"".to_string()));
-        assert_eq!(parsed.get("key2"), Some(&"".to_string()));
+        assert!(!parsed.contains_key("key2"));
     }
 
     #[test]
     fn test_parse_query_function() {
-        let query = Request::parse_query("param=value&other=test");
+        let query = Request::parse_query("param=value&other=test&flag");
 
         assert_eq!(query.get("param"), Some(&"value".to_string()));
         assert_eq!(query.get("other"), Some(&"test".to_string()));
+        assert_eq!(query.get("flag"), Some(&"".to_string()));
+    }
+
+    #[test]
+    fn test_parse_query_skips_invalid_or_empty_keys() {
+        let query = Request::parse_query("=bad&%00evil=value&ok=1");
+
+        assert_eq!(query.get("ok"), Some(&"1".to_string()));
+        assert!(!query.contains_key(""));
+        assert_eq!(query.len(), 1);
     }
 
     #[test]
@@ -1261,12 +1305,33 @@ file contents\r\n\
     }
 
     #[test]
+    fn test_extract_boundary_supports_quoted_values() {
+        let request = Request::default();
+        let boundary = request.extract_boundary("multipart/form-data; boundary=\"abc123\"");
+
+        assert_eq!(boundary.as_deref(), Some("abc123"));
+    }
+
+    #[test]
+    fn test_parse_files_errors_on_missing_boundary() {
+        let mut request = Request::default();
+        request.headers.insert(
+            "content-type".to_string(),
+            "multipart/form-data".to_string(),
+        );
+        request.set_body(b"--ignored--".to_vec());
+
+        let err = request.files().unwrap_err();
+        assert!(matches!(err, Error::InvalidInput(_)));
+    }
+
+    #[test]
     fn test_form_parsing_malicious_input() {
-        // Test that malicious patterns are filtered out
+        // Query parsing preserves content and only rejects invalid encodings/control chars.
         let query = Request::parse_query("safe=value&bad=../etc/passwd&normal=test");
 
         assert_eq!(query.get("safe"), Some(&"value".to_string()));
-        assert_eq!(query.get("bad"), Some(&"".to_string())); // Malicious input filtered
+        assert_eq!(query.get("bad"), Some(&"../etc/passwd".to_string()));
         assert_eq!(query.get("normal"), Some(&"test".to_string()));
     }
 
@@ -1358,21 +1423,23 @@ file contents\r\n\
             .insert("host".to_string(), "example.com:8080".to_string());
 
         assert_eq!(request.host(), Some("example.com:8080"));
-        assert_eq!(request.hostname(None), "http://example.com:8080");
+        assert_eq!(request.hostname(None), "http://localhost");
         assert_eq!(
             request.hostname(Some("/api/users")),
-            "http://example.com:8080/api/users"
+            "http://localhost/api/users"
         );
         assert_eq!(
             request.hostname(Some("api/users")),
-            "http://example.com:8080/api/users"
+            "http://localhost/api/users"
         );
 
         // Test HTTPS detection
+        request.peer_addr = Some("10.0.0.5:8080".parse().unwrap());
+        request.trusted_proxies = Arc::new(vec!["10.0.0.0/8".parse().unwrap()]);
         request
             .headers
             .insert("x-forwarded-proto".to_string(), "https".to_string());
-        assert_eq!(request.hostname(None), "https://example.com:8080");
+        assert_eq!(request.hostname(None), "http://localhost");
 
         // Test with no host
         let empty_request = Request::default();
@@ -1446,33 +1513,90 @@ file contents\r\n\
         // Test with no proxy headers
         assert!(!request.is_proxy());
 
-        // Test with X-Forwarded-For
+        // Untrusted proxy headers do not make the request proxied.
         request
             .headers
             .insert("x-forwarded-for".to_string(), "192.168.1.1".to_string());
-        assert!(request.is_proxy());
+        assert!(!request.is_proxy());
 
-        // Test with X-Real-IP
+        // Trusted peer with forwarded headers is treated as proxied.
         request = Request::default();
+        request.peer_addr = Some("10.0.0.5:8080".parse().unwrap());
+        request.trusted_proxies = Arc::new(vec!["10.0.0.0/8".parse().unwrap()]);
         request
             .headers
             .insert("x-real-ip".to_string(), "10.0.0.1".to_string());
         assert!(request.is_proxy());
 
-        // Test with X-Forwarded-Proto
+        // Trusted proxy via X-Forwarded-Proto
         request = Request::default();
+        request.peer_addr = Some("10.0.0.5:8080".parse().unwrap());
+        request.trusted_proxies = Arc::new(vec!["10.0.0.0/8".parse().unwrap()]);
         request
             .headers
             .insert("x-forwarded-proto".to_string(), "https".to_string());
         assert!(request.is_proxy());
 
-        // Test with Forwarded header
+        // Trusted proxy via Forwarded header
         request = Request::default();
+        request.peer_addr = Some("10.0.0.5:8080".parse().unwrap());
+        request.trusted_proxies = Arc::new(vec!["10.0.0.0/8".parse().unwrap()]);
         request.headers.insert(
             "forwarded".to_string(),
             "for=192.0.2.60;proto=http".to_string(),
         );
         assert!(request.is_proxy());
+    }
+
+    #[test]
+    fn test_client_ip_ignores_forwarded_headers_from_untrusted_peer() {
+        let mut request = Request::default();
+        request.peer_addr = Some("10.0.0.5:8080".parse().unwrap());
+        request.headers.insert(
+            "x-forwarded-for".to_string(),
+            "203.0.113.10, 10.0.0.5".to_string(),
+        );
+        request
+            .headers
+            .insert("x-real-ip".to_string(), "203.0.113.20".to_string());
+
+        assert_eq!(request.client_ip(), "10.0.0.5");
+    }
+
+    #[test]
+    fn test_client_ip_uses_forwarded_headers_from_trusted_peer() {
+        let mut request = Request::default();
+        request.peer_addr = Some("10.0.0.5:8080".parse().unwrap());
+        request.trusted_proxies = Arc::new(vec!["10.0.0.0/8".parse().unwrap()]);
+        request.headers.insert(
+            "x-forwarded-for".to_string(),
+            "203.0.113.10, 10.1.1.1".to_string(),
+        );
+
+        assert_eq!(request.client_ip(), "203.0.113.10");
+    }
+
+    #[test]
+    fn test_is_secure_ignores_forwarded_proto_from_untrusted_peer() {
+        let mut request = Request::default();
+        request.peer_addr = Some("10.0.0.5:8080".parse().unwrap());
+        request
+            .headers
+            .insert("x-forwarded-proto".to_string(), "https".to_string());
+
+        assert!(!request.is_secure());
+    }
+
+    #[test]
+    fn test_is_secure_uses_forwarded_proto_from_trusted_peer() {
+        let mut request = Request::default();
+        request.peer_addr = Some("10.0.0.5:8080".parse().unwrap());
+        request.trusted_proxies = Arc::new(vec!["10.0.0.0/8".parse().unwrap()]);
+        request
+            .headers
+            .insert("x-forwarded-proto".to_string(), "https".to_string());
+
+        assert!(request.is_secure());
     }
 
     #[test]
