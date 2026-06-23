@@ -153,7 +153,10 @@ impl Pagination {
 ///     <a href="@{pagination.next.url}">Next</a>
 /// @{fi}
 /// ```
-pub fn pagination_from_paged_result<T>(paged_result: &crate::models::PagedResult<T>, url_pattern: impl Into<String>) -> Pagination {
+pub fn pagination_from_paged_result<T>(
+    paged_result: &crate::models::PagedResult<T>,
+    url_pattern: impl Into<String>,
+) -> Pagination {
     Pagination::new(
         paged_result.total_rows,
         paged_result.page,

@@ -331,7 +331,7 @@ pub static DEBUG: Lazy<bool> = Lazy::new(|| {
             .or_else(|_| std::env::var("RUST_ENV"))
             .or_else(|_| std::env::var("NODE_ENV"))
             .unwrap_or_else(|_| "development".to_string());
-        
+
         env.to_lowercase() != "production" && env.to_lowercase() != "prod"
     }
 });

@@ -10,8 +10,8 @@ use crate::models::base_model::BaseModel;
 use crate::models::filter::ModelFilter;
 use crate::models::paged_result::PagedResult;
 use crate::models::query_builder::{
-    DatabaseBackend, JoinClause, JoinType, OrderByClause, OrderDirection, QueryBuilder,
-    QueryError, WhereCondition, WhereConnector,
+    DatabaseBackend, JoinClause, JoinType, OrderByClause, OrderDirection, QueryBuilder, QueryError,
+    WhereCondition, WhereConnector,
 };
 use std::marker::PhantomData;
 
@@ -611,14 +611,12 @@ impl<T: BaseModel> ModelQuery<T> {
                         "<" => builder.where_lt(&condition.column, condition.value.clone()),
                         // Note: where_gte and where_lte may not exist in QueryBuilder
                         // They are handled via where_raw if needed
-                        _ if condition.operator == ">=" => builder.where_raw(&format!(
-                            "{} >= ?",
-                            condition.column
-                        )),
-                        _ if condition.operator == "<=" => builder.where_raw(&format!(
-                            "{} <= ?",
-                            condition.column
-                        )),
+                        _ if condition.operator == ">=" => {
+                            builder.where_raw(&format!("{} >= ?", condition.column))
+                        }
+                        _ if condition.operator == "<=" => {
+                            builder.where_raw(&format!("{} <= ?", condition.column))
+                        }
                         "IS" if matches!(condition.value, SqlValue::Null) => {
                             builder.where_null(&condition.column)
                         }
@@ -634,15 +632,11 @@ impl<T: BaseModel> ModelQuery<T> {
                         }
                         _ if condition.operator.starts_with("IN") => {
                             // IN clause is already formatted in operator
-                            builder.where_raw(&format!(
-                                "{} {}",
-                                condition.column, condition.operator
-                            ))
+                            builder
+                                .where_raw(&format!("{} {}", condition.column, condition.operator))
                         }
-                        _ => builder.where_raw(&format!(
-                            "{} {} ?",
-                            condition.column, condition.operator
-                        )),
+                        _ => builder
+                            .where_raw(&format!("{} {} ?", condition.column, condition.operator)),
                     };
                 }
                 WhereConnector::Or => {
@@ -741,10 +735,8 @@ impl<T: BaseModel> ModelQuery<T> {
         self.query_builder = self.query_builder.paginate(page, per_page);
 
         // Execute both queries in parallel
-        let (total_result, rows_result) = tokio::join!(
-            Self::execute_count_query(count_builder),
-            self.get_all()
-        );
+        let (total_result, rows_result) =
+            tokio::join!(Self::execute_count_query(count_builder), self.get_all());
 
         let total_rows = total_result?;
         let rows = rows_result?;

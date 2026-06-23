@@ -39,8 +39,8 @@ impl RedisSessionStorage {
             10,
             FingerprintMode::Soft,
             Duration::from_secs(1800), // 30 minutes default
-            Duration::from_secs(5),   // 5 seconds connection timeout
-            Duration::from_secs(3),   // 3 seconds command timeout
+            Duration::from_secs(5),    // 5 seconds connection timeout
+            Duration::from_secs(3),    // 3 seconds command timeout
         )
         .await
     }
@@ -56,25 +56,28 @@ impl RedisSessionStorage {
         command_timeout: Duration,
     ) -> Result<Self> {
         let mut cfg = Config::from_url(redis_url);
-        
+
         // Configure pool size
         cfg.pool = Some(PoolConfig {
             max_size: pool_size,
             ..Default::default()
         });
-        
+
         // Note: deadpool-redis doesn't expose connection timeout directly in Config
         // Timeouts are handled at the redis client level or via tokio::time::timeout
         // We'll use tokio::time::timeout for all operations instead
-        
+
         let pool = cfg.create_pool(Some(Runtime::Tokio1))?;
 
         // Test the connection with timeout
         let mut conn = pool.get().await?;
-        tokio::time::timeout(command_timeout, redis::cmd("PING").query_async::<String>(&mut conn))
-            .await
-            .map_err(|_| Error::internal("Redis connection test timed out"))?
-            .map_err(|e| Error::internal(format!("Redis connection test failed: {}", e)))?;
+        tokio::time::timeout(
+            command_timeout,
+            redis::cmd("PING").query_async::<String>(&mut conn),
+        )
+        .await
+        .map_err(|_| Error::internal("Redis connection test timed out"))?
+        .map_err(|e| Error::internal(format!("Redis connection test failed: {}", e)))?;
 
         Ok(Self {
             pool,
@@ -99,10 +102,13 @@ impl RedisSessionStorage {
 
         // Test the connection
         let mut conn = pool.get().await?;
-        tokio::time::timeout(command_timeout, redis::cmd("PING").query_async::<String>(&mut conn))
-            .await
-            .map_err(|_| Error::internal("Redis connection test timed out"))?
-            .map_err(|e| Error::internal(format!("Redis connection test failed: {}", e)))?;
+        tokio::time::timeout(
+            command_timeout,
+            redis::cmd("PING").query_async::<String>(&mut conn),
+        )
+        .await
+        .map_err(|_| Error::internal("Redis connection test timed out"))?
+        .map_err(|e| Error::internal(format!("Redis connection test failed: {}", e)))?;
 
         Ok(Self {
             pool,
@@ -156,7 +162,10 @@ impl RedisSessionStorage {
                 IpAddr::V6(ipv6) => {
                     // IPv6: take first 64 bits (first 4 segments, /64 prefix)
                     let segments = ipv6.segments();
-                    format!("{:x}:{:x}:{:x}:{:x}", segments[0], segments[1], segments[2], segments[3])
+                    format!(
+                        "{:x}:{:x}:{:x}:{:x}",
+                        segments[0], segments[1], segments[2], segments[3]
+                    )
                 }
             }
         } else {
@@ -199,13 +208,11 @@ impl SessionStorage for RedisSessionStorage {
         let key = self.session_key(session_id);
 
         // Get the JSON data from Redis with timeout
-        let json_data: Option<String> = tokio::time::timeout(
-            self.command_timeout,
-            conn.get::<&str, Option<String>>(&key),
-        )
-        .await
-        .map_err(|_| Error::internal("Redis GET operation timed out"))?
-        .map_err(|e| Error::internal(format!("Redis GET failed: {}", e)))?;
+        let json_data: Option<String> =
+            tokio::time::timeout(self.command_timeout, conn.get::<&str, Option<String>>(&key))
+                .await
+                .map_err(|_| Error::internal("Redis GET operation timed out"))?
+                .map_err(|e| Error::internal(format!("Redis GET failed: {}", e)))?;
 
         match json_data {
             Some(data) => {
@@ -254,7 +261,10 @@ impl SessionStorage for RedisSessionStorage {
                     // Key exists but has no expiry - set default TTL using EXPIRE
                     tokio::time::timeout(
                         self.command_timeout,
-                        redis::cmd("EXPIRE").arg(&key).arg(self.default_ttl.as_secs()).query_async::<()>(&mut conn),
+                        redis::cmd("EXPIRE")
+                            .arg(&key)
+                            .arg(self.default_ttl.as_secs())
+                            .query_async::<()>(&mut conn),
                     )
                     .await
                     .map_err(|_| Error::internal("Redis EXPIRE operation timed out"))?
@@ -270,13 +280,16 @@ impl SessionStorage for RedisSessionStorage {
                 if ttl_to_use < (self.default_ttl.as_secs() / 2) {
                     tokio::time::timeout(
                         self.command_timeout,
-                        redis::cmd("EXPIRE").arg(&key).arg(self.default_ttl.as_secs()).query_async::<()>(&mut conn),
+                        redis::cmd("EXPIRE")
+                            .arg(&key)
+                            .arg(self.default_ttl.as_secs())
+                            .query_async::<()>(&mut conn),
                     )
                     .await
                     .map_err(|_| Error::internal("Redis EXPIRE operation timed out"))?
                     .map_err(|e| Error::internal(format!("Redis EXPIRE failed: {}", e)))?;
                 }
-                
+
                 // Note: We don't write back session_data here because:
                 // 1. No user data was modified (only last_accessed in memory)
                 // 2. TTL refresh via EXPIRE is sufficient to keep session alive
@@ -296,7 +309,7 @@ impl SessionStorage for RedisSessionStorage {
         let json_data = serde_json::to_string(data)
             .map_err(|e| Error::internal(format!("Failed to serialize session data: {}", e)))?;
         let ttl_seconds = ttl.as_secs();
-        
+
         // Use atomic SETEX with timeout
         tokio::time::timeout(
             self.command_timeout,
@@ -313,14 +326,11 @@ impl SessionStorage for RedisSessionStorage {
         let mut conn = self.pool.get().await?;
         let key = self.session_key(session_id);
 
-        tokio::time::timeout(
-            self.command_timeout,
-            conn.del::<&str, i32>(&key),
-        )
-        .await
-        .map_err(|_| Error::internal("Redis DEL operation timed out"))?
-        .map_err(|e| Error::internal(format!("Redis DEL failed: {}", e)))?;
-        
+        tokio::time::timeout(self.command_timeout, conn.del::<&str, i32>(&key))
+            .await
+            .map_err(|_| Error::internal("Redis DEL operation timed out"))?
+            .map_err(|e| Error::internal(format!("Redis DEL failed: {}", e)))?;
+
         Ok(())
     }
 
@@ -328,14 +338,12 @@ impl SessionStorage for RedisSessionStorage {
         let mut conn = self.pool.get().await?;
         let key = self.session_key(session_id);
 
-        let exists: bool = tokio::time::timeout(
-            self.command_timeout,
-            conn.exists::<&str, bool>(&key),
-        )
-        .await
-        .map_err(|_| Error::internal("Redis EXISTS operation timed out"))?
-        .map_err(|e| Error::internal(format!("Redis EXISTS failed: {}", e)))?;
-        
+        let exists: bool =
+            tokio::time::timeout(self.command_timeout, conn.exists::<&str, bool>(&key))
+                .await
+                .map_err(|_| Error::internal("Redis EXISTS operation timed out"))?
+                .map_err(|e| Error::internal(format!("Redis EXISTS failed: {}", e)))?;
+
         Ok(exists)
     }
 
@@ -434,13 +442,13 @@ mod tests {
             }
         }
     }
-    
+
     #[test]
     #[ignore = "requires a running Redis server"]
     async fn test_redis_storage_get_missing_fingerprint() {
         let storage = create_test_storage().await;
         let session_id = "test_missing_fingerprint";
-        
+
         // Test that get() works without fingerprint parameter
         let result = storage.get(session_id, None).await;
         assert!(result.is_ok());

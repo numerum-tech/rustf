@@ -18,8 +18,7 @@ use std::path::PathBuf;
 use clap::{Arg, Command};
 
 /// CLI arguments parsed from command line
-#[derive(Debug, Clone)]
-#[derive(Default)]
+#[derive(Debug, Clone, Default)]
 pub struct CliArgs {
     /// Path to configuration file
     pub config_file: Option<PathBuf>,
@@ -28,7 +27,6 @@ pub struct CliArgs {
     /// Whether help was requested
     pub help: bool,
 }
-
 
 impl CliArgs {
     /// Parse command line arguments using clap (requires 'cli' feature)

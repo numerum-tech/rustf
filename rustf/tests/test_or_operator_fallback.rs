@@ -16,7 +16,10 @@ fn test_or_operator_with_empty_string() {
 
     let html = result.unwrap();
     eprintln!("Generated HTML: {}", html);
-    assert!(html.contains("No bio provided"), "Should use fallback for empty string");
+    assert!(
+        html.contains("No bio provided"),
+        "Should use fallback for empty string"
+    );
     assert!(!html.contains("<p></p>"), "Should not render empty string");
 }
 
@@ -34,7 +37,10 @@ fn test_or_operator_with_null() {
     assert!(result.is_ok(), "Template should render successfully");
 
     let html = result.unwrap();
-    assert!(html.contains("src=\"/default.jpg\""), "Should use fallback for null");
+    assert!(
+        html.contains("src=\"/default.jpg\""),
+        "Should use fallback for null"
+    );
 }
 
 #[test]
@@ -51,7 +57,10 @@ fn test_or_operator_with_missing_property() {
     assert!(result.is_ok(), "Template should render successfully");
 
     let html = result.unwrap();
-    assert!(html.contains("src=\"/assets/img/avatar/1.jpg\""), "Should use fallback for missing property");
+    assert!(
+        html.contains("src=\"/assets/img/avatar/1.jpg\""),
+        "Should use fallback for missing property"
+    );
 }
 
 #[test]
@@ -68,8 +77,14 @@ fn test_or_operator_with_truthy_value() {
     assert!(result.is_ok(), "Template should render successfully");
 
     let html = result.unwrap();
-    assert!(html.contains("src=\"/photos/user123.jpg\""), "Should use actual value when truthy");
-    assert!(!html.contains("/default.jpg"), "Should not use fallback when value exists");
+    assert!(
+        html.contains("src=\"/photos/user123.jpg\""),
+        "Should use actual value when truthy"
+    );
+    assert!(
+        !html.contains("/default.jpg"),
+        "Should not use fallback when value exists"
+    );
 }
 
 #[test]
@@ -88,7 +103,10 @@ fn test_or_operator_chaining() {
         "default_title": "Default Title"
     });
     let result2 = VIEW::render_string(template, model2.clone(), None).unwrap();
-    assert!(result2.contains("Default Title"), "Should use default_title");
+    assert!(
+        result2.contains("Default Title"),
+        "Should use default_title"
+    );
 
     // Test 3: custom_title exists
     let model3 = json!({
@@ -97,7 +115,10 @@ fn test_or_operator_chaining() {
     });
     let result3 = VIEW::render_string(template, model3.clone(), None).unwrap();
     assert!(result3.contains("Custom Title"), "Should use custom_title");
-    assert!(!result3.contains("Default Title"), "Should not use default_title when custom exists");
+    assert!(
+        !result3.contains("Default Title"),
+        "Should not use default_title when custom exists"
+    );
 }
 
 #[test]
@@ -117,7 +138,10 @@ fn test_or_operator_with_session_data() {
     assert!(result.is_ok(), "Template should render successfully");
 
     let html = result.unwrap();
-    assert!(html.contains("src=\"/assets/img/avatar/1.jpg\""), "Should use fallback when session.user.photo_url is missing");
+    assert!(
+        html.contains("src=\"/assets/img/avatar/1.jpg\""),
+        "Should use fallback when session.user.photo_url is missing"
+    );
 
     // Test with existing photo_url
     let session2 = json!({
@@ -131,8 +155,14 @@ fn test_or_operator_with_session_data() {
     assert!(result2.is_ok(), "Template should render successfully");
 
     let html2 = result2.unwrap();
-    assert!(html2.contains("src=\"/photos/john.jpg\""), "Should use actual photo_url when present");
-    assert!(!html2.contains("/assets/img/avatar/1.jpg"), "Should not use fallback when value exists");
+    assert!(
+        html2.contains("src=\"/photos/john.jpg\""),
+        "Should use actual photo_url when present"
+    );
+    assert!(
+        !html2.contains("/assets/img/avatar/1.jpg"),
+        "Should not use fallback when value exists"
+    );
 }
 
 #[test]
@@ -159,7 +189,10 @@ fn test_or_operator_with_numeric_defaults() {
     });
     let result3 = VIEW::render_string(template, model3, None).unwrap();
     assert!(result3.contains("50"), "Should use actual value");
-    assert!(!result3.contains("20"), "Should not use fallback when value exists");
+    assert!(
+        !result3.contains("20"),
+        "Should not use fallback when value exists"
+    );
 }
 
 #[test]
@@ -176,7 +209,10 @@ fn test_or_operator_in_conditionals() {
         "is_moderator": false
     });
     let result1 = VIEW::render_string(template, model1, None).unwrap();
-    assert!(!result1.contains("Staff Area"), "Should not show staff area when both are false");
+    assert!(
+        !result1.contains("Staff Area"),
+        "Should not show staff area when both are false"
+    );
 
     // Test with is_admin true
     let model2 = json!({
@@ -184,7 +220,10 @@ fn test_or_operator_in_conditionals() {
         "is_moderator": false
     });
     let result2 = VIEW::render_string(template, model2, None).unwrap();
-    assert!(result2.contains("Staff Area"), "Should show staff area when is_admin is true");
+    assert!(
+        result2.contains("Staff Area"),
+        "Should show staff area when is_admin is true"
+    );
 
     // Test with is_moderator true
     let model3 = json!({
@@ -192,6 +231,8 @@ fn test_or_operator_in_conditionals() {
         "is_moderator": true
     });
     let result3 = VIEW::render_string(template, model3, None).unwrap();
-    assert!(result3.contains("Staff Area"), "Should show staff area when is_moderator is true");
+    assert!(
+        result3.contains("Staff Area"),
+        "Should show staff area when is_moderator is true"
+    );
 }
-

@@ -6,13 +6,13 @@
 use crate::config::AppConfig;
 use crate::error::{Error, Result};
 use crate::http::Request;
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::OpenOptions;
 use std::io::{BufWriter, Write};
 use std::sync::Arc;
 use std::sync::OnceLock;
-use regex::Regex;
 
 /// Log levels for error logging
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
@@ -318,12 +318,13 @@ impl ErrorLogger {
         // Write JSON formatted log entry directly to writer (avoids intermediate string allocation)
         serde_json::to_writer(&mut writer, entry)
             .map_err(|e| Error::internal(format!("Failed to serialize log entry: {}", e)))?;
-        
+
         writeln!(writer)
             .map_err(|e| Error::internal(format!("Failed to write to log file: {}", e)))?;
-        
+
         // Flush buffer to ensure data is written
-        writer.flush()
+        writer
+            .flush()
             .map_err(|e| Error::internal(format!("Failed to flush log file: {}", e)))?;
 
         Ok(())
@@ -360,7 +361,7 @@ impl ErrorLogger {
         // Use pre-compiled regex patterns for better performance
         let error_str = error.to_string();
         let mut sanitized = error_str.clone();
-        
+
         for pattern in get_sanitize_patterns().iter() {
             sanitized = pattern.replace_all(&sanitized, "[REDACTED]").to_string();
         }

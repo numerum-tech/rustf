@@ -93,16 +93,12 @@ fn bench_view_render_prep(c: &mut Criterion) {
     let mut group = c.benchmark_group("view_render_prep_repository");
     for &n in &sizes {
         let repo = make_repository(n);
-        group.bench_with_input(
-            BenchmarkId::new("to_value_current", n),
-            &repo,
-            |b, r| b.iter(|| build_repo_value_current(black_box(r))),
-        );
-        group.bench_with_input(
-            BenchmarkId::new("direct_construct", n),
-            &repo,
-            |b, r| b.iter(|| build_repo_value_direct(black_box(r))),
-        );
+        group.bench_with_input(BenchmarkId::new("to_value_current", n), &repo, |b, r| {
+            b.iter(|| build_repo_value_current(black_box(r)))
+        });
+        group.bench_with_input(BenchmarkId::new("direct_construct", n), &repo, |b, r| {
+            b.iter(|| build_repo_value_direct(black_box(r)))
+        });
     }
     group.finish();
 

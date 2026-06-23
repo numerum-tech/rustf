@@ -19,19 +19,19 @@ fn title_setter_renders_nothing_and_is_readable() {
 
 #[test]
 fn title_accepts_expression_argument() {
-    let html = VIEW::render_string("@{title(M.page)}[@{title}]", json!({ "page": "Accueil" }), None)
-        .unwrap();
+    let html = VIEW::render_string(
+        "@{title(M.page)}[@{title}]",
+        json!({ "page": "Accueil" }),
+        None,
+    )
+    .unwrap();
     assert_eq!(html, "[Accueil]");
 }
 
 #[test]
 fn title_supports_or_fallback() {
-    let html = VIEW::render_string(
-        "@{title(M.page || 'Default')}[@{title}]",
-        json!({}),
-        None,
-    )
-    .unwrap();
+    let html =
+        VIEW::render_string("@{title(M.page || 'Default')}[@{title}]", json!({}), None).unwrap();
     assert_eq!(html, "[Default]");
 }
 

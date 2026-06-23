@@ -17,7 +17,9 @@ fn install_text_route() -> Vec<Route> {
 
 #[tokio::test]
 async fn outbound_only_compression_runs_through_app_pipeline() {
-    let app = RustF::new().with_compression().controllers(install_text_route());
+    let app = RustF::new()
+        .with_compression()
+        .controllers(install_text_route());
 
     let req = HyperRequest::builder()
         .method("GET")
@@ -29,9 +31,10 @@ async fn outbound_only_compression_runs_through_app_pipeline() {
     let res = app.handle_request(req).await.unwrap();
 
     assert_eq!(res.status, hyper::StatusCode::OK);
-    assert!(res.headers.iter().any(|(name, value)| {
-        name.eq_ignore_ascii_case("content-encoding") && value == "gzip"
-    }));
+    assert!(res
+        .headers
+        .iter()
+        .any(|(name, value)| { name.eq_ignore_ascii_case("content-encoding") && value == "gzip" }));
 }
 
 #[tokio::test]
@@ -60,9 +63,10 @@ async fn compression_removes_identity_etag_when_body_is_gzipped() {
     let res = app.handle_request(req).await.unwrap();
 
     assert_eq!(res.status, hyper::StatusCode::OK);
-    assert!(res.headers.iter().any(|(name, value)| {
-        name.eq_ignore_ascii_case("content-encoding") && value == "gzip"
-    }));
+    assert!(res
+        .headers
+        .iter()
+        .any(|(name, value)| { name.eq_ignore_ascii_case("content-encoding") && value == "gzip" }));
     assert!(
         !res.headers
             .iter()
@@ -110,13 +114,15 @@ async fn rate_limit_success_headers_are_emitted_on_normal_responses() {
     let res = app.handle_request(req).await.unwrap();
 
     assert_eq!(res.status, hyper::StatusCode::OK);
-    assert!(res.headers.iter().any(|(name, value)| {
-        name.eq_ignore_ascii_case("x-ratelimit-limit") && value == "3"
-    }));
+    assert!(res
+        .headers
+        .iter()
+        .any(|(name, value)| { name.eq_ignore_ascii_case("x-ratelimit-limit") && value == "3" }));
     assert!(res.headers.iter().any(|(name, value)| {
         name.eq_ignore_ascii_case("x-ratelimit-remaining") && value == "2"
     }));
-    assert!(res.headers.iter().any(|(name, _)| {
-        name.eq_ignore_ascii_case("x-ratelimit-reset")
-    }));
+    assert!(res
+        .headers
+        .iter()
+        .any(|(name, _)| { name.eq_ignore_ascii_case("x-ratelimit-reset") }));
 }

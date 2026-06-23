@@ -1,12 +1,12 @@
 //! Code generation module for RustF schema
-//! 
+//!
 //! This module provides code generation capabilities for various targets:
 //! - SQLx models with CRUD operations
 //! - SQL migrations
 //! - TypeScript interfaces
 //! - API documentation
 
-use crate::{Schema, Table, SchemaError, Result};
+use crate::{Result, Schema, SchemaError, Table};
 use handlebars::Handlebars;
 use std::collections::HashMap;
 
@@ -32,16 +32,16 @@ pub struct GenerationContext {
 pub trait CodeGenerator {
     /// Generate code for a single table
     fn generate_table(&self, table_name: &str, table: &Table, schema: &Schema) -> Result<String>;
-    
+
     /// Generate code for the entire schema
     fn generate_schema(&self, schema: &Schema) -> Result<HashMap<String, String>> {
         let mut results = HashMap::new();
-        
+
         for (table_name, table) in &schema.tables {
             let code = self.generate_table(table_name, table, schema)?;
             results.insert(table_name.clone(), code);
         }
-        
+
         Ok(results)
     }
 }
@@ -70,17 +70,19 @@ impl TemplateGenerator {
 
         Self { handlebars }
     }
-    
+
     /// Register a template
     pub fn register_template(&mut self, name: &str, template: &str) -> Result<()> {
-        self.handlebars.register_template_string(name, template)
+        self.handlebars
+            .register_template_string(name, template)
             .map_err(|e| SchemaError::CodeGen(format!("Template registration failed: {}", e)))?;
         Ok(())
     }
-    
+
     /// Render a template with context
     pub fn render(&self, template_name: &str, context: &GenerationContext) -> Result<String> {
-        self.handlebars.render(template_name, context)
+        self.handlebars
+            .render(template_name, context)
             .map_err(|e| SchemaError::CodeGen(format!("Template rendering failed: {}", e)))
     }
 }
@@ -102,7 +104,8 @@ fn len_helper(
     _: &mut handlebars::RenderContext,
     out: &mut dyn handlebars::Output,
 ) -> handlebars::HelperResult {
-    let param = h.param(0)
+    let param = h
+        .param(0)
         .ok_or_else(|| handlebars::RenderError::new("len helper requires a parameter"))?;
     let len = param.value().as_array().map(|a| a.len()).unwrap_or(0);
     out.write(&len.to_string())?;
@@ -116,12 +119,14 @@ fn snake_case_helper(
     _: &mut handlebars::RenderContext,
     out: &mut dyn handlebars::Output,
 ) -> handlebars::HelperResult {
-    let param = h.param(0)
+    let param = h
+        .param(0)
         .ok_or_else(|| handlebars::RenderError::new("snake_case helper requires a parameter"))?;
-    
-    let input = param.value().as_str()
-        .ok_or_else(|| handlebars::RenderError::new("snake_case helper requires a string parameter"))?;
-    
+
+    let input = param.value().as_str().ok_or_else(|| {
+        handlebars::RenderError::new("snake_case helper requires a string parameter")
+    })?;
+
     let snake_case = to_snake_case(input);
     out.write(&snake_case)?;
     Ok(())
@@ -134,12 +139,14 @@ fn camel_case_helper(
     _: &mut handlebars::RenderContext,
     out: &mut dyn handlebars::Output,
 ) -> handlebars::HelperResult {
-    let param = h.param(0)
+    let param = h
+        .param(0)
         .ok_or_else(|| handlebars::RenderError::new("camel_case helper requires a parameter"))?;
-    
-    let input = param.value().as_str()
-        .ok_or_else(|| handlebars::RenderError::new("camel_case helper requires a string parameter"))?;
-    
+
+    let input = param.value().as_str().ok_or_else(|| {
+        handlebars::RenderError::new("camel_case helper requires a string parameter")
+    })?;
+
     let camel_case = to_camel_case(input);
     out.write(&camel_case)?;
     Ok(())
@@ -152,12 +159,14 @@ fn pascal_case_helper(
     _: &mut handlebars::RenderContext,
     out: &mut dyn handlebars::Output,
 ) -> handlebars::HelperResult {
-    let param = h.param(0)
+    let param = h
+        .param(0)
         .ok_or_else(|| handlebars::RenderError::new("pascal_case helper requires a parameter"))?;
-    
-    let input = param.value().as_str()
-        .ok_or_else(|| handlebars::RenderError::new("pascal_case helper requires a string parameter"))?;
-    
+
+    let input = param.value().as_str().ok_or_else(|| {
+        handlebars::RenderError::new("pascal_case helper requires a string parameter")
+    })?;
+
     let pascal_case = to_pascal_case(input);
     out.write(&pascal_case)?;
     Ok(())
@@ -170,12 +179,14 @@ fn pluralize_helper(
     _: &mut handlebars::RenderContext,
     out: &mut dyn handlebars::Output,
 ) -> handlebars::HelperResult {
-    let param = h.param(0)
+    let param = h
+        .param(0)
         .ok_or_else(|| handlebars::RenderError::new("pluralize helper requires a parameter"))?;
-    
-    let input = param.value().as_str()
-        .ok_or_else(|| handlebars::RenderError::new("pluralize helper requires a string parameter"))?;
-    
+
+    let input = param.value().as_str().ok_or_else(|| {
+        handlebars::RenderError::new("pluralize helper requires a string parameter")
+    })?;
+
     let plural = pluralize(input);
     out.write(&plural)?;
     Ok(())
@@ -186,21 +197,21 @@ fn pluralize_helper(
 pub fn to_snake_case(input: &str) -> String {
     let mut result = String::new();
     let mut chars = input.chars().peekable();
-    
+
     while let Some(ch) = chars.next() {
         if ch.is_uppercase() && !result.is_empty() {
             result.push('_');
         }
         result.push(ch.to_lowercase().next().unwrap_or(ch));
     }
-    
+
     result
 }
 
 pub fn to_camel_case(input: &str) -> String {
     let mut result = String::new();
     let mut capitalize_next = false;
-    
+
     for ch in input.chars() {
         if ch == '_' || ch == '-' || ch == ' ' {
             capitalize_next = true;
@@ -211,7 +222,7 @@ pub fn to_camel_case(input: &str) -> String {
             result.push(ch.to_lowercase().next().unwrap_or(ch));
         }
     }
-    
+
     result
 }
 
@@ -225,14 +236,25 @@ pub fn to_pascal_case(input: &str) -> String {
 
 pub fn pluralize(input: &str) -> String {
     // Simple pluralization rules
-    if input.ends_with('y') && !input.ends_with("ay") && !input.ends_with("ey") && !input.ends_with("iy") && !input.ends_with("oy") && !input.ends_with("uy") {
-        format!("{}ies", &input[..input.len()-1])
-    } else if input.ends_with('s') || input.ends_with("sh") || input.ends_with("ch") || input.ends_with('x') || input.ends_with('z') {
+    if input.ends_with('y')
+        && !input.ends_with("ay")
+        && !input.ends_with("ey")
+        && !input.ends_with("iy")
+        && !input.ends_with("oy")
+        && !input.ends_with("uy")
+    {
+        format!("{}ies", &input[..input.len() - 1])
+    } else if input.ends_with('s')
+        || input.ends_with("sh")
+        || input.ends_with("ch")
+        || input.ends_with('x')
+        || input.ends_with('z')
+    {
         format!("{}es", input)
     } else if input.ends_with("fe") {
-        format!("{}ves", &input[..input.len()-2])
+        format!("{}ves", &input[..input.len() - 2])
     } else if input.ends_with('f') {
-        format!("{}ves", &input[..input.len()-1])
+        format!("{}ves", &input[..input.len() - 1])
     } else {
         format!("{}s", input)
     }
@@ -241,27 +263,27 @@ pub fn pluralize(input: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_snake_case() {
         assert_eq!(to_snake_case("UserAccount"), "user_account");
         assert_eq!(to_snake_case("XMLHttpRequest"), "x_m_l_http_request");
         assert_eq!(to_snake_case("already_snake"), "already_snake");
     }
-    
+
     #[test]
     fn test_camel_case() {
         assert_eq!(to_camel_case("user_account"), "userAccount");
         assert_eq!(to_camel_case("xml-http-request"), "xmlHttpRequest");
         assert_eq!(to_camel_case("already camelCase"), "alreadyCamelcase");
     }
-    
+
     #[test]
     fn test_pascal_case() {
         assert_eq!(to_pascal_case("user_account"), "UserAccount");
         assert_eq!(to_pascal_case("xml-http-request"), "XmlHttpRequest");
     }
-    
+
     #[test]
     fn test_pluralize() {
         assert_eq!(pluralize("user"), "users");

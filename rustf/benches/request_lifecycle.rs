@@ -14,8 +14,8 @@
 //!   - `json_compressed` same app with `.with_compression()` enabled and an
 //!     `Accept-Encoding: gzip` header — shows the compression tax in situ.
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use bytes::Bytes;
+use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use http_body_util::Full;
 use hyper::Request as HyperRequest;
 use rustf::prelude::*;
@@ -23,20 +23,16 @@ use rustf::RustF;
 use tokio::runtime::Runtime;
 
 fn build_app(with_compression: bool) -> RustF {
-    let app = RustF::new().controllers(vec![Route::new(
-        "GET",
-        "/bench",
-        |ctx| {
-            Box::pin(async move {
-                ctx.json(json!({
-                    "ok": true,
-                    "framework": "rustf",
-                    "echo": ctx.query("q").unwrap_or("").to_string(),
-                }))?;
-                Ok(())
-            })
-        },
-    )]);
+    let app = RustF::new().controllers(vec![Route::new("GET", "/bench", |ctx| {
+        Box::pin(async move {
+            ctx.json(json!({
+                "ok": true,
+                "framework": "rustf",
+                "echo": ctx.query("q").unwrap_or("").to_string(),
+            }))?;
+            Ok(())
+        })
+    })]);
     if with_compression {
         app.with_compression()
     } else {
@@ -45,9 +41,7 @@ fn build_app(with_compression: bool) -> RustF {
 }
 
 fn make_request(with_gzip_accept: bool) -> HyperRequest<Full<Bytes>> {
-    let mut builder = HyperRequest::builder()
-        .method("GET")
-        .uri("/bench?q=hello");
+    let mut builder = HyperRequest::builder().method("GET").uri("/bench?q=hello");
     if with_gzip_accept {
         builder = builder.header("accept-encoding", "gzip");
     }

@@ -84,7 +84,9 @@ impl CompressionMiddleware {
         for (k, v) in headers {
             if k.eq_ignore_ascii_case("content-type") {
                 let lower = v.to_lowercase();
-                return COMPRESSIBLE_TYPES.iter().any(|prefix| lower.contains(prefix));
+                return COMPRESSIBLE_TYPES
+                    .iter()
+                    .any(|prefix| lower.contains(prefix));
             }
         }
         // No Content-Type → assume text (safe default)
@@ -133,9 +135,9 @@ impl OutboundMiddleware for CompressionMiddleware {
             encoder
                 .write_all(&response.body)
                 .map_err(|e| crate::error::Error::internal(format!("gzip write error: {}", e)))?;
-            let compressed = encoder.finish().map_err(|e| {
-                crate::error::Error::internal(format!("gzip finish error: {}", e))
-            })?;
+            let compressed = encoder
+                .finish()
+                .map_err(|e| crate::error::Error::internal(format!("gzip finish error: {}", e)))?;
 
             response.body = compressed;
 
@@ -225,8 +227,10 @@ mod tests {
         let original_len = body.len();
         if let Some(res) = ctx.res.as_mut() {
             res.body = body.to_vec();
-            res.headers
-                .push(("content-type".to_string(), "text/html; charset=utf-8".to_string()));
+            res.headers.push((
+                "content-type".to_string(),
+                "text/html; charset=utf-8".to_string(),
+            ));
         }
         middleware.process_response(&mut ctx).await.unwrap();
 

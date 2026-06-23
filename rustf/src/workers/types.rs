@@ -82,4 +82,3 @@ impl WorkerStats {
 /// Payload passed to a worker invocation
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct WorkerPayload(pub Value);
-

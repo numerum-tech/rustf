@@ -106,7 +106,8 @@ mod tests {
         let mut req = Request::default();
         req.method = method.to_string();
         if let Some(ct) = content_type {
-            req.headers.insert("content-type".to_string(), ct.to_string());
+            req.headers
+                .insert("content-type".to_string(), ct.to_string());
         }
         if !body.is_empty() {
             // Request doesn't expose body field; we stash via set_body (test-only).
@@ -123,7 +124,10 @@ mod tests {
             Some("application/x-www-form-urlencoded"),
             b"_method=PUT&name=foo",
         );
-        MethodOverrideMiddleware.process_request(&mut ctx).await.unwrap();
+        MethodOverrideMiddleware
+            .process_request(&mut ctx)
+            .await
+            .unwrap();
         assert_eq!(ctx.req.method, "PUT");
     }
 
@@ -134,7 +138,10 @@ mod tests {
             Some("application/x-www-form-urlencoded"),
             b"_method=DELETE",
         );
-        MethodOverrideMiddleware.process_request(&mut ctx).await.unwrap();
+        MethodOverrideMiddleware
+            .process_request(&mut ctx)
+            .await
+            .unwrap();
         assert_eq!(ctx.req.method, "DELETE");
     }
 
@@ -145,14 +152,20 @@ mod tests {
             Some("application/x-www-form-urlencoded"),
             b"name=foo",
         );
-        MethodOverrideMiddleware.process_request(&mut ctx).await.unwrap();
+        MethodOverrideMiddleware
+            .process_request(&mut ctx)
+            .await
+            .unwrap();
         assert_eq!(ctx.req.method, "POST");
     }
 
     #[tokio::test]
     async fn leaves_get_alone_entirely() {
         let mut ctx = ctx_with("GET", None, b"");
-        MethodOverrideMiddleware.process_request(&mut ctx).await.unwrap();
+        MethodOverrideMiddleware
+            .process_request(&mut ctx)
+            .await
+            .unwrap();
         assert_eq!(ctx.req.method, "GET");
     }
 
@@ -163,7 +176,10 @@ mod tests {
             Some("application/x-www-form-urlencoded"),
             b"_method=TRACE",
         );
-        MethodOverrideMiddleware.process_request(&mut ctx).await.unwrap();
+        MethodOverrideMiddleware
+            .process_request(&mut ctx)
+            .await
+            .unwrap();
         assert_eq!(ctx.req.method, "POST");
     }
 
@@ -174,7 +190,10 @@ mod tests {
         req.query.insert("_method".to_string(), "PATCH".to_string());
         let views = Arc::new(ViewEngine::from_directory("views"));
         let mut ctx = Context::new(req, views);
-        MethodOverrideMiddleware.process_request(&mut ctx).await.unwrap();
+        MethodOverrideMiddleware
+            .process_request(&mut ctx)
+            .await
+            .unwrap();
         assert_eq!(ctx.req.method, "PATCH");
     }
 
@@ -182,12 +201,11 @@ mod tests {
     async fn ignores_body_for_non_form_content_types() {
         // A JSON body that happens to have {"_method": "DELETE"} must not
         // trigger the override.
-        let mut ctx = ctx_with(
-            "POST",
-            Some("application/json"),
-            br#"{"_method":"DELETE"}"#,
-        );
-        MethodOverrideMiddleware.process_request(&mut ctx).await.unwrap();
+        let mut ctx = ctx_with("POST", Some("application/json"), br#"{"_method":"DELETE"}"#);
+        MethodOverrideMiddleware
+            .process_request(&mut ctx)
+            .await
+            .unwrap();
         assert_eq!(ctx.req.method, "POST");
     }
 }

@@ -132,10 +132,7 @@ mod tests {
 
     #[test]
     fn parses_asctime() {
-        assert_eq!(
-            parse_http_date("Sun Nov  6 08:49:37 1994"),
-            Some(784111777)
-        );
+        assert_eq!(parse_http_date("Sun Nov  6 08:49:37 1994"), Some(784111777));
     }
 
     #[test]

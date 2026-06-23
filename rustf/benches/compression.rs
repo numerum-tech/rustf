@@ -54,9 +54,18 @@ fn bench_compression(c: &mut Criterion) {
     let large = make_large_html();
 
     let inputs: Vec<(String, &[u8])> = vec![
-        (format!("small-json (~{}B)", SMALL_JSON.len()), SMALL_JSON.as_bytes()),
-        (format!("medium-html (~{}KB)", medium.len() / 1024), medium.as_bytes()),
-        (format!("large-html (~{}KB)", large.len() / 1024), large.as_bytes()),
+        (
+            format!("small-json (~{}B)", SMALL_JSON.len()),
+            SMALL_JSON.as_bytes(),
+        ),
+        (
+            format!("medium-html (~{}KB)", medium.len() / 1024),
+            medium.as_bytes(),
+        ),
+        (
+            format!("large-html (~{}KB)", large.len() / 1024),
+            large.as_bytes(),
+        ),
     ];
 
     let mut group = c.benchmark_group("gzip_default");

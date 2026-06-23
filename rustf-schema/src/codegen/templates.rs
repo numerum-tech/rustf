@@ -1,5 +1,5 @@
 //! Template definitions for code generation
-//! 
+//!
 //! This module contains the actual template strings used for generating
 //! various types of code from RustF schemas.
 

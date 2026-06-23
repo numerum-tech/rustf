@@ -26,20 +26,22 @@ impl SessionStorageFactory {
 
             // Convert SessionStorageConfig to SessionConfig for the factory
             // The factory expects SessionConfig, not SessionStorageConfig
-            let session_config = session_config.cloned().unwrap_or(crate::config::SessionConfig {
-                enabled: true,
-                cookie_name: "rustf.sid".to_string(),
-                idle_timeout: 1800,
-                absolute_timeout: 86400,
-                same_site: "lax".to_string(),
-                fingerprint_mode: match fingerprint_mode {
-                    FingerprintMode::Disabled => "disabled".to_string(),
-                    FingerprintMode::Soft => "soft".to_string(),
-                    FingerprintMode::Strict => "strict".to_string(),
-                },
-                storage: config.clone(),
-                exempt_routes: vec![],
-            });
+            let session_config = session_config
+                .cloned()
+                .unwrap_or(crate::config::SessionConfig {
+                    enabled: true,
+                    cookie_name: "rustf.sid".to_string(),
+                    idle_timeout: 1800,
+                    absolute_timeout: 86400,
+                    same_site: "lax".to_string(),
+                    fingerprint_mode: match fingerprint_mode {
+                        FingerprintMode::Disabled => "disabled".to_string(),
+                        FingerprintMode::Soft => "soft".to_string(),
+                        FingerprintMode::Strict => "strict".to_string(),
+                    },
+                    storage: config.clone(),
+                    exempt_routes: vec![],
+                });
 
             // Call the custom factory
             match factory(&session_config) {
@@ -141,7 +143,7 @@ impl SessionStorageFactory {
                 fingerprint_mode,
                 Duration::from_secs(30 * 60), // Default 30 minutes TTL
                 Duration::from_secs(5),       // Default 5 seconds connection timeout
-                Duration::from_secs(3),        // Default 3 seconds command timeout
+                Duration::from_secs(3),       // Default 3 seconds command timeout
             )
             .await?,
         );

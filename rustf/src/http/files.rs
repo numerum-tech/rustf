@@ -251,7 +251,8 @@ impl MultipartParser {
             return None;
         }
 
-        (start..=haystack.len().saturating_sub(needle.len())).find(|&i| haystack[i..i + needle.len()] == *needle)
+        (start..=haystack.len().saturating_sub(needle.len()))
+            .find(|&i| haystack[i..i + needle.len()] == *needle)
     }
 
     fn parse_part(part: &[u8]) -> Option<(HashMap<String, String>, Vec<u8>)> {

@@ -29,5 +29,8 @@ async fn session_destroy_emits_deletion_cookie() {
         .iter()
         .find(|(name, value)| name == "Set-Cookie" && value.contains("Max-Age=0"));
 
-    assert!(destroy_cookie.is_some(), "expected destroy Set-Cookie header");
+    assert!(
+        destroy_cookie.is_some(),
+        "expected destroy Set-Cookie header"
+    );
 }

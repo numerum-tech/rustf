@@ -274,7 +274,13 @@ mod tests {
         let mut router = TrieRouter::new();
         router.add_route("GET", "/", mock_handler as RouteHandler, false, None);
         router.add_route("GET", "/users", mock_handler as RouteHandler, false, None);
-        router.add_route("GET", "/users/profile", mock_handler as RouteHandler, false, None);
+        router.add_route(
+            "GET",
+            "/users/profile",
+            mock_handler as RouteHandler,
+            false,
+            None,
+        );
 
         assert!(router.match_route("GET", "/").is_some());
         assert!(router.match_route("GET", "/users").is_some());
@@ -286,7 +292,13 @@ mod tests {
     #[test]
     fn test_parameter_routes() {
         let mut router = TrieRouter::new();
-        router.add_route("GET", "/users/{id}", mock_handler as RouteHandler, false, None);
+        router.add_route(
+            "GET",
+            "/users/{id}",
+            mock_handler as RouteHandler,
+            false,
+            None,
+        );
         router.add_route(
             "GET",
             "/users/{id}/posts/{post_id}",
@@ -306,8 +318,20 @@ mod tests {
     #[test]
     fn test_route_priority() {
         let mut router = TrieRouter::new();
-        router.add_route("GET", "/users/special", mock_handler as RouteHandler, false, None);
-        router.add_route("GET", "/users/{id}", mock_handler as RouteHandler, false, None);
+        router.add_route(
+            "GET",
+            "/users/special",
+            mock_handler as RouteHandler,
+            false,
+            None,
+        );
+        router.add_route(
+            "GET",
+            "/users/{id}",
+            mock_handler as RouteHandler,
+            false,
+            None,
+        );
 
         // Static route should take priority over parameter route
         let (_, params) = router.match_route("GET", "/users/special").unwrap();

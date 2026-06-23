@@ -13,10 +13,10 @@ use crate::Result;
 
 /// Type alias for async worker installer function
 /// Takes a WorkerManager and returns a future that completes when workers are registered
-pub type AsyncWorkerInstaller = fn(Arc<WorkerManager>) -> Pin<Box<dyn Future<Output = Result<()>> + Send>>;
+pub type AsyncWorkerInstaller =
+    fn(Arc<WorkerManager>) -> Pin<Box<dyn Future<Output = Result<()>> + Send>>;
 
-#[derive(Clone)]
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct AutoDiscoveryHooks {
     pub controllers: Option<fn() -> Vec<Route>>,
     pub models: Option<fn(&mut ModelRegistry)>,
@@ -26,7 +26,6 @@ pub struct AutoDiscoveryHooks {
     pub definitions: Option<fn(&mut Definitions)>,
     pub workers: Option<AsyncWorkerInstaller>,
 }
-
 
 static AUTO_HOOKS: OnceLock<AutoDiscoveryHooks> = OnceLock::new();
 

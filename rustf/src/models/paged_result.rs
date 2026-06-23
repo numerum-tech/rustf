@@ -111,4 +111,3 @@ impl<T> PagedResult<T> {
         }
     }
 }
-
