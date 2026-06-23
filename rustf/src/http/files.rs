@@ -6,7 +6,7 @@
 use crate::error::{Error, Result};
 use std::collections::HashMap;
 use std::io::Write;
-use std::path::Path;
+use std::path::{Component, Path, PathBuf};
 
 /// Represents an uploaded file
 #[derive(Debug, Clone)]
@@ -75,6 +75,30 @@ impl UploadedFile {
 
     /// Save file to disk
     pub fn save_to<P: AsRef<Path>>(&self, path: P) -> Result<()> {
+        let base_dir = Self::default_upload_base_dir()?;
+        self.save_to_from(base_dir, path)
+    }
+
+    /// Save a file relative to a constrained base directory.
+    pub fn save_to_from<B: AsRef<Path>, P: AsRef<Path>>(&self, base_dir: B, path: P) -> Result<()> {
+        let safe_path = Self::resolve_contained_output_path(base_dir.as_ref(), path.as_ref())?;
+        self.write_to_path(&safe_path)
+    }
+
+    /// Save file to an arbitrary filesystem path.
+    pub fn save_to_external<P: AsRef<Path>>(&self, path: P) -> Result<()> {
+        self.write_to_path(path.as_ref())
+    }
+
+    /// Return a storage-safe filename derived from the client-provided name.
+    pub fn safe_filename(&self) -> Option<String> {
+        self.filename
+            .as_deref()
+            .map(Self::sanitize_filename)
+            .filter(|name| !name.is_empty())
+    }
+
+    fn write_to_path(&self, path: &Path) -> Result<()> {
         let mut file = std::fs::File::create(path)?;
         file.write_all(&self.data)?;
         Ok(())
@@ -131,6 +155,90 @@ impl UploadedFile {
         } else {
             Err(Error::InvalidInput("File has no content type".to_string()))
         }
+    }
+
+    fn default_upload_base_dir() -> Result<PathBuf> {
+        if let Some(upload_dir) = crate::configuration::CONF::get_string("uploads.directory") {
+            return Ok(PathBuf::from(upload_dir));
+        }
+
+        Ok(std::env::current_dir()
+            .map_err(Error::Io)?
+            .join("private")
+            .join("uploads"))
+    }
+
+    fn resolve_contained_output_path(base_dir: &Path, path: &Path) -> Result<PathBuf> {
+        let canonical_base = base_dir.canonicalize().map_err(Error::Io)?;
+        let relative_path = Self::normalize_relative_path(path)?;
+        let target_path = canonical_base.join(&relative_path);
+
+        let parent = target_path.parent().ok_or_else(|| {
+            Error::InvalidInput("Upload path must include a target filename".to_string())
+        })?;
+
+        if crate::configuration::CONF::get_bool("uploads.create_directories").unwrap_or(true) {
+            std::fs::create_dir_all(parent).map_err(Error::Io)?;
+        }
+
+        let canonical_parent = parent.canonicalize().map_err(Error::Io)?;
+        if !canonical_parent.starts_with(&canonical_base) {
+            return Err(Error::InvalidInput(
+                "Upload path escapes the configured uploads directory".to_string(),
+            ));
+        }
+
+        Ok(target_path)
+    }
+
+    fn normalize_relative_path(path: &Path) -> Result<PathBuf> {
+        let mut normalized = PathBuf::new();
+
+        for component in path.components() {
+            match component {
+                Component::CurDir => {}
+                Component::Normal(segment) => {
+                    let segment_str = segment.to_string_lossy();
+                    if segment_str.is_empty()
+                        || segment_str.contains('/')
+                        || segment_str.contains('\\')
+                        || segment_str.chars().any(|ch| ch.is_control())
+                    {
+                        return Err(Error::InvalidInput(
+                            "Upload path contains invalid path segments".to_string(),
+                        ));
+                    }
+                    normalized.push(segment);
+                }
+                _ => {
+                    return Err(Error::InvalidInput(
+                        "Upload path must stay within the configured uploads directory".to_string(),
+                    ))
+                }
+            }
+        }
+
+        if normalized.as_os_str().is_empty() {
+            return Err(Error::InvalidInput(
+                "Upload path must include a target filename".to_string(),
+            ));
+        }
+
+        Ok(normalized)
+    }
+
+    fn sanitize_filename(filename: &str) -> String {
+        let basename = filename.rsplit(['/', '\\']).next().unwrap_or(filename);
+        let sanitized: String = basename
+            .chars()
+            .filter(|&ch| !matches!(ch, '\r' | '\n' | '\0') && !ch.is_control())
+            .map(|ch| match ch {
+                '/' | '\\' | ':' => '_',
+                _ => ch,
+            })
+            .collect();
+
+        sanitized.trim_matches('.').trim().to_string()
     }
 }
 
@@ -298,5 +406,48 @@ impl MultipartParser {
             }
         }
         None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::UploadedFile;
+    use crate::error::Error;
+
+    #[test]
+    fn safe_filename_strips_path_components_and_controls() {
+        let file = UploadedFile::new(
+            "avatar".to_string(),
+            Some("..\\..\\evil\r\n.png".to_string()),
+            Some("image/png".to_string()),
+            vec![1, 2, 3],
+        );
+
+        assert_eq!(file.safe_filename().as_deref(), Some("evil.png"));
+    }
+
+    #[test]
+    fn save_to_from_rejects_parent_traversal() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let file = UploadedFile::new("doc".to_string(), None, None, b"hello".to_vec());
+
+        let err = file
+            .save_to_from(temp_dir.path(), "../secret.txt")
+            .unwrap_err();
+        assert!(matches!(err, Error::InvalidInput(_)));
+    }
+
+    #[test]
+    fn save_to_from_writes_under_base_dir() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let file = UploadedFile::new("doc".to_string(), None, None, b"hello".to_vec());
+
+        file.save_to_from(temp_dir.path(), "nested/file.txt")
+            .unwrap();
+
+        assert_eq!(
+            std::fs::read(temp_dir.path().join("nested/file.txt")).unwrap(),
+            b"hello"
+        );
     }
 }

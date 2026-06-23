@@ -9,7 +9,9 @@ use crate::routing::{Route, Router};
 use crate::shared::SharedRegistry;
 use crate::views::ViewEngine;
 use crate::workers::WorkerManager;
+use ipnetwork::IpNetwork;
 use std::collections::HashMap;
+use std::net::SocketAddr;
 use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -28,6 +30,7 @@ pub struct RustF {
     events: Arc<RwLock<EventEmitter>>,
     workers: Option<Arc<WorkerManager>>,
     pub config: Arc<AppConfig>,
+    trusted_proxies: Arc<Vec<IpNetwork>>,
 }
 
 impl Default for RustF {
@@ -37,6 +40,36 @@ impl Default for RustF {
 }
 
 impl RustF {
+    fn ensure_private_storage_dirs(config: &AppConfig) {
+        for (label, dir) in [
+            ("private", config.r#private.directory.as_str()),
+            ("uploads", config.uploads.directory.as_str()),
+        ] {
+            let dir_path = std::path::Path::new(dir);
+            if !dir_path.exists() {
+                match std::fs::create_dir_all(dir_path) {
+                    Ok(()) => log::info!("Created {} directory: {}", label, dir),
+                    Err(e) => log::warn!("Could not create {} directory '{}': {}", label, dir, e),
+                }
+            }
+        }
+    }
+
+    fn parse_trusted_proxies(config: &AppConfig) -> Vec<IpNetwork> {
+        config
+            .server
+            .trusted_proxies
+            .iter()
+            .filter_map(|entry| match entry.parse::<IpNetwork>() {
+                Ok(network) => Some(network),
+                Err(err) => {
+                    log::warn!("Ignoring invalid trusted proxy '{}': {}", entry, err);
+                    None
+                }
+            })
+            .collect()
+    }
+
     pub fn new() -> Self {
         Self::with_config(AppConfig::default())
     }
@@ -88,21 +121,8 @@ impl RustF {
             config_arc.static_files.directory
         );
 
-        // Auto-create uploads directory if it doesn't exist
-        let uploads_dir = std::path::Path::new(&config_arc.uploads.directory);
-        if !uploads_dir.exists() {
-            match std::fs::create_dir_all(uploads_dir) {
-                Ok(()) => log::info!(
-                    "Created uploads directory: {}",
-                    config_arc.uploads.directory
-                ),
-                Err(e) => log::warn!(
-                    "Could not create uploads directory '{}': {}",
-                    config_arc.uploads.directory,
-                    e
-                ),
-            }
-        }
+        Self::ensure_private_storage_dirs(&config_arc);
+        let trusted_proxies = Arc::new(Self::parse_trusted_proxies(&config_arc));
 
         Self {
             router: Router::new(),
@@ -114,6 +134,7 @@ impl RustF {
             events: Arc::new(RwLock::new(EventEmitter::new())),
             workers: None,
             config: config_arc,
+            trusted_proxies,
         }
     }
 
@@ -231,6 +252,8 @@ impl RustF {
             PathBuf::from(&config.static_files.directory),
         );
 
+        Self::ensure_private_storage_dirs(&config);
+        self.trusted_proxies = Arc::new(Self::parse_trusted_proxies(&config));
         self.config = Arc::new(config);
         self
     }
@@ -985,7 +1008,21 @@ impl RustF {
         B: hyper::body::Body,
         B::Error: std::fmt::Display,
     {
-        let request = Request::from_hyper(req).await?;
+        self.handle_request_with_peer(req, None).await
+    }
+
+    pub(crate) async fn handle_request_with_peer<B>(
+        &self,
+        req: hyper::Request<B>,
+        peer_addr: Option<SocketAddr>,
+    ) -> Result<Response>
+    where
+        B: hyper::body::Body,
+        B::Error: std::fmt::Display,
+    {
+        let request =
+            Request::from_hyper_with_connection(req, peer_addr, Arc::clone(&self.trusted_proxies))
+                .await?;
 
         // Check for static files first (match prefix safely using request path without query)
         let request_path = request.path().to_string();

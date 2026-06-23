@@ -95,7 +95,7 @@ impl Server {
         loop {
             tokio::select! {
                 accept = listener.accept() => {
-                    let (stream, _peer) = match accept {
+                    let (stream, peer_addr) = match accept {
                         Ok(conn) => conn,
                         Err(e) => {
                             // Transient accept errors (EMFILE, ECONNABORTED, ...)
@@ -110,8 +110,9 @@ impl Server {
 
                     let service = service_fn(move |req| {
                         let app = Arc::clone(&app);
+                        let peer_addr = peer_addr;
                         async move {
-                            match app.handle_request(req).await {
+                            match app.handle_request_with_peer(req, Some(peer_addr)).await {
                                 Ok(response) => Ok::<_, Infallible>(response.into_hyper()),
                                 Err(e) => {
                                     log::error!("Request handling error: {}", e);

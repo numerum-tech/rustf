@@ -1,9 +1,32 @@
 use crate::error::Result;
 use bytes::Bytes;
 use http_body_util::Full;
+use hyper::header::{HeaderName, HeaderValue};
 use hyper::StatusCode;
+use percent_encoding::{utf8_percent_encode, AsciiSet, CONTROLS};
 use serde::Serialize;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+
+const RFC5987_ATTR_CHARS: &AsciiSet = &CONTROLS
+    .add(b' ')
+    .add(b'"')
+    .add(b'%')
+    .add(b'\'')
+    .add(b'(')
+    .add(b')')
+    .add(b'*')
+    .add(b',')
+    .add(b'/')
+    .add(b':')
+    .add(b';')
+    .add(b'<')
+    .add(b'>')
+    .add(b'?')
+    .add(b'[')
+    .add(b'\\')
+    .add(b']')
+    .add(b'{')
+    .add(b'}');
 
 #[derive(Debug, Clone)]
 pub struct Response {
@@ -116,38 +139,54 @@ impl Response {
 
     /// Send file download response (Total.js: controller.file)
     pub fn file_download<P: AsRef<Path>>(path: P, download_name: Option<&str>) -> Result<Self> {
+        let base_dir = Self::default_private_base_dir()?;
+        Self::file_download_from(base_dir, path, download_name)
+    }
+
+    /// Send file download response constrained to a base directory.
+    pub fn file_download_from<B: AsRef<Path>, P: AsRef<Path>>(
+        base_dir: B,
+        path: P,
+        download_name: Option<&str>,
+    ) -> Result<Self> {
         let path = path.as_ref();
+        let safe_path = Self::resolve_contained_file(base_dir.as_ref(), path)?;
 
         // Read file contents
-        let contents = std::fs::read(path).map_err(crate::error::Error::Io)?;
+        let contents = std::fs::read(&safe_path).map_err(crate::error::Error::Io)?;
 
         // Determine content type from file extension
-        let content_type = Self::guess_content_type(path);
+        let content_type = Self::guess_content_type(&safe_path);
 
         // Set filename for download
         let filename = download_name
-            .or_else(|| path.file_name().and_then(|n| n.to_str()))
+            .or_else(|| safe_path.file_name().and_then(|n| n.to_str()))
             .unwrap_or("download");
+        let content_disposition = Self::build_attachment_content_disposition(filename);
 
         Ok(Self::ok()
             .with_header("Content-Type", &content_type)
-            .with_header(
-                "Content-Disposition",
-                &format!("attachment; filename=\"{}\"", filename),
-            )
+            .with_header("Content-Disposition", &content_disposition)
             .with_header("Content-Length", &contents.len().to_string())
             .with_body(contents))
     }
 
     /// Send inline file response (view in browser)
     pub fn file_inline<P: AsRef<Path>>(path: P) -> Result<Self> {
+        let base_dir = Self::default_private_base_dir()?;
+        Self::file_inline_from(base_dir, path)
+    }
+
+    /// Send inline file response constrained to a base directory.
+    pub fn file_inline_from<B: AsRef<Path>, P: AsRef<Path>>(base_dir: B, path: P) -> Result<Self> {
         let path = path.as_ref();
+        let safe_path = Self::resolve_contained_file(base_dir.as_ref(), path)?;
 
         // Read file contents
-        let contents = std::fs::read(path).map_err(crate::error::Error::Io)?;
+        let contents = std::fs::read(&safe_path).map_err(crate::error::Error::Io)?;
 
         // Determine content type from file extension
-        let content_type = Self::guess_content_type(path);
+        let content_type = Self::guess_content_type(&safe_path);
 
         Ok(Self::ok()
             .with_header("Content-Type", &content_type)
@@ -164,10 +203,8 @@ impl Response {
 
         // Add download headers if filename provided
         if let Some(filename) = download_name {
-            response = response.with_header(
-                "Content-Disposition",
-                &format!("attachment; filename=\"{}\"", filename),
-            );
+            let content_disposition = Self::build_attachment_content_disposition(filename);
+            response = response.with_header("Content-Disposition", &content_disposition);
         }
 
         response
@@ -178,6 +215,92 @@ impl Response {
     pub fn stream(data: Vec<u8>, content_type: &str, download_name: Option<&str>) -> Self {
         // For now, this is the same as binary - would need proper streaming in a full implementation
         Self::binary(data, content_type, download_name).with_header("Transfer-Encoding", "chunked")
+    }
+
+    fn resolve_contained_file(base_dir: &Path, path: &Path) -> Result<PathBuf> {
+        let canonical_base = base_dir.canonicalize().map_err(crate::error::Error::Io)?;
+        let candidate = if path.is_absolute() {
+            path.to_path_buf()
+        } else {
+            canonical_base.join(path)
+        };
+        let canonical_path = candidate.canonicalize().map_err(crate::error::Error::Io)?;
+
+        if !canonical_path.starts_with(&canonical_base) {
+            return Err(crate::error::Error::InvalidInput(
+                "File path escapes the allowed base directory".to_string(),
+            ));
+        }
+
+        let metadata = std::fs::metadata(&canonical_path).map_err(crate::error::Error::Io)?;
+        if !metadata.is_file() {
+            return Err(crate::error::Error::InvalidInput(
+                "Requested path is not a regular file".to_string(),
+            ));
+        }
+
+        Ok(canonical_path)
+    }
+
+    fn default_private_base_dir() -> Result<PathBuf> {
+        if let Some(private_dir) = crate::configuration::CONF::get_string("private.directory") {
+            return Ok(PathBuf::from(private_dir));
+        }
+
+        Ok(std::env::current_dir()
+            .map_err(crate::error::Error::Io)?
+            .join("private"))
+    }
+
+    fn is_safe_local_redirect(location: &str) -> bool {
+        location.starts_with('/')
+            && !location.starts_with("//")
+            && !location.contains("://")
+            && !location.contains('\\')
+    }
+
+    fn build_attachment_content_disposition(filename: &str) -> String {
+        let fallback = Self::sanitize_download_filename(filename);
+        let encoded = utf8_percent_encode(filename, RFC5987_ATTR_CHARS).to_string();
+        format!(
+            "attachment; filename=\"{}\"; filename*=UTF-8''{}",
+            fallback, encoded
+        )
+    }
+
+    fn sanitize_download_filename(filename: &str) -> String {
+        let sanitized: String = filename
+            .chars()
+            .filter(|&ch| !matches!(ch, '\r' | '\n' | '"' | '\\' | '\0'))
+            .map(|ch| if ch == '/' { '_' } else { ch })
+            .collect();
+
+        let trimmed = sanitized.trim();
+        if trimmed.is_empty() {
+            "download".to_string()
+        } else {
+            trimmed.to_string()
+        }
+    }
+
+    fn redirect_with_status(location: &str, permanent: bool) -> Result<Self> {
+        if !Self::is_safe_local_redirect(location) {
+            return Err(crate::error::Error::InvalidInput(
+                "Redirect target must be a local absolute path".to_string(),
+            ));
+        }
+
+        Ok(Self::redirect_external_with_status(location, permanent))
+    }
+
+    fn redirect_external_with_status(location: &str, permanent: bool) -> Self {
+        let status = if permanent {
+            StatusCode::MOVED_PERMANENTLY
+        } else {
+            StatusCode::FOUND
+        };
+
+        Self::new(status).with_header("Location", location)
     }
 
     /// Guess content type from file extension
@@ -240,8 +363,20 @@ impl Response {
         .to_string()
     }
 
-    pub fn redirect(location: &str) -> Self {
-        Self::new(StatusCode::FOUND).with_header("Location", location)
+    pub fn redirect(location: &str) -> Result<Self> {
+        Self::redirect_with_status(location, false)
+    }
+
+    pub fn redirect_permanent(location: &str) -> Result<Self> {
+        Self::redirect_with_status(location, true)
+    }
+
+    pub fn redirect_external(location: &str) -> Self {
+        Self::redirect_external_with_status(location, false)
+    }
+
+    pub fn redirect_external_permanent(location: &str) -> Self {
+        Self::redirect_external_with_status(location, true)
     }
 
     pub fn json<T: Serialize>(data: T) -> Result<Self> {
@@ -264,13 +399,15 @@ impl Response {
     }
 
     pub fn with_header(mut self, name: &str, value: &str) -> Self {
-        self.headers.push((name.to_string(), value.to_string()));
+        self.add_header(name, value);
         self
     }
 
     /// Add a header to an existing response (mutable)
     pub fn add_header(&mut self, name: &str, value: &str) {
-        self.headers.push((name.to_string(), value.to_string()));
+        if Self::validate_header(name, value).is_some() {
+            self.headers.push((name.to_string(), value.to_string()));
+        }
     }
 
     pub fn with_body(mut self, body: Vec<u8>) -> Self {
@@ -284,14 +421,158 @@ impl Response {
     }
 
     pub fn into_hyper(self) -> hyper::Response<Full<Bytes>> {
-        let mut builder = hyper::Response::builder().status(self.status);
+        let mut response = hyper::Response::new(Full::new(Bytes::from(self.body)));
+        *response.status_mut() = self.status;
 
         for (name, value) in self.headers {
-            builder = builder.header(name, value);
+            match (
+                HeaderName::try_from(name.as_str()),
+                HeaderValue::from_str(&value),
+            ) {
+                (Ok(header_name), Ok(header_value)) => {
+                    response.headers_mut().append(header_name, header_value);
+                }
+                _ => {
+                    log::warn!("Skipping invalid response header '{}'", name);
+                }
+            }
         }
 
-        builder
-            .body(Full::new(Bytes::from(self.body)))
-            .unwrap_or_else(|_| hyper::Response::new(Full::new(Bytes::new())))
+        response
+    }
+
+    fn validate_header(name: &str, value: &str) -> Option<()> {
+        match (HeaderName::try_from(name), HeaderValue::from_str(value)) {
+            (Ok(_), Ok(_)) => Some(()),
+            _ => {
+                log::warn!("Rejected invalid response header '{}'", name);
+                None
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Response;
+    use crate::error::Error;
+    use hyper::StatusCode;
+    use std::fs;
+    use std::path::PathBuf;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn temp_test_dir(name: &str) -> PathBuf {
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        std::env::temp_dir().join(format!("rustf-response-{name}-{unique}"))
+    }
+
+    #[test]
+    fn file_download_from_allows_file_under_base_dir() {
+        let base_dir = temp_test_dir("allowed");
+        let nested_dir = base_dir.join("uploads");
+        fs::create_dir_all(&nested_dir).unwrap();
+        let file_path = nested_dir.join("report.txt");
+        fs::write(&file_path, b"hello").unwrap();
+
+        let response = Response::file_download_from(&base_dir, "uploads/report.txt", None).unwrap();
+
+        assert_eq!(response.body, b"hello");
+        assert!(response
+            .headers
+            .iter()
+            .any(|(k, v)| k == "Content-Disposition" && v.contains("report.txt")));
+
+        fs::remove_dir_all(&base_dir).unwrap();
+    }
+
+    #[test]
+    fn file_download_from_rejects_path_traversal() {
+        let root = temp_test_dir("traversal");
+        let base_dir = root.join("base");
+        let secret_path = root.join("secret.txt");
+        fs::create_dir_all(&base_dir).unwrap();
+        fs::write(&secret_path, b"secret").unwrap();
+
+        let err = Response::file_download_from(&base_dir, "../secret.txt", None).unwrap_err();
+        assert!(matches!(err, Error::InvalidInput(_)));
+
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn file_inline_from_rejects_absolute_path_outside_base_dir() {
+        let root = temp_test_dir("absolute");
+        let base_dir = root.join("base");
+        let outside_dir = root.join("outside");
+        fs::create_dir_all(&base_dir).unwrap();
+        fs::create_dir_all(&outside_dir).unwrap();
+        let outside_file = outside_dir.join("secret.txt");
+        fs::write(&outside_file, b"secret").unwrap();
+
+        let err = Response::file_inline_from(&base_dir, &outside_file).unwrap_err();
+        assert!(matches!(err, Error::InvalidInput(_)));
+
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn invalid_header_does_not_replace_response_with_blank_200() {
+        let response = Response::text("hello").with_header("X-Test", "ok\r\nbad");
+        let hyper_response = response.into_hyper();
+
+        assert_eq!(hyper_response.status(), StatusCode::OK);
+        assert!(hyper_response.headers().get("X-Test").is_none());
+    }
+
+    #[test]
+    fn redirect_drops_invalid_location_header_value() {
+        let response = Response::redirect_external("https://example.com\r\nbad");
+        let hyper_response = response.into_hyper();
+
+        assert_eq!(hyper_response.status(), StatusCode::FOUND);
+        assert!(hyper_response.headers().get("Location").is_none());
+    }
+
+    #[test]
+    fn redirect_rejects_external_targets() {
+        let err = Response::redirect("https://evil.example/phish").unwrap_err();
+        assert!(matches!(err, Error::InvalidInput(_)));
+    }
+
+    #[test]
+    fn redirect_permanent_uses_301() {
+        let response = Response::redirect_permanent("/moved").unwrap();
+        let hyper_response = response.into_hyper();
+
+        assert_eq!(hyper_response.status(), StatusCode::MOVED_PERMANENTLY);
+        assert_eq!(hyper_response.headers().get("Location").unwrap(), "/moved");
+    }
+
+    #[test]
+    fn file_download_escapes_content_disposition_filename() {
+        let base_dir = temp_test_dir("filename");
+        fs::create_dir_all(&base_dir).unwrap();
+        let file_path = base_dir.join("report.txt");
+        fs::write(&file_path, b"hello").unwrap();
+
+        let response =
+            Response::file_download_from(&base_dir, "report.txt", Some("bad\"name\r\n.txt"))
+                .unwrap();
+        let content_disposition = response
+            .headers
+            .iter()
+            .find(|(k, _)| k == "Content-Disposition")
+            .map(|(_, v)| v.clone())
+            .unwrap();
+
+        assert!(!content_disposition.contains('\r'));
+        assert!(!content_disposition.contains('\n'));
+        assert!(content_disposition.contains("filename=\"badname.txt\""));
+        assert!(content_disposition.contains("filename*=UTF-8''"));
+
+        fs::remove_dir_all(&base_dir).unwrap();
     }
 }
