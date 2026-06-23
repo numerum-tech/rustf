@@ -2,10 +2,8 @@
     <h1>@{M.title}</h1>
     <form method="POST" action="/{{name}}/@{R.item.id}">
         <input type="hidden" name="_method" value="PUT">
-        <label>
-            Name
-            <input type="text" name="name" value="@{R.item.name}" required maxlength="255">
-        </label>
+        <input type="hidden" name="_csrf_token" value="@{M.csrf_token}">
+        <p>Replace this starter form with the fields from your schema before using it.</p>
         <button type="submit">Save</button>
         <a href="/{{name}}/@{R.item.id}">Cancel</a>
     </form>

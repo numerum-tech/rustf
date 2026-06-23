@@ -138,7 +138,7 @@ ctx.download("/path/to/file.pdf", "download-name.pdf")
 ```rust
 // Session data
 ctx.session_set("user_id", user.id)?;
-let user_id: Option<i32> = ctx.session_get("user_id")?;
+let user_id: Option<i32> = ctx.session_get("user_id");
 ctx.session_remove("user_id")?;
 
 // Flash messages (survive one redirect)
@@ -186,7 +186,7 @@ async fn handle_form(ctx: Context) -> Result<Response> {
 ### Authentication Check
 ```rust
 async fn protected_handler(ctx: Context) -> Result<Response> {
-    let user_id: Option<i32> = ctx.session_get("user_id")?;
+    let user_id: Option<i32> = ctx.session_get("user_id");
     
     match user_id {
         Some(id) => {
@@ -238,12 +238,10 @@ async fn validate_input(ctx: Context) -> Result<Response> {
 ### CSRF Protection
 ```rust
 async fn form_handler(ctx: Context) -> Result<Response> {
-    let form = ctx.body_form().await?;
-    
     // Verify CSRF token
-    let token = form.get("csrf_token").unwrap_or("");
-    if !ctx.verify_csrf_token(token)? {
-        return ctx.json(json!({"error": "Invalid CSRF token"}));
+    if !ctx.verify_csrf(None)? {
+        ctx.json(json!({"error": "Invalid CSRF token"}))?;
+        return Ok(());
     }
     
     // Process form...

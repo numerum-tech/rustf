@@ -7,6 +7,7 @@ port = 8000
 timeout = 30
 ssl_enabled = false
 max_connections = 1000
+trusted_proxies = []   # Example: ["127.0.0.1/32", "10.0.0.0/8"]
 
 [views]
 directory = "views"
@@ -79,10 +80,10 @@ max_age = 86400  # 24 hours
 max_requests = 100
 window_seconds = 60
 excluded_paths = ["/health", "/metrics", "/favicon.ico"]
-trust_proxy = true
+trust_proxy = false  # Enable only when your reverse proxy overwrites forwarded IP headers
 
 [middleware.csrf]
-exempt_routes = ["/api/*", "/webhook/*"]
+exempt_routes = ["/webhook/*"]
 error_message = "CSRF token validation failed. Please try again."
 enabled = true
 # redirect_on_failure = "/error"  # Optional: redirect instead of error response

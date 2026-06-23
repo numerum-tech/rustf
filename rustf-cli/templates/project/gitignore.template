@@ -4,8 +4,8 @@
 Cargo.lock
 
 # RustF specific
-/uploads/*
-!/uploads/.gitkeep
+/private/uploads/*
+!/private/uploads/.gitkeep
 
 # Logs
 *.log

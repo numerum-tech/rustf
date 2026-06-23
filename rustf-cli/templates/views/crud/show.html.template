@@ -2,8 +2,8 @@
     <h1>@{M.title}</h1>
     <dl>
         <dt>ID</dt><dd>@{R.item.id}</dd>
-        <dt>Name</dt><dd>@{R.item.name}</dd>
     </dl>
+    <p>Customize this page with the fields from your schema.</p>
     <p>
         <a href="/{{name}}/@{R.item.id}/edit">Edit</a> &nbsp;·&nbsp;
         <a href="/{{name}}">Back to list</a>
@@ -11,6 +11,7 @@
 
     <form method="POST" action="/{{name}}/@{R.item.id}" style="display:inline">
         <input type="hidden" name="_method" value="DELETE">
+        <input type="hidden" name="_csrf_token" value="@{M.csrf_token}">
         <button type="submit">Delete</button>
     </form>
 </section>

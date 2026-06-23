@@ -4,8 +4,6 @@
 //! where all the interesting behaviour lives (the controller is thin HTTP
 //! glue, per the layering rule).
 
-use std::collections::HashMap;
-
 // Adjust these imports to match your project's crate name.
 // Default for projects scaffolded via `rustf-cli new project`: "sample_app" / your project name.
 // use sample_app::modules::{{name}}_service::{{pascal_name}}Service;
@@ -17,19 +15,25 @@ mod tests {
     // use super::*;
 
     // #[tokio::test]
-    // async fn create_validates_required_name() {
+    // async fn create_validates_your_required_fields() {
+    //     use std::collections::HashMap;
+    // 
     //     let mut form = HashMap::new();
-    //     form.insert("name".to_string(), "".to_string());
+    //     // Replace with the real field names from schemas/{{name}}.yaml.
+    //     form.insert("field_one".to_string(), "".to_string());
     //     let res = {{pascal_name}}Service::create(&form).await;
-    //     assert!(res.is_err(), "empty name should fail validation");
+    //     assert!(res.is_err(), "invalid input should fail validation");
     // }
 
     // #[tokio::test]
     // async fn create_then_find_round_trip() {
+    //     use std::collections::HashMap;
+    // 
     //     let mut form = HashMap::new();
-    //     form.insert("name".to_string(), "hello".to_string());
+    //     // Replace with the real field names from schemas/{{name}}.yaml.
+    //     form.insert("field_one".to_string(), "hello".to_string());
     //     let id = {{pascal_name}}Service::create(&form).await.unwrap();
     //     let found = {{pascal_name}}Service::find(id).await.unwrap().unwrap();
-    //     assert_eq!(found.name, "hello");
+    //     assert_eq!(found.id() as i64, id);
     // }
 }

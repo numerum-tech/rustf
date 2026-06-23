@@ -58,7 +58,7 @@ This project follows RustF's convention-over-configuration approach:
 
 ### Data and Storage  
 - `schemas/` - Data model definitions (YAML format)
-- `uploads/` - File upload storage (gitignored)
+- `private/uploads/` - Private file upload storage (gitignored)
 
 ## 🤖 AI-Friendly Development
 

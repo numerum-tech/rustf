@@ -93,7 +93,7 @@ Create `views/example/create.html`:
     
     <form method="POST" action="/example" class="form">
         <!-- CSRF token (if using CSRF middleware) -->
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
         
         <div class="form-group">
             <label for="name">Name:</label>
@@ -443,7 +443,7 @@ async fn create_user_form(ctx: Context) -> Result<Response> {
     let data = json!({
         "title": "Create User",
         "categories": categories,
-        "csrf_token": ctx.generate_csrf_token()?
+        "csrf_token": ctx.generate_csrf(None)?
     });
     
     ctx.view("/users/create", data)
@@ -484,7 +484,7 @@ async fn create_user(ctx: Context) -> Result<Response> {
 
 <!-- CSRF protection in forms -->
 <form method="POST">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
     <!-- form fields -->
 </form>
 ```

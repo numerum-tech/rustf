@@ -82,7 +82,7 @@ async fn on_routes_ready(_ctx: EventContext) -> rustf::Result<()> {
 async fn on_startup_early(_ctx: EventContext) -> rustf::Result<()> {
     log::info!("{{event_title}}: early startup");
     // Create required directories, warm caches, etc.
-    for dir in ["uploads", "logs"] {
+    for dir in ["private/uploads", "logs"] {
         if !std::path::Path::new(dir).exists() {
             std::fs::create_dir_all(dir)?;
         }

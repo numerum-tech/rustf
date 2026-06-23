@@ -5,6 +5,7 @@
 [server]
 host = "127.0.0.1"
 port = 8000
+trusted_proxies = []   # Example: ["127.0.0.1/32"]
 
 [database]
 # Local development database
