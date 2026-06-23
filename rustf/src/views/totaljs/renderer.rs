@@ -319,6 +319,30 @@ impl RenderContext {
         self
     }
 
+    /// Create a child context for partial rendering while reusing immutable
+    /// request/session/config state and sharing deferred layout metadata.
+    pub fn child_with_data(&self, data: Value) -> Self {
+        let mut context = Self::new(data)
+            .with_global_repository(self.global_repository.clone())
+            .with_repository(self.repository.clone())
+            .with_session(self.session.clone())
+            .with_query(self.query.clone())
+            .with_user(self.user.clone())
+            .with_config(self.config.clone())
+            .with_conf(self.conf.clone())
+            .with_url(self.url.clone())
+            .with_hostname(self.hostname.clone());
+
+        if let Some(translator) = self.translator.clone() {
+            context = context.with_translator(translator);
+        }
+
+        context.meta_title = self.meta_title.clone();
+        context.meta_description = self.meta_description.clone();
+        context.mobile = self.mobile;
+        context
+    }
+
     /// Set sections (for layout rendering with child-defined sections)
     pub fn with_sections(mut self, sections: HashMap<String, Vec<Node>>) -> Self {
         self.sections = sections;
@@ -1290,7 +1314,11 @@ impl Renderer {
                 }
                 AttrValue::Bool(false) => {}
                 AttrValue::Str(s) => {
-                    out.push_str(&format!(" {}=\"{}\"", key, HtmlEscaper::escape_attribute(s)));
+                    out.push_str(&format!(
+                        " {}=\"{}\"",
+                        key,
+                        HtmlEscaper::escape_attribute(s)
+                    ));
                 }
                 AttrValue::Number(n) => {
                     let num = if n.fract() == 0.0 && n.is_finite() {
@@ -1656,16 +1684,7 @@ impl Renderer {
                             let partial_context = if let Some(model_expr) = model {
                                 let model_value =
                                     self.context.resolve_value_from_expression(model_expr);
-                                RenderContext::new(model_value)
-                                    .with_global_repository(self.context.global_repository.clone())
-                                    .with_repository(self.context.repository.clone())
-                                    .with_session(self.context.session.clone())
-                                    .with_query(self.context.query.clone())
-                                    .with_user(self.context.user.clone())
-                                    .with_config(self.context.config.clone())
-                                    .with_conf(self.context.conf.clone())
-                                    .with_url(self.context.url.clone())
-                                    .with_hostname(self.context.hostname.clone())
+                                self.context.child_with_data(model_value)
                             } else {
                                 self.context.clone()
                             };
@@ -1712,18 +1731,7 @@ impl Renderer {
                                     // If a model expression is provided, create context with that as the data
                                     let model_value =
                                         self.context.resolve_value_from_expression(model_expr);
-                                    RenderContext::new(model_value)
-                                        .with_global_repository(
-                                            self.context.global_repository.clone(),
-                                        )
-                                        .with_repository(self.context.repository.clone())
-                                        .with_session(self.context.session.clone())
-                                        .with_query(self.context.query.clone())
-                                        .with_user(self.context.user.clone())
-                                        .with_config(self.context.config.clone())
-                                        .with_conf(self.context.conf.clone())
-                                        .with_url(self.context.url.clone())
-                                        .with_hostname(self.context.hostname.clone())
+                                    self.context.child_with_data(model_value)
                                 } else {
                                     // No model specified, use the same context
                                     self.context.clone()
@@ -1854,7 +1862,9 @@ impl Renderer {
                         HtmlEscaper::escape(&value_str)
                     ),
                     FormFieldKind::Checkbox => {
-                        let checked = field_val.map(|v| self.context.is_truthy(v)).unwrap_or(false);
+                        let checked = field_val
+                            .map(|v| self.context.is_truthy(v))
+                            .unwrap_or(false);
                         format!(
                             "<input type=\"checkbox\" name=\"{}\"{}{} />",
                             name_esc,

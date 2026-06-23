@@ -11,8 +11,8 @@ use simd_json;
 use std::any::Any;
 use std::collections::HashMap;
 use std::path::Path;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
 /// HTTP request context focused on request/response operations
 ///
@@ -276,9 +276,7 @@ impl Context {
     pub fn view(&mut self, template: &str, data: Value) -> Result<()> {
         let views = &self.views;
 
-        // Convert per-request repository HashMap to a Value (always fresh, never shared)
-        let repository_value = serde_json::to_value(&self.repository)
-            .unwrap_or_else(|_| Value::Object(serde_json::Map::new()));
+        let repository_value = Value::Object(self.repository.clone().into_iter().collect());
 
         // Build per-request session Value if a session is active
         let session_value = if let Some(session) = self.session() {
@@ -299,7 +297,7 @@ impl Context {
                 );
                 map.insert(
                     "flash".to_string(),
-                    serde_json::to_value(flash).unwrap_or(Value::Null),
+                    Value::Object(flash.into_iter().collect()),
                 );
             }
             Some(session_data)
@@ -310,7 +308,7 @@ impl Context {
         // Per-request metadata for @{url} / @{hostname} / @{mobile}.
         let request_meta = crate::views::RequestMeta {
             url: self.req.path().to_string(),
-            hostname: self.req.host().unwrap_or_default().to_string(),
+            hostname: self.req.hostname(None),
             mobile: self
                 .req
                 .user_agent()
@@ -806,9 +804,11 @@ impl Context {
         for (key, value) in form_data.iter() {
             let json_value = match value {
                 FormValue::Single(s) => serde_json::Value::String(s.clone()),
-                FormValue::Multiple(v) => {
-                    serde_json::Value::Array(v.iter().map(|s| serde_json::Value::String(s.clone())).collect())
-                }
+                FormValue::Multiple(v) => serde_json::Value::Array(
+                    v.iter()
+                        .map(|s| serde_json::Value::String(s.clone()))
+                        .collect(),
+                ),
             };
             json_map.insert(key.clone(), json_value);
         }
@@ -931,8 +931,9 @@ impl Context {
             } else {
                 // Try to parse as JSON using simd-json (2-3x faster), fallback to string value
                 let mut text_bytes = text.into_bytes();
-                Ok(simd_json::from_slice(&mut text_bytes)
-                    .unwrap_or_else(|_| serde_json::Value::String(String::from_utf8_lossy(&text_bytes).to_string())))
+                Ok(simd_json::from_slice(&mut text_bytes).unwrap_or_else(|_| {
+                    serde_json::Value::String(String::from_utf8_lossy(&text_bytes).to_string())
+                }))
             }
         }
     }
