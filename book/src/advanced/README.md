@@ -2,6 +2,9 @@
 
 This section covers advanced features and optimization techniques for experienced RustF developers.
 
+The CLI is no longer grouped here. It now has its own top-level section because
+it is part of the normal day-to-day workflow, not an advanced-only tool.
+
 ## Topics
 
 ### [Performance Optimization](performance.md)
@@ -34,19 +37,12 @@ Shared business logic modules:
 - Dependency injection
 - Best practices
 
-### [CLI Tool](cli.md)
-Comprehensive guide to the RustF CLI:
-- Project scaffolding
-- Schema management
-- Database tools
-- Code generation
-
 ## Related Topics
 
+- [CLI](../cli/README.md) - Project scaffolding, generation, analysis, and schema workflows
 - [Core Guides](../guides/controllers.md) - Essential framework concepts
 - [API Reference](../api-reference/context.md) - Complete API documentation
 - [Examples](../examples/README.md) - Practical tutorials
-
 
 
 

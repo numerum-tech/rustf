@@ -1347,7 +1347,7 @@ Start with schemas, generate models, and enjoy a modern database experience in R
 
 A type-safe, AI-friendly SQL query builder for Rust that supports PostgreSQL, MySQL, MariaDB, and SQLite with a unified API. Part of the RustF web framework ecosystem.
 
-> 📖 **Complete Guide:** For comprehensive documentation including model generation, CLI tools, and AI agent guidelines, see the [CLI Tool Guide](../advanced/cli.md) and [Schemas Guide](schemas.md)
+> 📖 **Complete Guide:** For comprehensive documentation including model generation, CLI workflows, and AI agent guidance, see the [CLI section](../cli/README.md) and [Schemas Guide](schemas.md)
 
 ## 🌟 Features
 
@@ -1880,7 +1880,7 @@ match query.right_join("posts", "posts.user_id = users.id") {
 
 ## 🔗 Related Documentation
 
-- **[CLI Tool Guide](../advanced/cli.md)** - Database tools and code generation
+- **[CLI: Database & Schemas](../cli/database-schemas.md)** - Database tools and code generation
 - **[Schema Format Reference](schema-format.md)** - The full YAML schema specification
 - **[Definitions System](schemas.md)** - Template helpers and validators
 - **[Cargo Features](../getting-started/installation.md#cargo-features)** - Per-driver multi-database setup

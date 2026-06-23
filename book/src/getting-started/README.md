@@ -48,6 +48,7 @@ That's it! Your server will be running at `http://127.0.0.1:8000`.
 - **[Installation](installation.md)** - Detailed installation instructions and setup
 - **[Hello World](hello-world.md)** - Build your first application step-by-step
 - **[Project Structure](project-structure.md)** - Understand how RustF projects are organized
+- **[CLI](../cli/README.md)** - Common project, generation, analysis, and schema commands
 
 ## Need Help?
 
@@ -58,7 +59,6 @@ That's it! Your server will be running at `http://127.0.0.1:8000`.
 ---
 
 Ready to dive in? Let's start with [Installation](installation.md)!
-
 
 
 
