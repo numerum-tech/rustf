@@ -175,6 +175,6 @@ mod tests {
     async fn test_global_definitions() {
         let defs = get().await;
         // Should be able to access global definitions
-        assert!(defs.read().await.helpers.count() >= 0);
+        assert!(defs.read().await.helpers.count() > 0);
     }
 }

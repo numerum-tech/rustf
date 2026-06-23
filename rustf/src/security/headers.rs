@@ -417,9 +417,10 @@ mod tests {
         let response = Response::ok();
         let response_with_headers = headers.apply_to_response(response);
 
-        // Check that headers are applied (would need to examine the response in a real implementation)
-        // This is a placeholder test
-        assert!(true);
+        assert!(response_with_headers
+            .headers
+            .iter()
+            .any(|(name, _)| name == "Content-Security-Policy"));
     }
 
     #[test]

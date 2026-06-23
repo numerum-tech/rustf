@@ -1322,6 +1322,7 @@ debug = true
 
         #[derive(Debug, Deserialize)]
         struct PaymentConfig {
+            #[allow(dead_code)]
             stripe_key: String,
         }
 

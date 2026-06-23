@@ -366,6 +366,8 @@ fn html_escape(input: &str) -> String {
 
 /// Health check endpoint implementation
 pub struct HealthCheck {
+    // Only read by the database connectivity check, which is feature-gated.
+    #[cfg_attr(not(feature = "database"), allow(dead_code))]
     config: Arc<AppConfig>,
 }
 

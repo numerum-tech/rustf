@@ -8,6 +8,8 @@ use super::{
 use crate::config::{AppConfig, ViewConfig};
 use crate::error::{Error, Result};
 use crate::repository::APP;
+#[cfg(feature = "embedded-views")]
+use crate::views::embed_provider::get_views_provider;
 use crate::views::minifier::minify_html;
 use crate::views::ViewEngineImpl;
 use serde_json::Value;
@@ -21,7 +23,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 struct CacheEntry {
     template: Arc<Template>,
     _compiled_at: u64,
-    file_modified: Option<u64>,
+    version: Option<String>,
 }
 
 /// Template cache for performance
@@ -59,27 +61,21 @@ impl TemplateCache {
             .map(|d| d.as_secs())
     }
 
-    fn get_or_compile(&self, path: &Path, content: &str) -> Result<Arc<Template>> {
-        // If hot reload is enabled (cache disabled), always recompile
-        if self.enable_hot_reload {
-            let mut parser = Parser::new(content)?;
-            return parser.parse().map(Arc::new);
-        }
-
-        let path_str = path.to_string_lossy().to_string();
-
+    fn get_or_compile(
+        &self,
+        cache_key: &str,
+        content: &str,
+        version: Option<String>,
+    ) -> Result<Arc<Template>> {
         // Check cache first — return a cheap Arc clone (refcount increment only)
         if let Ok(cache) = self.cache.read() {
-            if let Some(entry) = cache.get(&path_str) {
+            if let Some(entry) = cache.get(cache_key) {
                 if self.trust_cache {
                     return Ok(Arc::clone(&entry.template));
-                } else {
-                    let current_mtime = Self::get_file_mtime(path);
-                    if let (Some(cached_mtime), Some(current)) = (entry.file_modified, current_mtime) {
-                        if current <= cached_mtime {
-                            return Ok(Arc::clone(&entry.template));
-                        }
-                    }
+                }
+
+                if entry.version == version {
+                    return Ok(Arc::clone(&entry.template));
                 }
             }
         }
@@ -95,9 +91,9 @@ impl TemplateCache {
                     .duration_since(UNIX_EPOCH)
                     .unwrap_or_default()
                     .as_secs(),
-                file_modified: Self::get_file_mtime(path),
+                version,
             };
-            cache.insert(path_str, entry);
+            cache.insert(cache_key.to_string(), entry);
         }
 
         Ok(template_arc)
@@ -112,7 +108,7 @@ impl TemplateCache {
 
 /// Total.js template engine implementation
 pub struct TotalJsEngine {
-    base_dir: PathBuf,
+    source: TemplateSource,
     cache: TemplateCache,
     /// Global configuration (legacy - for backward compatibility)
     config: Arc<RwLock<HashMap<String, String>>>,
@@ -124,6 +120,18 @@ pub struct TotalJsEngine {
     resource_translator: Arc<RwLock<Option<ResourceTranslationSystem>>>,
     /// Whether to minify rendered HTML output
     minify: bool,
+}
+
+#[derive(Clone)]
+enum TemplateSource {
+    Filesystem { base_dir: PathBuf },
+    #[cfg(feature = "embedded-views")]
+    Embedded,
+}
+
+struct TemplateAsset {
+    content: String,
+    version: Option<String>,
 }
 
 /// Append `.html` to a template name if it isn't already present.
@@ -140,7 +148,7 @@ fn ensure_html_extension(name: &str) -> String {
 /// not-yet-created files and can't be defeated by a missing-file race. Blocks
 /// `..` traversal and absolute paths; view names are otherwise developer-
 /// supplied, but this contains the damage if one is ever built from input.
-fn reject_traversal(relative: &str) -> Result<()> {
+pub(crate) fn reject_traversal(relative: &str) -> Result<()> {
     let mut depth: i32 = 0;
     for comp in Path::new(relative).components() {
         match comp {
@@ -164,6 +172,57 @@ fn reject_traversal(relative: &str) -> Result<()> {
         }
     }
     Ok(())
+}
+
+/// Load a template asset (raw content + cache version) from either backend.
+/// Shared by the main-template loader and the partial loader so filesystem and
+/// embedded sources go through exactly one code path. `name` is only used for
+/// error messages; `relative` is the already-validated relative path.
+fn load_asset(source: &TemplateSource, relative: &str, name: &str) -> Result<TemplateAsset> {
+    match source {
+        TemplateSource::Filesystem { base_dir } => {
+            let path = base_dir.join(relative);
+            let content = std::fs::read_to_string(&path).map_err(|e| {
+                Error::template(format!("Failed to load template '{}': {}", name, e))
+            })?;
+            Ok(TemplateAsset {
+                content,
+                version: TemplateCache::get_file_mtime(&path).map(|mtime| mtime.to_string()),
+            })
+        }
+        #[cfg(feature = "embedded-views")]
+        TemplateSource::Embedded => {
+            let provider = get_views_provider().ok_or_else(|| {
+                Error::template(
+                    "No embedded views provider registered. Make sure auto_discover!() is called \
+                     with the embedded-views feature enabled."
+                        .to_string(),
+                )
+            })?;
+            let data = provider.get(relative).ok_or_else(|| {
+                Error::template(format!(
+                    "Embedded template not found: {}. Make sure the template exists in the views \
+                     directory at compile time.",
+                    name
+                ))
+            })?;
+            let content = std::str::from_utf8(&data)
+                .map_err(|e| {
+                    Error::template(format!("Invalid UTF-8 in template {}: {}", name, e))
+                })?
+                .to_string();
+
+            use std::collections::hash_map::DefaultHasher;
+            use std::hash::{Hash, Hasher};
+            let mut hasher = DefaultHasher::new();
+            data.hash(&mut hasher);
+
+            Ok(TemplateAsset {
+                content,
+                version: Some(format!("{:x}", hasher.finish())),
+            })
+        }
+    }
 }
 
 impl TotalJsEngine {
@@ -195,7 +254,9 @@ impl TotalJsEngine {
         let minify = view_config.map(|vc| vc.minify).unwrap_or(false);
 
         Self {
-            base_dir: PathBuf::from(base_dir),
+            source: TemplateSource::Filesystem {
+                base_dir: PathBuf::from(base_dir),
+            },
             cache: TemplateCache::new(enable_hot_reload),
             config: Arc::new(RwLock::new(config)),
             app_config: None,
@@ -233,7 +294,74 @@ impl TotalJsEngine {
         let minify = app_config.views.minify;
 
         Self {
-            base_dir: PathBuf::from(base_dir),
+            source: TemplateSource::Filesystem {
+                base_dir: PathBuf::from(base_dir),
+            },
+            cache: TemplateCache::new_with_trust_cache(enable_hot_reload, trust_cache),
+            config: Arc::new(RwLock::new(config)),
+            app_config: Some(app_config),
+            translator: Arc::new(RwLock::new(None)),
+            resource_translator: Arc::new(RwLock::new(None)),
+            minify,
+        }
+    }
+
+    #[cfg(feature = "embedded-views")]
+    pub fn new_embedded() -> Self {
+        Self::with_embedded_config(None)
+    }
+
+    #[cfg(feature = "embedded-views")]
+    pub fn with_embedded_config(view_config: Option<&ViewConfig>) -> Self {
+        let (enable_hot_reload, cache_enabled) = if let Some(vc) = view_config {
+            (!vc.cache_enabled, vc.cache_enabled)
+        } else {
+            (cfg!(debug_assertions), !cfg!(debug_assertions))
+        };
+
+        let mut config = HashMap::new();
+        if let Some(vc) = view_config {
+            config.insert("default_root".to_string(), vc.default_root.clone());
+            config.insert("default_layout".to_string(), vc.default_layout.clone());
+            config.insert("cache_enabled".to_string(), cache_enabled.to_string());
+        }
+
+        let minify = view_config.map(|vc| vc.minify).unwrap_or(false);
+
+        Self {
+            source: TemplateSource::Embedded,
+            cache: TemplateCache::new(enable_hot_reload),
+            config: Arc::new(RwLock::new(config)),
+            app_config: None,
+            translator: Arc::new(RwLock::new(None)),
+            resource_translator: Arc::new(RwLock::new(None)),
+            minify,
+        }
+    }
+
+    #[cfg(feature = "embedded-views")]
+    pub fn with_embedded_app_config(app_config: Arc<AppConfig>) -> Self {
+        let enable_hot_reload = !app_config.views.cache_enabled;
+        let trust_cache = app_config.views.cache_enabled && app_config.environment.is_production();
+
+        let mut config = HashMap::new();
+        config.insert(
+            "default_root".to_string(),
+            app_config.views.default_root.clone(),
+        );
+        config.insert(
+            "default_layout".to_string(),
+            app_config.views.default_layout.clone(),
+        );
+        config.insert(
+            "cache_enabled".to_string(),
+            app_config.views.cache_enabled.to_string(),
+        );
+
+        let minify = app_config.views.minify;
+
+        Self {
+            source: TemplateSource::Embedded,
             cache: TemplateCache::new_with_trust_cache(enable_hot_reload, trust_cache),
             config: Arc::new(RwLock::new(config)),
             app_config: Some(app_config),
@@ -298,6 +426,17 @@ impl TotalJsEngine {
         self.cache.clear();
     }
 
+    pub fn cache_stats(&self) -> (usize, bool) {
+        let count = self.cache.cache.read().map(|c| c.len()).unwrap_or(0);
+        (count, self.cache.enable_hot_reload)
+    }
+
+    pub fn set_config_value(&self, key: &str, value: &str) {
+        if let Ok(mut config) = self.config.write() {
+            config.insert(key.to_string(), value.to_string());
+        }
+    }
+
     /// Set the full application configuration
     pub fn set_app_config(&mut self, app_config: Arc<AppConfig>) {
         // Update the legacy config HashMap for backward compatibility
@@ -318,34 +457,85 @@ impl TotalJsEngine {
         self.app_config = Some(app_config);
     }
 
-    /// Get the path to a template file
-    fn template_path(&self, template: &str) -> Result<PathBuf> {
+    fn normalized_template_path(&self, template: &str) -> Result<String> {
         // Both '/someview' and 'someview' should work the same way.
         let template_clean = template.strip_prefix('/').unwrap_or(template);
         let relative = ensure_html_extension(template_clean);
         reject_traversal(&relative)?;
-        Ok(self.base_dir.join(&relative))
+        Ok(relative)
     }
 
-    /// Get the path to a layout file
-    fn layout_path(&self, layout: &str) -> Result<PathBuf> {
-        let relative = if layout.contains('/') {
+    fn normalized_layout_path(&self, layout: &str) -> Result<String> {
+        let layout_clean = layout.strip_prefix('/').unwrap_or(layout);
+        let relative = if layout_clean.contains('/') {
             // Path given explicitly — use as-is (under base_dir).
-            ensure_html_extension(layout)
+            ensure_html_extension(layout_clean)
         } else {
             // Simple name — look in the layouts/ subdirectory.
-            format!("layouts/{}", ensure_html_extension(layout))
+            format!("layouts/{}", ensure_html_extension(layout_clean))
         };
         reject_traversal(&relative)?;
-        Ok(self.base_dir.join(&relative))
+        Ok(relative)
+    }
+
+    /// Test-only: resolve a template name to its full path. Used by the
+    /// embedded-engine tests; production code uses `normalized_template_path`
+    /// + `load_template` directly.
+    #[cfg(test)]
+    pub(crate) fn template_path(&self, template: &str) -> Result<PathBuf> {
+        let relative = self.normalized_template_path(template)?;
+        match &self.source {
+            TemplateSource::Filesystem { base_dir } => Ok(base_dir.join(relative)),
+            #[cfg(feature = "embedded-views")]
+            TemplateSource::Embedded => Ok(PathBuf::from(relative)),
+        }
+    }
+
+    /// Test-only counterpart to `template_path` for layouts.
+    #[cfg(test)]
+    pub(crate) fn layout_path(&self, layout: &str) -> Result<PathBuf> {
+        let relative = self.normalized_layout_path(layout)?;
+        match &self.source {
+            TemplateSource::Filesystem { base_dir } => Ok(base_dir.join(relative)),
+            #[cfg(feature = "embedded-views")]
+            TemplateSource::Embedded => Ok(PathBuf::from(relative)),
+        }
+    }
+
+    fn template_root_for_renderer(&self) -> Option<String> {
+        match &self.source {
+            TemplateSource::Filesystem { base_dir } => {
+                Some(base_dir.to_string_lossy().to_string())
+            }
+            #[cfg(feature = "embedded-views")]
+            TemplateSource::Embedded => None,
+        }
+    }
+
+    fn load_template_asset(&self, relative_path: &str) -> Result<TemplateAsset> {
+        load_asset(&self.source, relative_path, relative_path)
+    }
+
+    /// Build a partial-template loader closure that resolves names through the
+    /// same backend + cache as the main template. Used for both view and layout
+    /// rendering so there is a single loader implementation.
+    fn build_loader(&self) -> TemplateLoader {
+        let source = self.source.clone();
+        let cache = self.cache.clone();
+        Box::new(move |name: &str| {
+            let clean_name = name.strip_prefix('/').unwrap_or(name);
+            let relative = ensure_html_extension(clean_name);
+            reject_traversal(&relative)?;
+            let asset = load_asset(&source, &relative, name)?;
+            cache.get_or_compile(&relative, &asset.content, asset.version)
+        })
     }
 
     /// Load and compile a template, returning a shared Arc (zero-copy on cache hit).
-    fn load_template(&self, path: &Path) -> Result<Arc<Template>> {
-        let content = std::fs::read_to_string(path)
-            .map_err(|e| Error::template(format!("Failed to load template {:?}: {}", path, e)))?;
-
-        self.cache.get_or_compile(path, &content)
+    fn load_template(&self, relative_path: &str) -> Result<Arc<Template>> {
+        let asset = self.load_template_asset(relative_path)?;
+        self.cache
+            .get_or_compile(relative_path, &asset.content, asset.version)
     }
 
     /// Create a render context with common data
@@ -444,7 +634,7 @@ impl TotalJsEngine {
         session_data: Option<&Value>,
         request: Option<&crate::views::RequestMeta>,
     ) -> Result<String> {
-        let template_path = self.template_path(template)?;
+        let template_path = self.normalized_template_path(template)?;
         let template_ast = self.load_template(&template_path)?;
 
         // Create render context with session data
@@ -458,21 +648,8 @@ impl TotalJsEngine {
             None => context,
         };
 
-        // Create template loader that uses the cache
-        let base_dir = self.base_dir.clone();
-        let cache = self.cache.clone();
-        let loader: TemplateLoader = Box::new(move |name: &str| {
-            let clean_name = name.strip_prefix('/').unwrap_or(name);
-            let relative = ensure_html_extension(clean_name);
-            reject_traversal(&relative)?;
-            let path = base_dir.join(&relative);
-
-            let content = std::fs::read_to_string(&path).map_err(|e| {
-                crate::error::Error::template(format!("Failed to load partial '{}': {}", name, e))
-            })?;
-
-            cache.get_or_compile(&path, &content)
-        });
+        // Create template loader that uses the cache (handles fs + embedded).
+        let loader: TemplateLoader = self.build_loader();
 
         // Add translator to context if available (prefer resource translator over legacy)
         let context = if let Ok(trans) = self.resource_translator.read() {
@@ -498,8 +675,10 @@ impl TotalJsEngine {
 
         // Render the template with template loader for partials
         let mut renderer = Renderer::new(context)
-            .with_template_path(self.base_dir.to_string_lossy().to_string())
             .with_template_loader(std::sync::Arc::new(loader));
+        if let Some(path) = self.template_root_for_renderer() {
+            renderer = renderer.with_template_path(path);
+        }
 
         let content = renderer.render(&template_ast)?;
 
@@ -510,7 +689,7 @@ impl TotalJsEngine {
 
         // Apply layout if specified
         if let Some(layout_name) = layout {
-            let layout_path = self.layout_path(layout_name)?;
+            let layout_path = self.normalized_layout_path(layout_name)?;
             let layout_ast = self.load_template(&layout_path)?;
 
             // Create new context with content
@@ -545,21 +724,8 @@ impl TotalJsEngine {
                 layout_context.set_description(d.clone());
             }
 
-            // Create template loader for layout
-            let base_dir = self.base_dir.clone();
-            let cache = self.cache.clone();
-            let loader: TemplateLoader = Box::new(move |name: &str| {
-                let clean_name = name.strip_prefix('/').unwrap_or(name);
-                let relative = ensure_html_extension(clean_name);
-                reject_traversal(&relative)?;
-                let path = base_dir.join(&relative);
-
-                let content = std::fs::read_to_string(&path).map_err(|e| {
-                    Error::template(format!("Failed to load partial '{}': {}", name, e))
-                })?;
-
-                cache.get_or_compile(&path, &content)
-            });
+            // Create template loader for layout (handles fs + embedded).
+            let loader: TemplateLoader = self.build_loader();
 
             // Add translator to layout context
             let layout_context = if let Ok(trans) = self.resource_translator.read() {
@@ -582,8 +748,10 @@ impl TotalJsEngine {
             };
 
             let mut layout_renderer = Renderer::new(layout_context)
-                .with_template_path(self.base_dir.to_string_lossy().to_string())
                 .with_template_loader(Arc::new(loader));
+            if let Some(path) = self.template_root_for_renderer() {
+                layout_renderer = layout_renderer.with_template_path(path);
+            }
 
             layout_renderer.render(&layout_ast)
         } else {
@@ -594,8 +762,18 @@ impl TotalJsEngine {
 
 impl ViewEngineImpl for TotalJsEngine {
     fn set_directory(&mut self, dir: &str) {
-        self.base_dir = PathBuf::from(dir);
-        self.cache.clear();
+        match &mut self.source {
+            TemplateSource::Filesystem { base_dir } => {
+                *base_dir = PathBuf::from(dir);
+                self.cache.clear();
+            }
+            #[cfg(feature = "embedded-views")]
+            TemplateSource::Embedded => {
+                log::warn!(
+                    "Cannot change directory for embedded views - templates are compiled into the binary"
+                );
+            }
+        }
     }
 
     fn render(&self, template: &str, data: &Value, layout: Option<&str>) -> Result<String> {
@@ -931,7 +1109,12 @@ mod tests {
         let (engine, temp_dir) = create_test_engine();
 
         // Set global repository data
-        engine.set_global_repository(json!({ "site_name": "MyApp" }));
+        if !APP::is_initialized() {
+            APP::init(json!({})).unwrap();
+        } else {
+            APP::clear().unwrap();
+        }
+        APP::set("site_name", "MyApp").unwrap();
 
         // Create template using APP/MAIN repository
         let template_content = "Welcome to @{APP.site_name}";
@@ -1025,10 +1208,13 @@ mod tests {
         let (engine, temp_dir) = create_test_engine();
 
         // Set global repository
-        engine.set_global_repository(json!({
-            "app_name": "GlobalApp",
-            "version": "1.0.0"
-        }));
+        if !APP::is_initialized() {
+            APP::init(json!({})).unwrap();
+        } else {
+            APP::clear().unwrap();
+        }
+        APP::set("app_name", "GlobalApp").unwrap();
+        APP::set("version", "1.0.0").unwrap();
 
         // Create template using both APP/MAIN and R repositories
         let template_content = r#"
@@ -1055,15 +1241,39 @@ Page: @{M.page_title}"#;
         let (engine, _temp) = create_test_engine();
 
         // `..` that escapes the views directory must be rejected, never read.
-        assert!(engine.template_path("../secret").is_err());
-        assert!(engine.template_path("../../etc/passwd").is_err());
-        assert!(engine.layout_path("../../etc/passwd").is_err());
+        assert!(engine.normalized_template_path("../secret").is_err());
+        assert!(engine.normalized_template_path("../../etc/passwd").is_err());
+        assert!(engine.normalized_layout_path("../../etc/passwd").is_err());
         // Rendering a traversal name fails rather than reading outside the dir.
         assert!(engine.render("../../../../etc/passwd", &json!({}), None).is_err());
 
         // Normal relative names still resolve.
-        assert!(engine.template_path("home/index").is_ok());
-        assert!(engine.layout_path("default").is_ok());
+        assert!(engine.normalized_template_path("home/index").is_ok());
+        assert!(engine.normalized_layout_path("default").is_ok());
+    }
+
+    #[test]
+    fn recursive_partial_include_errors_instead_of_crashing() {
+        let (engine, temp_dir) = create_test_engine();
+        // A partial that includes itself must hit the depth cap and return an
+        // error — NOT recurse until the stack overflows and aborts the process.
+        fs::write(temp_dir.path().join("a.html"), "@{view('a')}").unwrap();
+        let result = engine.render("a", &json!({}), None);
+        assert!(result.is_err(), "recursive partial must error, got Ok");
+    }
+
+    #[test]
+    fn partial_include_rejects_path_traversal() {
+        let (engine, temp_dir) = create_test_engine();
+        // The @{view} fs-fallback must enforce the same traversal guard as the
+        // loader path — a `..` partial name must not escape the views dir.
+        fs::write(
+            temp_dir.path().join("main.html"),
+            "@{view('../../../../etc/passwd')}",
+        )
+        .unwrap();
+        let result = engine.render("main", &json!({}), None);
+        assert!(result.is_err(), "traversal partial must be rejected");
     }
 
     #[test]

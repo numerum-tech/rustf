@@ -435,6 +435,7 @@ mod tests {
     impl_shared_util!(TestUtils);
 
     impl TestUtils {
+        #[allow(dead_code)]
         pub fn add_numbers(a: i32, b: i32) -> i32 {
             a + b
         }
@@ -451,6 +452,7 @@ mod tests {
             Self { config }
         }
 
+        #[allow(dead_code)]
         pub async fn do_something(&self) -> Result<String> {
             Ok(format!("Service result: {}", self.config))
         }
@@ -468,7 +470,7 @@ mod tests {
         registry.register("service-backup", service2).unwrap();
 
         // Test name-based access
-        let primary = registry.get("service-primary").unwrap();
+        let _primary = registry.get("service-primary").unwrap();
         assert!(registry.contains("service-primary"));
         assert!(registry.contains("service-backup"));
 
