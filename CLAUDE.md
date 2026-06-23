@@ -1,3 +1,10 @@
+# OpenWolf
+
+@.wolf/OPENWOLF.md
+
+This project uses OpenWolf for context management. Read and follow .wolf/OPENWOLF.md every session. Check .wolf/cerebrum.md before generating code. Check .wolf/anatomy.md before reading files.
+
+
 # CLAUDE.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
@@ -124,15 +131,16 @@ pub fn install() -> Vec<Route> {
     routes![
         GET "/" => index,
         POST "/" => create,
-        GET "/:id" => show,
-        PUT "/:id" => update,
-        DELETE "/:id" => delete,
+        GET "/{id}" => show,
+        PUT "/{id}" => update,
+        DELETE "/{id}" => delete,
     ]
 }
 
-async fn index(ctx: Context) -> rustf::Result<Response> {
-    // Handler implementation
-    Ok(Response::json(json!({"status": "ok"}))?)
+async fn index(ctx: &mut Context) -> rustf::Result<()> {
+    // Handler implementation — mutate ctx.res in place, return Result<()>
+    ctx.json(json!({"status": "ok"}))?;
+    Ok(())
 }
 ```
 
@@ -140,7 +148,7 @@ async fn index(ctx: Context) -> rustf::Result<Response> {
 Models should export a `register()` function:
 
 ```rust
-pub async fn register(registry: &mut ModelRegistry) {
+pub fn register(registry: &mut ModelRegistry) {
     // Register model with registry
 }
 ```
@@ -149,10 +157,14 @@ pub async fn register(registry: &mut ModelRegistry) {
 Implement either `InboundMiddleware` or `OutboundMiddleware`:
 
 ```rust
+use async_trait::async_trait;
+
+#[derive(Clone)]
 pub struct MyMiddleware;
 
+#[async_trait]
 impl InboundMiddleware for MyMiddleware {
-    fn process_request(&self, ctx: &mut Context) -> Result<InboundAction> {
+    async fn process_request(&self, ctx: &mut Context) -> Result<InboundAction> {
         // Process request
         Ok(InboundAction::Continue)
     }
