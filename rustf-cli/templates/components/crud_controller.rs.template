@@ -33,14 +33,20 @@ async fn show(ctx: &mut Context) -> rustf::Result<()> {
     match {{pascal_name}}Service::find(id).await? {
         Some(item) => {
             ctx.repository_set("item", serde_json::to_value(&item)?);
-            ctx.view("{{name}}/show", json!({ "title": format!("{{title_singular}} #{}", id) }))
+            ctx.view("{{name}}/show", json!({
+                "title": format!("{{title_singular}} #{}", id),
+                "csrf_token": ctx.generate_csrf(None)?,
+            }))
         }
         None => ctx.throw404(Some("{{title_singular}} not found")),
     }
 }
 
 async fn new_form(ctx: &mut Context) -> rustf::Result<()> {
-    ctx.view("{{name}}/new", json!({ "title": "New {{title_singular}}" }))
+    ctx.view("{{name}}/new", json!({
+        "title": "New {{title_singular}}",
+        "csrf_token": ctx.generate_csrf(None)?,
+    }))
 }
 
 async fn create(ctx: &mut Context) -> rustf::Result<()> {
@@ -62,7 +68,10 @@ async fn edit_form(ctx: &mut Context) -> rustf::Result<()> {
     match {{pascal_name}}Service::find(id).await? {
         Some(item) => {
             ctx.repository_set("item", serde_json::to_value(&item)?);
-            ctx.view("{{name}}/edit", json!({ "title": format!("Edit {{title_singular}} #{}", id) }))
+            ctx.view("{{name}}/edit", json!({
+                "title": format!("Edit {{title_singular}} #{}", id),
+                "csrf_token": ctx.generate_csrf(None)?,
+            }))
         }
         None => ctx.throw404(Some("{{title_singular}} not found")),
     }

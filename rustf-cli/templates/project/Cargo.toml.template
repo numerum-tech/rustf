@@ -21,6 +21,13 @@ log = "0.4"
 env_logger = "0.10"
 
 # Optional: for database operations
+# Trim sqlx features to the driver(s) you actually use.
+# Example PostgreSQL-only:
+# sqlx = { version = "0.8", features = ["runtime-tokio-rustls", "postgres", "chrono", "rust_decimal", "uuid"] }
+# Example MySQL-only:
+# sqlx = { version = "0.8", features = ["runtime-tokio-rustls", "mysql", "chrono", "rust_decimal", "uuid"] }
+# Example SQLite-only:
+# sqlx = { version = "0.8", features = ["runtime-tokio-rustls", "sqlite", "chrono", "rust_decimal", "uuid"] }
 sqlx = { version = "0.8", features = ["runtime-tokio-rustls", "mysql", "postgres", "sqlite", "chrono", "rust_decimal", "uuid"] }
 anyhow = "1.0"
 async-trait = "0.1"

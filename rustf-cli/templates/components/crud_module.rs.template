@@ -70,7 +70,6 @@ impl {{pascal_name}}Service {
         // if let Some(v) = form.get("field_two").and_then(|s| s.parse().ok()) {
         //     item.set_field_two(v);
         // }
-        item.update().await?;
         let _ = &item; // silence "unused" while TODO stubs are in place
         Err(rustf::Error::internal(
             "{{pascal_name}}Service::update — wire up the setters for your schema",

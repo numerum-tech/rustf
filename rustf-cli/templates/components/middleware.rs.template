@@ -54,13 +54,13 @@ impl InboundMiddleware for {{middleware_struct}} {
     async fn process_request(&self, ctx: &mut Context) -> Result<InboundAction> {
         {{#if auth}}
         // Check if path requires authentication
-        let path = ctx.req.uri.path();
+        let path = ctx.path();
         let requires_auth = self.protected_paths.iter()
             .any(|protected| path.starts_with(protected));
 
         if requires_auth {
             // Check session for user authentication
-            let user_id: Option<i32> = ctx.session_get("user_id")?;
+            let user_id: Option<i32> = ctx.session_get("user_id");
 
             if user_id.is_none() {
                 log::warn!("{{middleware_title}}: Unauthorized access attempt to {}", path);
@@ -163,7 +163,7 @@ mod tests {
     fn test_middleware_creation() {
         let middleware = {{middleware_struct}}::new();
         assert_eq!(middleware.name(), "{{middleware_name}}");
-        assert_eq!(middleware.priority(), {{priority}});
+        assert_eq!(InboundMiddleware::priority(&middleware), {{priority}});
     }
 
     #[tokio::test]
@@ -172,8 +172,8 @@ mod tests {
 
         // Create test context
         let request = Request::default();
-        let views = Arc::new(ViewEngine::from_directory("views").unwrap());
-        let mut ctx = Context::new(request, views, None);
+        let views = Arc::new(ViewEngine::from_directory("views"));
+        let mut ctx = Context::new(request, views);
 
         // Test inbound processing
         let action = middleware.process_request(&mut ctx).await.unwrap();
@@ -191,8 +191,8 @@ mod tests {
 
         // Create test context
         let request = Request::default();
-        let views = Arc::new(ViewEngine::from_directory("views").unwrap());
-        let mut ctx = Context::new(request, views, None);
+        let views = Arc::new(ViewEngine::from_directory("views"));
+        let mut ctx = Context::new(request, views);
 
         // Simulate inbound phase
         let start_time = Instant::now();
@@ -223,9 +223,9 @@ mod tests {
 
         // Create test context
         let mut request = Request::default();
-        request.uri = "/admin/dashboard".parse().unwrap();
-        let views = Arc::new(ViewEngine::from_directory("views").unwrap());
-        let mut ctx = Context::new(request, views, None);
+        request.uri = "/admin/dashboard".to_string();
+        let views = Arc::new(ViewEngine::from_directory("views"));
+        let mut ctx = Context::new(request, views);
 
         // Test without auth - should stop
         let action = middleware.process_request(&mut ctx).await.unwrap();

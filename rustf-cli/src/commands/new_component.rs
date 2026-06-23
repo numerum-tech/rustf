@@ -526,7 +526,8 @@ pub async fn generate_crud(name: String) -> Result<()> {
     println!("   1. Open src/modules/{}_service.rs and fill in the `create` and `update`", plural);
     println!("      field mappings marked with TODO — they need your schema's real field");
     println!("      names (the generated model's builder + setters are typed per-field).");
-    println!("   2. cargo run, then visit http://127.0.0.1:8000/{}", plural);
+    println!("   2. Update views/{}/{{new,edit,show}}.html to match the same schema fields.", plural);
+    println!("   3. cargo run, then visit http://127.0.0.1:8000/{}", plural);
 
     Ok(())
 }
