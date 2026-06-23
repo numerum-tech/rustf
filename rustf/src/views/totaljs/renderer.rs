@@ -1220,12 +1220,19 @@ impl RenderContext {
 pub type TemplateLoader = Box<dyn Fn(&str) -> Result<Arc<Template>> + Send + Sync>;
 
 /// Template renderer
+/// Maximum nesting depth for `@{view}` partial includes. A self-referential or
+/// cyclic include would otherwise recurse until the thread stack overflows,
+/// which aborts the whole process — this turns it into a clean template error.
+const MAX_PARTIAL_DEPTH: usize = 50;
+
 pub struct Renderer {
     context: RenderContext,
     /// Path to templates directory for loading partials
     template_path: Option<String>,
     /// Template loader function for loading partials
     template_loader: Option<Arc<TemplateLoader>>,
+    /// Current partial-include nesting depth (0 at the top-level template).
+    depth: usize,
 }
 
 impl Renderer {
@@ -1235,7 +1242,15 @@ impl Renderer {
             context,
             template_path: None,
             template_loader: None,
+            depth: 0,
         }
+    }
+
+    /// Set the partial-include nesting depth (used when rendering a partial so
+    /// the recursion guard accounts for the parent chain).
+    fn with_depth(mut self, depth: usize) -> Self {
+        self.depth = depth;
+        self
     }
 
     /// Set the template path for loading partials
@@ -1619,6 +1634,17 @@ impl Renderer {
             }
 
             Node::View { name, model } => {
+                // Guard against runaway recursion: a partial that includes
+                // itself (directly or through a cycle) would otherwise overflow
+                // the stack and abort the process. Bail with an error instead.
+                if self.depth >= MAX_PARTIAL_DEPTH {
+                    return Err(crate::error::Error::template(format!(
+                        "maximum @{{view}} include depth ({}) exceeded while including '{}' — \
+                         likely a recursive or cyclic partial",
+                        MAX_PARTIAL_DEPTH, name
+                    )));
+                }
+
                 // Try to use template loader first (uses cache)
                 if let Some(loader) = &self.template_loader {
                     match loader(name) {
@@ -1644,7 +1670,8 @@ impl Renderer {
                                 self.context.clone()
                             };
 
-                            let mut partial_renderer = Renderer::new(partial_context);
+                            let mut partial_renderer =
+                                Renderer::new(partial_context).with_depth(self.depth + 1);
 
                             if let Some(loader) = &self.template_loader {
                                 partial_renderer =
@@ -1667,8 +1694,13 @@ impl Renderer {
 
                 // Fallback to direct file system loading
                 if let Some(base_path) = &self.template_path {
-                    let partial_path =
-                        std::path::Path::new(base_path).join(format!("{}.html", name));
+                    // Apply the same traversal guard as the loader path — this
+                    // fallback reads from disk by name, so `@{view '../../x'}`
+                    // must not escape the views directory here either.
+                    let clean = name.strip_prefix('/').unwrap_or(name);
+                    let relative = format!("{}.html", clean);
+                    super::engine::reject_traversal(&relative)?;
+                    let partial_path = std::path::Path::new(base_path).join(&relative);
 
                     // Try to load the partial template
                     if let Ok(content) = std::fs::read_to_string(&partial_path) {
@@ -1698,7 +1730,8 @@ impl Renderer {
                                 };
 
                                 let mut partial_renderer = Renderer::new(partial_context)
-                                    .with_template_path(base_path.clone());
+                                    .with_template_path(base_path.clone())
+                                    .with_depth(self.depth + 1);
 
                                 // Pass along the template loader if available
                                 if let Some(loader) = &self.template_loader {

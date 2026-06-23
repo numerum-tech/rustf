@@ -133,10 +133,7 @@ impl OutboundMiddleware for LoggingMiddleware {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::AppConfig;
-    use crate::http::{Request, Response};
-    use crate::models::ModelRegistry;
-    use crate::session::{Session, SessionStore};
+    use crate::http::Request;
     use crate::views::ViewEngine;
     use std::sync::Arc;
 
@@ -149,10 +146,7 @@ mod tests {
         request.method = "GET".to_string();
         request.uri = "/test".to_string();
 
-        let session_store = SessionStore::new();
-        let session = session_store.get_or_create("test").await.unwrap();
         let views = Arc::new(ViewEngine::from_directory("views"));
-        let config = Arc::new(AppConfig::default());
 
         let mut ctx = Context::new(request, views);
 

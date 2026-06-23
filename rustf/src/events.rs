@@ -730,7 +730,7 @@ mod tests {
     #[tokio::test]
     async fn test_event_context() {
         let config = Arc::new(crate::config::AppConfig::default());
-        let ctx = EventContext::new("test".to_string(), config);
+        let _ctx = EventContext::new("test".to_string(), config);
 
         // Test environment detection
         std::env::set_var("NODE_ENV", "production");

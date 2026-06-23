@@ -205,7 +205,7 @@ impl OutboundMiddleware for CspMiddleware {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::http::{Request, Response};
+    use crate::http::Request;
     use crate::views::ViewEngine;
     use std::sync::Arc;
 

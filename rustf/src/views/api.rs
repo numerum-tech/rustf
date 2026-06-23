@@ -224,7 +224,7 @@ mod tests {
     fn test_initialize_global_view() {
         // This test demonstrates initialization but we can't actually test it
         // in unit tests due to OnceLock behavior (can only be set once globally)
-        let engine = setup_test_engine();
+        let _engine = setup_test_engine();
 
         // In a real app, this would be called once in main.rs
         // let result = initialize_global_view(engine);

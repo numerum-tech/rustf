@@ -260,7 +260,7 @@ impl StaticFileMiddleware {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::{TimeZone, Utc};
+    use chrono::TimeZone;
     use std::fs;
     use tempfile::TempDir;
 
