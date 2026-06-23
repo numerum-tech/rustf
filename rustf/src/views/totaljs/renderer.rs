@@ -429,6 +429,38 @@ impl RenderContext {
             .or_else(|| Self::get_nested_value(self.conf(), &format!("views.{}", key)))
     }
 
+    fn resolve_dotted_base<'a>(&'a self, base: &str) -> Option<DottedValueRef<'a>> {
+        match base {
+            "CONF" => Some(DottedValueRef::borrowed(self.conf())),
+            "repository" | "R" => Some(DottedValueRef::borrowed(self.repository())),
+            "session" => Some(DottedValueRef::borrowed(self.session())),
+            "query" => Some(DottedValueRef::borrowed(self.query())),
+            "user" => Some(DottedValueRef::borrowed(self.user())),
+            "model" | "M" => Some(DottedValueRef::borrowed(&self.data)),
+            "flash" => self
+                .session()
+                .get("flash")
+                .map(DottedValueRef::borrowed)
+                .or_else(|| Some(DottedValueRef::owned(Value::Null))),
+            "url" => Some(DottedValueRef::owned(Value::String(self.url().to_string()))),
+            "hostname" => Some(DottedValueRef::owned(Value::String(
+                self.hostname().to_string(),
+            ))),
+            "root" => Some(DottedValueRef::owned(Value::String(self.resolve_root()))),
+            _ => {
+                for loop_ctx in self.loop_stack.iter().rev() {
+                    if loop_ctx.item_name == base && loop_ctx.current_index < loop_ctx.items.len() {
+                        return Some(DottedValueRef::borrowed(
+                            &loop_ctx.items[loop_ctx.current_index],
+                        ));
+                    }
+                }
+
+                self.locals.get(base).map(DottedValueRef::borrowed)
+            }
+        }
+    }
+
     /// Get current loop index
     fn get_loop_index(&self) -> Option<usize> {
         self.loop_stack.last().map(|ctx| ctx.current_index)
@@ -792,114 +824,87 @@ impl RenderContext {
             }
 
             // Get the base value using the same priority order
-            let base_value = {
-                // Check for framework globals first
-                if base == "CONF" {
-                    self.conf().clone()
-                } else if base == "repository" {
-                    self.repository().clone()
-                } else if base == "session" {
-                    self.session().clone()
-                } else if base == "flash" {
-                    // Handle flash.xxx as an alias to session.flash.xxx
-                    if let Value::Object(session_map) = self.session() {
-                        if let Some(flash_value) = session_map.get("flash") {
-                            flash_value.clone()
-                        } else {
-                            Value::Null
-                        }
-                    } else {
-                        Value::Null
-                    }
-                } else if base == "query" {
-                    self.query().clone()
-                } else if base == "user" {
-                    self.user().clone()
-                } else if base == "url" {
-                    Value::String(self.url().to_string())
-                } else if base == "hostname" {
-                    Value::String(self.hostname().to_string())
-                } else if base == "root" {
-                    Value::String(self.resolve_root())
-                } else if base == "M" || base == "model" {
-                    // Handle M.field or model.field access
-                    self.data.clone()
-                } else if base == "R" {
-                    // Handle R.field (repository) access
-                    self.repository().clone()
-                } else {
-                    // Check loop variables then locals, then data
-                    let mut found = None;
-                    for loop_ctx in self.loop_stack.iter().rev() {
-                        if loop_ctx.item_name == base
-                            && loop_ctx.current_index < loop_ctx.items.len()
-                        {
-                            found = Some(loop_ctx.items[loop_ctx.current_index].clone());
-                            break;
-                        }
-                    }
-
-                    if let Some(v) = found {
-                        v
-                    } else if let Some(value) = self.locals.get(base) {
-                        value.clone()
-                    } else {
-                        // No fallback to model data - unknown base names are not allowed
-                        // Only known prefixes (repository, R, model, M, session, etc.) are permitted
-                        Value::Null
-                    }
+            if let Some(base_value) = self.resolve_dotted_base(base) {
+                if let Some(value) = Self::get_nested_value(base_value.value(), &rest) {
+                    return value;
                 }
-            };
-
-            // Now get the nested value
-            if let Some(value) = Self::get_nested_value(&base_value, &rest) {
-                return value;
             }
         }
 
         Value::Null
     }
 
-    /// Get nested value from a JSON object
-    fn get_nested_value(data: &Value, path: &str) -> Option<Value> {
-        let parts: Vec<&str> = path.split('.').collect();
+    fn get_nested_value_ref<'a>(data: &'a Value, path: &str) -> Option<&'a Value> {
+        if path.is_empty() {
+            return Some(data);
+        }
+
         let mut current = data;
 
-        for part in parts {
+        for part in path.split('.') {
             match current {
                 Value::Object(map) => {
                     current = map.get(part)?;
                 }
                 Value::Array(arr) => {
-                    // Handle array properties like 'length' or numeric indexes
-                    match part {
-                        "length" | "size" => {
-                            return Some(Value::Number(serde_json::Number::from(arr.len())));
-                        }
-                        _ => {
-                            // Try to parse as index
-                            if let Ok(index) = part.parse::<usize>() {
-                                current = arr.get(index)?;
-                            } else {
-                                return None;
-                            }
-                        }
+                    if matches!(part, "length" | "size") {
+                        return None;
                     }
-                }
-                Value::String(s) => {
-                    // Handle string properties like 'length'
-                    match part {
-                        "length" | "size" => {
-                            return Some(Value::Number(serde_json::Number::from(s.len())));
-                        }
-                        _ => return None,
-                    }
+
+                    let index = part.parse::<usize>().ok()?;
+                    current = arr.get(index)?;
                 }
                 _ => return None,
             }
         }
 
-        Some(current.clone())
+        Some(current)
+    }
+
+    /// Get nested value from a JSON object
+    fn get_nested_value(data: &Value, path: &str) -> Option<Value> {
+        if let Some(value) = Self::get_nested_value_ref(data, path) {
+            return Some(value.clone());
+        }
+
+        match data {
+            Value::Array(arr) if matches!(path, "length" | "size") => {
+                Some(Value::Number(serde_json::Number::from(arr.len())))
+            }
+            Value::String(s) if matches!(path, "length" | "size") => {
+                Some(Value::Number(serde_json::Number::from(s.len())))
+            }
+            _ => {
+                let parts: Vec<&str> = path.split('.').collect();
+                let mut current = data;
+
+                for part in parts {
+                    match current {
+                        Value::Object(map) => {
+                            current = map.get(part)?;
+                        }
+                        Value::Array(arr) => match part {
+                            "length" | "size" => {
+                                return Some(Value::Number(serde_json::Number::from(arr.len())));
+                            }
+                            _ => {
+                                let index = part.parse::<usize>().ok()?;
+                                current = arr.get(index)?;
+                            }
+                        },
+                        Value::String(s) => match part {
+                            "length" | "size" => {
+                                return Some(Value::Number(serde_json::Number::from(s.len())));
+                            }
+                            _ => return None,
+                        },
+                        _ => return None,
+                    }
+                }
+
+                Some(current.clone())
+            }
+        }
     }
 
     /// Evaluate an expression to a value
@@ -1343,12 +1348,34 @@ pub struct Renderer {
 }
 
 struct RenderStateSnapshot {
-    data: Value,
+    data: Option<Value>,
     locals: HashMap<String, Value>,
     loop_stack: Vec<LoopContext>,
     helpers: HashMap<String, Helper>,
     sections: HashMap<String, Vec<Node>>,
     depth: usize,
+}
+
+enum DottedValueRef<'a> {
+    Borrowed(&'a Value),
+    Owned(Value),
+}
+
+impl<'a> DottedValueRef<'a> {
+    fn borrowed(root: &'a Value) -> Self {
+        Self::Borrowed(root)
+    }
+
+    fn owned(value: Value) -> Self {
+        Self::Owned(value)
+    }
+
+    fn value(&self) -> &Value {
+        match self {
+            Self::Borrowed(value) => value,
+            Self::Owned(value) => value,
+        }
+    }
 }
 
 impl Renderer {
@@ -1411,19 +1438,10 @@ impl Renderer {
         self.context.translator = translator;
     }
 
-    fn snapshot_state(&self) -> RenderStateSnapshot {
-        RenderStateSnapshot {
-            data: self.context.data.clone(),
-            locals: self.context.locals.clone(),
-            loop_stack: self.context.loop_stack.clone(),
-            helpers: self.context.helpers.clone(),
-            sections: self.context.sections.clone(),
-            depth: self.depth,
-        }
-    }
-
     fn restore_state(&mut self, snapshot: RenderStateSnapshot) {
-        self.context.data = snapshot.data;
+        if let Some(data) = snapshot.data {
+            self.context.data = data;
+        }
         self.context.locals = snapshot.locals;
         self.context.loop_stack = snapshot.loop_stack;
         self.context.helpers = snapshot.helpers;
@@ -1436,15 +1454,15 @@ impl Renderer {
         template: &Template,
         model: Option<Value>,
     ) -> Result<String> {
-        let snapshot = self.snapshot_state();
+        let snapshot = RenderStateSnapshot {
+            data: model.map(|model| std::mem::replace(&mut self.context.data, model)),
+            locals: std::mem::take(&mut self.context.locals),
+            loop_stack: std::mem::take(&mut self.context.loop_stack),
+            helpers: self.context.helpers.clone(),
+            sections: std::mem::take(&mut self.context.sections),
+            depth: self.depth,
+        };
         self.depth += 1;
-
-        if let Some(model) = model {
-            self.context.data = model;
-            self.context.locals.clear();
-            self.context.loop_stack.clear();
-            self.context.sections.clear();
-        }
 
         let result = self.render(template);
         self.restore_state(snapshot);
@@ -1452,10 +1470,14 @@ impl Renderer {
     }
 
     pub fn render_layout_template(&mut self, template: &Template, data: Value) -> Result<String> {
-        let snapshot = self.snapshot_state();
-        self.context.data = data;
-        self.context.locals.clear();
-        self.context.loop_stack.clear();
+        let snapshot = RenderStateSnapshot {
+            data: Some(std::mem::replace(&mut self.context.data, data)),
+            locals: std::mem::take(&mut self.context.locals),
+            loop_stack: std::mem::take(&mut self.context.loop_stack),
+            helpers: self.context.helpers.clone(),
+            sections: self.context.sections.clone(),
+            depth: self.depth,
+        };
         self.depth = 0;
 
         let result = self.render(template);

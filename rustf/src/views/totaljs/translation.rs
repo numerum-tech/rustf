@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::sync::Arc;
 
 /// Translation system for Total.js templates
 #[derive(Clone, Debug)]
@@ -11,6 +12,10 @@ pub struct TranslationSystem {
 
     /// Fallback language when translation not found
     fallback_language: String,
+
+    /// Fast path for view-specific merged translations already resolved to a
+    /// single language/fallback result.
+    direct_translations: Option<Arc<HashMap<String, String>>>,
 }
 
 impl TranslationSystem {
@@ -20,6 +25,17 @@ impl TranslationSystem {
             current_language: "en".to_string(),
             translations: HashMap::new(),
             fallback_language: "en".to_string(),
+            direct_translations: None,
+        }
+    }
+
+    /// Create a translation system from an already-merged per-view map.
+    pub fn from_view_translations(translations: Arc<HashMap<String, String>>) -> Self {
+        Self {
+            current_language: "current".to_string(),
+            translations: HashMap::new(),
+            fallback_language: "current".to_string(),
+            direct_translations: Some(translations),
         }
     }
 
@@ -53,6 +69,13 @@ impl TranslationSystem {
 
     /// Translate a key
     pub fn translate_key(&self, key: &str) -> String {
+        if let Some(translations) = &self.direct_translations {
+            return translations
+                .get(key)
+                .cloned()
+                .unwrap_or_else(|| format!("[{}]", key));
+        }
+
         // Try current language
         if let Some(lang_translations) = self.translations.get(&self.current_language) {
             if let Some(translation) = lang_translations.get(key) {
@@ -75,6 +98,13 @@ impl TranslationSystem {
 
     /// Translate text (simple text-based translation)
     pub fn translate_text(&self, text: &str) -> String {
+        if let Some(translations) = &self.direct_translations {
+            return translations
+                .get(text)
+                .cloned()
+                .unwrap_or_else(|| text.to_string());
+        }
+
         // For text translation, we use the text itself as the key
         // This is a simplified approach - in production you might want
         // to use more sophisticated text matching
