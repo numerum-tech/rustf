@@ -120,14 +120,10 @@ impl TemplateCache {
 pub struct TotalJsEngine {
     source: TemplateSource,
     cache: TemplateCache,
-    /// Global configuration (legacy - for backward compatibility)
-    config: Arc<RwLock<HashMap<String, String>>>,
-    /// Full application configuration for CONF global
-    app_config: Option<Arc<AppConfig>>,
     /// Cached JSON representation of CONF to avoid re-serializing config every render.
-    conf_value: Arc<RwLock<Value>>,
+    conf_value: Arc<RwLock<Arc<Value>>>,
     /// Translation system (legacy JSON-based)
-    translator: Arc<RwLock<Option<TranslationSystem>>>,
+    translator: Arc<RwLock<Option<Arc<TranslationSystem>>>>,
     /// Resource translation system (new .res file based)
     resource_translator: Arc<RwLock<Option<ResourceTranslationSystem>>>,
     /// Whether to minify rendered HTML output
@@ -148,22 +144,45 @@ struct TemplateAsset {
     version: Option<String>,
 }
 
-fn config_to_conf_value(config: &HashMap<String, String>) -> Value {
+fn conf_from_view_config(view_config: Option<&ViewConfig>, cache_enabled: bool) -> Arc<Value> {
+    let mut root = serde_json::Map::new();
+    if let Some(vc) = view_config {
+        let mut views = serde_json::Map::new();
+        views.insert(
+            "default_root".to_string(),
+            Value::String(vc.default_root.clone()),
+        );
+        views.insert(
+            "default_layout".to_string(),
+            Value::String(vc.default_layout.clone()),
+        );
+        views.insert("cache_enabled".to_string(), Value::Bool(cache_enabled));
+        root.insert("views".to_string(), Value::Object(views));
+    }
+    Arc::new(Value::Object(root))
+}
+
+fn conf_from_app_config(app_config: &AppConfig) -> Arc<Value> {
+    Arc::new(
+        serde_json::to_value(app_config).unwrap_or_else(|_| Value::Object(serde_json::Map::new())),
+    )
+}
+
+fn conf_from_flat_config(config: &std::collections::HashMap<String, String>) -> Arc<Value> {
     let mut conf_obj = serde_json::Map::new();
     for (key, value) in config {
         conf_obj.insert(key.clone(), Value::String(value.clone()));
     }
-    Value::Object(conf_obj)
+    Arc::new(Value::Object(conf_obj))
 }
 
-fn build_conf_value(
-    config: &HashMap<String, String>,
-    app_config: Option<&Arc<AppConfig>>,
-) -> Value {
-    if let Some(app_config) = app_config {
-        serde_json::to_value(app_config.as_ref()).unwrap_or_else(|_| config_to_conf_value(config))
-    } else {
-        config_to_conf_value(config)
+fn set_conf_entry(conf: &mut Value, key: &str, value: Value) {
+    if !conf.is_object() {
+        *conf = Value::Object(serde_json::Map::new());
+    }
+
+    if let Value::Object(map) = conf {
+        map.insert(key.to_string(), value);
     }
 }
 
@@ -273,26 +292,14 @@ impl TotalJsEngine {
             (cfg!(debug_assertions), !cfg!(debug_assertions))
         };
 
-        let mut config = HashMap::new();
-
-        // If ViewConfig provided, extract relevant settings
-        if let Some(vc) = view_config {
-            config.insert("default_root".to_string(), vc.default_root.clone());
-            config.insert("default_layout".to_string(), vc.default_layout.clone());
-            config.insert("cache_enabled".to_string(), cache_enabled.to_string());
-        }
-
         let minify = view_config.map(|vc| vc.minify).unwrap_or(false);
-
-        let conf_value = build_conf_value(&config, None);
+        let conf_value = conf_from_view_config(view_config, cache_enabled);
 
         Self {
             source: TemplateSource::Filesystem {
                 base_dir: PathBuf::from(base_dir),
             },
             cache: TemplateCache::new(enable_hot_reload),
-            config: Arc::new(RwLock::new(config)),
-            app_config: None,
             conf_value: Arc::new(RwLock::new(conf_value)),
             translator: Arc::new(RwLock::new(None)),
             resource_translator: Arc::new(RwLock::new(None)),
@@ -309,33 +316,14 @@ impl TotalJsEngine {
         // This eliminates blocking filesystem operations on every render
         let trust_cache = app_config.views.cache_enabled && app_config.environment.is_production();
 
-        let mut config = HashMap::new();
-
-        // Extract view-specific settings for backward compatibility
-        config.insert(
-            "default_root".to_string(),
-            app_config.views.default_root.clone(),
-        );
-        config.insert(
-            "default_layout".to_string(),
-            app_config.views.default_layout.clone(),
-        );
-        config.insert(
-            "cache_enabled".to_string(),
-            app_config.views.cache_enabled.to_string(),
-        );
-
         let minify = app_config.views.minify;
-
-        let conf_value = build_conf_value(&config, Some(&app_config));
+        let conf_value = conf_from_app_config(app_config.as_ref());
 
         Self {
             source: TemplateSource::Filesystem {
                 base_dir: PathBuf::from(base_dir),
             },
             cache: TemplateCache::new_with_trust_cache(enable_hot_reload, trust_cache),
-            config: Arc::new(RwLock::new(config)),
-            app_config: Some(app_config),
             conf_value: Arc::new(RwLock::new(conf_value)),
             translator: Arc::new(RwLock::new(None)),
             resource_translator: Arc::new(RwLock::new(None)),
@@ -356,22 +344,12 @@ impl TotalJsEngine {
             (cfg!(debug_assertions), !cfg!(debug_assertions))
         };
 
-        let mut config = HashMap::new();
-        if let Some(vc) = view_config {
-            config.insert("default_root".to_string(), vc.default_root.clone());
-            config.insert("default_layout".to_string(), vc.default_layout.clone());
-            config.insert("cache_enabled".to_string(), cache_enabled.to_string());
-        }
-
         let minify = view_config.map(|vc| vc.minify).unwrap_or(false);
-
-        let conf_value = build_conf_value(&config, None);
+        let conf_value = conf_from_view_config(view_config, cache_enabled);
 
         Self {
             source: TemplateSource::Embedded,
             cache: TemplateCache::new(enable_hot_reload),
-            config: Arc::new(RwLock::new(config)),
-            app_config: None,
             conf_value: Arc::new(RwLock::new(conf_value)),
             translator: Arc::new(RwLock::new(None)),
             resource_translator: Arc::new(RwLock::new(None)),
@@ -384,29 +362,12 @@ impl TotalJsEngine {
         let enable_hot_reload = !app_config.views.cache_enabled;
         let trust_cache = app_config.views.cache_enabled && app_config.environment.is_production();
 
-        let mut config = HashMap::new();
-        config.insert(
-            "default_root".to_string(),
-            app_config.views.default_root.clone(),
-        );
-        config.insert(
-            "default_layout".to_string(),
-            app_config.views.default_layout.clone(),
-        );
-        config.insert(
-            "cache_enabled".to_string(),
-            app_config.views.cache_enabled.to_string(),
-        );
-
         let minify = app_config.views.minify;
-
-        let conf_value = build_conf_value(&config, Some(&app_config));
+        let conf_value = conf_from_app_config(app_config.as_ref());
 
         Self {
             source: TemplateSource::Embedded,
             cache: TemplateCache::new_with_trust_cache(enable_hot_reload, trust_cache),
-            config: Arc::new(RwLock::new(config)),
-            app_config: Some(app_config),
             conf_value: Arc::new(RwLock::new(conf_value)),
             translator: Arc::new(RwLock::new(None)),
             resource_translator: Arc::new(RwLock::new(None)),
@@ -434,19 +395,16 @@ impl TotalJsEngine {
     }
 
     /// Set global configuration
-    pub fn set_config(&self, config: HashMap<String, String>) {
-        if let Ok(mut cfg) = self.config.write() {
-            *cfg = config;
-            if let Ok(mut conf) = self.conf_value.write() {
-                *conf = build_conf_value(&cfg, self.app_config.as_ref());
-            }
+    pub fn set_config(&self, config: std::collections::HashMap<String, String>) {
+        if let Ok(mut conf) = self.conf_value.write() {
+            *conf = conf_from_flat_config(&config);
         }
     }
 
     /// Set translation system (legacy JSON-based)
     pub fn set_translator(&self, translator: TranslationSystem) {
         if let Ok(mut trans) = self.translator.write() {
-            *trans = Some(translator);
+            *trans = Some(Arc::new(translator));
         }
     }
 
@@ -478,35 +436,17 @@ impl TotalJsEngine {
     }
 
     pub fn set_config_value(&self, key: &str, value: &str) {
-        if let Ok(mut config) = self.config.write() {
-            config.insert(key.to_string(), value.to_string());
-            if let Ok(mut conf) = self.conf_value.write() {
-                *conf = build_conf_value(&config, self.app_config.as_ref());
-            }
+        if let Ok(mut conf) = self.conf_value.write() {
+            let conf_value = Arc::make_mut(&mut *conf);
+            set_conf_entry(conf_value, key, Value::String(value.to_string()));
         }
     }
 
     /// Set the full application configuration
     pub fn set_app_config(&mut self, app_config: Arc<AppConfig>) {
-        // Update the legacy config HashMap for backward compatibility
-        if let Ok(mut cfg) = self.config.write() {
-            cfg.insert(
-                "default_root".to_string(),
-                app_config.views.default_root.clone(),
-            );
-            cfg.insert(
-                "default_layout".to_string(),
-                app_config.views.default_layout.clone(),
-            );
-            cfg.insert(
-                "cache_enabled".to_string(),
-                app_config.views.cache_enabled.to_string(),
-            );
-            if let Ok(mut conf) = self.conf_value.write() {
-                *conf = build_conf_value(&cfg, Some(&app_config));
-            }
+        if let Ok(mut conf) = self.conf_value.write() {
+            *conf = conf_from_app_config(app_config.as_ref());
         }
-        self.app_config = Some(app_config);
     }
 
     fn normalized_template_path(&self, template: &str) -> Result<String> {
@@ -630,31 +570,21 @@ impl TotalJsEngine {
     ) -> RenderContext {
         let mut context = RenderContext::new(data.clone());
 
-        // Add global repository (APP/MAIN)
-        if let Some(repo) = APP::get_repository() {
-            if let Ok(data) = repo.read() {
-                context = context.with_global_repository(data.clone());
-            }
-        }
+        context = context.with_global_repository_handle(APP::get_repository());
 
         // Add context repository if provided (repository/R)
         if let Some(ctx_repo) = context_repository {
             context = context.with_repository(ctx_repo.clone());
         }
 
-        // Add global config
-        if let Ok(cfg) = self.config.read() {
-            context = context.with_config(cfg.clone());
-        }
-
         if let Ok(conf) = self.conf_value.read() {
-            context = context.with_conf(conf.clone());
+            context = context.with_shared_conf(Arc::clone(&*conf));
         }
 
         // Add translator if available
         if let Ok(trans) = self.translator.read() {
             if let Some(translator) = trans.as_ref() {
-                context = context.with_translator(translator.clone());
+                context = context.with_shared_translator(Arc::clone(translator));
             }
         }
 
@@ -735,7 +665,7 @@ impl TotalJsEngine {
             }
         } else if let Ok(trans) = self.translator.read() {
             if let Some(translator) = trans.as_ref() {
-                context.with_translator(translator.clone())
+                context.with_shared_translator(Arc::clone(translator))
             } else {
                 context
             }
@@ -771,58 +701,38 @@ impl TotalJsEngine {
                 layout_data = Value::Object(map);
             }
 
-            let mut layout_context =
-                self.create_context(&layout_data, context_repository, session_data);
-            if let Some(req) = request {
-                layout_context = layout_context
-                    .with_url(req.url.clone())
-                    .with_hostname(req.hostname.clone())
-                    .with_mobile(req.mobile);
-            }
-
-            // Transfer child template sections to layout context
-            // This allows child views to define sections that parent layouts can render
-            layout_context = layout_context.with_sections(template_ast.sections.clone());
+            // Transfer child template sections to the request renderer so the
+            // layout can render them as fallbacks/overrides.
+            renderer.merge_sections(&template_ast.sections);
 
             // Carry the view's page title/description into the layout so
             // @{title} / @{description} resolve there.
             if let Some(ref t) = page_title {
-                layout_context.set_title(t.clone());
+                renderer.set_meta_title(t);
             }
             if let Some(ref d) = page_description {
-                layout_context.set_description(d.clone());
+                renderer.set_meta_description(d);
             }
 
-            // Create template loader for layout (handles fs + embedded).
-            let loader: TemplateLoader = self.build_loader();
-
-            // Add translator to layout context
-            let layout_context = if let Ok(trans) = self.resource_translator.read() {
+            // Switch translator for the layout render when resource-specific
+            // translations are available.
+            let saved_translator = renderer.translator_handle();
+            if let Ok(trans) = self.resource_translator.read() {
                 if let Some(resource_trans) = trans.as_ref() {
                     let view_translations = resource_trans.get_view_translations(layout_name);
                     let mut legacy_trans = TranslationSystem::new();
                     legacy_trans.add_translations("current", (*view_translations).clone());
-                    layout_context.with_translator(legacy_trans)
-                } else {
-                    layout_context
+                    renderer.set_shared_translator(Some(Arc::new(legacy_trans)));
                 }
             } else if let Ok(trans) = self.translator.read() {
                 if let Some(translator) = trans.as_ref() {
-                    layout_context.with_translator(translator.clone())
-                } else {
-                    layout_context
+                    renderer.set_shared_translator(Some(Arc::clone(translator)));
                 }
-            } else {
-                layout_context
-            };
-
-            let mut layout_renderer =
-                Renderer::new(layout_context).with_template_loader(Arc::new(loader));
-            if let Some(path) = self.template_root_for_renderer() {
-                layout_renderer = layout_renderer.with_template_path(path);
             }
 
-            layout_renderer.render(&layout_ast)
+            let result = renderer.render_layout_template(&layout_ast, layout_data);
+            renderer.set_shared_translator(saved_translator);
+            result
         } else {
             Ok(content)
         }
