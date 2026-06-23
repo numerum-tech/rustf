@@ -21,7 +21,7 @@ cargo run
 ### Development Commands
 
 ```bash
-# Run in development mode with hot reloading
+# Run in development mode
 cargo run
 
 # Build for production
@@ -52,13 +52,13 @@ This project follows RustF's convention-over-configuration approach:
 - `src/middleware/` - Custom middleware components
 
 ### Views and Assets
-- `views/` - HTML templates (Tera template engine)
+- `views/` - HTML templates (Total.js template engine)
   - `views/layouts/` - Layout templates
 - `public/` - Static assets (CSS, JavaScript, images)
 
 ### Data and Storage  
 - `schemas/` - Data model definitions (YAML format)
-- `uploads/` - File upload storage (gitignored)
+- `private/uploads/` - Private file upload storage (gitignored)
 
 ## 🤖 AI-Friendly Development
 
@@ -79,15 +79,15 @@ This project is optimized for AI coding assistants:
 
 - **Total.js-inspired API**: Familiar `ctx.param()`, `ctx.json()`, `ctx.view()` patterns
 - **Auto-Discovery**: Automatic registration of controllers, models, and middleware
-- **Built-in Middleware**: Logging, CORS, rate limiting, and security headers
+- **Built-in Middleware**: Logging, CORS, rate limiting, CSRF, plus custom middleware
 - **Session Management**: Flash messages and persistent session data
-- **Template Engine**: Tera-based views with layout support
+- **Template Engine**: Total.js-style views with layout support
 - **Static File Serving**: Efficient asset delivery
 - **Configuration**: File-based, environment, or programmatic configuration
 
 ## 📖 Documentation
 
-- Framework documentation: [RustF Documentation](https://docs.rs/rustf)
+- Framework documentation: [RustF Book](https://numerum-tech.github.io/rustf/)
 - Each directory contains detailed READMEs with AI-friendly guidance
 - Check `src/controllers/README.md` for controller patterns
 - Check `src/models/README.md` for model development

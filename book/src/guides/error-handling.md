@@ -796,4 +796,4 @@ Key takeaways:
 - Never expose sensitive information in error messages
 - Test error conditions thoroughly
 
-For more information, see the [API documentation](https://docs.rs/rustf) or the [examples](https://github.com/rustf/examples) repository.
+For more information, see the [Context API reference](../api-reference/context.md) and the [Examples section](../examples/README.md).
