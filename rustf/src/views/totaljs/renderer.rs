@@ -6,7 +6,7 @@ use crate::error::Result;
 use crate::security::HtmlEscaper;
 use serde_json::Value;
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, RwLock};
 
 /// Loop control flow state
 #[derive(Debug, Clone, PartialEq)]
@@ -21,32 +21,11 @@ pub struct RenderContext {
     /// Template data (model)
     pub data: Value,
 
-    /// Global repository data (APP/MAIN - shared across all requests)
-    pub global_repository: Value,
+    /// Application-wide immutable render state.
+    app_state: Arc<AppViewState>,
 
-    /// Context repository data (repository/R - per-request)
-    pub repository: Value,
-
-    /// Session data
-    pub session: Value,
-
-    /// Query parameters
-    pub query: Value,
-
-    /// User data
-    pub user: Value,
-
-    /// Configuration values
-    pub config: HashMap<String, String>,
-
-    /// Framework configuration (CONF global)
-    pub conf: Value,
-
-    /// Current request URL path
-    pub url: String,
-
-    /// Current hostname (e.g., "https://example.com")
-    pub hostname: String,
+    /// Request-scoped shared render state.
+    request_state: Arc<RequestViewState>,
 
     /// Loop context (for nested loops)
     loop_stack: Vec<LoopContext>,
@@ -64,7 +43,7 @@ pub struct RenderContext {
     functions: HashMap<String, Box<dyn Fn(&[Value]) -> Value + Send + Sync>>,
 
     /// Translation system
-    translator: Option<TranslationSystem>,
+    translator: Option<Arc<TranslationSystem>>,
 
     /// Page title set via @{title('value')} (deferred meta data). Shared via
     /// `Arc` across cloned contexts so partials — and the layout, once the
@@ -74,10 +53,58 @@ pub struct RenderContext {
     /// Page description set via @{description('value')} (deferred meta data),
     /// read back via @{description}. Shared like `meta_title`.
     meta_description: Arc<std::sync::Mutex<Option<String>>>,
+}
 
-    /// Whether the request comes from a mobile device (User-Agent based).
-    /// Exposed to templates as the boolean `@{mobile}`.
+#[derive(Clone)]
+struct AppViewState {
+    /// Framework configuration (CONF global, immutable after startup)
+    conf: Arc<Value>,
+    /// Live application-wide repository handle (APP/MAIN)
+    global_repository: Option<Arc<RwLock<Value>>>,
+}
+
+impl Default for AppViewState {
+    fn default() -> Self {
+        Self {
+            conf: Arc::new(Value::Object(serde_json::Map::new())),
+            global_repository: None,
+        }
+    }
+}
+
+#[derive(Clone)]
+struct RequestViewState {
+    /// Context repository data (repository/R - per-request)
+    repository: Arc<Value>,
+    /// Session data
+    session: Arc<Value>,
+    /// Query parameters
+    query: Arc<Value>,
+    /// User data
+    user: Arc<Value>,
+    /// Current request URL path
+    url: Arc<str>,
+    /// Current hostname (e.g., "https://example.com")
+    hostname: Arc<str>,
+    /// Whether the request comes from a mobile device
     mobile: bool,
+    /// Per-render cache of resolved APP/MAIN/PREF paths.
+    app_value_cache: Arc<Mutex<HashMap<String, Value>>>,
+}
+
+impl Default for RequestViewState {
+    fn default() -> Self {
+        Self {
+            repository: Arc::new(Value::Object(serde_json::Map::new())),
+            session: Arc::new(Value::Object(serde_json::Map::new())),
+            query: Arc::new(Value::Object(serde_json::Map::new())),
+            user: Arc::new(Value::Null),
+            url: Arc::from("/"),
+            hostname: Arc::from("localhost"),
+            mobile: false,
+            app_value_cache: Arc::new(Mutex::new(HashMap::new())),
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -91,24 +118,16 @@ impl Clone for RenderContext {
     fn clone(&self) -> Self {
         let mut new_context = Self {
             data: self.data.clone(),
-            global_repository: self.global_repository.clone(),
-            repository: self.repository.clone(),
-            session: self.session.clone(),
-            query: self.query.clone(),
-            user: self.user.clone(),
-            config: self.config.clone(),
-            conf: self.conf.clone(),
+            app_state: Arc::clone(&self.app_state),
+            request_state: Arc::clone(&self.request_state),
             functions: HashMap::new(), // We'll re-register functions below
             translator: self.translator.clone(),
-            url: self.url.clone(),
-            hostname: self.hostname.clone(),
             loop_stack: self.loop_stack.clone(),
             locals: self.locals.clone(),
             sections: self.sections.clone(),
             helpers: self.helpers.clone(),
             meta_title: self.meta_title.clone(),
             meta_description: self.meta_description.clone(),
-            mobile: self.mobile,
         };
 
         // Re-register built-in functions for the cloned context
@@ -130,15 +149,8 @@ impl RenderContext {
 
         let mut context = Self {
             data,
-            global_repository: Value::Object(serde_json::Map::new()),
-            repository: Value::Object(serde_json::Map::new()),
-            session: Value::Object(serde_json::Map::new()),
-            query: Value::Object(serde_json::Map::new()),
-            user: Value::Null,
-            config: HashMap::new(),
-            conf: Value::Object(serde_json::Map::new()),
-            url: "/".to_string(),
-            hostname: "localhost".to_string(),
+            app_state: Arc::new(AppViewState::default()),
+            request_state: Arc::new(RequestViewState::default()),
             loop_stack: Vec::new(),
             locals: HashMap::new(),
             sections: HashMap::new(),
@@ -147,12 +159,10 @@ impl RenderContext {
             translator: None,
             meta_title: Arc::new(std::sync::Mutex::new(None)),
             meta_description: Arc::new(std::sync::Mutex::new(None)),
-            mobile: false,
         };
 
         // Register context-aware functions
-        let url = context.url.clone();
-        let _hostname = context.hostname.clone();
+        let url = context.request_state.url.to_string();
         context.functions.insert(
             "url".to_string(),
             Box::new(move |args| {
@@ -175,19 +185,29 @@ impl RenderContext {
 
     /// Set global repository data (APP/MAIN - shared across all requests)
     pub fn with_global_repository(mut self, global_repository: Value) -> Self {
-        self.global_repository = global_repository;
+        Arc::make_mut(&mut self.app_state).global_repository =
+            Some(Arc::new(RwLock::new(global_repository)));
+        self
+    }
+
+    /// Set a live global repository handle (APP/MAIN - shared across all requests).
+    pub fn with_global_repository_handle(
+        mut self,
+        global_repository: Option<Arc<RwLock<Value>>>,
+    ) -> Self {
+        Arc::make_mut(&mut self.app_state).global_repository = global_repository;
         self
     }
 
     /// Set context repository data (repository/R - per-request)
     pub fn with_repository(mut self, repository: Value) -> Self {
-        self.repository = repository;
+        Arc::make_mut(&mut self.request_state).repository = Arc::new(repository);
         self
     }
 
     /// Set session data
     pub fn with_session(mut self, session: Value) -> Self {
-        self.session = session;
+        Arc::make_mut(&mut self.request_state).session = Arc::new(session);
         self
     }
 
@@ -219,7 +239,7 @@ impl RenderContext {
     /// `/` removed (Total.js semantics). Falls back to a top-level `default_root`
     /// key (legacy config) and finally to an empty string.
     fn resolve_root(&self) -> String {
-        let raw = if let Value::Object(conf) = &self.conf {
+        let raw = if let Value::Object(conf) = self.app_state.conf.as_ref() {
             conf.get("views")
                 .and_then(|v| v.get("default_root"))
                 .and_then(|v| v.as_str())
@@ -233,34 +253,33 @@ impl RenderContext {
 
     /// Set query parameters
     pub fn with_query(mut self, query: Value) -> Self {
-        self.query = query;
+        Arc::make_mut(&mut self.request_state).query = Arc::new(query);
         self
     }
 
     /// Set user data
     pub fn with_user(mut self, user: Value) -> Self {
-        self.user = user;
-        self
-    }
-
-    /// Add configuration values
-    pub fn with_config(mut self, config: HashMap<String, String>) -> Self {
-        self.config = config;
+        Arc::make_mut(&mut self.request_state).user = Arc::new(user);
         self
     }
 
     /// Set framework configuration (CONF global)
     pub fn with_conf(mut self, conf: Value) -> Self {
-        self.conf = conf;
+        Arc::make_mut(&mut self.app_state).conf = Arc::new(conf);
+        self
+    }
+
+    /// Set framework configuration (CONF global) from a shared app-global snapshot.
+    pub fn with_shared_conf(mut self, conf: Arc<Value>) -> Self {
+        Arc::make_mut(&mut self.app_state).conf = conf;
         self
     }
 
     /// Set current URL
     pub fn with_url(mut self, url: String) -> Self {
-        self.url = url.clone();
+        Arc::make_mut(&mut self.request_state).url = Arc::<str>::from(url.clone());
 
         // Re-register url function with new URL
-        let _hostname = self.hostname.clone();
         self.functions.insert(
             "url".to_string(),
             Box::new(move |args| {
@@ -284,15 +303,15 @@ impl RenderContext {
     /// Set hostname
     /// Set whether the request is from a mobile device (`@{mobile}`).
     pub fn with_mobile(mut self, mobile: bool) -> Self {
-        self.mobile = mobile;
+        Arc::make_mut(&mut self.request_state).mobile = mobile;
         self
     }
 
     pub fn with_hostname(mut self, hostname: String) -> Self {
-        self.hostname = hostname.clone();
+        Arc::make_mut(&mut self.request_state).hostname = Arc::<str>::from(hostname);
 
         // Re-register url function with new hostname
-        let url = self.url.clone();
+        let url = self.request_state.url.to_string();
         self.functions.insert(
             "url".to_string(),
             Box::new(move |args| {
@@ -315,6 +334,12 @@ impl RenderContext {
 
     /// Set translation system
     pub fn with_translator(mut self, translator: TranslationSystem) -> Self {
+        self.translator = Some(Arc::new(translator));
+        self
+    }
+
+    /// Set a shared translation system for this render tree.
+    pub fn with_shared_translator(mut self, translator: Arc<TranslationSystem>) -> Self {
         self.translator = Some(translator);
         self
     }
@@ -322,24 +347,16 @@ impl RenderContext {
     /// Create a child context for partial rendering while reusing immutable
     /// request/session/config state and sharing deferred layout metadata.
     pub fn child_with_data(&self, data: Value) -> Self {
-        let mut context = Self::new(data)
-            .with_global_repository(self.global_repository.clone())
-            .with_repository(self.repository.clone())
-            .with_session(self.session.clone())
-            .with_query(self.query.clone())
-            .with_user(self.user.clone())
-            .with_config(self.config.clone())
-            .with_conf(self.conf.clone())
-            .with_url(self.url.clone())
-            .with_hostname(self.hostname.clone());
+        let mut context = Self::new(data);
+        context.app_state = Arc::clone(&self.app_state);
+        context.request_state = Arc::clone(&self.request_state);
 
         if let Some(translator) = self.translator.clone() {
-            context = context.with_translator(translator);
+            context.translator = Some(translator);
         }
 
         context.meta_title = self.meta_title.clone();
         context.meta_description = self.meta_description.clone();
-        context.mobile = self.mobile;
         context
     }
 
@@ -347,6 +364,69 @@ impl RenderContext {
     pub fn with_sections(mut self, sections: HashMap<String, Vec<Node>>) -> Self {
         self.sections = sections;
         self
+    }
+
+    fn repository(&self) -> &Value {
+        self.request_state.repository.as_ref()
+    }
+
+    fn session(&self) -> &Value {
+        self.request_state.session.as_ref()
+    }
+
+    fn query(&self) -> &Value {
+        self.request_state.query.as_ref()
+    }
+
+    fn user(&self) -> &Value {
+        self.request_state.user.as_ref()
+    }
+
+    fn conf(&self) -> &Value {
+        self.app_state.conf.as_ref()
+    }
+
+    fn url(&self) -> &str {
+        self.request_state.url.as_ref()
+    }
+
+    fn hostname(&self) -> &str {
+        self.request_state.hostname.as_ref()
+    }
+
+    fn mobile(&self) -> bool {
+        self.request_state.mobile
+    }
+
+    fn load_global_repository(&self) -> Value {
+        self.app_state
+            .global_repository
+            .as_ref()
+            .and_then(|repo| repo.read().ok().map(|guard| guard.clone()))
+            .unwrap_or_else(|| Value::Object(serde_json::Map::new()))
+    }
+
+    fn get_global_repository_value(&self, path: &str) -> Option<Value> {
+        if let Ok(cache) = self.request_state.app_value_cache.lock() {
+            if let Some(value) = cache.get(path) {
+                return Some(value.clone());
+            }
+        }
+
+        let repo = self.app_state.global_repository.as_ref()?;
+        let guard = repo.read().ok()?;
+        let value = Self::get_nested_value(&guard, path)?;
+
+        if let Ok(mut cache) = self.request_state.app_value_cache.lock() {
+            cache.insert(path.to_string(), value.clone());
+        }
+
+        Some(value)
+    }
+
+    fn lookup_conf_value(&self, key: &str) -> Option<Value> {
+        Self::get_nested_value(self.conf(), key)
+            .or_else(|| Self::get_nested_value(self.conf(), &format!("views.{}", key)))
     }
 
     /// Get current loop index
@@ -606,17 +686,17 @@ impl RenderContext {
                 return Value::Bool(*DEBUG);
             }
             if name == "CONF" {
-                return self.conf.clone();
+                return self.conf().clone();
             }
             if name == "repository" {
-                return self.repository.clone();
+                return self.repository().clone();
             }
             if name == "session" {
-                return self.session.clone();
+                return self.session().clone();
             }
             // Handle flash as an alias to session.flash
             if name == "flash" {
-                if let Value::Object(session_map) = &self.session {
+                if let Value::Object(session_map) = self.session() {
                     if let Some(flash_value) = session_map.get("flash") {
                         return flash_value.clone();
                     }
@@ -624,20 +704,20 @@ impl RenderContext {
                 return Value::Null;
             }
             if name == "query" {
-                return self.query.clone();
+                return self.query().clone();
             }
             if name == "user" {
-                return self.user.clone();
+                return self.user().clone();
             }
             if name == "url" {
-                return Value::String(self.url.clone());
+                return Value::String(self.url().to_string());
             }
             if name == "hostname" {
-                return Value::String(self.hostname.clone());
+                return Value::String(self.hostname().to_string());
             }
             // Mobile-device flag (User-Agent based); used as `@{if mobile}`.
             if name == "mobile" {
-                return Value::Bool(self.mobile);
+                return Value::Bool(self.mobile());
             }
             // Model data access (entire model)
             if name == "model" || name == "M" {
@@ -645,15 +725,15 @@ impl RenderContext {
             }
             // Repository access (R is alias for repository)
             if name == "R" {
-                return self.repository.clone();
+                return self.repository().clone();
             }
             // APP/MAIN are aliases for global repository
-            if name == "APP" || name == "MAIN" {
-                return self.global_repository.clone();
+            if name == "APP" || name == "MAIN" || name == "PREF" {
+                return self.load_global_repository();
             }
             if name == "csrf_token" {
                 // Get default CSRF token from session
-                if let Value::Object(session_map) = &self.session {
+                if let Value::Object(session_map) = self.session() {
                     if let Some(token_data) = session_map.get("_csrf_token") {
                         // Extract token value from the data object
                         if let Some(token) = token_data.get("token") {
@@ -668,7 +748,7 @@ impl RenderContext {
             if let Some(token_id) = name.strip_prefix("csrf_token.") {
                 // Remove "csrf_token." prefix
 
-                if let Value::Object(session_map) = &self.session {
+                if let Value::Object(session_map) = self.session() {
                     if let Some(token_data) = session_map.get(token_id) {
                         // Extract token value from the data object
                         if let Some(token) = token_data.get("token") {
@@ -705,18 +785,24 @@ impl RenderContext {
             let base = parts[0];
             let rest = parts[1..].join(".");
 
+            if base == "APP" || base == "MAIN" || base == "PREF" {
+                return self
+                    .get_global_repository_value(&rest)
+                    .unwrap_or(Value::Null);
+            }
+
             // Get the base value using the same priority order
             let base_value = {
                 // Check for framework globals first
                 if base == "CONF" {
-                    self.conf.clone()
+                    self.conf().clone()
                 } else if base == "repository" {
-                    self.repository.clone()
+                    self.repository().clone()
                 } else if base == "session" {
-                    self.session.clone()
+                    self.session().clone()
                 } else if base == "flash" {
                     // Handle flash.xxx as an alias to session.flash.xxx
-                    if let Value::Object(session_map) = &self.session {
+                    if let Value::Object(session_map) = self.session() {
                         if let Some(flash_value) = session_map.get("flash") {
                             flash_value.clone()
                         } else {
@@ -726,13 +812,13 @@ impl RenderContext {
                         Value::Null
                     }
                 } else if base == "query" {
-                    self.query.clone()
+                    self.query().clone()
                 } else if base == "user" {
-                    self.user.clone()
+                    self.user().clone()
                 } else if base == "url" {
-                    Value::String(self.url.clone())
+                    Value::String(self.url().to_string())
                 } else if base == "hostname" {
-                    Value::String(self.hostname.clone())
+                    Value::String(self.hostname().to_string())
                 } else if base == "root" {
                     Value::String(self.resolve_root())
                 } else if base == "M" || base == "model" {
@@ -740,10 +826,7 @@ impl RenderContext {
                     self.data.clone()
                 } else if base == "R" {
                     // Handle R.field (repository) access
-                    self.repository.clone()
-                } else if base == "APP" || base == "MAIN" {
-                    // Handle APP.field or MAIN.field (global repository) access
-                    self.global_repository.clone()
+                    self.repository().clone()
                 } else {
                     // Check loop variables then locals, then data
                     let mut found = None;
@@ -769,7 +852,7 @@ impl RenderContext {
             };
 
             // Now get the nested value
-            if let Some(value) = self.get_nested_value(&base_value, &rest) {
+            if let Some(value) = Self::get_nested_value(&base_value, &rest) {
                 return value;
             }
         }
@@ -778,14 +861,14 @@ impl RenderContext {
     }
 
     /// Get nested value from a JSON object
-    fn get_nested_value(&self, data: &Value, path: &str) -> Option<Value> {
+    fn get_nested_value(data: &Value, path: &str) -> Option<Value> {
         let parts: Vec<&str> = path.split('.').collect();
-        let mut current = data.clone();
+        let mut current = data;
 
         for part in parts {
-            match &current {
+            match current {
                 Value::Object(map) => {
-                    current = map.get(part)?.clone();
+                    current = map.get(part)?;
                 }
                 Value::Array(arr) => {
                     // Handle array properties like 'length' or numeric indexes
@@ -796,7 +879,7 @@ impl RenderContext {
                         _ => {
                             // Try to parse as index
                             if let Ok(index) = part.parse::<usize>() {
-                                current = arr.get(index)?.clone();
+                                current = arr.get(index)?;
                             } else {
                                 return None;
                             }
@@ -816,7 +899,7 @@ impl RenderContext {
             }
         }
 
-        Some(current)
+        Some(current.clone())
     }
 
     /// Evaluate an expression to a value
@@ -1173,7 +1256,7 @@ impl RenderContext {
                 };
 
                 // Get token from session
-                let token = if let Value::Object(session_map) = &self.session {
+                let token = if let Value::Object(session_map) = self.session() {
                     session_map
                         .get(&token_id)
                         .and_then(|data| data.get("token"))
@@ -1259,6 +1342,15 @@ pub struct Renderer {
     depth: usize,
 }
 
+struct RenderStateSnapshot {
+    data: Value,
+    locals: HashMap<String, Value>,
+    loop_stack: Vec<LoopContext>,
+    helpers: HashMap<String, Helper>,
+    sections: HashMap<String, Vec<Node>>,
+    depth: usize,
+}
+
 impl Renderer {
     /// Create a new renderer with the given context
     pub fn new(context: RenderContext) -> Self {
@@ -1268,13 +1360,6 @@ impl Renderer {
             template_loader: None,
             depth: 0,
         }
-    }
-
-    /// Set the partial-include nesting depth (used when rendering a partial so
-    /// the recursion guard accounts for the parent chain).
-    fn with_depth(mut self, depth: usize) -> Self {
-        self.depth = depth;
-        self
     }
 
     /// Set the template path for loading partials
@@ -1299,6 +1384,83 @@ impl Renderer {
     /// any. Used by the engine to carry it from a view into its layout.
     pub fn meta_description(&self) -> Option<String> {
         self.context.get_description()
+    }
+
+    pub fn merge_sections(&mut self, sections: &HashMap<String, Vec<Node>>) {
+        for (name, nodes) in sections {
+            self.context
+                .sections
+                .entry(name.clone())
+                .or_insert_with(|| nodes.clone());
+        }
+    }
+
+    pub fn set_meta_title(&self, title: &str) {
+        self.context.set_title(title.to_string());
+    }
+
+    pub fn set_meta_description(&self, description: &str) {
+        self.context.set_description(description.to_string());
+    }
+
+    pub fn translator_handle(&self) -> Option<Arc<TranslationSystem>> {
+        self.context.translator.clone()
+    }
+
+    pub fn set_shared_translator(&mut self, translator: Option<Arc<TranslationSystem>>) {
+        self.context.translator = translator;
+    }
+
+    fn snapshot_state(&self) -> RenderStateSnapshot {
+        RenderStateSnapshot {
+            data: self.context.data.clone(),
+            locals: self.context.locals.clone(),
+            loop_stack: self.context.loop_stack.clone(),
+            helpers: self.context.helpers.clone(),
+            sections: self.context.sections.clone(),
+            depth: self.depth,
+        }
+    }
+
+    fn restore_state(&mut self, snapshot: RenderStateSnapshot) {
+        self.context.data = snapshot.data;
+        self.context.locals = snapshot.locals;
+        self.context.loop_stack = snapshot.loop_stack;
+        self.context.helpers = snapshot.helpers;
+        self.context.sections = snapshot.sections;
+        self.depth = snapshot.depth;
+    }
+
+    fn render_partial_template(
+        &mut self,
+        template: &Template,
+        model: Option<Value>,
+    ) -> Result<String> {
+        let snapshot = self.snapshot_state();
+        self.depth += 1;
+
+        if let Some(model) = model {
+            self.context.data = model;
+            self.context.locals.clear();
+            self.context.loop_stack.clear();
+            self.context.sections.clear();
+        }
+
+        let result = self.render(template);
+        self.restore_state(snapshot);
+        result
+    }
+
+    pub fn render_layout_template(&mut self, template: &Template, data: Value) -> Result<String> {
+        let snapshot = self.snapshot_state();
+        self.context.data = data;
+        self.context.locals.clear();
+        self.context.loop_stack.clear();
+        self.depth = 0;
+
+        let result = self.render(template);
+        self.restore_state(snapshot);
+        result
     }
 
     /// Render a form-helper attribute object into an HTML attribute string,
@@ -1677,33 +1839,10 @@ impl Renderer {
                 if let Some(loader) = &self.template_loader {
                     match loader(name) {
                         Ok(partial_template) => {
-                            // Sections and helpers are already extracted by the parser —
-                            // no need to re-extract from the cached Arc<Template>.
-
-                            // Create a new renderer for the partial with the same or updated context
-                            let partial_context = if let Some(model_expr) = model {
-                                let model_value =
-                                    self.context.resolve_value_from_expression(model_expr);
-                                self.context.child_with_data(model_value)
-                            } else {
-                                self.context.clone()
-                            };
-
-                            let mut partial_renderer =
-                                Renderer::new(partial_context).with_depth(self.depth + 1);
-
-                            if let Some(loader) = &self.template_loader {
-                                partial_renderer =
-                                    partial_renderer.with_template_loader(Arc::clone(loader));
-                            }
-
-                            if let Some(path) = &self.template_path {
-                                partial_renderer =
-                                    partial_renderer.with_template_path(path.clone());
-                            }
-
-                            // Arc<Template> auto-derefs to &Template
-                            return partial_renderer.render(&partial_template);
+                            let model_value = model
+                                .as_ref()
+                                .map(|expr| self.context.resolve_value_from_expression(expr));
+                            return self.render_partial_template(&partial_template, model_value);
                         }
                         Err(_) => {
                             // Fallback to file system loading
@@ -1726,29 +1865,10 @@ impl Renderer {
                         // Parse and render the partial
                         if let Ok(mut parser) = super::parser::Parser::new(&content) {
                             if let Ok(template) = parser.parse() {
-                                // Create a new renderer for the partial with the same or updated context
-                                let partial_context = if let Some(model_expr) = model {
-                                    // If a model expression is provided, create context with that as the data
-                                    let model_value =
-                                        self.context.resolve_value_from_expression(model_expr);
-                                    self.context.child_with_data(model_value)
-                                } else {
-                                    // No model specified, use the same context
-                                    self.context.clone()
-                                };
-
-                                let mut partial_renderer = Renderer::new(partial_context)
-                                    .with_template_path(base_path.clone())
-                                    .with_depth(self.depth + 1);
-
-                                // Pass along the template loader if available
-                                if let Some(loader) = &self.template_loader {
-                                    partial_renderer =
-                                        partial_renderer.with_template_loader(Arc::clone(loader));
-                                }
-
-                                // Sections/helpers already extracted by parser
-                                return partial_renderer.render(&template);
+                                let model_value = model
+                                    .as_ref()
+                                    .map(|expr| self.context.resolve_value_from_expression(expr));
+                                return self.render_partial_template(&template, model_value);
                             }
                         }
                     }
@@ -1937,7 +2057,7 @@ impl Renderer {
             Node::Csrf => {
                 // @{csrf} - renders hidden input with default token
                 let token_id = "_csrf_token";
-                let token = if let Value::Object(session_map) = &self.context.session {
+                let token = if let Value::Object(session_map) = self.context.session() {
                     session_map
                         .get(token_id)
                         .and_then(|data| data.get("token"))
@@ -1962,10 +2082,10 @@ impl Renderer {
                 if let Some(translator) = &self.context.translator {
                     if *is_key {
                         // Translate by key
-                        Ok(translator.translate_key(text))
+                        Ok(translator.as_ref().translate_key(text))
                     } else {
                         // Translate text
-                        Ok(translator.translate_text(text))
+                        Ok(translator.as_ref().translate_text(text))
                     }
                 } else {
                     // No translator available, return as-is
@@ -1977,35 +2097,48 @@ impl Renderer {
                 }
             }
 
-            Node::Config(key) => Ok(self.context.config.get(key).cloned().unwrap_or_default()),
+            Node::Config(key) => Ok(self
+                .context
+                .lookup_conf_value(key)
+                .map(|v| self.context.value_to_string(&v, true))
+                .unwrap_or_default()),
 
             Node::Repository(key) => Ok(self
                 .context
-                .get_nested_value(&self.context.repository, key)
-                .map(|v| self.context.value_to_string(&v, true))
-                .unwrap_or_default()),
+                .value_to_string(
+                    &RenderContext::get_nested_value(self.context.repository(), key)
+                        .unwrap_or(Value::Null),
+                    true,
+                )
+                .to_string()),
 
             Node::Session(key) => Ok(self
                 .context
-                .get_nested_value(&self.context.session, key)
-                .map(|v| self.context.value_to_string(&v, true))
-                .unwrap_or_default()),
+                .value_to_string(
+                    &RenderContext::get_nested_value(self.context.session(), key)
+                        .unwrap_or(Value::Null),
+                    true,
+                )
+                .to_string()),
 
             Node::Query(key) => Ok(self
                 .context
-                .get_nested_value(&self.context.query, key)
-                .map(|v| self.context.value_to_string(&v, true))
-                .unwrap_or_default()),
+                .value_to_string(
+                    &RenderContext::get_nested_value(self.context.query(), key)
+                        .unwrap_or(Value::Null),
+                    true,
+                )
+                .to_string()),
 
             Node::User(prop) => {
                 if let Some(p) = prop {
-                    Ok(self
-                        .context
-                        .get_nested_value(&self.context.user, p)
-                        .map(|v| self.context.value_to_string(&v, true))
-                        .unwrap_or_default())
+                    Ok(self.context.value_to_string(
+                        &RenderContext::get_nested_value(self.context.user(), p)
+                            .unwrap_or(Value::Null),
+                        true,
+                    ))
                 } else {
-                    Ok(self.context.value_to_string(&self.context.user, true))
+                    Ok(self.context.value_to_string(self.context.user(), true))
                 }
             }
 
@@ -2013,7 +2146,7 @@ impl Renderer {
                 // Access global repository via APP.key
                 Ok(self
                     .context
-                    .get_nested_value(&self.context.global_repository, key)
+                    .get_global_repository_value(key)
                     .map(|v| self.context.value_to_string(&v, true))
                     .unwrap_or_default())
             }
@@ -2022,36 +2155,36 @@ impl Renderer {
                 // Access global repository via MAIN.key (alias for APP)
                 Ok(self
                     .context
-                    .get_nested_value(&self.context.global_repository, key)
+                    .get_global_repository_value(key)
                     .map(|v| self.context.value_to_string(&v, true))
                     .unwrap_or_default())
             }
 
             Node::R(key) => {
                 // Access context repository via R.key (alias for repository)
-                Ok(self
-                    .context
-                    .get_nested_value(&self.context.repository, key)
-                    .map(|v| self.context.value_to_string(&v, true))
-                    .unwrap_or_default())
+                Ok(self.context.value_to_string(
+                    &RenderContext::get_nested_value(self.context.repository(), key)
+                        .unwrap_or(Value::Null),
+                    true,
+                ))
             }
 
             Node::Model(key) => {
                 // Access model data via model.key
-                Ok(self
-                    .context
-                    .get_nested_value(&self.context.data, key)
-                    .map(|v| self.context.value_to_string(&v, true))
-                    .unwrap_or_default())
+                Ok(self.context.value_to_string(
+                    &RenderContext::get_nested_value(&self.context.data, key)
+                        .unwrap_or(Value::Null),
+                    true,
+                ))
             }
 
             Node::M(key) => {
                 // Access model data via M.key (alias for model/data)
-                Ok(self
-                    .context
-                    .get_nested_value(&self.context.data, key)
-                    .map(|v| self.context.value_to_string(&v, true))
-                    .unwrap_or_default())
+                Ok(self.context.value_to_string(
+                    &RenderContext::get_nested_value(&self.context.data, key)
+                        .unwrap_or(Value::Null),
+                    true,
+                ))
             }
         }
     }
