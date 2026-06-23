@@ -31,7 +31,7 @@ impl Default for CsrfConfig {
         protected_methods.insert("DELETE".to_string());
 
         Self {
-            exempt_routes: vec!["/api/*".to_string()],
+            exempt_routes: vec![],
             protected_methods,
             enabled: true,
             error_message: "CSRF token validation failed. Please try again.".to_string(),
@@ -278,7 +278,7 @@ mod tests {
         assert!(config.protected_methods.contains("PATCH"));
         assert!(config.protected_methods.contains("DELETE"));
         assert!(!config.protected_methods.contains("GET"));
-        assert_eq!(config.exempt_routes, vec!["/api/*"]);
+        assert!(config.exempt_routes.is_empty());
     }
 
     #[test]
@@ -334,9 +334,8 @@ mod tests {
     fn test_route_exemption() {
         let middleware = CsrfMiddleware::new();
 
-        // Default /api/* exemption
-        assert!(middleware.is_route_exempt("/api/users"));
-        assert!(middleware.is_route_exempt("/api/v1/posts"));
+        assert!(!middleware.is_route_exempt("/api/users"));
+        assert!(!middleware.is_route_exempt("/api/v1/posts"));
         assert!(!middleware.is_route_exempt("/app/api"));
         assert!(!middleware.is_route_exempt("/users"));
     }
@@ -354,7 +353,7 @@ mod tests {
         assert!(!middleware.is_route_exempt("/webhookx")); // Different from /webhook
         assert!(!middleware.is_route_exempt("/public/upload/file"));
 
-        // Default exemption still works
-        assert!(middleware.is_route_exempt("/api/test"));
+        // No implicit API exemption remains
+        assert!(!middleware.is_route_exempt("/api/test"));
     }
 }

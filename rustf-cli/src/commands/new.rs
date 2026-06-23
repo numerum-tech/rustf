@@ -167,10 +167,11 @@ fn create_project_structure(project_path: &Path) -> Result<()> {
         "public/css",
         "public/js",
         "public/images",
+        // Private storage directories
+        "private",
+        "private/uploads",
         // Schema directory
         "schemas",
-        // Upload directory
-        "uploads",
     ];
 
     for dir in &directories {
@@ -183,7 +184,7 @@ fn create_project_structure(project_path: &Path) -> Result<()> {
         fs::create_dir_all(&dir_path)?;
 
         // Create .gitkeep files for empty directories that should be preserved
-        if matches!(*dir, "uploads" | "src/models/base") {
+        if matches!(*dir, "private/uploads" | "src/models/base") {
             let gitkeep_path = dir_path.join(".gitkeep");
             File::create(gitkeep_path)?.write_all(b"")?;
         }
@@ -269,7 +270,7 @@ fn generate_project_files(project_path: &Path, variables: &HashMap<String, Strin
             "readmes/public_images_README.md.template",
             "public/images/README.md",
         ),
-        ("readmes/uploads_README.md.template", "uploads/README.md"),
+        ("readmes/uploads_README.md.template", "private/uploads/README.md"),
         // Schema files
         ("schemas/sessions.yaml.template", "schemas/sessions.yaml"),
         // Claude Code skill — teaches AI collaborators the RustF

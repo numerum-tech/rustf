@@ -97,6 +97,12 @@ impl TrieRouter {
                 PathSegment::Parameter(param_name) => {
                     if current.param_child.is_none() {
                         current.param_child = Some((param_name, Box::new(TrieNode::new())));
+                    } else if current.param_child.as_ref().unwrap().0 != param_name {
+                        panic!(
+                            "Conflicting route parameter names at the same path segment: '{}' vs '{}'",
+                            current.param_child.as_ref().unwrap().0,
+                            param_name
+                        );
                     }
                     current = &mut current.param_child.as_mut().unwrap().1;
                 }
@@ -365,5 +371,25 @@ mod tests {
 
         router.add_route("GET", "/users", mock_handler as RouteHandler, false, None);
         assert_eq!(router.route_count(), 3);
+    }
+
+    #[test]
+    #[should_panic(expected = "Conflicting route parameter names")]
+    fn test_conflicting_parameter_names_panic() {
+        let mut router = TrieRouter::new();
+        router.add_route(
+            "GET",
+            "/users/{id}",
+            mock_handler as RouteHandler,
+            false,
+            None,
+        );
+        router.add_route(
+            "GET",
+            "/users/{slug}",
+            mock_handler as RouteHandler,
+            false,
+            None,
+        );
     }
 }

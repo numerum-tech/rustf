@@ -165,22 +165,32 @@ impl OutboundMiddleware for SessionMiddleware {
         }
 
         // Save session if needed and get session ID for cookie (now fully async)
-        let destroy_session = ctx.is_session_destroyed();
-        let session_id = if let Some(session) = ctx.session_arc() {
+        let destroy_session = ctx.is_session_destroyed()
+            || ctx.session_arc().map(|s| s.is_destroyed()).unwrap_or(false);
+        let session_id = if let Some(session) = ctx.session_arc().cloned() {
             if destroy_session {
                 self.manager.destroy_session(session.id()).await?;
                 None
             } else {
+                let session = if session.needs_rotation() {
+                    let rotated = self.manager.rotate_session(&session, &ctx.req).await?;
+                    let rotated = Arc::new(rotated);
+                    ctx.set_session(Some(Arc::clone(&rotated)));
+                    rotated
+                } else {
+                    session
+                };
+
                 // Save session if using EndOfRequest strategy
                 if matches!(
                     self.manager.config.save_strategy,
                     SaveStrategy::EndOfRequest
                 ) {
-                    self.manager.force_save(session).await?;
+                    self.manager.force_save(&session).await?;
                 } else if matches!(self.manager.config.save_strategy, SaveStrategy::Immediate) {
                     // For immediate strategy, save if dirty
                     if session.is_dirty() {
-                        self.manager.save_session(session).await?;
+                        self.manager.save_session(&session).await?;
                     }
                 }
 

@@ -61,11 +61,8 @@ async fn login(ctx: &mut Context) -> rustf::Result<()> {
 }
 
 async fn logout(ctx: &mut Context) -> rustf::Result<()> {
-    // Clear all session data but keep session active for tracking
-    ctx.session_clear();
-
-    // Alternative: completely destroy the session
-    // ctx.session_destroy();
+    // Canonical logout path: destroy the current authenticated session
+    ctx.logout()?;
 
     ctx.flash_success("You have been logged out successfully")?;
     ctx.redirect("/login")
@@ -1711,20 +1708,22 @@ let general_storage = MemorySessionStorage::with_timeout(
 Choose the right method for different scenarios:
 
 ```rust
-// User logout - clear data but keep session for analytics
+// User logout - destroy the authenticated session
 async fn logout(ctx: &mut Context) -> rustf::Result<()> {
-    ctx.session_clear();  // Keep session ID for tracking
+    ctx.logout()?;
     ctx.flash_success("You have been logged out")?;
     ctx.redirect("/login")
 }
 
-// Security incident - completely destroy session.
-// (This is a helper that receives the store; it is not itself a route handler.)
-async fn security_logout(ctx: &mut Context, session_store: &SessionStore) -> rustf::Result<()> {
-    if let Some(session) = ctx.session() {
-        let session_id = session.id().to_string();
-        session_store.destroy_session(&session_id).await?;  // Complete removal
-    }
+// Non-auth use case - clear data but keep the session active
+async fn clear_wizard_state(ctx: &mut Context) -> rustf::Result<()> {
+    ctx.session_clear();
+    ctx.redirect("/wizard/start")
+}
+
+// Security incident - force full invalidation immediately
+async fn security_logout(ctx: &mut Context) -> rustf::Result<()> {
+    ctx.session_destroy();
     ctx.redirect("/login")
 }
 

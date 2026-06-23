@@ -481,9 +481,12 @@ impl RenderContext {
                     Value::String(s) => s.clone(),
                     _ => return Value::String(String::new()),
                 };
+                if !is_safe_helper_url(&url) {
+                    return Value::String(String::new());
+                }
                 Value::String(format!(
                     r#"<link rel="stylesheet" href="{}">"#,
-                    HtmlEscaper::escape(&url)
+                    HtmlEscaper::escape_attribute(&url)
                 ))
             }),
         );
@@ -499,9 +502,12 @@ impl RenderContext {
                     Value::String(s) => s.clone(),
                     _ => return Value::String(String::new()),
                 };
+                if !is_safe_helper_url(&url) {
+                    return Value::String(String::new());
+                }
                 Value::String(format!(
                     r#"<script src="{}"></script>"#,
-                    HtmlEscaper::escape(&url)
+                    HtmlEscaper::escape_attribute(&url)
                 ))
             }),
         );
@@ -513,10 +519,7 @@ impl RenderContext {
                 if args.is_empty() {
                     return Value::String("{}".to_string());
                 }
-                match serde_json::to_string(&args[0]) {
-                    Ok(json) => Value::String(json),
-                    Err(_) => Value::String("{}".to_string()),
-                }
+                Value::String(serialize_json_for_html(&args[0]))
             }),
         );
 
@@ -614,6 +617,9 @@ impl RenderContext {
                     Value::String(s) => s.clone(),
                     _ => return Value::String(String::new()),
                 };
+                if !is_safe_helper_url(&url) {
+                    return Value::String(String::new());
+                }
 
                 let mut attrs = String::new();
                 if args.len() > 1 {
@@ -628,13 +634,14 @@ impl RenderContext {
                 }
                 if args.len() > 3 {
                     if let Value::String(alt) = &args[3] {
-                        attrs.push_str(&format!(r#" alt="{}""#, HtmlEscaper::escape(alt)));
+                        attrs
+                            .push_str(&format!(r#" alt="{}""#, HtmlEscaper::escape_attribute(alt)));
                     }
                 }
 
                 Value::String(format!(
                     r#"<img src="{}"{}>"#,
-                    HtmlEscaper::escape(&url),
+                    HtmlEscaper::escape_attribute(&url),
                     attrs
                 ))
             }),
@@ -650,11 +657,11 @@ impl RenderContext {
                     if let Value::String(title) = &args[0] {
                         tags.push_str(&format!(
                             r#"<meta property="og:title" content="{}">"#,
-                            HtmlEscaper::escape(title)
+                            HtmlEscaper::escape_attribute(title)
                         ));
                         tags.push_str(&format!(
                             r#"<meta name="twitter:title" content="{}">"#,
-                            HtmlEscaper::escape(title)
+                            HtmlEscaper::escape_attribute(title)
                         ));
                     }
                 }
@@ -663,11 +670,11 @@ impl RenderContext {
                     if let Value::String(desc) = &args[1] {
                         tags.push_str(&format!(
                             r#"<meta name="description" content="{}">"#,
-                            HtmlEscaper::escape(desc)
+                            HtmlEscaper::escape_attribute(desc)
                         ));
                         tags.push_str(&format!(
                             r#"<meta property="og:description" content="{}">"#,
-                            HtmlEscaper::escape(desc)
+                            HtmlEscaper::escape_attribute(desc)
                         ));
                     }
                 }
@@ -1323,6 +1330,38 @@ impl RenderContext {
             raw
         }
     }
+}
+
+fn is_safe_helper_url(url: &str) -> bool {
+    let trimmed = url.trim();
+    if trimmed.is_empty() {
+        return false;
+    }
+
+    let lower = trimmed.to_ascii_lowercase();
+    if lower.starts_with("javascript:")
+        || lower.starts_with("data:")
+        || lower.starts_with("vbscript:")
+        || lower.starts_with("//")
+    {
+        return false;
+    }
+
+    if lower.starts_with("http://") || lower.starts_with("https://") {
+        return true;
+    }
+
+    !trimmed.contains(':')
+}
+
+fn serialize_json_for_html(value: &Value) -> String {
+    serde_json::to_string(value)
+        .unwrap_or_else(|_| "{}".to_string())
+        .replace('&', "\\u0026")
+        .replace('<', "\\u003C")
+        .replace('>', "\\u003E")
+        .replace('\u{2028}', "\\u2028")
+        .replace('\u{2029}', "\\u2029")
 }
 
 /// Template loader function type.
@@ -2101,22 +2140,23 @@ impl Renderer {
             }
 
             Node::Translate { text, is_key } => {
-                if let Some(translator) = &self.context.translator {
+                let translated = if let Some(translator) = &self.context.translator {
                     if *is_key {
                         // Translate by key
-                        Ok(translator.as_ref().translate_key(text))
+                        translator.as_ref().translate_key(text)
                     } else {
                         // Translate text
-                        Ok(translator.as_ref().translate_text(text))
+                        translator.as_ref().translate_text(text)
                     }
                 } else {
                     // No translator available, return as-is
                     if *is_key {
-                        Ok(format!("[#{}]", text))
+                        format!("[#{}]", text)
                     } else {
-                        Ok(text.clone())
+                        text.clone()
                     }
-                }
+                };
+                Ok(HtmlEscaper::escape(&translated))
             }
 
             Node::Config(key) => Ok(self
@@ -2337,6 +2377,105 @@ mod tests {
 
         assert!(result.contains("&lt;script&gt;"));
         assert!(result.contains("<script>"));
+    }
+
+    #[test]
+    fn test_translate_output_is_escaped() {
+        let template = Template {
+            nodes: vec![Node::Translate {
+                text: "welcome".to_string(),
+                is_key: true,
+            }],
+            sections: HashMap::new(),
+            helpers: HashMap::new(),
+        };
+
+        let mut translations = HashMap::new();
+        translations.insert(
+            "welcome".to_string(),
+            "<script>alert(1)</script>".to_string(),
+        );
+
+        let mut translator = TranslationSystem::new();
+        translator.add_translations("en", translations);
+        translator.set_language("en");
+
+        let context = RenderContext::new(json!({})).with_translator(translator);
+        let mut renderer = Renderer::new(context);
+        let result = renderer.render(&template).unwrap();
+
+        assert_eq!(result, "&lt;script&gt;alert(1)&lt;&#x2F;script&gt;");
+    }
+
+    #[test]
+    fn test_json_function_escapes_script_breakout_sequences() {
+        let template = Template {
+            nodes: vec![Node::Variable {
+                name: "json(M.payload)".to_string(),
+                raw: true,
+                expression: Some(Expression::FunctionCall {
+                    name: "json".to_string(),
+                    args: vec![Expression::PropertyAccess {
+                        object: Box::new(Expression::Variable("M".to_string())),
+                        property: "payload".to_string(),
+                    }],
+                }),
+            }],
+            sections: HashMap::new(),
+            helpers: HashMap::new(),
+        };
+
+        let context = RenderContext::new(json!({
+            "payload": {
+                "html": "</script><script>alert(1)</script>"
+            }
+        }));
+        let mut renderer = Renderer::new(context);
+        let result = renderer.render(&template).unwrap();
+
+        assert!(!result.contains("</script>"));
+        assert!(result
+            .contains("\\u003C/script\\u003E\\u003Cscript\\u003Ealert(1)\\u003C/script\\u003E"));
+    }
+
+    #[test]
+    fn test_asset_helpers_reject_dangerous_schemes() {
+        let template = Template {
+            nodes: vec![
+                Node::Variable {
+                    name: "js('javascript:alert(1)')".to_string(),
+                    raw: true,
+                    expression: Some(Expression::FunctionCall {
+                        name: "js".to_string(),
+                        args: vec![Expression::String("javascript:alert(1)".to_string())],
+                    }),
+                },
+                Node::Variable {
+                    name: "css('data:text/css,body{}')".to_string(),
+                    raw: true,
+                    expression: Some(Expression::FunctionCall {
+                        name: "css".to_string(),
+                        args: vec![Expression::String("data:text/css,body{}".to_string())],
+                    }),
+                },
+                Node::Variable {
+                    name: "image('//evil.test/x.png')".to_string(),
+                    raw: true,
+                    expression: Some(Expression::FunctionCall {
+                        name: "image".to_string(),
+                        args: vec![Expression::String("//evil.test/x.png".to_string())],
+                    }),
+                },
+            ],
+            sections: HashMap::new(),
+            helpers: HashMap::new(),
+        };
+
+        let context = RenderContext::new(json!({}));
+        let mut renderer = Renderer::new(context);
+        let result = renderer.render(&template).unwrap();
+
+        assert!(result.is_empty());
     }
 
     #[test]

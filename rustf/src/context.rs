@@ -210,9 +210,7 @@ impl Context {
 
     /// Logout user (clears session)
     pub fn logout(&self) -> Result<()> {
-        if let Some(session) = self.session() {
-            session.clear();
-        }
+        self.session_destroy();
         Ok(())
     }
 
@@ -1135,7 +1133,7 @@ impl Context {
     /// the actual storage deletion.
     pub fn session_destroy(&self) {
         if let Some(session) = self.session() {
-            session.clear();
+            session.destroy();
         }
         self.session_destroyed.store(true, Ordering::Relaxed);
     }
@@ -1208,7 +1206,7 @@ impl Context {
 
     /// Generate or retrieve CSRF token (Total.js: controller.csrf)
     pub fn csrf(&self) -> String {
-        self.req.csrf()
+        self.generate_csrf(None).unwrap_or_default()
     }
 
     /// Verify CSRF token for the current request (one-time use)
@@ -1272,7 +1270,7 @@ impl Context {
     /// Generate CSRF token with optional ID and expiration
     pub fn generate_csrf(&self, token_id: Option<&str>) -> Result<String> {
         let token_id = token_id.unwrap_or("_csrf_token");
-        let token = self.req.csrf();
+        let token = Request::generate_csrf_token();
 
         // Require session for CSRF
         let session = self.require_session()?;
@@ -1302,20 +1300,11 @@ impl Context {
             return Some(token.clone());
         }
 
-        // Try token_id as query parameter
-        if let Some(token) = self.req.query.get(token_id) {
-            return Some(token.clone());
-        }
-
-        // Try default _token query parameter for backward compatibility
-        if token_id == "_csrf_token" {
-            if let Some(token) = self.req.query.get("_token") {
-                return Some(token.clone());
-            }
-        }
-
         // Try form data if POST request (uses cached form data)
-        if self.req.method == "POST" {
+        if matches!(
+            self.req.method.as_str(),
+            "POST" | "PUT" | "PATCH" | "DELETE"
+        ) {
             if let Ok(form_data) = self.body_form() {
                 // Try token_id field
                 if let Some(token) = form_data.get(token_id) {
@@ -1384,6 +1373,31 @@ mod tests {
         ctx.set_session(Some(Arc::new(Session::new("sess-1"))));
         let err = ctx.require_auth().err().unwrap();
         assert_eq!(err.status_code(), 401);
+    }
+
+    #[test]
+    fn test_logout_marks_session_for_destruction() {
+        let mut ctx = create_test_context();
+        ctx.set_session(Some(Arc::new(Session::new("sess-1"))));
+
+        ctx.logout().unwrap();
+
+        assert!(ctx.is_session_destroyed());
+        assert!(ctx.session().unwrap().is_destroyed());
+    }
+
+    #[test]
+    fn test_csrf_verification_rejects_query_tokens() {
+        let mut ctx = create_test_context();
+        ctx.set_session(Some(Arc::new(Session::new("sess-1"))));
+
+        let token = ctx.generate_csrf(None).unwrap();
+        ctx.req.method = "POST".to_string();
+        ctx.req
+            .query
+            .insert("_csrf_token".to_string(), token.clone());
+
+        assert!(!ctx.verify_csrf(None).unwrap());
     }
 
     #[test]
