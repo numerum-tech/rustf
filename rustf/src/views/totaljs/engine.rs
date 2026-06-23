@@ -262,14 +262,9 @@ fn load_asset(source: &TemplateSource, relative: &str, name: &str) -> Result<Tem
                 .map_err(|e| Error::template(format!("Invalid UTF-8 in template {}: {}", name, e)))?
                 .to_string();
 
-            use std::collections::hash_map::DefaultHasher;
-            use std::hash::{Hash, Hasher};
-            let mut hasher = DefaultHasher::new();
-            data.hash(&mut hasher);
-
             Ok(TemplateAsset {
                 content,
-                version: Some(format!("{:x}", hasher.finish())),
+                version: Some(relative.to_string()),
             })
         }
     }
@@ -654,12 +649,7 @@ impl TotalJsEngine {
         // Add translator to context if available (prefer resource translator over legacy)
         let context = if let Ok(trans) = self.resource_translator.read() {
             if let Some(resource_trans) = trans.as_ref() {
-                // Get view-specific translations
-                let view_translations = resource_trans.get_view_translations(template);
-                // Convert to legacy format temporarily (TODO: update renderer to use resource translator directly)
-                let mut legacy_trans = TranslationSystem::new();
-                legacy_trans.add_translations("current", (*view_translations).clone());
-                context.with_translator(legacy_trans)
+                context.with_shared_translator(resource_trans.get_view_translator(template))
             } else {
                 context
             }
@@ -719,10 +709,9 @@ impl TotalJsEngine {
             let saved_translator = renderer.translator_handle();
             if let Ok(trans) = self.resource_translator.read() {
                 if let Some(resource_trans) = trans.as_ref() {
-                    let view_translations = resource_trans.get_view_translations(layout_name);
-                    let mut legacy_trans = TranslationSystem::new();
-                    legacy_trans.add_translations("current", (*view_translations).clone());
-                    renderer.set_shared_translator(Some(Arc::new(legacy_trans)));
+                    renderer.set_shared_translator(Some(
+                        resource_trans.get_view_translator(layout_name),
+                    ));
                 }
             } else if let Ok(trans) = self.translator.read() {
                 if let Some(translator) = trans.as_ref() {

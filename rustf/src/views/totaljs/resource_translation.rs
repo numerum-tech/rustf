@@ -1,3 +1,4 @@
+use super::translation::TranslationSystem;
 use anyhow::{Context, Result};
 use indexmap::IndexMap;
 use std::collections::HashMap;
@@ -19,6 +20,9 @@ pub struct ResourceTranslationSystem {
 
     /// Pre-computed view translations (cached per view)
     view_cache: Arc<dashmap::DashMap<(String, String), Arc<HashMap<String, String>>>>,
+
+    /// Pre-built TranslationSystem objects for a given language/view pair.
+    translator_cache: Arc<dashmap::DashMap<(String, String), Arc<TranslationSystem>>>,
 }
 
 impl ResourceTranslationSystem {
@@ -29,6 +33,7 @@ impl ResourceTranslationSystem {
             translations: HashMap::new(),
             fallback_language: "en".to_string(),
             view_cache: Arc::new(dashmap::DashMap::new()),
+            translator_cache: Arc::new(dashmap::DashMap::new()),
         }
     }
 
@@ -42,6 +47,7 @@ impl ResourceTranslationSystem {
 
         // Clear cache when loading new translations
         self.view_cache.clear();
+        self.translator_cache.clear();
 
         Ok(())
     }
@@ -77,6 +83,7 @@ impl ResourceTranslationSystem {
         if self.current_language != language {
             self.current_language = language.to_string();
             self.view_cache.clear();
+            self.translator_cache.clear();
         }
     }
 
@@ -85,6 +92,7 @@ impl ResourceTranslationSystem {
         if self.fallback_language != language {
             self.fallback_language = language.to_string();
             self.view_cache.clear();
+            self.translator_cache.clear();
         }
     }
 
@@ -140,6 +148,21 @@ impl ResourceTranslationSystem {
         let arc_merged = Arc::new(merged);
         self.view_cache.insert(cache_key, arc_merged.clone());
         arc_merged
+    }
+
+    /// Get a cached view-specific TranslationSystem.
+    pub fn get_view_translator(&self, view_path: &str) -> Arc<TranslationSystem> {
+        let cache_key = (self.current_language.clone(), view_path.to_string());
+
+        if let Some(cached) = self.translator_cache.get(&cache_key) {
+            return cached.clone();
+        }
+
+        let translator = Arc::new(TranslationSystem::from_view_translations(
+            self.get_view_translations(view_path),
+        ));
+        self.translator_cache.insert(cache_key, translator.clone());
+        translator
     }
 
     /// Translate text or key for a specific view
