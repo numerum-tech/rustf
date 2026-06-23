@@ -491,10 +491,7 @@ impl RateLimiter {
         let window_start = now - self.window_seconds;
 
         // Get or create entry for this identifier
-        let timestamps = self
-            .requests
-            .entry(identifier.to_string())
-            .or_default();
+        let timestamps = self.requests.entry(identifier.to_string()).or_default();
 
         // Remove old timestamps
         timestamps.retain(|&timestamp| timestamp >= window_start);

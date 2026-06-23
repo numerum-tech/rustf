@@ -16,7 +16,7 @@ fn test_index_simple() {
 
     let result = VIEW::render_string(template, model, None);
     assert!(result.is_ok());
-    
+
     let html = result.unwrap();
     eprintln!("Simple index test HTML:\n{}", html);
     assert!(html.contains("Index: 0"));
@@ -38,15 +38,8 @@ fn test_index_in_binary_expression() {
 
     let result = VIEW::render_string(template, model, None);
     assert!(result.is_ok());
-    
+
     let html = result.unwrap();
     eprintln!("Binary expression test HTML:\n{}", html);
     assert!(html.contains("First"));
 }
-
-
-
-
-
-
-

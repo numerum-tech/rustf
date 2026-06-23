@@ -47,7 +47,10 @@ fn break_inside_else_branch() {
 }
 
 fn render_mobile(mobile: bool) -> String {
-    let ast = Parser::new("@{if mobile}M@{else}D@{fi}").unwrap().parse().unwrap();
+    let ast = Parser::new("@{if mobile}M@{else}D@{fi}")
+        .unwrap()
+        .parse()
+        .unwrap();
     Renderer::new(RenderContext::new(json!({})).with_mobile(mobile))
         .render(&ast)
         .unwrap()

@@ -12,5 +12,3 @@ fn test_simple_or() {
         assert!(html.contains("default"), "Should contain default");
     }
 }
-
-

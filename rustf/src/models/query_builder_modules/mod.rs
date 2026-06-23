@@ -11,13 +11,13 @@ pub mod schema;
 pub mod database;
 
 // Re-export the main types for backward compatibility
-pub use dialects::{DatabaseBackend, QueryError, SqlDialect};
 #[cfg(feature = "db-mysql")]
 pub use dialects::MySQLDialect;
 #[cfg(feature = "db-postgres")]
 pub use dialects::PostgresDialect;
 #[cfg(feature = "db-sqlite")]
 pub use dialects::SQLiteDialect;
+pub use dialects::{DatabaseBackend, QueryError, SqlDialect};
 pub use schema::{CreateTableBuilder, SchemaBuilder};
 
 pub use database::AnyDatabase;

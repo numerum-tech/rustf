@@ -91,6 +91,9 @@ mod tests {
         assert!(result.is_err());
 
         let flash = ctx.get_all_flash();
-        assert_eq!(flash.get("success").and_then(|v| v.as_str()), Some("Keep me"));
+        assert_eq!(
+            flash.get("success").and_then(|v| v.as_str()),
+            Some("Keep me")
+        );
     }
 }

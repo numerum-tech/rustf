@@ -46,7 +46,11 @@ fn benchmark_dynamic_routes(c: &mut Criterion) {
 
     // Add dynamic routes with parameters
     router.add_route(Route::new("GET", "/users/{id}", mock_handler));
-    router.add_route(Route::new("GET", "/users/{id}/posts/{post_id}", mock_handler));
+    router.add_route(Route::new(
+        "GET",
+        "/users/{id}/posts/{post_id}",
+        mock_handler,
+    ));
     router.add_route(Route::new(
         "GET",
         "/api/v1/resources/{type}/{id}",

@@ -593,9 +593,7 @@ impl Parser {
             .first()
             .map(|s| Self::unquote(s.trim()))
             .filter(|s| !s.is_empty())
-            .ok_or_else(|| {
-                Error::template(format!("{} helper requires a field name", kind))
-            })?;
+            .ok_or_else(|| Error::template(format!("{} helper requires a field name", kind)))?;
 
         // Find the trailing attribute object `{ ... }`, if any.
         let attr_object = |parts: &[String]| -> Vec<(String, AttrValue)> {

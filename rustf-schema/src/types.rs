@@ -9,44 +9,44 @@ pub struct Table {
     /// Table name (for code generation, auto-assigned from YAML key if not specified)
     #[serde(default)]
     pub name: String,
-    
+
     /// Database table name
     pub table: String,
-    
+
     /// Database type (mysql, postgres, sqlite)
     pub database_type: Option<String>,
-    
+
     /// Database name (actual database instance name)
     pub database_name: Option<String>,
-    
+
     /// Element type (table, view, materialized_view)
     pub element_type: Option<String>,
-    
+
     /// Schema version for migrations
     pub version: u32,
-    
+
     /// Human-readable description
     pub description: Option<String>,
-    
+
     /// Tags for categorization
     #[serde(default)]
     pub tags: Vec<String>,
-    
+
     /// Extended AI guidance
     pub ai_context: Option<String>,
-    
+
     /// Table fields
     #[serde(default)]
     pub fields: HashMap<String, Field>,
-    
+
     /// Table relations
     #[serde(default)]
     pub relations: Relations,
-    
+
     /// Table indexes
     #[serde(default)]
     pub indexes: Vec<Index>,
-    
+
     /// Table constraints
     #[serde(default)]
     pub constraints: Vec<Constraint>,
@@ -58,26 +58,26 @@ pub struct Field {
     /// Field name (auto-assigned from YAML key if not specified)
     #[serde(default)]
     pub name: String,
-    
+
     /// Database type (int, string(255), decimal(10,2), etc.)
     #[serde(rename = "type")]
     pub field_type: FieldType,
-    
+
     /// Optional language-specific type (i32, String, Decimal)
     pub lang_type: Option<String>,
-    
+
     /// PostgreSQL-specific enum type name (e.g., "user_role" for PostgreSQL enums)
     /// Used for proper type casting in PostgreSQL queries
     #[serde(skip_serializing_if = "Option::is_none")]
     pub postgres_type_name: Option<String>,
-    
+
     /// Field constraints
     #[serde(flatten)]
     pub constraints: FieldConstraints,
-    
+
     /// AI hint for code generation
     pub ai: Option<String>,
-    
+
     /// Example value
     pub example: Option<serde_json::Value>,
 }
@@ -88,14 +88,14 @@ pub struct Field {
 pub enum FieldType {
     /// Simple type (int, text, timestamp, etc.)
     Simple(String),
-    
+
     /// Parameterized type (string(255), decimal(10,2))
     Parameterized {
         #[serde(rename = "type")]
         base_type: String,
         params: Vec<TypeParam>,
     },
-    
+
     /// Enum type
     Enum {
         #[serde(rename = "type")]
@@ -104,7 +104,7 @@ pub enum FieldType {
         #[serde(skip_serializing_if = "Option::is_none")]
         transitions: Option<HashMap<String, Vec<String>>>,
     },
-    
+
     /// JSON type with schema
     Json {
         #[serde(rename = "type")]
@@ -127,52 +127,52 @@ pub enum TypeParam {
 pub struct FieldConstraints {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub primary_key: Option<bool>,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub auto: Option<AutoGenerate>,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub unique: Option<bool>,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub required: Option<bool>,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub nullable: Option<bool>,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub default: Option<serde_json::Value>,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub hidden: Option<bool>,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub computed: Option<String>,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub validate: Option<Validation>,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub min: Option<f64>,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub max: Option<f64>,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub min_length: Option<u32>,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub max_length: Option<u32>,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pattern: Option<String>,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub foreign_key: Option<String>,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub on_delete: Option<ForeignKeyAction>,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub on_update: Option<ForeignKeyAction>,
 }
@@ -209,13 +209,13 @@ pub enum ForeignKeyAction {
 pub struct Relations {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub has_many: Option<HashMap<String, HasMany>>,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub has_one: Option<HashMap<String, HasOne>>,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub belongs_to: Option<HashMap<String, BelongsTo>>,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub many_to_many: Option<HashMap<String, ManyToMany>>,
 }
@@ -226,10 +226,10 @@ pub struct HasMany {
     pub model: String,
     pub local_field: String,
     pub foreign_field: String,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cascade: Option<ForeignKeyAction>,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ai: Option<String>,
 }
@@ -240,10 +240,10 @@ pub struct HasOne {
     pub model: String,
     pub local_field: String,
     pub foreign_field: String,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cascade: Option<ForeignKeyAction>,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ai: Option<String>,
 }
@@ -254,13 +254,13 @@ pub struct BelongsTo {
     pub model: String,
     pub local_field: String,
     pub foreign_field: String,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub on_delete: Option<ForeignKeyAction>,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub on_update: Option<ForeignKeyAction>,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ai: Option<String>,
 }
@@ -274,7 +274,7 @@ pub struct ManyToMany {
     pub foreign_through_field: String,
     pub local_field: String,
     pub foreign_field: String,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ai: Option<String>,
 }
@@ -285,10 +285,10 @@ pub struct ManyToMany {
 pub enum Index {
     /// Simple field index
     Simple(String),
-    
+
     /// Composite index
     Composite(Vec<String>),
-    
+
     /// Detailed index
     Detailed {
         fields: Vec<String>,
@@ -305,19 +305,19 @@ pub enum Index {
 pub struct Constraint {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub field: Option<String>,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sql: Option<String>,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub validate: Option<String>,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub min: Option<f64>,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub max: Option<f64>,
-    
+
     pub message: String,
 }
 
@@ -328,7 +328,7 @@ impl FieldType {
         if let Some(paren_pos) = type_str.find('(') {
             let base_type = type_str[..paren_pos].to_string();
             let params_str = &type_str[paren_pos + 1..type_str.len() - 1];
-            
+
             let params: Vec<TypeParam> = params_str
                 .split(',')
                 .map(|p| {
@@ -340,13 +340,13 @@ impl FieldType {
                     }
                 })
                 .collect();
-                
+
             FieldType::Parameterized { base_type, params }
         } else {
             FieldType::Simple(type_str.to_string())
         }
     }
-    
+
     /// Get the base type name
     pub fn base_type(&self) -> &str {
         match self {
@@ -365,48 +365,48 @@ where
     D: serde::Deserializer<'de>,
 {
     use serde::de::Error;
-    
+
     let value = serde_json::Value::deserialize(deserializer)?;
-    
+
     match value {
-        serde_json::Value::String(type_str) => {
-            Ok(FieldType::parse(&type_str))
-        },
+        serde_json::Value::String(type_str) => Ok(FieldType::parse(&type_str)),
         serde_json::Value::Object(obj) => {
             // Handle enum and json types
             if let Some(type_name) = obj.get("type").and_then(|v| v.as_str()) {
                 match type_name {
                     "enum" => {
-                        let values = obj.get("values")
+                        let values = obj
+                            .get("values")
                             .and_then(|v| v.as_array())
                             .ok_or_else(|| D::Error::custom("enum type requires 'values' field"))?
                             .iter()
                             .map(|v| v.as_str().unwrap_or("").to_string())
                             .collect();
-                        
-                        let transitions = obj.get("transitions")
+
+                        let transitions = obj
+                            .get("transitions")
                             .and_then(|v| serde_json::from_value(v.clone()).ok());
-                            
+
                         Ok(FieldType::Enum {
                             type_name: "enum".to_string(),
                             values,
                             transitions,
                         })
-                    },
+                    }
                     "json" | "jsonb" => {
                         let schema = obj.get("schema").cloned();
                         Ok(FieldType::Json {
                             type_name: type_name.to_string(),
                             schema,
                         })
-                    },
-                    _ => Ok(FieldType::Simple(type_name.to_string()))
+                    }
+                    _ => Ok(FieldType::Simple(type_name.to_string())),
                 }
             } else {
                 Err(D::Error::custom("Field type object must have 'type' field"))
             }
-        },
-        _ => Err(D::Error::custom("Field type must be string or object"))
+        }
+        _ => Err(D::Error::custom("Field type must be string or object")),
     }
 }
 
@@ -503,12 +503,22 @@ impl<'de> Deserialize<'de> for Field {
                         FieldKey::Max => constraints.max = Some(map.next_value()?),
                         FieldKey::Pattern => constraints.pattern = Some(map.next_value()?),
                         // These fields are not used in constraints, skip them
-                        FieldKey::Enum => { let _: Option<Vec<String>> = map.next_value()?; },
-                        FieldKey::Index => { let _: Option<bool> = map.next_value()?; },
-                        FieldKey::Indexed => { let _: Option<bool> = map.next_value()?; },
-                        FieldKey::SearchWeight => { let _: Option<f64> = map.next_value()?; },
+                        FieldKey::Enum => {
+                            let _: Option<Vec<String>> = map.next_value()?;
+                        }
+                        FieldKey::Index => {
+                            let _: Option<bool> = map.next_value()?;
+                        }
+                        FieldKey::Indexed => {
+                            let _: Option<bool> = map.next_value()?;
+                        }
+                        FieldKey::SearchWeight => {
+                            let _: Option<f64> = map.next_value()?;
+                        }
                         FieldKey::Validation => constraints.validate = Some(map.next_value()?),
-                        FieldKey::ColumnComment => { let _: Option<String> = map.next_value()?; },
+                        FieldKey::ColumnComment => {
+                            let _: Option<String> = map.next_value()?;
+                        }
                         FieldKey::Computed => constraints.computed = Some(map.next_value()?),
                         FieldKey::OnDelete => constraints.on_delete = Some(map.next_value()?),
                         FieldKey::OnUpdate => constraints.on_update = Some(map.next_value()?),

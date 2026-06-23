@@ -75,10 +75,9 @@ impl WorkerManager {
     ) -> Result<WorkerHandle> {
         let handler = {
             let definitions = self.inner.definitions.read().await;
-            definitions
-                .get(worker_name)
-                .cloned()
-                .ok_or_else(|| Error::InvalidInput(format!("Worker '{}' not registered", worker_name)))?
+            definitions.get(worker_name).cloned().ok_or_else(|| {
+                Error::InvalidInput(format!("Worker '{}' not registered", worker_name))
+            })?
         };
 
         let run_id = uuid::Uuid::new_v4().to_string();
@@ -102,13 +101,15 @@ impl WorkerManager {
             let started = Instant::now();
 
             let outcome = match timeout {
-                Some(duration) => match tokio::time::timeout(duration, (handler_clone)(context)).await {
-                    Ok(result) => result,
-                    Err(_) => Err(Error::timeout(format!(
-                        "Worker '{}' timed out after {:?}",
-                        name, duration
-                    ))),
-                },
+                Some(duration) => {
+                    match tokio::time::timeout(duration, (handler_clone)(context)).await {
+                        Ok(result) => result,
+                        Err(_) => Err(Error::timeout(format!(
+                            "Worker '{}' timed out after {:?}",
+                            name, duration
+                        ))),
+                    }
+                }
                 None => (handler_clone)(context).await,
             };
 
@@ -191,7 +192,10 @@ impl WorkerManager {
             }
             Ok(())
         } else {
-            Err(Error::InvalidInput(format!("Worker run '{}' not found", run_id)))
+            Err(Error::InvalidInput(format!(
+                "Worker run '{}' not found",
+                run_id
+            )))
         }
     }
 

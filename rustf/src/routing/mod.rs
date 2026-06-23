@@ -27,9 +27,8 @@ pub enum BeforeAction {
 /// Type alias for controller-level `before` hooks. Same shape as
 /// `RouteHandler` but returns `Result<BeforeAction>` so the hook can
 /// short-circuit the handler.
-pub type BeforeFn = for<'a> fn(
-    &'a mut Context,
-) -> Pin<Box<dyn Future<Output = Result<BeforeAction>> + Send + 'a>>;
+pub type BeforeFn =
+    for<'a> fn(&'a mut Context) -> Pin<Box<dyn Future<Output = Result<BeforeAction>> + Send + 'a>>;
 
 pub struct Route {
     pub method: String,

@@ -11,7 +11,10 @@ use serde_json::json;
 fn text_binds_model_value() {
     let html =
         VIEW::render_string("@{text('Email')}", json!({ "Email": "a@b.com" }), None).unwrap();
-    assert_eq!(html, r#"<input type="text" name="Email" value="a@b.com" />"#);
+    assert_eq!(
+        html,
+        r#"<input type="text" name="Email" value="a@b.com" />"#
+    );
 }
 
 #[test]
@@ -80,9 +83,12 @@ fn password_and_hidden() {
 
 #[test]
 fn checkbox_checked_with_label() {
-    let html =
-        VIEW::render_string("@{checkbox('agree', 'I agree')}", json!({ "agree": true }), None)
-            .unwrap();
+    let html = VIEW::render_string(
+        "@{checkbox('agree', 'I agree')}",
+        json!({ "agree": true }),
+        None,
+    )
+    .unwrap();
     assert_eq!(
         html,
         r#"<label><input type="checkbox" name="agree" checked /> I agree</label>"#
@@ -97,9 +103,12 @@ fn checkbox_unchecked_no_label() {
 
 #[test]
 fn radio_checked_when_value_matches() {
-    let html =
-        VIEW::render_string("@{radio('gender', 'male', 'Male')}", json!({ "gender": "male" }), None)
-            .unwrap();
+    let html = VIEW::render_string(
+        "@{radio('gender', 'male', 'Male')}",
+        json!({ "gender": "male" }),
+        None,
+    )
+    .unwrap();
     assert_eq!(
         html,
         r#"<label><input type="radio" name="gender" value="male" checked /> Male</label>"#

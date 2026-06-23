@@ -1,10 +1,10 @@
+use async_trait::async_trait;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use rustf::context::Context;
 use rustf::error::Result;
 use rustf::http::{Request, Response};
 use rustf::middleware::{InboundAction, InboundMiddleware, MiddlewareRegistry, OutboundMiddleware};
 use rustf::views::ViewEngine;
-use async_trait::async_trait;
 use std::sync::Arc;
 
 // Mock inbound middleware for benchmarking

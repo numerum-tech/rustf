@@ -261,10 +261,9 @@ impl OutboundMiddleware for RateLimitMiddleware {
         response
             .headers
             .push(("X-RateLimit-Limit".to_string(), limit.to_string()));
-        response.headers.push((
-            "X-RateLimit-Remaining".to_string(),
-            remaining.to_string(),
-        ));
+        response
+            .headers
+            .push(("X-RateLimit-Remaining".to_string(), remaining.to_string()));
         response
             .headers
             .push(("X-RateLimit-Reset".to_string(), reset.to_string()));

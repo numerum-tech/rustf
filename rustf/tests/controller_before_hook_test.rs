@@ -70,7 +70,12 @@ async fn before_runs_and_continues() {
         .await
         .expect("handle_request returned Err");
 
-    assert_eq!(res.status, hyper::StatusCode::OK, "expected 200, got {:?}", res.status);
+    assert_eq!(
+        res.status,
+        hyper::StatusCode::OK,
+        "expected 200, got {:?}",
+        res.status
+    );
     let body = String::from_utf8(res.body.clone()).unwrap();
     assert!(
         body.contains(r#""section":"users""#),
@@ -191,5 +196,9 @@ async fn before_absent_is_backward_compatible() {
 
     assert_eq!(res.status, hyper::StatusCode::OK);
     let body = String::from_utf8(res.body.clone()).unwrap();
-    assert!(body.contains(r#""pong":true"#), "handler did not run: {}", body);
+    assert!(
+        body.contains(r#""pong":true"#),
+        "handler did not run: {}",
+        body
+    );
 }

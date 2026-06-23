@@ -43,33 +43,25 @@ fn protected_re() -> &'static Regex {
 }
 
 fn block_comment_re() -> &'static Regex {
-    BLOCK_COMMENT_RE.get_or_init(|| {
-        Regex::new(r"(?s)/\*.*?\*/").expect("Invalid block comment regex")
-    })
+    BLOCK_COMMENT_RE
+        .get_or_init(|| Regex::new(r"(?s)/\*.*?\*/").expect("Invalid block comment regex"))
 }
 
 fn html_comment_re() -> &'static Regex {
-    HTML_COMMENT_RE.get_or_init(|| {
-        Regex::new(r"(?s)<!--.*?-->").expect("Invalid HTML comment regex")
-    })
+    HTML_COMMENT_RE
+        .get_or_init(|| Regex::new(r"(?s)<!--.*?-->").expect("Invalid HTML comment regex"))
 }
 
 fn between_tags_re() -> &'static Regex {
-    BETWEEN_TAGS_RE.get_or_init(|| {
-        Regex::new(r">\s+<").expect("Invalid between-tags regex")
-    })
+    BETWEEN_TAGS_RE.get_or_init(|| Regex::new(r">\s+<").expect("Invalid between-tags regex"))
 }
 
 fn newline_re() -> &'static Regex {
-    NEWLINE_RE.get_or_init(|| {
-        Regex::new(r"[ \t]*\n[ \t]*").expect("Invalid newline regex")
-    })
+    NEWLINE_RE.get_or_init(|| Regex::new(r"[ \t]*\n[ \t]*").expect("Invalid newline regex"))
 }
 
 fn multi_space_re() -> &'static Regex {
-    MULTI_SPACE_RE.get_or_init(|| {
-        Regex::new(r"[ \t]{2,}").expect("Invalid multi-space regex")
-    })
+    MULTI_SPACE_RE.get_or_init(|| Regex::new(r"[ \t]{2,}").expect("Invalid multi-space regex"))
 }
 
 /// Minify CSS content (inner text of a `<style>` block).
@@ -200,14 +192,20 @@ mod tests {
     fn minifies_script_block() {
         let input = "<head>\n  <script>\n    var x = 1;\n    /* unused */\n    var y = 2;\n  </script>\n</head>";
         let output = minify_html(input);
-        assert_eq!(output, "<head><script>var x = 1;\nvar y = 2;</script></head>");
+        assert_eq!(
+            output,
+            "<head><script>var x = 1;\nvar y = 2;</script></head>"
+        );
     }
 
     #[test]
     fn minifies_style_block() {
         let input = "<head>\n  <style>\n    /* reset */\n    body { margin: 0; }\n    p { color: red; }\n  </style>\n</head>";
         let output = minify_html(input);
-        assert_eq!(output, "<head><style>body { margin: 0; } p { color: red; }</style></head>");
+        assert_eq!(
+            output,
+            "<head><style>body { margin: 0; } p { color: red; }</style></head>"
+        );
     }
 
     #[test]
@@ -215,7 +213,10 @@ mod tests {
         // // comments must NOT be removed (URLs, regex literals)
         let input = "<script>\n  // init\n  var url = 'https://example.com';\n</script>";
         let output = minify_html(input);
-        assert_eq!(output, "<script>// init\nvar url = 'https://example.com';</script>");
+        assert_eq!(
+            output,
+            "<script>// init\nvar url = 'https://example.com';</script>"
+        );
     }
 
     #[test]
@@ -236,14 +237,20 @@ mod tests {
         // Since the whole <script> block is stashed before comment stripping,
         // this wrapper must survive.
         let input = "<script><!--\nvar x = 1;\n//--></script>";
-        assert_eq!(minify_html(input), "<script><!--\nvar x = 1;\n//--></script>");
+        assert_eq!(
+            minify_html(input),
+            "<script><!--\nvar x = 1;\n//--></script>"
+        );
     }
 
     #[test]
     fn collapses_newlines_in_attribute() {
         // Multi-line attribute value (e.g. content="...\n...")
         let input = "<meta name=\"viewport\"\n  content=\"width=device-width\">";
-        assert_eq!(minify_html(input), "<meta name=\"viewport\" content=\"width=device-width\">");
+        assert_eq!(
+            minify_html(input),
+            "<meta name=\"viewport\" content=\"width=device-width\">"
+        );
     }
 
     #[test]

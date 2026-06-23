@@ -1122,8 +1122,7 @@ impl RustF {
     async fn execute_route_handler(&self, ctx: &mut Context) -> Result<MiddlewareResult> {
         // Try to match route. Use `path()` (not the raw `uri`) so HTTP/2 — where
         // the URI is the absolute `http://host/path` form — routes like HTTP/1.
-        if let Some((route_info, params)) =
-            self.router.match_route(&ctx.req.method, ctx.req.path())
+        if let Some((route_info, params)) = self.router.match_route(&ctx.req.method, ctx.req.path())
         {
             // Check XHR constraint if the route requires it
             if route_info.xhr_only && !ctx.is_xhr() {
@@ -1146,8 +1145,7 @@ impl RustF {
                 use crate::routing::BeforeAction;
                 match before(ctx).await? {
                     BeforeAction::Stop => {
-                        let response =
-                            ctx.take_response().unwrap_or_else(Response::internal_error);
+                        let response = ctx.take_response().unwrap_or_else(Response::internal_error);
                         return Ok(MiddlewareResult::Stop(response));
                     }
                     BeforeAction::Continue => { /* fall through to handler */ }
@@ -1181,10 +1179,7 @@ impl RustF {
         if let Some(provider) = crate::views::embed_provider::get_assets_provider() {
             // Normalise the lookup key: prefer the suffix without prefix,
             // fall back to the full path (without leading slash).
-            let candidates: &[&str] = &[
-                relative_suffix,
-                full_request_path.trim_start_matches('/'),
-            ];
+            let candidates: &[&str] = &[relative_suffix, full_request_path.trim_start_matches('/')];
             for key in candidates {
                 if key.is_empty() {
                     continue;
@@ -1200,11 +1195,17 @@ impl RustF {
                         if if_none_match == Some(etag.as_str()) {
                             Response::not_modified()
                                 .with_header("ETag", &etag)
-                                .with_header("Cache-Control", &format!("public, max-age={}", cache_max_age))
+                                .with_header(
+                                    "Cache-Control",
+                                    &format!("public, max-age={}", cache_max_age),
+                                )
                         } else {
                             Response::ok()
                                 .with_header("Content-Type", content_type)
-                                .with_header("Cache-Control", &format!("public, max-age={}", cache_max_age))
+                                .with_header(
+                                    "Cache-Control",
+                                    &format!("public, max-age={}", cache_max_age),
+                                )
                                 .with_header("ETag", &etag)
                                 .with_header("Content-Length", &data.len().to_string())
                                 .with_body(data)
@@ -1345,7 +1346,10 @@ impl RustF {
                     return Ok(Some(
                         Response::not_modified()
                             .with_header("ETag", &etag)
-                            .with_header("Cache-Control", &format!("public, max-age={}", cache_max_age)),
+                            .with_header(
+                                "Cache-Control",
+                                &format!("public, max-age={}", cache_max_age),
+                            ),
                     ));
                 }
             }
@@ -1355,7 +1359,10 @@ impl RustF {
                         return Ok(Some(
                             Response::not_modified()
                                 .with_header("ETag", &etag)
-                                .with_header("Cache-Control", &format!("public, max-age={}", cache_max_age)),
+                                .with_header(
+                                    "Cache-Control",
+                                    &format!("public, max-age={}", cache_max_age),
+                                ),
                         ));
                     }
                 }
@@ -1368,7 +1375,10 @@ impl RustF {
             Ok(Some(
                 Response::ok()
                     .with_header("Content-Type", content_type)
-                    .with_header("Cache-Control", &format!("public, max-age={}", cache_max_age))
+                    .with_header(
+                        "Cache-Control",
+                        &format!("public, max-age={}", cache_max_age),
+                    )
                     .with_header("ETag", &etag)
                     .with_header("Last-Modified", &last_modified)
                     .with_header("Content-Length", &content.len().to_string())

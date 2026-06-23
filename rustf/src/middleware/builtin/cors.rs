@@ -161,8 +161,8 @@ impl CorsMiddleware {
         let max_age = CONF::get::<u32>("middleware.cors.max_age");
 
         // Support multiple origins from config
-        let allow_origins = CONF::get::<Vec<String>>("middleware.cors.allow_origins")
-            .unwrap_or_default();
+        let allow_origins =
+            CONF::get::<Vec<String>>("middleware.cors.allow_origins").unwrap_or_default();
 
         let config = CorsConfig {
             allow_origin,
@@ -175,7 +175,6 @@ impl CorsMiddleware {
 
         Self::with_config(config)
     }
-
 }
 
 impl Default for CorsMiddleware {
@@ -320,7 +319,12 @@ impl CorsMiddleware {
         if !self.config.allow_origins.is_empty() {
             if let Some(request_origin) = ctx.req.headers.get("origin") {
                 // Check if request origin is in the allowed list
-                if self.config.allow_origins.iter().any(|o| o == request_origin) {
+                if self
+                    .config
+                    .allow_origins
+                    .iter()
+                    .any(|o| o == request_origin)
+                {
                     return Some(request_origin.clone());
                 }
             }
@@ -503,19 +507,17 @@ mod tests {
 
     #[tokio::test]
     async fn test_cors_multiple_origins() {
-        let middleware = CorsMiddleware::new()
-            .allow_origins(vec![
-                "https://app1.example.com".to_string(),
-                "https://app2.example.com".to_string(),
-            ]);
+        let middleware = CorsMiddleware::new().allow_origins(vec![
+            "https://app1.example.com".to_string(),
+            "https://app2.example.com".to_string(),
+        ]);
 
         // Test with allowed origin
         let mut request = Request::default();
         request.method = "GET".to_string();
-        request.headers.insert(
-            "origin".to_string(),
-            "https://app1.example.com".to_string(),
-        );
+        request
+            .headers
+            .insert("origin".to_string(), "https://app1.example.com".to_string());
 
         let views = Arc::new(ViewEngine::from_directory("views"));
         let mut ctx = Context::new(request, views);
@@ -544,19 +546,17 @@ mod tests {
 
     #[tokio::test]
     async fn test_cors_multiple_origins_rejected() {
-        let middleware = CorsMiddleware::new()
-            .allow_origins(vec![
-                "https://app1.example.com".to_string(),
-                "https://app2.example.com".to_string(),
-            ]);
+        let middleware = CorsMiddleware::new().allow_origins(vec![
+            "https://app1.example.com".to_string(),
+            "https://app2.example.com".to_string(),
+        ]);
 
         // Test with disallowed origin
         let mut request = Request::default();
         request.method = "GET".to_string();
-        request.headers.insert(
-            "origin".to_string(),
-            "https://evil.com".to_string(),
-        );
+        request
+            .headers
+            .insert("origin".to_string(), "https://evil.com".to_string());
 
         let views = Arc::new(ViewEngine::from_directory("views"));
         let mut ctx = Context::new(request, views);
@@ -577,8 +577,7 @@ mod tests {
     #[tokio::test]
     async fn test_cors_wildcard_with_credentials_validation() {
         // Attempting to set credentials with wildcard should clear origin
-        let middleware = CorsMiddleware::new()
-            .allow_credentials(true);
+        let middleware = CorsMiddleware::new().allow_credentials(true);
 
         let mut request = Request::default();
         request.method = "GET".to_string();
@@ -624,10 +623,7 @@ mod tests {
             assert_eq!(origin_header, Some("*"));
 
             // No Vary header for wildcard
-            let vary_header = response
-                .headers
-                .iter()
-                .find(|(k, _)| k == "Vary");
+            let vary_header = response.headers.iter().find(|(k, _)| k == "Vary");
             assert!(vary_header.is_none());
         } else {
             panic!("Expected response in context");
@@ -671,7 +667,9 @@ mod tests {
     // the constructor guard; emission-time enforcement still catches it.
     #[tokio::test]
     async fn wildcard_with_credentials_via_builder_order_emits_no_cors_headers() {
-        let mw = CorsMiddleware::new().allow_credentials(true).allow_origin("*");
+        let mw = CorsMiddleware::new()
+            .allow_credentials(true)
+            .allow_origin("*");
 
         assert!(!emits_header(&mw, "Access-Control-Allow-Origin").await);
         assert!(!emits_header(&mw, "Access-Control-Allow-Credentials").await);
@@ -736,10 +734,8 @@ mod tests {
         let mw = CorsMiddleware::new().allow_origins(vec!["https://app1.example.com".to_string()]);
         let mut req = Request::default();
         req.method = "GET".to_string();
-        req.headers.insert(
-            "origin".to_string(),
-            "https://app1.example.com".to_string(),
-        );
+        req.headers
+            .insert("origin".to_string(), "https://app1.example.com".to_string());
 
         let views = Arc::new(ViewEngine::from_directory("views"));
         let mut ctx = Context::new(req, views);

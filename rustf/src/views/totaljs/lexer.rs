@@ -37,10 +37,10 @@ pub enum TokenKind {
     // Special directives
     Meta(Option<String>, Option<String>, Option<String>), // @{meta(title, desc, keywords)}
     Title(String),                                        // @{title('value')} - raw arg expression
-    Description(String),                                  // @{description('value')} - raw arg expression
-    FormField(String, String),                            // @{text|textarea|...(...)} - (kind, raw args inside parens)
-    Body,    // @{body} - Standard Total.js layout content placeholder
-    Head,    // @{head} - Additional head section content
+    Description(String),       // @{description('value')} - raw arg expression
+    FormField(String, String), // @{text|textarea|...(...)} - (kind, raw args inside parens)
+    Body,                      // @{body} - Standard Total.js layout content placeholder
+    Head,                      // @{head} - Additional head section content
     Content, // @{content} - Our extension, same as @{body} for backward compatibility
     Csrf,    // @{csrf}
 
@@ -429,7 +429,9 @@ impl Lexer {
 
         // Form-input helpers. Keep the raw argument list; the parser splits it
         // into field name + (value) + (label) + attribute object per helper.
-        for kind in ["text", "password", "hidden", "textarea", "checkbox", "radio"] {
+        for kind in [
+            "text", "password", "hidden", "textarea", "checkbox", "radio",
+        ] {
             let prefix = format!("{}(", kind);
             if trimmed.starts_with(&prefix) && trimmed.ends_with(')') {
                 let args = trimmed[prefix.len()..trimmed.len() - 1].trim().to_string();
