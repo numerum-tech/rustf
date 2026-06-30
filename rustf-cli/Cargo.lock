@@ -2612,7 +2612,6 @@ dependencies = [
  "rust-embed",
  "rust_decimal",
  "rustf-macros",
- "rustf-schema",
  "serde",
  "serde-toml-merge",
  "serde_json",

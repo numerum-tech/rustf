@@ -13,7 +13,7 @@ impl InboundMiddleware for TestMiddleware {
         // Set values in context
         ctx.layout(""); // The original issue - setting layout to empty
         ctx.repository_set("middleware_key", "middleware_value");
-        ctx.set("test_number", 42i32);
+        let _ = ctx.set("test_number", 42i32);
 
         Ok(InboundAction::Continue)
     }

@@ -63,7 +63,7 @@ defaults and enable only what you need:
 
 ```toml
 rustf = { version = "1.0.0-rc1", default-features = false, features = [
-    "embedded-views", "schema",
+    "embedded-views",
     "db-postgres",   # pulls in `database` + `decimal` automatically
 ] }
 ```
@@ -74,7 +74,7 @@ rustf = { version = "1.0.0-rc1", default-features = false, features = [
 | `database` | ✅ | driverless SQL core + `decimal` |
 | `redis` | ✅ | Redis-backed (cross-instance) session storage |
 | `embedded-views` | ✅ | compile templates into the binary |
-| `schema` | ✅ | YAML schema validation + codegen |
+| `schema` | — | YAML schema validation + codegen |
 | `cli` | — | `clap`-based argument parsing |
 
 TOML config loading, the auto-discovery macros, and UUID support are core and always compiled.

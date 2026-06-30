@@ -1,5 +1,4 @@
 use rustf::database::types::{PostgresTypeConverter, SqlValue};
-use sqlx::postgres::PgArguments;
 
 #[test]
 fn test_postgres_enum_binding() {
@@ -10,7 +9,7 @@ fn test_postgres_enum_binding() {
     let query = sqlx::query::<sqlx::Postgres>("SELECT $1");
 
     // Bind the enum value
-    let bound_query = PostgresTypeConverter::bind_param(query, enum_val);
+    let _bound_query = PostgresTypeConverter::bind_param(query, enum_val);
 
     // The test passes if binding doesn't panic
     // In real usage, this would bind only "ACTIVE" as the parameter value
@@ -24,7 +23,7 @@ fn test_postgres_enum_without_type() {
     let enum_val = SqlValue::Enum("ACTIVE".to_string());
 
     let query = sqlx::query::<sqlx::Postgres>("SELECT $1");
-    let bound_query = PostgresTypeConverter::bind_param(query, enum_val);
+    let _bound_query = PostgresTypeConverter::bind_param(query, enum_val);
 
     assert!(true, "Regular enum binding succeeded");
 }

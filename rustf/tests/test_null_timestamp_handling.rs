@@ -122,7 +122,7 @@ fn test_timestamp_handling() {
 
     let query = QueryBuilder::new(DatabaseBackend::Postgres).from("events");
 
-    let (sql, params) = query.build_insert(&data).unwrap();
+    let (_sql, params) = query.build_insert(&data).unwrap();
 
     // Both timestamps should be parameters
     assert_eq!(params.len(), 2, "Should have 2 timestamp params");

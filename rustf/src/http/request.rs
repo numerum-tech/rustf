@@ -1417,14 +1417,14 @@ file contents\r\n\
             .insert("host".to_string(), "example.com:8080".to_string());
 
         assert_eq!(request.host(), Some("example.com:8080"));
-        assert_eq!(request.hostname(None), "http://localhost");
+        assert_eq!(request.hostname(None), "http://localhost:3000");
         assert_eq!(
             request.hostname(Some("/api/users")),
-            "http://localhost/api/users"
+            "http://localhost:3000/api/users"
         );
         assert_eq!(
             request.hostname(Some("api/users")),
-            "http://localhost/api/users"
+            "http://localhost:3000/api/users"
         );
 
         // Test HTTPS detection
@@ -1433,12 +1433,12 @@ file contents\r\n\
         request
             .headers
             .insert("x-forwarded-proto".to_string(), "https".to_string());
-        assert_eq!(request.hostname(None), "http://localhost");
+        assert_eq!(request.hostname(None), "https://localhost:3000");
 
         // Test with no host
         let empty_request = Request::default();
         assert_eq!(empty_request.host(), None);
-        assert_eq!(empty_request.hostname(None), "http://localhost");
+        assert_eq!(empty_request.hostname(None), "http://localhost:3000");
     }
 
     #[test]

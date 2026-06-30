@@ -39,9 +39,9 @@ All SQL drivers and Redis are **on by default** — most users need no config. F
 a leaner build, opt out and enable only what you use:
 
 ```toml
-# PostgreSQL only — skips MySQL, SQLite, and Redis
+# PostgreSQL only — skips MySQL, SQLite, Redis, and schema tooling
 rustf = { version = "1.0.0-rc1", default-features = false, features = [
-    "embedded-views", "schema",
+    "embedded-views",
     "db-postgres",   # pulls in `database` + `decimal` automatically
 ] }
 ```
@@ -49,6 +49,7 @@ rustf = { version = "1.0.0-rc1", default-features = false, features = [
 Available: `db-postgres`, `db-mysql`, `db-sqlite` (each pulls in the `database`
 core + `decimal`), and `redis` (the only built-in cross-instance session store —
 keep it, or supply a custom `SessionStorage`, for multi-instance deployments).
+`schema` is optional and now disabled unless you enable it explicitly.
 TOML config, auto-discovery, and UUID support are always compiled (not features).
 See the
 [Installation guide](https://numerum-tech.github.io/rustf/getting-started/installation.html#cargo-features)
@@ -105,6 +106,7 @@ cargo run
 Primary documentation lives in the RustF book:
 
 - **[Read the online book](https://numerum-tech.github.io/rustf/)** - Published documentation
+- **[Dependency inventory](dependencies.md)** - Direct workspace dependencies and their roles
 - **[Getting Started](https://numerum-tech.github.io/rustf/getting-started/installation.html)** - Installation and first app
 - **[Controllers](https://numerum-tech.github.io/rustf/guides/controllers.html)** - Route handling and controllers
 - **[Middleware](https://numerum-tech.github.io/rustf/guides/middleware.html)** - Built-in and custom middleware
