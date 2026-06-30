@@ -433,18 +433,15 @@ mod tests {
     use tokio::test;
 
     async fn create_test_storage() -> RedisSessionStorage {
-        // Skip tests if Redis is not available
         match RedisSessionStorage::new().await {
             Ok(storage) => storage,
-            Err(_) => {
-                println!("Redis not available, skipping tests");
-                panic!("Redis connection failed - tests require running Redis server");
-            }
+            Err(err) => panic!(
+                "Redis connection failed: {err}. Start Redis on 127.0.0.1:6379 to run Redis session tests."
+            ),
         }
     }
 
     #[test]
-    #[ignore = "requires a running Redis server"]
     async fn test_redis_storage_get_missing_fingerprint() {
         let storage = create_test_storage().await;
         let session_id = "test_missing_fingerprint";
@@ -456,7 +453,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "requires a running Redis server"]
     async fn test_redis_storage_basic_operations() {
         let storage = create_test_storage().await;
         let session_id = "test_redis_session_123";
@@ -501,7 +497,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "requires a running Redis server"]
     async fn test_redis_storage_ttl() {
         let storage = create_test_storage().await;
         let session_id = "expiring_redis_session";
@@ -525,7 +520,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "requires a running Redis server"]
     async fn test_redis_storage_stats() {
         let storage = create_test_storage().await;
 
@@ -562,7 +556,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "requires a running Redis server"]
     async fn test_redis_storage_concurrent_access() {
         let storage = create_test_storage().await;
         let session_id = "concurrent_redis_session";

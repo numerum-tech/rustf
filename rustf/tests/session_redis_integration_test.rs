@@ -48,7 +48,6 @@ mod redis_integration {
     }
 
     #[tokio::test]
-    #[ignore = "requires a running Redis server"]
     async fn redis_session_middleware_round_trip_and_destroy() {
         let unique_prefix = format!(
             "rustf:test:http-session:{}:",
