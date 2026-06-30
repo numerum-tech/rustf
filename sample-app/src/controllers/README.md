@@ -1,0 +1,106 @@
+# Controllers Directory
+
+This directory contains your HTTP layer: routes, request parsing, flash
+messages, redirects, and view / JSON responses.
+
+The canonical controller guide lives in the RustF book:
+
+- Book: <https://numerum-tech.github.io/rustf/guides/controllers.html>
+- Context API: <https://numerum-tech.github.io/rustf/api-reference/context.html>
+- Routing API: <https://numerum-tech.github.io/rustf/api-reference/routing.html>
+
+## Quick Rules
+
+- Each controller exports `pub fn install() -> Vec<Route>`.
+- Handlers use `async fn(ctx: &mut Context) -> rustf::Result<()>`.
+- Route params use `{id}`, not `:id`.
+- Controllers stay thin: call modules for business logic.
+- Values needed in templates go through `ctx.repository_set(...)`, not `ctx.set(...)`.
+
+## Minimal Example
+
+```rust
+use rustf::prelude::*;
+
+pub fn install() -> Vec<Route> {
+    routes![
+        GET "/" => index,
+        GET "/articles/{id}" => show,
+        POST "/articles" => create,
+    ]
+}
+
+async fn index(ctx: &mut Context) -> rustf::Result<()> {
+    ctx.view("home/index", json!({"title": "Home"}))
+}
+
+async fn show(ctx: &mut Context) -> rustf::Result<()> {
+    let id = ctx.param_int("id")? as i64;
+    ctx.json(json!({"id": id}))
+}
+
+async fn create(ctx: &mut Context) -> rustf::Result<()> {
+    let form = ctx.body_form()?;
+    ctx.json(json!({"received": form}))
+}
+```
+
+## Common APIs
+
+```rust
+ctx.param("id");
+ctx.param_int("id")?;
+ctx.query("q");
+ctx.body_form()?;
+ctx.body_json::<MyInput>()?;
+
+ctx.view("users/show", data)?;
+ctx.json(json!({"ok": true}))?;
+ctx.html("<h1>Hello</h1>")?;
+ctx.redirect("/login")?;
+ctx.redirect_permanent("/moved")?;
+
+ctx.flash_success("Saved")?;
+ctx.session_set("user_id", 42)?;
+let user_id: Option<i64> = ctx.session_get("user_id");
+```
+
+## Controller-Level `before`
+
+Use `routes![before: ..., ...]` when every route in one controller needs
+the same setup or access gate.
+
+```rust
+use rustf::prelude::*;
+
+pub fn install() -> Vec<Route> {
+    async fn before(ctx: &mut Context) -> rustf::Result<BeforeAction> {
+        if ctx.require_auth().is_err() {
+            ctx.redirect("/login")?;
+            return Ok(BeforeAction::Stop);
+        }
+        Ok(BeforeAction::Continue)
+    }
+
+    routes![
+        before: before,
+        GET "/dashboard" => dashboard,
+    ]
+}
+
+async fn dashboard(ctx: &mut Context) -> rustf::Result<()> {
+    ctx.view("dashboard/index", json!({}))
+}
+```
+
+## Files
+
+- `ctx.file_download("uploads/report.pdf", None).await?` resolves from the app's
+  private directory.
+- `ctx.file_inline("uploads/report.pdf").await?` does the same for inline display.
+- Use the explicit `_from(...)` variants only for controlled external paths.
+
+## Notes
+
+- Built-in middleware is configured in app startup, not here.
+- For auth/session/CSRF patterns, use the book as the source of truth.
