@@ -22,6 +22,11 @@ pub struct Table {
     /// Element type (table, view, materialized_view)
     pub element_type: Option<String>,
 
+    /// View definition. Only consulted when `element_type` is `view` or
+    /// `materialized_view`; ignored for plain tables.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub view: Option<ViewDef>,
+
     /// Schema version for migrations
     pub version: u32,
 
@@ -50,6 +55,26 @@ pub struct Table {
     /// Table constraints
     #[serde(default)]
     pub constraints: Vec<Constraint>,
+}
+
+/// Definition of a database view (or materialized view).
+///
+/// Currently view bodies are expressed as raw, dialect-native SQL via [`sql`].
+/// A structured form (`select`/`from`/`where`) is planned for simple views as
+/// part of schema-first DB integration, but raw SQL stays the escape hatch for
+/// anything non-trivial (CTEs, window functions, dialect specifics).
+///
+/// [`sql`]: ViewDef::sql
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ViewDef {
+    /// Raw SQL body of the view: the `SELECT …` statement, without the
+    /// leading `CREATE VIEW <name> AS`. Required for SQL generation.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sql: Option<String>,
+
+    /// Emit `CREATE OR REPLACE VIEW` instead of plain `CREATE VIEW`.
+    #[serde(default)]
+    pub or_replace: bool,
 }
 
 /// Field definition
@@ -577,6 +602,7 @@ impl Default for Table {
             database_type: None,
             database_name: None,
             element_type: None,
+            view: None,
             version: 1,
             description: None,
             tags: Vec::new(),

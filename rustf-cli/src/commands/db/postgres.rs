@@ -29,6 +29,26 @@ impl PostgresIntrospector {
         Ok(Self { pool, db_name })
     }
     
+    /// Fetch the SELECT body of a view or materialized view, with the trailing
+    /// semicolon stripped. Returns `None` if the relation is not a view or has
+    /// no retrievable definition.
+    async fn get_view_definition(&self, schema: &str, name: &str) -> Result<Option<String>> {
+        let qualified = format!("{}.{}", schema, name);
+        let row = sqlx::query("SELECT pg_get_viewdef($1::regclass, true) AS def")
+            .bind(&qualified)
+            .fetch_optional(&self.pool)
+            .await?;
+
+        let def = match row {
+            Some(r) => r.try_get::<Option<String>, _>("def").ok().flatten(),
+            None => None,
+        };
+
+        Ok(def
+            .map(|s| s.trim().trim_end_matches(';').trim().to_string())
+            .filter(|s| !s.is_empty()))
+    }
+
     async fn get_enum_values(&self, type_name: &str) -> Result<Vec<String>> {
         let enum_rows = sqlx::query(
             r#"
@@ -381,13 +401,33 @@ impl PostgresIntrospector {
         yaml.push_str(&format!("  database_name: {}\n", self.db_name));
         
         // Determine element type (table or view)
-        let element_type = if description.table.table_type.to_lowercase().contains("view") {
+        let table_type_lc = description.table.table_type.to_lowercase();
+        let element_type = if table_type_lc.contains("materialized") {
+            "materialized_view"
+        } else if table_type_lc.contains("view") {
             "view"
         } else {
             "table"
         };
         yaml.push_str(&format!("  element_type: {}\n", element_type));
         yaml.push_str("  version: 1\n");
+
+        // For views, capture the SQL body so `schema generate sql` can recreate
+        // them with CREATE VIEW. Without this the view round-trips as an empty
+        // shell and fails validation.
+        if element_type != "table" {
+            let schema_name = description.table.schema.as_deref().unwrap_or("public");
+            if let Some(body) = self
+                .get_view_definition(schema_name, &description.table.name)
+                .await?
+            {
+                yaml.push_str("  view:\n");
+                yaml.push_str("    sql: |\n");
+                for line in body.lines() {
+                    yaml.push_str(&format!("      {}\n", line));
+                }
+            }
+        }
         
         // Add description if available
         if let Some(comment) = &description.table.comment {

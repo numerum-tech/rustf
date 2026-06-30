@@ -156,6 +156,7 @@ mod tests {
             database_type: None,
             database_name: None,
             element_type: None,
+            view: None,
             version: 1,
             description: None,
             tags: vec![],
