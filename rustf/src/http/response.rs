@@ -138,13 +138,16 @@ impl Response {
     // Total.js-style file and binary responses
 
     /// Send file download response (Total.js: controller.file)
-    pub fn file_download<P: AsRef<Path>>(path: P, download_name: Option<&str>) -> Result<Self> {
+    pub async fn file_download<P: AsRef<Path>>(
+        path: P,
+        download_name: Option<&str>,
+    ) -> Result<Self> {
         let base_dir = Self::default_private_base_dir()?;
-        Self::file_download_from(base_dir, path, download_name)
+        Self::file_download_from(base_dir, path, download_name).await
     }
 
     /// Send file download response constrained to a base directory.
-    pub fn file_download_from<B: AsRef<Path>, P: AsRef<Path>>(
+    pub async fn file_download_from<B: AsRef<Path>, P: AsRef<Path>>(
         base_dir: B,
         path: P,
         download_name: Option<&str>,
@@ -152,8 +155,11 @@ impl Response {
         let path = path.as_ref();
         let safe_path = Self::resolve_contained_file(base_dir.as_ref(), path)?;
 
-        // Read file contents
-        let contents = std::fs::read(&safe_path).map_err(crate::error::Error::Io)?;
+        // Read file contents off the blocking pool so the worker thread stays
+        // free to drive other connections.
+        let contents = tokio::fs::read(&safe_path)
+            .await
+            .map_err(crate::error::Error::Io)?;
 
         // Determine content type from file extension
         let content_type = Self::guess_content_type(&safe_path);
@@ -172,18 +178,24 @@ impl Response {
     }
 
     /// Send inline file response (view in browser)
-    pub fn file_inline<P: AsRef<Path>>(path: P) -> Result<Self> {
+    pub async fn file_inline<P: AsRef<Path>>(path: P) -> Result<Self> {
         let base_dir = Self::default_private_base_dir()?;
-        Self::file_inline_from(base_dir, path)
+        Self::file_inline_from(base_dir, path).await
     }
 
     /// Send inline file response constrained to a base directory.
-    pub fn file_inline_from<B: AsRef<Path>, P: AsRef<Path>>(base_dir: B, path: P) -> Result<Self> {
+    pub async fn file_inline_from<B: AsRef<Path>, P: AsRef<Path>>(
+        base_dir: B,
+        path: P,
+    ) -> Result<Self> {
         let path = path.as_ref();
         let safe_path = Self::resolve_contained_file(base_dir.as_ref(), path)?;
 
-        // Read file contents
-        let contents = std::fs::read(&safe_path).map_err(crate::error::Error::Io)?;
+        // Read file contents off the blocking pool so the worker thread stays
+        // free to drive other connections.
+        let contents = tokio::fs::read(&safe_path)
+            .await
+            .map_err(crate::error::Error::Io)?;
 
         // Determine content type from file extension
         let content_type = Self::guess_content_type(&safe_path);
@@ -469,15 +481,17 @@ mod tests {
         std::env::temp_dir().join(format!("rustf-response-{name}-{unique}"))
     }
 
-    #[test]
-    fn file_download_from_allows_file_under_base_dir() {
+    #[tokio::test]
+    async fn file_download_from_allows_file_under_base_dir() {
         let base_dir = temp_test_dir("allowed");
         let nested_dir = base_dir.join("uploads");
         fs::create_dir_all(&nested_dir).unwrap();
         let file_path = nested_dir.join("report.txt");
         fs::write(&file_path, b"hello").unwrap();
 
-        let response = Response::file_download_from(&base_dir, "uploads/report.txt", None).unwrap();
+        let response = Response::file_download_from(&base_dir, "uploads/report.txt", None)
+            .await
+            .unwrap();
 
         assert_eq!(response.body, b"hello");
         assert!(response
@@ -488,22 +502,24 @@ mod tests {
         fs::remove_dir_all(&base_dir).unwrap();
     }
 
-    #[test]
-    fn file_download_from_rejects_path_traversal() {
+    #[tokio::test]
+    async fn file_download_from_rejects_path_traversal() {
         let root = temp_test_dir("traversal");
         let base_dir = root.join("base");
         let secret_path = root.join("secret.txt");
         fs::create_dir_all(&base_dir).unwrap();
         fs::write(&secret_path, b"secret").unwrap();
 
-        let err = Response::file_download_from(&base_dir, "../secret.txt", None).unwrap_err();
+        let err = Response::file_download_from(&base_dir, "../secret.txt", None)
+            .await
+            .unwrap_err();
         assert!(matches!(err, Error::InvalidInput(_)));
 
         fs::remove_dir_all(&root).unwrap();
     }
 
-    #[test]
-    fn file_inline_from_rejects_absolute_path_outside_base_dir() {
+    #[tokio::test]
+    async fn file_inline_from_rejects_absolute_path_outside_base_dir() {
         let root = temp_test_dir("absolute");
         let base_dir = root.join("base");
         let outside_dir = root.join("outside");
@@ -512,7 +528,9 @@ mod tests {
         let outside_file = outside_dir.join("secret.txt");
         fs::write(&outside_file, b"secret").unwrap();
 
-        let err = Response::file_inline_from(&base_dir, &outside_file).unwrap_err();
+        let err = Response::file_inline_from(&base_dir, &outside_file)
+            .await
+            .unwrap_err();
         assert!(matches!(err, Error::InvalidInput(_)));
 
         fs::remove_dir_all(&root).unwrap();
@@ -551,8 +569,8 @@ mod tests {
         assert_eq!(hyper_response.headers().get("Location").unwrap(), "/moved");
     }
 
-    #[test]
-    fn file_download_escapes_content_disposition_filename() {
+    #[tokio::test]
+    async fn file_download_escapes_content_disposition_filename() {
         let base_dir = temp_test_dir("filename");
         fs::create_dir_all(&base_dir).unwrap();
         let file_path = base_dir.join("report.txt");
@@ -560,6 +578,7 @@ mod tests {
 
         let response =
             Response::file_download_from(&base_dir, "report.txt", Some("bad\"name\r\n.txt"))
+                .await
                 .unwrap();
         let content_disposition = response
             .headers

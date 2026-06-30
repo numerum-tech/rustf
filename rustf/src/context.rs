@@ -542,42 +542,42 @@ impl Context {
     }
 
     /// Send file download response (Total.js: controller.file)
-    pub fn file_download<P: AsRef<Path>>(
+    pub async fn file_download<P: AsRef<Path>>(
         &mut self,
         path: P,
         download_name: Option<&str>,
     ) -> Result<()> {
-        let new_response = Response::file_download(path, download_name)?;
+        let new_response = Response::file_download(path, download_name).await?;
         self.update_response(new_response);
         Ok(())
     }
 
     /// Send file download response constrained to a base directory.
-    pub fn file_download_from<B: AsRef<Path>, P: AsRef<Path>>(
+    pub async fn file_download_from<B: AsRef<Path>, P: AsRef<Path>>(
         &mut self,
         base_dir: B,
         path: P,
         download_name: Option<&str>,
     ) -> Result<()> {
-        let new_response = Response::file_download_from(base_dir, path, download_name)?;
+        let new_response = Response::file_download_from(base_dir, path, download_name).await?;
         self.update_response(new_response);
         Ok(())
     }
 
     /// Send file for inline viewing
-    pub fn file_inline<P: AsRef<Path>>(&mut self, path: P) -> Result<()> {
-        let new_response = Response::file_inline(path)?;
+    pub async fn file_inline<P: AsRef<Path>>(&mut self, path: P) -> Result<()> {
+        let new_response = Response::file_inline(path).await?;
         self.update_response(new_response);
         Ok(())
     }
 
     /// Send inline file response constrained to a base directory.
-    pub fn file_inline_from<B: AsRef<Path>, P: AsRef<Path>>(
+    pub async fn file_inline_from<B: AsRef<Path>, P: AsRef<Path>>(
         &mut self,
         base_dir: B,
         path: P,
     ) -> Result<()> {
-        let new_response = Response::file_inline_from(base_dir, path)?;
+        let new_response = Response::file_inline_from(base_dir, path).await?;
         self.update_response(new_response);
         Ok(())
     }
