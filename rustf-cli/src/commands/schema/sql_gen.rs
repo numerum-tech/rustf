@@ -46,15 +46,24 @@ pub fn generate_sql_schema(schema: &Schema, dialect: Dialect) -> anyhow::Result<
     sql.push_str(&format!("-- Dialect: {}\n", dialect.name()));
     sql.push_str("-- DO NOT EDIT - Auto-generated from schema\n\n");
 
-    // Deterministic table order (HashMap iteration is unordered).
-    let mut tables: Vec<(&String, &Table)> = schema.tables.iter().collect();
-    tables.sort_by(|(a, _), (b, _)| a.cmp(b));
+    // Deterministic order (HashMap iteration is unordered).
+    let mut entries: Vec<(&String, &Table)> = schema.tables.iter().collect();
+    entries.sort_by(|(a, _), (b, _)| a.cmp(b));
+
+    // Split base tables from views. Views must be emitted *after* the tables
+    // (and other views) they read from, or the DB rejects them with a
+    // "relation does not exist" error. Tables never reference views, so a
+    // simple two-phase ordering — all tables, then dependency-ordered views —
+    // is enough to avoid forward references.
+    let (views, base_tables): (Vec<_>, Vec<_>) = entries
+        .into_iter()
+        .partition(|(_, t)| is_view_type(t.element_type.as_deref()));
 
     // Foreign keys are emitted as trailing ALTER TABLE statements so the order
     // in which tables are created never matters (no forward-reference errors).
     let mut foreign_keys = String::new();
 
-    for (_name, table) in &tables {
+    for (_name, table) in &base_tables {
         render_table(table, dialect, &mut sql, &mut foreign_keys);
     }
 
@@ -63,7 +72,98 @@ pub fn generate_sql_schema(schema: &Schema, dialect: Dialect) -> anyhow::Result<
         sql.push_str(&foreign_keys);
     }
 
+    // Views last, ordered so a view that references another view is emitted
+    // after its dependency.
+    if !views.is_empty() {
+        sql.push_str("-- Views\n");
+        for (_name, table) in order_views(&views) {
+            match table.element_type.as_deref() {
+                Some("materialized_view") => render_view(table, &mut sql, true),
+                _ => render_view(table, &mut sql, false),
+            }
+        }
+    }
+
     Ok(sql)
+}
+
+/// Whether an `element_type` denotes a view (plain or materialized).
+fn is_view_type(element_type: Option<&str>) -> bool {
+    matches!(element_type, Some("view") | Some("materialized_view"))
+}
+
+/// Order views so that any view referencing another view appears after the
+/// view it depends on. Dependencies are detected by scanning each view's SQL
+/// body for the *table names* of the other views (whole-word match). This is a
+/// best-effort topological sort: unresolved cycles fall back to alphabetical
+/// order (already established by the caller) so output stays deterministic.
+fn order_views<'a>(views: &[(&'a String, &'a Table)]) -> Vec<(&'a String, &'a Table)> {
+    // Map each view's DB name to its index for dependency lookup.
+    let names: Vec<&str> = views.iter().map(|(_, t)| t.table.as_str()).collect();
+
+    // Dependencies[i] = set of view indices that view i reads from.
+    let deps: Vec<Vec<usize>> = views
+        .iter()
+        .map(|(_, t)| {
+            let body = t
+                .view
+                .as_ref()
+                .and_then(|v| v.sql.as_deref())
+                .unwrap_or("")
+                .to_ascii_lowercase();
+            names
+                .iter()
+                .enumerate()
+                .filter(|(_, dep_name)| {
+                    // A view never depends on itself, and the reference must be
+                    // a whole word (so `orders` doesn't match `orders_archive`).
+                    t.table != **dep_name && body_references(&body, &dep_name.to_ascii_lowercase())
+                })
+                .map(|(j, _)| j)
+                .collect()
+        })
+        .collect();
+
+    // Kahn-style emit: repeatedly take the lowest-index view whose deps are all
+    // already emitted. Falls back to forcing the next pending view if a cycle
+    // blocks progress, guaranteeing termination.
+    let mut emitted = vec![false; views.len()];
+    let mut ordered = Vec::with_capacity(views.len());
+    while ordered.len() < views.len() {
+        let next = (0..views.len()).find(|&i| {
+            !emitted[i] && deps[i].iter().all(|&d| emitted[d])
+        });
+        let pick = match next {
+            Some(i) => i,
+            // Cycle: force the first pending view to break the deadlock.
+            None => (0..views.len()).find(|&i| !emitted[i]).unwrap(),
+        };
+        emitted[pick] = true;
+        ordered.push(views[pick]);
+    }
+    ordered
+}
+
+/// Whole-word substring match: `name` appears in `body` not flanked by other
+/// identifier characters. Avoids matching `users` inside `users_archive`.
+fn body_references(body: &str, name: &str) -> bool {
+    if name.is_empty() {
+        return false;
+    }
+    let mut from = 0;
+    while let Some(pos) = body[from..].find(name) {
+        let start = from + pos;
+        let end = start + name.len();
+        let before_ok = start == 0
+            || !body.as_bytes()[start - 1].is_ascii_alphanumeric() && body.as_bytes()[start - 1] != b'_';
+        let after_ok = end == body.len()
+            || !body.as_bytes()[end].is_ascii_alphanumeric() && body.as_bytes()[end] != b'_';
+        if before_ok && after_ok {
+            return true;
+        }
+        from = start + name.len();
+    }
+    false
 }
 
 impl Dialect {
@@ -104,6 +204,53 @@ fn render_table(table: &Table, dialect: Dialect, sql: &mut String, foreign_keys:
 
     sql.push_str(&defs.join(",\n"));
     sql.push_str("\n);\n\n");
+}
+
+/// Emit a `CREATE VIEW` (or `CREATE MATERIALIZED VIEW`) from the table's
+/// [`view`] body. The body is raw, dialect-native SQL, so it is emitted
+/// verbatim. A view without an SQL body cannot be generated — that case is
+/// rejected by schema validation, but we still emit a clear comment rather
+/// than silently producing invalid SQL if we ever reach it.
+///
+/// [`view`]: rustf_schema::types::Table::view
+fn render_view(table: &Table, sql: &mut String, materialized: bool) {
+    let kind = if materialized {
+        "MATERIALIZED VIEW"
+    } else {
+        "VIEW"
+    };
+
+    sql.push_str(&format!("-- {}: {}\n", kind, table.table));
+    if let Some(desc) = &table.description {
+        sql.push_str(&format!("-- {}\n", desc));
+    }
+
+    let body = table.view.as_ref().and_then(|v| v.sql.as_deref());
+    let body = match body {
+        Some(b) if !b.trim().is_empty() => b.trim(),
+        _ => {
+            sql.push_str(&format!(
+                "-- ERROR: view '{}' has no `view.sql` body; cannot generate DDL.\n\n",
+                table.table
+            ));
+            return;
+        }
+    };
+
+    // `CREATE OR REPLACE` only applies to non-materialized views; materialized
+    // views must be dropped and recreated, so we never emit OR REPLACE there.
+    let or_replace = !materialized
+        && table.view.as_ref().map(|v| v.or_replace).unwrap_or(false);
+    let create = if or_replace {
+        "CREATE OR REPLACE"
+    } else {
+        "CREATE"
+    };
+
+    sql.push_str(&format!(
+        "{} {} {} AS\n{};\n\n",
+        create, kind, table.table, body
+    ));
 }
 
 /// Render a single column definition (without trailing comma).
@@ -414,6 +561,108 @@ accounts:
         // SQLite can't ALTER-add FKs: must be commented out, not emitted as runnable SQL
         assert!(sql.contains("-- NOTE: SQLite cannot add FKs"), "{sql}");
     }
+
+    const VIEW_YAML: &str = r#"
+active_orders:
+  table: active_orders
+  element_type: view
+  version: 1
+  description: "Open orders joined to users."
+  view:
+    or_replace: true
+    sql: |
+      SELECT o.id, u.email
+      FROM orders o
+      JOIN users u ON u.id = o.user_id
+      WHERE o.status = 'open'
+  fields:
+    id:
+      type: int
+    email:
+      type: string(255)
+"#;
+
+    #[test]
+    fn view_emits_create_view_not_create_table() {
+        let sql = generate_sql_schema(&schema(VIEW_YAML), Dialect::Postgres).unwrap();
+        // Must be a view, never a table.
+        assert!(sql.contains("CREATE OR REPLACE VIEW active_orders AS"), "{sql}");
+        assert!(!sql.contains("CREATE TABLE active_orders"), "{sql}");
+        // Raw body is emitted verbatim.
+        assert!(sql.contains("WHERE o.status = 'open'"), "{sql}");
+    }
+
+    #[test]
+    fn materialized_view_never_uses_or_replace() {
+        let yaml = VIEW_YAML.replace("element_type: view", "element_type: materialized_view");
+        let sql = generate_sql_schema(&schema(&yaml), Dialect::Postgres).unwrap();
+        assert!(sql.contains("CREATE MATERIALIZED VIEW active_orders AS"), "{sql}");
+        assert!(!sql.contains("OR REPLACE"), "{sql}");
+    }
+
+    #[test]
+    fn view_without_body_emits_error_comment_not_table() {
+        let yaml = r#"
+broken_view:
+  table: broken_view
+  element_type: view
+  version: 1
+  fields:
+    id:
+      type: int
+"#;
+        let sql = generate_sql_schema(&schema(yaml), Dialect::Postgres).unwrap();
+        assert!(sql.contains("ERROR: view 'broken_view' has no `view.sql`"), "{sql}");
+        assert!(!sql.contains("CREATE TABLE broken_view"), "{sql}");
+    }
+
+    #[test]
+    fn tables_emitted_before_views() {
+        // `active_orders` (view) reads from `orders` (table). The table's
+        // CREATE must come first.
+        let yaml = format!("{}{}", TABLE_FOR_VIEW, VIEW_YAML);
+        let sql = generate_sql_schema(&schema(&yaml), Dialect::Postgres).unwrap();
+        let table_pos = sql.find("CREATE TABLE orders").unwrap();
+        let view_pos = sql.find("VIEW active_orders").unwrap();
+        assert!(table_pos < view_pos, "table must precede view:\n{sql}");
+    }
+
+    #[test]
+    fn view_depending_on_view_is_ordered_after_it() {
+        // `vip_orders` selects from `active_orders` (another view); it must be
+        // emitted after `active_orders` regardless of alphabetical order.
+        let yaml = r#"
+active_orders:
+  table: active_orders
+  element_type: view
+  version: 1
+  view:
+    sql: "SELECT id FROM orders WHERE status = 'open'"
+vip_orders:
+  table: vip_orders
+  element_type: view
+  version: 1
+  view:
+    sql: "SELECT id FROM active_orders WHERE vip = true"
+"#;
+        let sql = generate_sql_schema(&schema(yaml), Dialect::Postgres).unwrap();
+        let active = sql.find("VIEW active_orders").unwrap();
+        let vip = sql.find("VIEW vip_orders").unwrap();
+        assert!(active < vip, "dependency view must come first:\n{sql}");
+    }
+
+    const TABLE_FOR_VIEW: &str = r#"
+orders:
+  table: orders
+  version: 1
+  fields:
+    id:
+      type: int
+      primary_key: true
+      auto: true
+    status:
+      type: string(20)
+"#;
 
     #[test]
     fn columns_are_deterministically_ordered_pk_first() {

@@ -40,17 +40,33 @@ impl SchemaValidator {
 
     /// Validate a single table
     pub fn validate_table(name: &str, table: &Table) -> Result<()> {
-        // Check that table has at least one field
-        if table.fields.is_empty() {
-            return Err(SchemaError::Validation(format!(
-                "Table '{}' has no fields",
-                name
-            )));
-        }
+        let is_view = Self::is_view(table);
 
-        // Check that tables (but not views) have a primary key
-        let is_view = table.element_type.as_deref() == Some("view");
-        if !is_view {
+        // A view must carry an SQL body so DDL generation has something to emit.
+        // Its column list (`fields`) is optional: it only drives typed model
+        // codegen and may be omitted for an untyped view.
+        if is_view {
+            let has_body = table
+                .view
+                .as_ref()
+                .and_then(|v| v.sql.as_deref())
+                .map(|s| !s.trim().is_empty())
+                .unwrap_or(false);
+            if !has_body {
+                return Err(SchemaError::Validation(format!(
+                    "View '{}' has no `view.sql` body",
+                    name
+                )));
+            }
+        } else {
+            // Plain tables must have at least one field and a primary key.
+            if table.fields.is_empty() {
+                return Err(SchemaError::Validation(format!(
+                    "Table '{}' has no fields",
+                    name
+                )));
+            }
+
             let has_primary_key = table
                 .fields
                 .values()
@@ -72,18 +88,37 @@ impl SchemaValidator {
         Ok(())
     }
 
+    /// Whether a table definition describes a view or materialized view.
+    fn is_view(table: &Table) -> bool {
+        matches!(
+            table.element_type.as_deref(),
+            Some("view") | Some("materialized_view")
+        )
+    }
+
     /// Validate a single table and collect all errors
     fn validate_table_comprehensive(name: &str, table: &Table) -> ValidationResult {
         let mut result = ValidationResult::new();
 
-        // Check that table has at least one field
-        if table.fields.is_empty() {
-            result.add_error(format!("Table '{}' has no fields", name));
-        }
+        let is_view = Self::is_view(table);
 
-        // Check that tables (but not views) have a primary key
-        let is_view = table.element_type.as_deref() == Some("view");
-        if !is_view {
+        if is_view {
+            // A view needs an SQL body; its column list is optional.
+            let has_body = table
+                .view
+                .as_ref()
+                .and_then(|v| v.sql.as_deref())
+                .map(|s| !s.trim().is_empty())
+                .unwrap_or(false);
+            if !has_body {
+                result.add_error(format!("View '{}' has no `view.sql` body", name));
+            }
+        } else {
+            // Plain tables must have at least one field and a primary key.
+            if table.fields.is_empty() {
+                result.add_error(format!("Table '{}' has no fields", name));
+            }
+
             let has_primary_key = table
                 .fields
                 .values()
@@ -608,6 +643,7 @@ mod tests {
             database_type: None,
             database_name: None,
             element_type: None,
+            view: None,
             version: 1,
             description: None,
             tags: vec![],
@@ -648,6 +684,7 @@ mod tests {
             database_type: None,
             database_name: None,
             element_type: None,
+            view: None,
             version: 1,
             description: None,
             tags: vec![],

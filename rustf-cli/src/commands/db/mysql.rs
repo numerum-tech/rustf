@@ -196,20 +196,44 @@ impl MySqlIntrospector {
         }
     }
     
-    fn generate_table_schema_yaml(&self, description: &TableDescription) -> Result<String> {
+    /// Fetch the SELECT body of a view from `information_schema.VIEWS`.
+    /// Returns `None` for non-views or when no definition is stored.
+    async fn get_view_definition(&self, name: &str) -> Result<Option<String>> {
+        let row = sqlx::query(
+            r#"
+            SELECT VIEW_DEFINITION AS def
+            FROM information_schema.VIEWS
+            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?
+            "#,
+        )
+        .bind(name)
+        .fetch_optional(&self.pool)
+        .await?;
+
+        let def = match row {
+            Some(r) => r.try_get::<Option<String>, _>("def").ok().flatten(),
+            None => None,
+        };
+
+        Ok(def
+            .map(|s| s.trim().trim_end_matches(';').trim().to_string())
+            .filter(|s| !s.is_empty()))
+    }
+
+    async fn generate_table_schema_yaml(&self, description: &TableDescription) -> Result<String> {
         let mut yaml = String::new();
-        
+
         // Add header comment
         yaml.push_str(&format!("# {} entity - Generated from database\n\n", description.table.name));
-        
+
         // Model name (convert table name to PascalCase)
         let model_name = to_pascal_case(&description.table.name);
         yaml.push_str(&format!("{}:\n", model_name));
         yaml.push_str(&format!("  table: {}\n", description.table.name));
         yaml.push_str(&format!("  database_type: mysql\n"));
         yaml.push_str(&format!("  database_name: {}\n", self.db_name));
-        
-        // Determine element type (table or view)
+
+        // Determine element type (table or view). MySQL has no materialized views.
         let element_type = if description.table.table_type.to_lowercase().contains("view") {
             "view"
         } else {
@@ -217,6 +241,17 @@ impl MySqlIntrospector {
         };
         yaml.push_str(&format!("  element_type: {}\n", element_type));
         yaml.push_str("  version: 1\n");
+
+        // For views, capture the SQL body so DDL generation can recreate them.
+        if element_type == "view" {
+            if let Some(body) = self.get_view_definition(&description.table.name).await? {
+                yaml.push_str("  view:\n");
+                yaml.push_str("    sql: |\n");
+                for line in body.lines() {
+                    yaml.push_str(&format!("      {}\n", line));
+                }
+            }
+        }
         
         // Add description if available
         if let Some(comment) = &description.table.comment {
@@ -576,7 +611,7 @@ impl DatabaseIntrospector for MySqlIntrospector {
             let description = self.describe_table(&table.name).await?;
             
             // Generate YAML schema
-            let yaml_content = self.generate_table_schema_yaml(&description)?;
+            let yaml_content = self.generate_table_schema_yaml(&description).await?;
             
             // Write schema file
             fs::write(&schema_file, yaml_content).await?;

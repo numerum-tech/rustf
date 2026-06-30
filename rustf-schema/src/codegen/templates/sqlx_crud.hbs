@@ -15,10 +15,12 @@ impl {{table_name}}Repository {
         Self { pool }
     }
 
+    {{#unless variables.is_view}}
     /// Create a new {{snake_case table_name}}
     pub async fn create(&self, data: &{{table_name}}) -> Result<{{table_name}}, sqlx::Error> {
         data.insert(&self.pool).await
     }
+    {{/unless}}
 
     /// Get a {{snake_case table_name}} by ID
     {{#if variables.primary_key}}

@@ -65,6 +65,16 @@ impl SqlxGenerator {
             serde_json::to_value(self.generate_update_fields(table)?)?,
         );
 
+        // Views are read-only: their generated repository must not expose
+        // create/update/delete. Materialized views are read-only too.
+        let is_view = matches!(
+            table.element_type.as_deref(),
+            Some("view") | Some("materialized_view")
+        );
+        context
+            .variables
+            .insert("is_view".to_string(), serde_json::to_value(is_view)?);
+
         // Add type constants for AI agent reference
         context.variables.insert(
             "type_constants".to_string(),
@@ -353,6 +363,48 @@ mod tests {
     }
 
     #[test]
+    fn view_generates_read_only_model() {
+        let generator = SqlxGenerator::new().unwrap();
+
+        let mut view = Table {
+            element_type: Some("view".to_string()),
+            view: Some(crate::types::ViewDef {
+                sql: Some("SELECT id FROM orders".to_string()),
+                or_replace: false,
+            }),
+            ..Table::default()
+        };
+        view.name = "ActiveOrder".to_string();
+        view.table = "active_orders".to_string();
+        view.fields.insert(
+            "id".to_string(),
+            Field {
+                name: "id".to_string(),
+                field_type: FieldType::Simple("integer".to_string()),
+                lang_type: None,
+                postgres_type_name: None,
+                constraints: FieldConstraints::default(),
+                ai: None,
+                example: None,
+            },
+        );
+
+        let schema = Schema {
+            tables: HashMap::new(),
+            meta: None,
+        };
+
+        let model = generator.generate_model("ActiveOrder", &view, &schema).unwrap();
+        let crud = generator.generate_crud("ActiveOrder", &view, &schema).unwrap();
+
+        // Mutators must be absent on a view.
+        assert!(!model.contains("pub async fn insert"), "view model has insert:\n{model}");
+        assert!(!crud.contains("pub async fn create"), "view crud has create:\n{crud}");
+        // Reads must remain.
+        assert!(crud.contains("pub async fn get_all"), "view crud lost reads:\n{crud}");
+    }
+
+    #[test]
     fn test_primary_key_detection() {
         let generator = SqlxGenerator::new().unwrap();
 
@@ -362,6 +414,7 @@ mod tests {
             database_type: None,
             database_name: None,
             element_type: None,
+            view: None,
             version: 1,
             description: None,
             tags: vec![],

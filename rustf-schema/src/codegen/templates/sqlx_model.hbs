@@ -81,6 +81,7 @@ impl {{table_name}} {
     }
 
     /// Insert this record into the database
+    {{#unless variables.is_view}}
     pub async fn insert(&self, pool: &sqlx::PgPool) -> Result<{{table_name}}, sqlx::Error> {
         let row = sqlx::query!(
             r#"
@@ -97,6 +98,7 @@ impl {{table_name}} {
 
         Ok({{table_name}}::from_row(&row)?)
     }
+    {{/unless}}
 
     /// Update this record in the database
     {{#if variables.primary_key}}

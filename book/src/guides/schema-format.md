@@ -53,13 +53,74 @@ Users:                  # logical name (used for the generated model)
 | `description` | string | no | Human-readable description (emitted as a SQL comment). |
 | `database_type` | string | no | `mysql` \| `postgres` \| `sqlite` (per-table override of `_meta`). |
 | `database_name` | string | no | Source database instance name (informational). |
-| `element_type` | string | no | `table` \| `view` \| `materialized_view`. |
+| `element_type` | string | no | `table` \| `view` \| `materialized_view`. Defaults to `table`. |
+| `view` | map | no | View body — **required when `element_type` is a view** (see [Views](#views)). |
 | `tags` | string[] | no | Free-form categorization. |
 | `ai_context` | string | no | Extra guidance for AI code assistants. |
-| `fields` | map | **yes** | Field definitions (see below). |
+| `fields` | map | yes¹ | Field definitions (see below). Optional for views. |
 | `relations` | map | no | Relationships to other tables (see below). |
 | `indexes` | list | no | Index definitions (see below). |
 | `constraints` | list | no | Table-level constraints. *(reserved — parsed but not yet enforced)* |
+
+¹ Required for tables. For views `fields` is optional and only drives typed,
+read-only model generation; omit it for an untyped view.
+
+## Views
+
+A view is a `Table` entry with `element_type: view` (or `materialized_view`)
+and a `view:` block holding the SQL body. The body is **raw, dialect-native
+SQL** — the `SELECT …` statement without the leading `CREATE VIEW <name> AS`.
+
+```yaml
+ActiveUserOrders:
+  table: active_user_orders
+  database_type: postgres
+  element_type: view          # or: materialized_view
+  version: 1
+  description: "Open orders joined to their user."
+  view:
+    or_replace: true          # emit CREATE OR REPLACE VIEW (plain views only)
+    sql: |
+      SELECT o.id,
+             o.user_id,
+             u.email,
+             o.total_cents
+      FROM orders o
+      JOIN users u ON u.id = o.user_id
+      WHERE o.status = 'open'
+  # Optional: typed output columns → read-only model with no insert/update/delete.
+  fields:
+    id:          { type: int }
+    user_id:     { type: int }
+    email:       { type: string(255) }
+    total_cents: { type: int }
+```
+
+### `view` keys
+
+| Key | Type | Required | Purpose |
+|-----|------|:--------:|---------|
+| `sql` | string | **yes** | Raw SELECT body. Emitted verbatim into `CREATE VIEW … AS <sql>`. |
+| `or_replace` | bool | no | Emit `CREATE OR REPLACE VIEW`. Ignored for materialized views (they are dropped and recreated). |
+
+### Behavior
+
+- **SQL generation** emits `CREATE [OR REPLACE] VIEW` / `CREATE MATERIALIZED
+  VIEW`, never `CREATE TABLE`. Views are always emitted **after** all tables,
+  and a view that references another view is emitted after its dependency, so
+  generation never hits a "relation does not exist" error.
+- **Models** generated for views are read-only: `insert` / `create` /
+  `update` / `delete` are omitted.
+- **Validation** requires a non-empty `view.sql`; a view does not need a
+  primary key or any `fields`.
+- **Introspection** (`db introspect` / `db generate-schemas`) detects views and
+  fills `view.sql` from `pg_get_viewdef` (PostgreSQL) or
+  `information_schema.VIEWS` (MySQL), so an introspected view round-trips back
+  to valid `CREATE VIEW` DDL.
+
+> A structured `view` form (`select` / `from` / `where`) for simple views is
+> planned. Raw `sql` remains the escape hatch for anything non-trivial (CTEs,
+> window functions, dialect specifics).
 
 ## Field definition
 
