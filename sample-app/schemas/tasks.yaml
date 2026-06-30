@@ -1,0 +1,70 @@
+# Individual tasks belonging to a task list
+Tasks:
+  table: tasks
+  database_type: sqlite
+  element_type: table
+  version: 1
+  ai_context: "Actionable items that belong to a task list and can be completed."
+
+  fields:
+    id:
+      type: int
+      lang_type: i32
+      required: true
+      primary_key: true
+      auto: true
+      ai: "Primary key for the task."
+
+    list_id:
+      type: int
+      lang_type: i32
+      required: true
+      foreign_key: task_lists.id
+      ai: "Parent list that contains the task."
+
+    user_id:
+      type: int
+      lang_type: i32
+      required: true
+      foreign_key: users.id
+      ai: "Owner of the task for authorization checks."
+
+    title:
+      type: string(180)
+      lang_type: String
+      required: true
+      ai: "Short task summary."
+
+    details:
+      type: text
+      lang_type: Option<String>
+      nullable: true
+      ai: "Optional task notes."
+
+    is_completed:
+      type: tinyint
+      lang_type: i8
+      required: true
+      default: 0
+      ai: "Completion state stored as 0 or 1."
+
+    created_at:
+      type: int
+      lang_type: i64
+      required: true
+      ai: "Unix timestamp when the task was created."
+
+    completed_at:
+      type: int
+      lang_type: Option<i64>
+      nullable: true
+      ai: "Unix timestamp when the task was completed."
+
+  indexes:
+    - name: idx_tasks_list
+      fields: [list_id]
+      ai: "Lookup tasks by list."
+
+    - name: idx_tasks_user
+      fields: [user_id]
+      ai: "Lookup tasks by user."

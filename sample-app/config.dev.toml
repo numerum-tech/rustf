@@ -1,13 +1,44 @@
-# Development environment configuration
+# Development Configuration (config.dev.toml)
+# Automatically loaded by both framework and CLI for development environment
+# Overrides settings from config.toml
 
-[session.storage]
-type = "redis"
-url = "redis://localhost:6379"
-prefix = "sample:session:"
-pool_size = 10
-connection_timeout = 5
-response_timeout = 3
+[server]
+host = "127.0.0.1"
+port = 8000
+trusted_proxies = []   # Example: ["127.0.0.1/32"]
 
 [database]
-# Local development database
-url = "mysql://root:masterpopa@127.0.0.1/geacdb"
+url = "sqlite://./private/data/sample-app.dev.db"
+max_connections = 5
+
+[views]
+# Disable caching for live template reloading
+cache_enabled = false
+
+[static_files]
+# Disable caching for live asset reloading
+cache_enabled = false
+
+[logging]
+# More verbose logging in development
+level = "debug"
+# Uncomment to log to file
+# file = "logs/development.log"
+
+[session]
+# Development session secret (CHANGE IN PRODUCTION!)
+secret = "dev-secret-X7NBREljZM9mKEIipD6OvK2A6GfcgK9xxovzXQ3e4QpSdnqVepX7kMWAyrXPNG3Z"
+secure = false  # Can use HTTP in development
+
+[middleware.rate_limit]
+# More permissive rate limiting for development
+max_requests = 1000
+window_seconds = 60
+
+[middleware.csrf]
+# CSRF enabled even in development for testing
+enabled = true
+
+[app]
+environment = "development"
+debug_mode = "true"

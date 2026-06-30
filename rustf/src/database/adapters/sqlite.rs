@@ -6,7 +6,9 @@ use crate::error::{Error, Result};
 use crate::models::query_builder::DatabaseBackend;
 use async_trait::async_trait;
 use serde_json::Value as JsonValue;
+use sqlx::sqlite::SqliteConnectOptions;
 use sqlx::SqlitePool;
+use std::str::FromStr;
 use std::sync::Arc;
 
 /// SQLite database adapter
@@ -20,7 +22,12 @@ pub struct SqliteAdapter {
 impl SqliteAdapter {
     /// Create a new SQLite adapter
     pub async fn new(name: impl Into<String>, connection_url: &str) -> Result<Self> {
-        let pool = SqlitePool::connect(connection_url)
+        let options = SqliteConnectOptions::from_str(connection_url)
+            .map_err(|e| Error::template(format!("Invalid SQLite connection string: {}", e)))?
+            .create_if_missing(true);
+
+        let pool = sqlx::sqlite::SqlitePoolOptions::new()
+            .connect_with(options)
             .await
             .map_err(|e| Error::template(format!("Failed to connect to SQLite: {}", e)))?;
 

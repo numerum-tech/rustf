@@ -1,0 +1,31 @@
+<div class="row justify-content-center">
+    <div class="col-xl-8">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h1 class="display-6 fw-bold mb-1">@{M.title}</h1>
+                <p class="text-secondary mb-0">Update the list title or description.</p>
+            </div>
+            <a class="btn btn-outline-dark" href="/task_lists">Back</a>
+        </div>
+
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-4">
+                <form method="POST" action="/task_lists/@{R.item.id}">
+                    @{csrf}
+                    <div class="mb-3">
+                        <label class="form-label" for="title">Title</label>
+                        <input class="form-control" id="title" name="title" type="text" value="@{R.item.title}" required>
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label" for="description">Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="5">@{R.item.description}</textarea>
+                    </div>
+                    <div class="d-flex gap-3">
+                        <button class="btn btn-dark" type="submit">Save Changes</button>
+                        <a class="btn btn-outline-secondary" href="/task_lists">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

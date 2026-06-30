@@ -5,6 +5,7 @@
 
 use crate::models::query_builder::core::QueryBuilder;
 use crate::models::query_builder::dialects::{DatabaseBackend, QueryError};
+use std::str::FromStr;
 
 /// Unified database connection wrapper
 pub enum AnyDatabase {
@@ -35,7 +36,11 @@ impl AnyDatabase {
         }
         #[cfg(feature = "db-sqlite")]
         if database_url.starts_with("sqlite://") {
-            let pool = sqlx::SqlitePool::connect(database_url)
+            let options = sqlx::sqlite::SqliteConnectOptions::from_str(database_url)
+                .map_err(|e| QueryError::Database(e.to_string()))?
+                .create_if_missing(true);
+            let pool = sqlx::sqlite::SqlitePoolOptions::new()
+                .connect_with(options)
                 .await
                 .map_err(|e| QueryError::Database(e.to_string()))?;
             return Ok(AnyDatabase::SQLite(pool));

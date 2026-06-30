@@ -54,6 +54,24 @@ impl RustF {
                 }
             }
         }
+
+        if let Some(database_url) = config.database.url.as_deref() {
+            if let Some(database_dir) = sqlite_parent_dir(database_url) {
+                if !database_dir.exists() {
+                    match std::fs::create_dir_all(database_dir) {
+                        Ok(()) => log::info!(
+                            "Created sqlite database directory: {}",
+                            database_dir.display()
+                        ),
+                        Err(e) => log::warn!(
+                            "Could not create sqlite database directory '{}': {}",
+                            database_dir.display(),
+                            e
+                        ),
+                    }
+                }
+            }
+        }
     }
 
     fn parse_trusted_proxies(config: &AppConfig) -> Vec<IpNetwork> {
@@ -1507,6 +1525,16 @@ impl RustF {
             _ => "application/octet-stream",
         }
     }
+}
+
+fn sqlite_parent_dir(database_url: &str) -> Option<&Path> {
+    let raw = database_url.strip_prefix("sqlite://")?;
+    if raw.is_empty() || raw == ":memory:" {
+        return None;
+    }
+
+    let path = Path::new(raw);
+    path.parent().filter(|parent| !parent.as_os_str().is_empty())
 }
 
 #[cfg(test)]

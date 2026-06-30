@@ -4,8 +4,8 @@
 Cargo.lock
 
 # RustF specific
-/uploads/*
-!/uploads/.gitkeep
+/private/uploads/*
+!/private/uploads/.gitkeep
 
 # Logs
 *.log
@@ -26,6 +26,8 @@ Thumbs.db
 .env
 .env.local
 .env.production
+config.dev.toml
+config.prod.toml
 
 # Database
 /*.sqlite

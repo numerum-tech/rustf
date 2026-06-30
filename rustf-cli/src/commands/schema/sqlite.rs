@@ -2032,6 +2032,7 @@ fn prepare_base_model_variables(
     }
     // Add changed_fields initialization
     builder_build.push("            changed_fields: HashSet::new(),".to_string());
+    builder_build.push("            null_fields: HashSet::new(),".to_string());
     vars.insert("builder_build".to_string(), builder_build.join("\n"));
 
     // Generate create method
@@ -2172,12 +2173,18 @@ fn prepare_base_model_variables(
         "// SQLite FromRow implementation skipped: Table contains Decimal fields which are not supported by SQLite".to_string()
     } else {
         format!(
-            "impl sqlx::FromRow<'_, sqlx::sqlite::SqliteRow> for {}Base {{\n    fn from_row(row: &sqlx::sqlite::SqliteRow) -> sqlx::Result<Self> {{\n        use sqlx::Row;\n        Ok(Self {{\n{}\n            changed_fields: HashSet::new(),\n        }})\n    }}\n}}",
+            "impl sqlx::FromRow<'_, sqlx::sqlite::SqliteRow> for {}Base {{\n    fn from_row(row: &sqlx::sqlite::SqliteRow) -> sqlx::Result<Self> {{\n        use sqlx::Row;\n        Ok(Self {{\n{}\n            changed_fields: HashSet::new(),\n            null_fields: HashSet::new(),\n        }})\n    }}\n}}",
             table.name,
             sqlite_from_row.join("\n")
         )
     };
     vars.insert("sqlite_from_row_impl".to_string(), sqlite_from_row_impl);
+    vars.insert("postgres_fromrow_block".to_string(), String::new());
+    vars.insert("mysql_fromrow_block".to_string(), String::new());
+    vars.insert(
+        "sqlite_fromrow_block".to_string(),
+        vars["sqlite_from_row_impl"].clone(),
+    );
 
     // Generate conditional SQLite select support
     let sqlite_select_support = if needs_decimal {
@@ -2792,12 +2799,18 @@ fn prepare_base_model_variables(
         "// SQLite FromRow implementation skipped: Table contains Decimal fields which are not supported by SQLite".to_string()
     } else {
         format!(
-            "impl sqlx::FromRow<'_, sqlx::sqlite::SqliteRow> for {} {{\n    fn from_row(row: &sqlx::sqlite::SqliteRow) -> sqlx::Result<Self> {{\n        use sqlx::Row;\n        Ok(Self {{\n{}\n            changed_fields: HashSet::new(),\n        }})\n    }}\n}}",
+            "impl sqlx::FromRow<'_, sqlx::sqlite::SqliteRow> for {} {{\n    fn from_row(row: &sqlx::sqlite::SqliteRow) -> sqlx::Result<Self> {{\n        use sqlx::Row;\n        Ok(Self {{\n{}\n            changed_fields: HashSet::new(),\n            null_fields: HashSet::new(),\n        }})\n    }}\n}}",
             table.name,  // This is correct - the struct is named after table.name without Base suffix
             from_row_sqlite.join("\n")
         )
     };
     vars.insert("sqlite_from_row_impl".to_string(), sqlite_from_row_impl);
+    vars.insert("postgres_fromrow_block".to_string(), String::new());
+    vars.insert("mysql_fromrow_block".to_string(), String::new());
+    vars.insert(
+        "sqlite_fromrow_block".to_string(),
+        vars["sqlite_from_row_impl"].clone(),
+    );
 
     // Generate conditional SQLite select support
     let sqlite_select_support = if needs_decimal {

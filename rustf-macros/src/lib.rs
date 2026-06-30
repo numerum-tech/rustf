@@ -980,3 +980,130 @@ fn generate_worker_discovery() -> proc_macro2::TokenStream {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use std::path::Path;
+    use std::sync::{Mutex, MutexGuard};
+    use tempfile::TempDir;
+
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
+
+    struct ManifestGuard {
+        _lock: MutexGuard<'static, ()>,
+        previous: Option<String>,
+    }
+
+    impl ManifestGuard {
+        fn enter(manifest_dir: &Path) -> Self {
+            let lock = ENV_LOCK.lock().unwrap_or_else(|err| err.into_inner());
+            let previous = std::env::var("CARGO_MANIFEST_DIR").ok();
+            std::env::set_var("CARGO_MANIFEST_DIR", manifest_dir);
+            Self {
+                _lock: lock,
+                previous,
+            }
+        }
+    }
+
+    impl Drop for ManifestGuard {
+        fn drop(&mut self) {
+            if let Some(previous) = &self.previous {
+                std::env::set_var("CARGO_MANIFEST_DIR", previous);
+            } else {
+                std::env::remove_var("CARGO_MANIFEST_DIR");
+            }
+        }
+    }
+
+    fn create_manifest(name: &str) -> TempDir {
+        let temp_dir = TempDir::new().expect("temp dir");
+        fs::create_dir_all(temp_dir.path().join("src")).expect("src dir");
+        fs::write(
+            temp_dir.path().join("Cargo.toml"),
+            format!("[package]\nname = \"{}\"\nversion = \"0.1.0\"\nedition = \"2021\"\n", name),
+        )
+        .expect("cargo toml");
+        temp_dir
+    }
+
+    fn write_rs(path: &Path, body: &str) {
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).expect("parent dir");
+        }
+        fs::write(path, body).expect("rust file");
+    }
+
+    #[test]
+    fn auto_discovery_discovers_nested_controllers_and_skips_special_files() {
+        let temp_dir = create_manifest("fixture-app");
+        write_rs(
+            &temp_dir.path().join("src/controllers/home.rs"),
+            "pub fn install() -> Vec<()> { vec![] }",
+        );
+        write_rs(
+            &temp_dir.path().join("src/controllers/api/users.rs"),
+            "pub fn install() -> Vec<()> { vec![] }",
+        );
+        write_rs(
+            &temp_dir.path().join("src/controllers/_private.rs"),
+            "pub fn install() -> Vec<()> { vec![] }",
+        );
+        write_rs(
+            &temp_dir.path().join("src/controllers/shared.inc.rs"),
+            "pub fn install() -> Vec<()> { vec![] }",
+        );
+        write_rs(
+            &temp_dir.path().join("src/controllers/mod.rs"),
+            "pub fn ignored() {}",
+        );
+
+        let _guard = ManifestGuard::enter(temp_dir.path());
+        let tokens = generate_auto_discovery("controllers", "install").to_string();
+
+        assert!(tokens.contains("home"));
+        assert!(tokens.contains("api_users"));
+        assert!(tokens.contains("routes . extend (home :: install ())"));
+        assert!(tokens.contains("routes . extend (api_users :: install ())"));
+        assert!(tokens.contains("Loading {} controller(s)"));
+        assert!(!tokens.contains("_private"));
+        assert!(!tokens.contains("shared.inc"));
+    }
+
+    #[test]
+    fn auto_discovery_skips_framework_internal_models() {
+        let temp_dir = create_manifest("rustf");
+        write_rs(
+            &temp_dir.path().join("src/models/user.rs"),
+            "pub fn register(_: &mut ()) {}",
+        );
+
+        let _guard = ManifestGuard::enter(temp_dir.path());
+        let tokens = generate_auto_discovery("models", "register").to_string();
+
+        assert!(tokens.contains("| _registry : & mut crate :: models :: ModelRegistry |"));
+        assert!(!tokens.contains("user"));
+    }
+
+    #[test]
+    fn worker_discovery_generates_async_install_calls() {
+        let temp_dir = create_manifest("fixture-app");
+        write_rs(
+            &temp_dir.path().join("src/workers/email.rs"),
+            "pub async fn install() -> Result<(), ()> { Ok(()) }",
+        );
+        write_rs(
+            &temp_dir.path().join("src/workers/jobs/cleanup.rs"),
+            "pub async fn install() -> Result<(), ()> { Ok(()) }",
+        );
+
+        let _guard = ManifestGuard::enter(temp_dir.path());
+        let tokens = generate_worker_discovery().to_string();
+
+        assert!(tokens.contains("email :: install () . await ?"));
+        assert!(tokens.contains("jobs_cleanup :: install () . await ?"));
+        assert!(tokens.contains("Loading {} worker(s)"));
+    }
+}
