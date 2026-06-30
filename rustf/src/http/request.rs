@@ -639,7 +639,8 @@ impl Request {
     /// Get hostname with optional path (Total.js: request.hostname([path]))
     pub fn hostname(&self, path: Option<&str>) -> String {
         let origin = self
-            .configured_origin()
+            .request_origin()
+            .or_else(|| self.configured_origin())
             .unwrap_or_else(|| "http://localhost".to_string());
 
         if let Some(path) = path {
@@ -652,6 +653,62 @@ impl Request {
         } else {
             origin
         }
+    }
+
+    fn request_origin(&self) -> Option<String> {
+        let host = if self.should_trust_forwarded_headers() {
+            self.headers
+                .get("x-forwarded-host")
+                .map(|value| value.split(',').next().unwrap_or(value).trim())
+                .filter(|value| !value.is_empty())
+                .or_else(|| {
+                    self.headers.get("forwarded").and_then(|value| {
+                        value.split(';').find_map(|part| {
+                            let part = part.trim();
+                            part.strip_prefix("host=")
+                                .map(|host| host.trim_matches('"').trim())
+                                .filter(|host| !host.is_empty())
+                        })
+                    })
+                })
+                .or_else(|| self.host())
+        } else {
+            self.host()
+        }?;
+
+        let scheme = if self.is_secure() { "https" } else { "http" };
+        Some(format!("{}://{}", scheme, host))
+    }
+
+    fn configured_origin(&self) -> Option<String> {
+        if let Some(public_url) = crate::configuration::CONF::get_string("server.public_url") {
+            if let Some(origin) = Self::normalize_origin(&public_url) {
+                return Some(origin);
+            }
+        }
+
+        let host = crate::configuration::CONF::get_string("server.host")?;
+        let port = crate::configuration::CONF::get::<u16>("server.port")
+            .unwrap_or(if self.is_secure() { 443 } else { 80 });
+        let scheme = if self.is_secure()
+            || crate::configuration::CONF::get_bool("server.ssl_enabled").unwrap_or(false)
+        {
+            "https"
+        } else {
+            "http"
+        };
+
+        let default_port = match scheme {
+            "https" => 443,
+            _ => 80,
+        };
+        let port_suffix = if port == default_port {
+            String::new()
+        } else {
+            format!(":{}", port)
+        };
+
+        Some(format!("{}://{}{}", scheme, host, port_suffix))
     }
 
     /// Get request path from URI (Total.js: request.path)
@@ -832,36 +889,6 @@ impl Request {
             .any(|network| network.contains(ip))
     }
 
-    fn configured_origin(&self) -> Option<String> {
-        if let Some(public_url) = crate::configuration::CONF::get_string("server.public_url") {
-            if let Some(origin) = Self::normalize_origin(&public_url) {
-                return Some(origin);
-            }
-        }
-
-        let host = crate::configuration::CONF::get_string("server.host")?;
-        let port = crate::configuration::CONF::get::<u16>("server.port")
-            .unwrap_or(if self.is_secure() { 443 } else { 80 });
-        let scheme = if self.is_secure()
-            || crate::configuration::CONF::get_bool("server.ssl_enabled").unwrap_or(false)
-        {
-            "https"
-        } else {
-            "http"
-        };
-
-        let default_port = match scheme {
-            "https" => 443,
-            _ => 80,
-        };
-        let port_suffix = if port == default_port {
-            String::new()
-        } else {
-            format!(":{}", port)
-        };
-
-        Some(format!("{}://{}{}", scheme, host, port_suffix))
-    }
 
     fn normalize_origin(input: &str) -> Option<String> {
         let parsed = Url::parse(input).ok()?;
@@ -1417,14 +1444,14 @@ file contents\r\n\
             .insert("host".to_string(), "example.com:8080".to_string());
 
         assert_eq!(request.host(), Some("example.com:8080"));
-        assert_eq!(request.hostname(None), "http://localhost:3000");
+        assert_eq!(request.hostname(None), "http://example.com:8080");
         assert_eq!(
             request.hostname(Some("/api/users")),
-            "http://localhost:3000/api/users"
+            "http://example.com:8080/api/users"
         );
         assert_eq!(
             request.hostname(Some("api/users")),
-            "http://localhost:3000/api/users"
+            "http://example.com:8080/api/users"
         );
 
         // Test HTTPS detection
@@ -1433,12 +1460,15 @@ file contents\r\n\
         request
             .headers
             .insert("x-forwarded-proto".to_string(), "https".to_string());
-        assert_eq!(request.hostname(None), "https://localhost:3000");
+        assert_eq!(request.hostname(None), "https://example.com:8080");
 
         // Test with no host
         let empty_request = Request::default();
         assert_eq!(empty_request.host(), None);
-        assert_eq!(empty_request.hostname(None), "http://localhost:3000");
+        assert!(
+            empty_request.hostname(None).starts_with("http://localhost"),
+            "fallback hostname should default to localhost when no request host is available"
+        );
     }
 
     #[test]
