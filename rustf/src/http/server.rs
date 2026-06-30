@@ -1,5 +1,5 @@
 use crate::app::RustF;
-use crate::error::Result;
+use crate::error::{Error, Result};
 use hyper::service::service_fn;
 use hyper_util::rt::{TokioExecutor, TokioIo};
 use hyper_util::server::conn::auto::Builder as AutoBuilder;
@@ -8,9 +8,38 @@ use std::convert::Infallible;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::net::TcpListener;
+use tokio::sync::oneshot;
+use tokio::task::JoinHandle;
 
 pub struct Server {
     app: Arc<RustF>,
+}
+
+pub struct ServerHandle {
+    local_addr: SocketAddr,
+    shutdown_tx: Option<oneshot::Sender<()>>,
+    task: JoinHandle<Result<()>>,
+}
+
+pub struct RunningServer {
+    pub local_addr: SocketAddr,
+    pub handle: ServerHandle,
+}
+
+impl ServerHandle {
+    pub fn local_addr(&self) -> SocketAddr {
+        self.local_addr
+    }
+
+    pub async fn shutdown(mut self) -> Result<()> {
+        if let Some(shutdown_tx) = self.shutdown_tx.take() {
+            let _ = shutdown_tx.send(());
+        }
+
+        self.task
+            .await
+            .map_err(|e| Error::internal(format!("Server task failed: {}", e)))?
+    }
 }
 
 impl Server {
@@ -19,16 +48,58 @@ impl Server {
     }
 
     pub async fn serve(self, addr: &str) -> Result<()> {
+        let listener = Self::bind_listener(addr).await?;
+        self.run(listener, Self::spawn_signal_handler(), None).await
+    }
+
+    pub async fn serve_with_handle(self, addr: &str) -> Result<RunningServer> {
+        let listener = Self::bind_listener(addr).await?;
+        self.serve_on_listener(listener).await
+    }
+
+    pub async fn serve_on_listener(self, listener: TcpListener) -> Result<RunningServer> {
+        let local_addr = listener.local_addr().map_err(|e| {
+            Error::internal(format!("Failed to read listener local address: {}", e))
+        })?;
+        log::info!("RustF server listening on {}", local_addr);
+
+        let (shutdown_tx, shutdown_rx) = oneshot::channel::<()>();
+        let (started_tx, started_rx) = oneshot::channel::<()>();
+
+        let task =
+            tokio::spawn(async move { self.run(listener, shutdown_rx, Some(started_tx)).await });
+
+        started_rx
+            .await
+            .map_err(|_| Error::internal("Hosted server failed to start".to_string()))?;
+
+        Ok(RunningServer {
+            local_addr,
+            handle: ServerHandle {
+                local_addr,
+                shutdown_tx: Some(shutdown_tx),
+                task,
+            },
+        })
+    }
+
+    async fn bind_listener(addr: &str) -> Result<TcpListener> {
         let addr: SocketAddr = addr
             .parse()
-            .map_err(|e| crate::error::Error::internal(format!("Invalid address: {}", e)))?;
+            .map_err(|e| Error::internal(format!("Invalid address: {}", e)))?;
+        let listener = TcpListener::bind(addr)
+            .await
+            .map_err(|e| Error::internal(format!("Failed to bind {}: {}", addr, e)))?;
+        let local_addr = listener.local_addr().map_err(|e| {
+            Error::internal(format!("Failed to read listener local address: {}", e))
+        })?;
+        log::info!("RustF server listening on {}", local_addr);
+        Ok(listener)
+    }
 
-        log::info!("RustF server listening on {}", addr);
+    fn spawn_signal_handler() -> oneshot::Receiver<()> {
+        let (shutdown_tx, shutdown_rx) = oneshot::channel::<()>();
 
-        // Setup signal handling for graceful shutdown
-        let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel::<()>();
-
-        // Spawn signal handler task
         tokio::spawn(async move {
             #[cfg(unix)]
             {
@@ -73,24 +144,27 @@ impl Server {
                 }
             }
 
-            // Send shutdown signal
             let _ = shutdown_tx.send(());
         });
 
-        // Keep reference to app for cleanup
+        shutdown_rx
+    }
+
+    async fn run(
+        self,
+        listener: TcpListener,
+        shutdown_rx: oneshot::Receiver<()>,
+        started_tx: Option<oneshot::Sender<()>>,
+    ) -> Result<()> {
         let app_ref = Arc::clone(&self.app);
 
-        // Bind the listener (hyper 1.x: no high-level Server, we drive the
-        // accept loop ourselves through hyper-util).
-        let listener = TcpListener::bind(addr).await.map_err(|e| {
-            crate::error::Error::internal(format!("Failed to bind {}: {}", addr, e))
-        })?;
-
-        // `auto::Builder` negotiates HTTP/1 and HTTP/2 (replaces the 0.14 "full"
-        // auto-detection); `GracefulShutdown` tracks live connections.
         let builder = AutoBuilder::new(TokioExecutor::new());
         let graceful = GracefulShutdown::new();
         let mut shutdown_rx = std::pin::pin!(shutdown_rx);
+
+        if let Some(started_tx) = started_tx {
+            let _ = started_tx.send(());
+        }
 
         loop {
             tokio::select! {

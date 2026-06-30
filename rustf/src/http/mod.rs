@@ -8,4 +8,4 @@ pub use files::{FileCollection, MultipartParser, UploadedFile};
 pub use request::{FormData, FormValue, Request};
 pub use request_data::{BodyData, RequestData};
 pub use response::Response;
-pub use server::Server;
+pub use server::{RunningServer, Server, ServerHandle};

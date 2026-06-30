@@ -67,7 +67,7 @@ pub use app::RustF;
 pub use config::AppConfig;
 pub use context::Context;
 pub use error::{Error, Result};
-pub use http::{FileCollection, Request, Response, UploadedFile};
+pub use http::{FileCollection, Request, Response, RunningServer, ServerHandle, UploadedFile};
 pub use middleware::{InboundAction, InboundMiddleware, MiddlewareResult, OutboundMiddleware};
 pub use routing::{BeforeAction, BeforeFn, Route, RouteHandler};
 

@@ -2,7 +2,7 @@ use crate::config::{AppConfig, TemplateEngine, TemplateStorage};
 use crate::context::Context;
 use crate::error::Result;
 use crate::events::{EventContext, EventEmitter};
-use crate::http::{Request, Response, Server};
+use crate::http::{Request, Response, RunningServer, Server};
 use crate::middleware::{MiddlewareRegistry, MiddlewareResult};
 use crate::models::ModelRegistry;
 use crate::routing::{Route, Router};
@@ -14,6 +14,7 @@ use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
+use tokio::net::TcpListener;
 use tokio::sync::RwLock;
 
 /// Memory-safe RustF application with Arc-based component sharing
@@ -787,7 +788,7 @@ impl RustF {
         })
     }
 
-    pub async fn serve(mut self, addr: Option<&str>) -> Result<()> {
+    async fn initialize_runtime(&mut self) -> Result<()> {
         // Initialize global configuration access (CONF)
         if let Err(e) = crate::configuration::CONF::init((*self.config).clone()) {
             log::error!("Failed to initialize global configuration: {}", e);
@@ -940,10 +941,25 @@ impl RustF {
             log::error!("Error emitting ready event: {}", e);
         }
 
+        Ok(())
+    }
+
+    pub async fn serve(mut self, addr: Option<&str>) -> Result<()> {
+        self.initialize_runtime().await?;
         let config_addr = self.config.server_address();
         let server_addr = addr.unwrap_or(&config_addr);
         let server = Server::new(self);
         server.serve(server_addr).await
+    }
+
+    pub async fn serve_with_handle(mut self, addr: &str) -> Result<RunningServer> {
+        self.initialize_runtime().await?;
+        Server::new(self).serve_with_handle(addr).await
+    }
+
+    pub async fn serve_on_listener(mut self, listener: TcpListener) -> Result<RunningServer> {
+        self.initialize_runtime().await?;
+        Server::new(self).serve_on_listener(listener).await
     }
 
     pub async fn start(self) -> Result<()> {
