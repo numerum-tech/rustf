@@ -2,5 +2,9 @@
 // This file exists ONLY for IDE support - NOT imported by main.rs
 // models module declarations for autocomplete
 
+#[path = "models/tasks.rs"]
+pub mod tasks;
 #[path = "models/users.rs"]
 pub mod users;
+#[path = "models/task_lists.rs"]
+pub mod task_lists;

@@ -1,0 +1,48 @@
+<div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-4">
+    <div>
+        <h1 class="display-6 fw-bold mb-1">@{M.title}</h1>
+        <p class="text-secondary mb-0">Create lists, add tasks, and complete them without leaving the page.</p>
+    </div>
+    <form method="POST" action="/logout">
+        @{csrf}
+        <button class="btn btn-outline-dark" type="submit">Sign Out</button>
+    </form>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-xl-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body p-4">
+                <h2 class="h5 mb-3">Create a new list</h2>
+                <form method="POST" action="/task_lists">
+                    @{csrf}
+                    <div class="mb-3">
+                        <label class="form-label" for="title">Title</label>
+                        <input class="form-control" id="title" name="title" type="text" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="description">Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="4" placeholder="Optional context for this list"></textarea>
+                    </div>
+                    <button class="btn btn-dark w-100" type="submit">Create List</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-8">
+        @{if M.has_lists}
+            <div class="d-grid gap-4">
+                @{foreach list in R.lists}
+                    @{view('tasks/list', list)}
+                @{end}
+            </div>
+        @{else}
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body p-5 text-center">
+                    <h2 class="h4 mb-3">No task lists yet</h2>
+                    <p class="text-secondary mb-0">Create your first list to start using the sample app.</p>
+                </div>
+            </div>
+        @{fi}
+    </div>
+</div>

@@ -1,13 +1,48 @@
-<section class="hero">
-    <h1>@{M.title}</h1>
-    <p class="tagline">@{M.tagline}</p>
+<section class="hero-card rounded-4 overflow-hidden shadow-sm mb-4">
+    <div class="row g-0">
+        <div class="col-lg-7 p-5">
+            <span class="text-uppercase small fw-semibold text-warning">Sample Application</span>
+            <h1 class="display-5 fw-bold text-white mt-3">Build a real workflow, not just a landing page.</h1>
+            <p class="lead text-white-50 mt-3">@{M.message}</p>
+            <div class="d-flex flex-wrap gap-3 mt-4">
+                <a class="btn btn-warning btn-lg" href="/register">Create an account</a>
+                <a class="btn btn-outline-light btn-lg" href="/login">Sign in</a>
+            </div>
+        </div>
+        <div class="col-lg-5 hero-panel p-5">
+            <div class="small text-uppercase fw-semibold text-secondary">Framework signals</div>
+            <ul class="list-unstyled mt-3 mb-0 d-grid gap-3">
+                @{foreach feature in M.features}
+                    <li class="feature-chip">@{feature}</li>
+                @{end}
+            </ul>
+        </div>
+    </div>
 </section>
 
-<section class="features">
-    <h2>Features</h2>
-    <ul>
-        @{foreach item in M.features}
-        <li>@{item}</li>
-        @{end}
-    </ul>
+<section class="row g-4">
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body p-4">
+                <h2 class="h5">SQLite by default</h2>
+                <p class="text-secondary mb-0">The sample boots its SQLite schema through lifecycle events, so the app is usable from a clean checkout.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body p-4">
+                <h2 class="h5">Thin controllers</h2>
+                <p class="text-secondary mb-0">All persistence and business rules live in modules. Controllers stay focused on routing, sessions, flashes, and rendering.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body p-4">
+                <h2 class="h5">SSR plus htmx</h2>
+                <p class="text-secondary mb-0">Task changes update only the relevant list fragment, while the whole app still works as server-rendered HTML.</p>
+            </div>
+        </div>
+    </div>
 </section>

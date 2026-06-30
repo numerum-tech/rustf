@@ -1,11 +1,34 @@
-<section class="about">
-    <h1>@{M.title}</h1>
-    <p>@{M.summary}</p>
-    <p>
-        The sample app ships a thin home controller, a matching
-        <code>home_service</code> module, a dual-phase timing middleware that
-        stamps <code>X-Response-Time</code>, and this layout. It is a
-        deliberately small demonstration of the layering rule:
-    </p>
-    <pre>Base Model  →  Model  →  Module  →  Controller</pre>
-</section>
+<div class="row justify-content-center">
+    <div class="col-xl-9">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-5">
+                <h1 class="display-6 fw-bold mb-3">@{M.title}</h1>
+                <p class="lead text-secondary">@{M.description}</p>
+                <hr class="my-4">
+                <div class="row g-4">
+                    <div class="col-md-6">
+                        <h2 class="h5">What this app demonstrates</h2>
+                        <ul class="text-secondary">
+                            <li>Auto-discovered controllers, models, definitions, and events</li>
+                            <li>Schema-generated SQLite models</li>
+                            <li>Secure session-based authentication</li>
+                            <li>Bootstrap SSR views with htmx list updates</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h2 class="h5">Architecture</h2>
+                        <ul class="text-secondary">
+                            <li>Models handle data access primitives</li>
+                            <li>Modules own application rules and orchestration</li>
+                            <li>Controllers only manage HTTP and session flow</li>
+                            <li>Lifecycle events keep startup concerns out of `main.rs`</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <a class="btn btn-dark" href="/task_lists">Open the dashboard</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

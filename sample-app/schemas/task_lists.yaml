@@ -1,0 +1,46 @@
+# Task list containers owned by a user
+TaskLists:
+  table: task_lists
+  database_type: sqlite
+  element_type: table
+  version: 1
+  ai_context: "Named task lists created by users to organize their work."
+
+  fields:
+    id:
+      type: int
+      lang_type: i32
+      required: true
+      primary_key: true
+      auto: true
+      ai: "Primary key for the task list."
+
+    user_id:
+      type: int
+      lang_type: i32
+      required: true
+      foreign_key: users.id
+      ai: "Owner of the task list."
+
+    title:
+      type: string(150)
+      lang_type: String
+      required: true
+      ai: "Short descriptive task list name."
+
+    description:
+      type: text
+      lang_type: Option<String>
+      nullable: true
+      ai: "Optional explanation for the list."
+
+    created_at:
+      type: int
+      lang_type: i64
+      required: true
+      ai: "Unix timestamp when the list was created."
+
+  indexes:
+    - name: idx_task_lists_user
+      fields: [user_id]
+      ai: "Lookup all lists for a user."

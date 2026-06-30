@@ -1,0 +1,99 @@
+<section class="card border-0 shadow-sm" id="task-list-@{M.id}-tasks">
+    <div class="card-body p-4">
+        <div class="d-flex flex-column flex-lg-row justify-content-between gap-3 mb-4">
+            <div>
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <h2 class="h4 mb-0">@{M.title}</h2>
+                    <span class="badge text-bg-dark">@{M.pending_count} open</span>
+                    <span class="badge text-bg-light">@{M.completed_count} done</span>
+                </div>
+                @{if M.description}
+                    <p class="text-secondary mb-0">@{M.description}</p>
+                @{fi}
+            </div>
+            <div class="d-flex flex-wrap gap-2">
+                <a class="btn btn-sm btn-outline-dark" href="/task_lists/@{M.id}/edit">Edit</a>
+                <form method="POST" action="/task_lists/@{M.id}/delete" class="d-inline">
+                    @{csrf}
+                    <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
+                </form>
+            </div>
+        </div>
+
+        <form
+            method="POST"
+            action="/task_lists/@{M.id}/tasks"
+            hx-post="/task_lists/@{M.id}/tasks"
+            hx-target="#task-list-@{M.id}-tasks"
+            hx-swap="outerHTML"
+            class="row g-3 mb-4"
+        >
+            @{csrf}
+            <div class="col-lg-4">
+                <input class="form-control" name="title" type="text" placeholder="Task title" required>
+            </div>
+            <div class="col-lg-6">
+                <input class="form-control" name="details" type="text" placeholder="Optional details">
+            </div>
+            <div class="col-lg-2 d-grid">
+                <button class="btn btn-warning" type="submit">Add Task</button>
+            </div>
+        </form>
+
+        @{if M.total_count === 0}
+            <div class="rounded-3 border border-dashed p-4 text-center text-secondary">
+                No tasks yet. Add the first one above.
+            </div>
+        @{else}
+            <div class="d-grid gap-2">
+                @{foreach task in M.tasks}
+                    <article class="task-row rounded-3 border p-3 @{if task.is_completed}task-row-complete@{fi}">
+                        <div class="d-flex flex-column flex-lg-row justify-content-between gap-3">
+                            <div class="d-flex gap-3">
+                                <form
+                                    method="POST"
+                                    action="/tasks/@{task.id}/toggle"
+                                    hx-post="/tasks/@{task.id}/toggle"
+                                    hx-target="#task-list-@{M.id}-tasks"
+                                    hx-swap="outerHTML"
+                                >
+                                    @{csrf}
+                                    <button class="btn btn-sm @{if task.is_completed}btn-success@{else}btn-outline-success@{fi}" type="submit">
+                                        @{if task.is_completed}Completed@{else}Mark Done@{fi}
+                                    </button>
+                                </form>
+                                <div>
+                                    <div class="fw-semibold @{if task.is_completed}text-decoration-line-through text-secondary@{fi}">
+                                        @{task.title}
+                                    </div>
+                                    @{if task.details}
+                                        <div class="small text-secondary mt-1">@{task.details}</div>
+                                    @{fi}
+                                </div>
+                            </div>
+                            <div class="d-flex align-items-center gap-3">
+                                <span class="small text-secondary">
+                                    @{if task.is_completed}
+                                        Finished at @{task.completed_at}
+                                    @{else}
+                                        Created at @{task.created_at}
+                                    @{fi}
+                                </span>
+                                <form
+                                    method="POST"
+                                    action="/tasks/@{task.id}/delete"
+                                    hx-post="/tasks/@{task.id}/delete"
+                                    hx-target="#task-list-@{M.id}-tasks"
+                                    hx-swap="outerHTML"
+                                >
+                                    @{csrf}
+                                    <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
+                                </form>
+                            </div>
+                        </div>
+                    </article>
+                @{end}
+            </div>
+        @{fi}
+    </div>
+</section>

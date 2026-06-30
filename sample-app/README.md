@@ -1,4 +1,4 @@
-# Sample App
+# Sample App Smoke
 
 A web application built with the RustF framework - an AI-friendly MVC framework for Rust inspired by Total.js.
 
@@ -79,7 +79,7 @@ This project is optimized for AI coding assistants:
 
 - **Total.js-inspired API**: Familiar `ctx.param()`, `ctx.json()`, `ctx.view()` patterns
 - **Auto-Discovery**: Automatic registration of controllers, models, and middleware
-- **Built-in Middleware**: Logging, CORS, rate limiting, CSRF, plus custom middleware
+- **Built-in Middleware**: Session by default; opt-in logging, CORS, rate limiting, CSRF, compression, and method override
 - **Session Management**: Flash messages and persistent session data
 - **Template Engine**: Total.js-style views with layout support
 - **Static File Serving**: Efficient asset delivery
@@ -120,7 +120,7 @@ cargo run
 cargo build --release
 
 # Run with production config
-RUSTF_ENV=production ./target/release/sample-app
+RUSTF_ENV=production ./target/release/sample_app_smoke
 ```
 
 ## 📝 License

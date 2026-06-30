@@ -2,13 +2,9 @@
 // This file exists ONLY for IDE support - NOT imported by main.rs
 // modules module declarations for autocomplete
 
-#[path = "modules/payment_service.rs"]
-pub mod payment_service;
-#[path = "modules/string_helpers.rs"]
-pub mod string_helpers;
-#[path = "modules/home_service.rs"]
-pub mod home_service;
-#[path = "modules/simple_util.rs"]
-pub mod simple_util;
-#[path = "modules/email_service.rs"]
-pub mod email_service;
+#[path = "modules/task_lists_service.rs"]
+pub mod task_lists_service;
+#[path = "modules/auth_service.rs"]
+pub mod auth_service;
+#[path = "modules/tasks_service.rs"]
+pub mod tasks_service;
