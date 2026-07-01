@@ -36,6 +36,15 @@ struct TemplateCache {
 }
 
 impl TemplateCache {
+    fn annotate_template_error(err: Error, action: &str, display_name: &str) -> Error {
+        match err {
+            Error::Template(message) => {
+                Error::template(format!("{} '{}': {}", action, display_name, message))
+            }
+            other => Error::template(format!("{} '{}': {}", action, display_name, other)),
+        }
+    }
+
     fn new(enable_hot_reload: bool) -> Self {
         Self {
             cache: Arc::new(RwLock::new(HashMap::new())),
@@ -88,11 +97,17 @@ impl TemplateCache {
     fn compile_and_store(
         &self,
         cache_key: &str,
+        display_name: &str,
         content: &str,
         version: Option<String>,
     ) -> Result<Arc<Template>> {
-        let mut parser = Parser::new(content)?;
-        let template_arc = Arc::new(parser.parse()?);
+        let mut parser = Parser::new(content)
+            .map_err(|e| Self::annotate_template_error(e, "Failed to compile template", display_name))?;
+        let template_arc = Arc::new(
+            parser
+                .parse()
+                .map_err(|e| Self::annotate_template_error(e, "Failed to compile template", display_name))?,
+        );
 
         if let Ok(mut cache) = self.cache.write() {
             let entry = CacheEntry {
@@ -522,7 +537,7 @@ impl TotalJsEngine {
                 let content = std::fs::read_to_string(&path).map_err(|e| {
                     Error::template(format!("Failed to load template '{}': {}", display_name, e))
                 })?;
-                cache.compile_and_store(relative_path, &content, version)
+                cache.compile_and_store(relative_path, display_name, &content, version)
             }
             #[cfg(feature = "embedded-views")]
             TemplateSource::Embedded => {
@@ -532,7 +547,7 @@ impl TotalJsEngine {
                 {
                     return Ok(template);
                 }
-                cache.compile_and_store(relative_path, &asset.content, asset.version)
+                cache.compile_and_store(relative_path, display_name, &asset.content, asset.version)
             }
         }
     }
@@ -669,7 +684,9 @@ impl TotalJsEngine {
             renderer = renderer.with_template_path(path);
         }
 
-        let content = renderer.render(&template_ast)?;
+        let content = renderer
+            .render(&template_ast)
+            .map_err(|e| TemplateCache::annotate_template_error(e, "Failed to render template", template))?;
 
         // Carry any page title/description set in the view (via @{title('...')}
         // / @{description('...')}) so the layout can output them.
@@ -719,7 +736,9 @@ impl TotalJsEngine {
                 }
             }
 
-            let result = renderer.render_layout_template(&layout_ast, layout_data);
+            let result = renderer
+                .render_layout_template(&layout_ast, layout_data)
+                .map_err(|e| TemplateCache::annotate_template_error(e, "Failed to render layout", layout_name));
             renderer.set_shared_translator(saved_translator);
             result
         } else {
