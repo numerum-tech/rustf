@@ -99,6 +99,54 @@ impl DatabaseType {
     }
 }
 
+/// Render already-JSON-ified rows to CSV using the given header order.
+/// Shared by the MySQL/PostgreSQL data exporters.
+pub fn rows_to_csv(headers: &[String], rows: &[serde_json::Value]) -> String {
+    if headers.is_empty() {
+        return String::new();
+    }
+
+    let mut lines = Vec::new();
+    lines.push(
+        headers
+            .iter()
+            .map(|h| escape_csv_field(h))
+            .collect::<Vec<_>>()
+            .join(","),
+    );
+
+    for row in rows {
+        let Some(object) = row.as_object() else {
+            continue;
+        };
+        let line = headers
+            .iter()
+            .map(|header| {
+                let value = object.get(header).cloned().unwrap_or(serde_json::Value::Null);
+                let string_value = match value {
+                    serde_json::Value::Null => String::new(),
+                    serde_json::Value::String(s) => s,
+                    other => other.to_string(),
+                };
+                escape_csv_field(&string_value)
+            })
+            .collect::<Vec<_>>()
+            .join(",");
+        lines.push(line);
+    }
+
+    lines.join("\n")
+}
+
+/// Quote a CSV field if it contains a comma, quote, or newline (RFC 4180).
+pub fn escape_csv_field(value: &str) -> String {
+    if value.contains([',', '"', '\n']) {
+        format!("\"{}\"", value.replace('"', "\"\""))
+    } else {
+        value.to_string()
+    }
+}
+
 /// Convert table name to PascalCase for model names
 pub fn to_pascal_case(s: &str) -> String {
     s.split('_')
@@ -240,4 +288,40 @@ pub fn generate_relations_yaml(columns: &[ColumnInfo]) -> String {
     }
     
     yaml
+}
+#[cfg(test)]
+mod tests {
+    use super::{escape_csv_field, rows_to_csv};
+    use serde_json::json;
+
+    #[test]
+    fn escape_csv_field_quotes_only_when_needed() {
+        assert_eq!(escape_csv_field("plain"), "plain");
+        assert_eq!(escape_csv_field("a,b"), "\"a,b\"");
+        assert_eq!(escape_csv_field("say \"hi\""), "\"say \"\"hi\"\"\"");
+        assert_eq!(escape_csv_field("line\nbreak"), "\"line\nbreak\"");
+    }
+
+    #[test]
+    fn rows_to_csv_serializes_header_and_typed_values() {
+        let headers = vec!["id".to_string(), "name".to_string(), "active".to_string()];
+        let rows = vec![
+            json!({"id": 1, "name": "Ann", "active": true}),
+            json!({"id": 2, "name": "a,b", "active": false}),
+        ];
+        let csv = rows_to_csv(&headers, &rows);
+        assert_eq!(csv, "id,name,active\n1,Ann,true\n2,\"a,b\",false");
+    }
+
+    #[test]
+    fn rows_to_csv_empty_headers_yields_empty_string() {
+        assert!(rows_to_csv(&[], &[json!({"id": 1})]).is_empty());
+    }
+
+    #[test]
+    fn rows_to_csv_null_renders_as_empty_field() {
+        let headers = vec!["a".to_string(), "b".to_string()];
+        let rows = vec![json!({"a": 1, "b": null})];
+        assert_eq!(rows_to_csv(&headers, &rows), "a,b\n1,");
+    }
 }
