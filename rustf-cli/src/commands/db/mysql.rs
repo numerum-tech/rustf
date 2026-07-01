@@ -3,7 +3,8 @@
 use super::{common::*, DatabaseIntrospector};
 use anyhow::Result;
 use async_trait::async_trait;
-use sqlx::{MySql, Pool, Row};
+use serde_json::{Map, Value};
+use sqlx::{Column, MySql, Pool, Row, TypeInfo, ValueRef};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use tokio::fs;
@@ -566,11 +567,29 @@ impl DatabaseIntrospector for MySqlIntrospector {
             });
         }
         
+        // Surface foreign-key relationships as constraints, matching the
+        // SQLite/PostgreSQL introspectors. (MySQL CHECK constraints are only
+        // reliably queryable on 8.0.16+ and are left out for now.)
+        let mut constraints: Vec<ConstraintInfo> = foreign_keys
+            .iter()
+            .map(|(column, (ftable, fcol, on_delete, on_update))| ConstraintInfo {
+                name: format!("fk_{}_{}", table_name, column),
+                constraint_type: "FOREIGN KEY".to_string(),
+                columns: vec![column.clone()],
+                foreign_table: Some(ftable.clone()),
+                foreign_columns: Some(vec![fcol.clone()]),
+                check_expression: None,
+                on_delete: on_delete.clone(),
+                on_update: on_update.clone(),
+            })
+            .collect();
+        constraints.sort_by(|a, b| a.name.cmp(&b.name));
+
         Ok(TableDescription {
             table: table_info,
             columns,
             indexes,
-            constraints: Vec::new(), // MySQL doesn't expose check constraints easily
+            constraints,
             triggers,
         })
     }
@@ -664,18 +683,99 @@ impl DatabaseIntrospector for MySqlIntrospector {
     }
     
     async fn export_data(&self, query: &str, format: &str) -> Result<String> {
-        let _rows = sqlx::query(query).fetch_all(&self.pool).await?;
-        
+        let rows = sqlx::query(query).fetch_all(&self.pool).await?;
+        let headers = rows
+            .first()
+            .map(|row| {
+                row.columns()
+                    .iter()
+                    .map(|column| column.name().to_string())
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+
+        let mut json_rows = Vec::new();
+        for row in &rows {
+            let mut object = Map::new();
+            for (index, column) in row.columns().iter().enumerate() {
+                object.insert(
+                    column.name().to_string(),
+                    Self::mysql_value_to_json(row, index)?,
+                );
+            }
+            json_rows.push(Value::Object(object));
+        }
+
         match format {
-            "json" => {
-                // TODO: Implement JSON export
-                Ok("[]".to_string())
-            }
-            "csv" => {
-                // TODO: Implement CSV export
-                Ok("".to_string())
-            }
+            "json" => Ok(serde_json::to_string_pretty(&json_rows)?),
+            "csv" => Ok(rows_to_csv(&headers, &json_rows)),
             _ => anyhow::bail!("Unsupported export format: {}", format),
         }
+    }
+}
+
+impl MySqlIntrospector {
+    /// Convert a single MySQL cell to JSON, dispatching on the column's SQL type.
+    fn mysql_value_to_json(row: &sqlx::mysql::MySqlRow, index: usize) -> Result<Value> {
+        let raw = row.try_get_raw(index)?;
+        if raw.is_null() {
+            return Ok(Value::Null);
+        }
+
+        let type_name = raw.type_info().name().to_uppercase();
+
+        if type_name.contains("INT") {
+            if let Ok(v) = row.try_get::<i64, _>(index) {
+                return Ok(Value::from(v));
+            }
+            if let Ok(v) = row.try_get::<u64, _>(index) {
+                return Ok(Value::from(v));
+            }
+        }
+        if type_name.contains("DOUBLE") || type_name.contains("FLOAT") {
+            if let Ok(v) = row.try_get::<f64, _>(index) {
+                return Ok(Value::from(v));
+            }
+        }
+        if type_name.contains("DECIMAL") || type_name.contains("NUMERIC") {
+            if let Ok(v) = row.try_get::<sqlx::types::BigDecimal, _>(index) {
+                return Ok(Value::String(v.to_string()));
+            }
+        }
+        if type_name.contains("JSON") {
+            if let Ok(v) = row.try_get::<Value, _>(index) {
+                return Ok(v);
+            }
+        }
+        if type_name.contains("DATETIME") || type_name.contains("TIMESTAMP") {
+            if let Ok(v) = row.try_get::<chrono::NaiveDateTime, _>(index) {
+                return Ok(Value::String(v.to_string()));
+            }
+            if let Ok(v) = row.try_get::<chrono::DateTime<chrono::Utc>, _>(index) {
+                return Ok(Value::String(v.to_rfc3339()));
+            }
+        }
+        if type_name == "DATE" {
+            if let Ok(v) = row.try_get::<chrono::NaiveDate, _>(index) {
+                return Ok(Value::String(v.to_string()));
+            }
+        }
+        if type_name == "TIME" {
+            if let Ok(v) = row.try_get::<chrono::NaiveTime, _>(index) {
+                return Ok(Value::String(v.to_string()));
+            }
+        }
+        if type_name.contains("BLOB") || type_name.contains("BINARY") {
+            if let Ok(v) = row.try_get::<Vec<u8>, _>(index) {
+                return Ok(Value::String(
+                    v.iter().map(|b| format!("{:02x}", b)).collect::<String>(),
+                ));
+            }
+        }
+        if let Ok(v) = row.try_get::<String, _>(index) {
+            return Ok(Value::String(v));
+        }
+
+        Ok(Value::Null)
     }
 }

@@ -3,7 +3,8 @@
 use super::{common::*, DatabaseIntrospector};
 use anyhow::Result;
 use async_trait::async_trait;
-use sqlx::{Pool, Postgres, Row};
+use serde_json::{Map, Value};
+use sqlx::{Column, Pool, Postgres, Row, TypeInfo, ValueRef};
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use tokio::fs;
@@ -794,12 +795,29 @@ impl DatabaseIntrospector for PostgresIntrospector {
         }
         let indexes: Vec<IndexInfo> = index_map.into_values().collect();
         
+        // Surface foreign-key relationships as constraints, matching the
+        // SQLite/MySQL introspectors.
+        let mut constraints: Vec<ConstraintInfo> = foreign_keys
+            .iter()
+            .map(|(column, (ftable, fcol, on_delete, on_update))| ConstraintInfo {
+                name: format!("fk_{}_{}", table_name, column),
+                constraint_type: "FOREIGN KEY".to_string(),
+                columns: vec![column.clone()],
+                foreign_table: Some(ftable.clone()),
+                foreign_columns: Some(vec![fcol.clone()]),
+                check_expression: None,
+                on_delete: on_delete.clone(),
+                on_update: on_update.clone(),
+            })
+            .collect();
+        constraints.sort_by(|a, b| a.name.cmp(&b.name));
+
         Ok(TableDescription {
             table: table_info,
             columns,
             indexes,
-            constraints: Vec::new(), // Can be extended later if needed
-            triggers: Vec::new(),    // Can be extended later if needed
+            constraints,
+            triggers: Vec::new(), // Can be extended later if needed
         })
     }
     
@@ -891,9 +909,128 @@ impl DatabaseIntrospector for PostgresIntrospector {
         Ok(self.db_name.clone())
     }
     
-    async fn export_data(&self, query: &str, _format: &str) -> Result<String> {
-        let _rows = sqlx::query(query).fetch_all(&self.pool).await?;
-        // TODO: Implement actual data export formatting
-        Ok("[]".to_string())
+    async fn export_data(&self, query: &str, format: &str) -> Result<String> {
+        let rows = sqlx::query(query).fetch_all(&self.pool).await?;
+        let headers = rows
+            .first()
+            .map(|row| {
+                row.columns()
+                    .iter()
+                    .map(|column| column.name().to_string())
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+
+        let mut json_rows = Vec::new();
+        for row in &rows {
+            let mut object = Map::new();
+            for (index, column) in row.columns().iter().enumerate() {
+                object.insert(
+                    column.name().to_string(),
+                    Self::pg_value_to_json(row, index)?,
+                );
+            }
+            json_rows.push(Value::Object(object));
+        }
+
+        match format {
+            "json" => Ok(serde_json::to_string_pretty(&json_rows)?),
+            "csv" => Ok(rows_to_csv(&headers, &json_rows)),
+            _ => anyhow::bail!("Unsupported export format: {}", format),
+        }
+    }
+}
+
+impl PostgresIntrospector {
+    /// Convert a single PostgreSQL cell to JSON, dispatching on the column's SQL type.
+    fn pg_value_to_json(row: &sqlx::postgres::PgRow, index: usize) -> Result<Value> {
+        let raw = row.try_get_raw(index)?;
+        if raw.is_null() {
+            return Ok(Value::Null);
+        }
+
+        let type_name = raw.type_info().name().to_uppercase();
+        match type_name.as_str() {
+            "BOOL" => {
+                if let Ok(v) = row.try_get::<bool, _>(index) {
+                    return Ok(Value::from(v));
+                }
+            }
+            "INT2" => {
+                if let Ok(v) = row.try_get::<i16, _>(index) {
+                    return Ok(Value::from(v));
+                }
+            }
+            "INT4" => {
+                if let Ok(v) = row.try_get::<i32, _>(index) {
+                    return Ok(Value::from(v));
+                }
+            }
+            "INT8" => {
+                if let Ok(v) = row.try_get::<i64, _>(index) {
+                    return Ok(Value::from(v));
+                }
+            }
+            "FLOAT4" => {
+                if let Ok(v) = row.try_get::<f32, _>(index) {
+                    return Ok(Value::from(v));
+                }
+            }
+            "FLOAT8" => {
+                if let Ok(v) = row.try_get::<f64, _>(index) {
+                    return Ok(Value::from(v));
+                }
+            }
+            "NUMERIC" => {
+                if let Ok(v) = row.try_get::<sqlx::types::BigDecimal, _>(index) {
+                    return Ok(Value::String(v.to_string()));
+                }
+            }
+            "UUID" => {
+                if let Ok(v) = row.try_get::<sqlx::types::Uuid, _>(index) {
+                    return Ok(Value::String(v.to_string()));
+                }
+            }
+            "JSON" | "JSONB" => {
+                if let Ok(v) = row.try_get::<Value, _>(index) {
+                    return Ok(v);
+                }
+            }
+            "TIMESTAMP" => {
+                if let Ok(v) = row.try_get::<chrono::NaiveDateTime, _>(index) {
+                    return Ok(Value::String(v.to_string()));
+                }
+            }
+            "TIMESTAMPTZ" => {
+                if let Ok(v) = row.try_get::<chrono::DateTime<chrono::Utc>, _>(index) {
+                    return Ok(Value::String(v.to_rfc3339()));
+                }
+            }
+            "DATE" => {
+                if let Ok(v) = row.try_get::<chrono::NaiveDate, _>(index) {
+                    return Ok(Value::String(v.to_string()));
+                }
+            }
+            "TIME" => {
+                if let Ok(v) = row.try_get::<chrono::NaiveTime, _>(index) {
+                    return Ok(Value::String(v.to_string()));
+                }
+            }
+            "BYTEA" => {
+                if let Ok(v) = row.try_get::<Vec<u8>, _>(index) {
+                    return Ok(Value::String(
+                        v.iter().map(|b| format!("{:02x}", b)).collect::<String>(),
+                    ));
+                }
+            }
+            _ => {}
+        }
+
+        // Text types and anything without a specific decoder above.
+        if let Ok(v) = row.try_get::<String, _>(index) {
+            return Ok(Value::String(v));
+        }
+
+        Ok(Value::Null)
     }
 }

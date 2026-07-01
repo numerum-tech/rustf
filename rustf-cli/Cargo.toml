@@ -91,7 +91,7 @@ dirs = "5.0"
 lazy_static = "1.4"
 
 # Database support
-sqlx = { version = "0.8", features = ["runtime-tokio-rustls", "postgres", "mysql", "sqlite", "chrono", "uuid", "json"] }
+sqlx = { version = "0.8", features = ["runtime-tokio-rustls", "postgres", "mysql", "sqlite", "chrono", "uuid", "json", "bigdecimal"] }
 url = "2.4"
 
 # Temporary files for compilation validation

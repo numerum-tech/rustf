@@ -41,6 +41,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   blocking `std::fs::read`, so serving files no longer stalls a runtime worker
   thread. These methods are now `async` — add `.await` at call sites.
 
+- **CLI DB export parity.** `rustf-cli db` data export now returns real rows for
+  **all three** backends. PostgreSQL previously returned `"[]"` and MySQL
+  returned `"[]"`/`""` placeholders regardless of the data; both now serialize
+  actual rows to JSON or CSV, matching SQLite. Added the `bigdecimal` sqlx
+  feature so `NUMERIC`/`DECIMAL` columns export their real value instead of
+  null. CSV rendering is shared across backends (`rows_to_csv`).
+- **CLI DB introspection parity.** `db describe` now reports foreign-key
+  constraints for MySQL and PostgreSQL (both previously returned an empty
+  `constraints` list), matching SQLite. Relationship metadata is no longer
+  dropped by backend.
+
 ### Removed
 - **BREAKING — `DB::execute_raw`.** Removed the MySQL-only `DB::execute_raw`,
   which existed only behind `#[cfg(feature = "db-mysql")]`, returned the
