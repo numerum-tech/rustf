@@ -19,17 +19,18 @@
 // 📊 Generation information:
 // - Generated from: schemas/users.yaml
 // - Schema checksum: c1178723f21d1a
-// - Generated on: 2026-06-30T10:40:57Z
+// - Generated on: 2026-06-30T19:22:57Z
 // - RustF CLI version: 0.1.0
 // =============================================================================
 
 // Note: This file is included directly, not compiled as a separate module
 // All imports should be at the module level where this is included
 
-use serde::{Deserialize, Serialize};
-use sqlx::{Pool, Sqlite};
-use anyhow::Result;
+#[allow(unused_imports)] use serde::{Deserialize, Serialize};
+#[allow(unused_imports)] use sqlx::{Pool, Sqlite};
+#[allow(unused_imports)] use anyhow::Result;
 use rustf::models::{BaseModel, ChangeTracking};
+#[allow(unused_imports)]
 use rustf::models::query_builder::{DatabaseBackend, SqlValue};
 use async_trait::async_trait;
 use std::collections::HashSet;
