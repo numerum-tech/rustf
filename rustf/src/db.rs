@@ -623,38 +623,6 @@ impl DB {
         }
     }
 
-    /// Execute a raw SQL query and return results
-    ///
-    /// This is a low-level method for cases where the query builder
-    /// doesn't provide the needed functionality.
-    ///
-    /// # Arguments
-    /// * `sql` - Raw SQL query string
-    ///
-    /// # Safety
-    /// This method executes raw SQL. Ensure the SQL is safe and parameterized
-    /// to prevent SQL injection attacks.
-    #[cfg(feature = "db-mysql")]
-    pub async fn execute_raw(sql: &str) -> Result<sqlx::mysql::MySqlQueryResult> {
-        let db = Self::connection()
-            .ok_or_else(|| Error::template("Database not configured".to_string()))?;
-
-        match db.as_ref() {
-            AnyDatabase::MySQL(pool) => sqlx::query(sql)
-                .execute(pool)
-                .await
-                .map_err(|e| Error::template(format!("SQL execution failed: {}", e))),
-            #[cfg(feature = "db-postgres")]
-            AnyDatabase::Postgres(_) => Err(Error::template(
-                "Raw query execution not yet implemented for PostgreSQL".to_string(),
-            )),
-            #[cfg(feature = "db-sqlite")]
-            AnyDatabase::SQLite(_) => Err(Error::template(
-                "Raw query execution not yet implemented for SQLite".to_string(),
-            )),
-        }
-    }
-
     /// Test database connectivity
     ///
     /// Sends a simple ping/test query to verify the database connection is alive.
