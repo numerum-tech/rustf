@@ -54,8 +54,9 @@ async fn destroy(ctx: &mut Context) -> rustf::Result<()> {
 }
 
 async fn render_list_fragment(ctx: &mut Context, user_id: i64, list_id: i64) -> rustf::Result<()> {
+    // No ctx.layout("") here: AuthMiddleware already strips the layout for XHR
+    // requests, and this fragment is only rendered on the XHR path.
     let list = TaskListsService::list_fragment(user_id, list_id).await?;
-    ctx.layout("");
     ctx.view("tasks/list", serde_json::to_value(&list)?)
 }
 
