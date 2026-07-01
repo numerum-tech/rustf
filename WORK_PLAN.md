@@ -261,6 +261,18 @@ Branch `perf-sweep-and-skill`. 11 commits. Plan document: `PERF_AND_SKILL_PLAN.m
 - Profile database operations with reduced logging
 - Test memory usage improvements
 - Consider trace logging for deep debugging scenarios
+- **Threshold-gated render offload (multicore tail latency).** `ctx.view` /
+  the Total.js engine render is synchronous CPU work with no `.await`, so it
+  occupies its tokio worker thread for the full render duration. Fine on the
+  ~99.5% template-cache-hit fast path (µs-scale), but a very large template or
+  data payload can pin a worker and raise tail latency for co-scheduled
+  requests. Fix: offload the render via `spawn_blocking` **only above a size
+  threshold** (e.g. rendered output / data > ~256 KB) so the cheap fast path
+  stays inline and avoids the spawn/clone overhead. Do NOT blanket-wrap — it
+  would tax the common case. Behavior is documented on `Context::view`.
+  Low priority (not a defect, a tuning trade-off). Discovered 2026-07-01
+  alongside the file-response blocking-I/O fix (commit `661bcf4`), which was
+  the higher-impact sibling issue.
 
 ### Research Needed
 - Async module initialization patterns
