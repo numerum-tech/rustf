@@ -41,6 +41,8 @@ impl InboundMiddleware for AuthMiddleware {
                 // browser, so the login page would land inside the partial's
                 // target element. Ask the client to do a real, top-level
                 // browser navigation instead — htmx honors `HX-Redirect`.
+                // Caveat: `HX-Redirect` is htmx-specific; a non-htmx XHR client
+                // must read the header and navigate itself.
                 ctx.html("")?;
                 ctx.add_header("HX-Redirect", "/login");
             } else {
