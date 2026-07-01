@@ -1057,8 +1057,14 @@ let users = Users::query()?
     .get()
     .await?;
 
-// ❌ Avoid - Database-specific, prone to SQL injection
-let users = DB::execute_raw("SELECT * FROM users WHERE is_active = 1").await?;
+// ⚠️ Escape hatch - only when the builder can't express the query.
+// Always parameterize (never interpolate) to avoid SQL injection. The SQL is
+// yours to keep portable: placeholder syntax is dialect-specific (`?` for
+// MySQL/SQLite, `$1` for PostgreSQL).
+let users = DB::fetch_all_with_params(
+    "SELECT * FROM users WHERE is_active = ?",
+    vec![true.into()],
+).await?;
 ```
 
 ### 2. Always Check Option Returns
@@ -1238,7 +1244,7 @@ let users = Users::query()?
 
 ### Current Limitations
 - No transaction support yet
-- No raw SQL bindings (only MySQL has execute_raw)
+- Raw parameterized SQL is available cross-dialect via `DB::execute_with_params` / `DB::fetch_all_with_params`, but the SQL itself (placeholders, functions) is dialect-specific
 - No HAVING clause support (GROUP BY is supported)
 - Limited aggregate function helpers (use select_raw() for now)
 

@@ -41,6 +41,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   blocking `std::fs::read`, so serving files no longer stalls a runtime worker
   thread. These methods are now `async` — add `.await` at call sites.
 
+### Removed
+- **BREAKING — `DB::execute_raw`.** Removed the MySQL-only `DB::execute_raw`,
+  which existed only behind `#[cfg(feature = "db-mysql")]`, returned the
+  MySQL-specific `sqlx::mysql::MySqlQueryResult`, and errored `"not yet
+  implemented"` for PostgreSQL/SQLite — a cross-database parity gap at a
+  framework-level API. It was a redundant, injection-prone (no params) duplicate
+  of already cross-dialect methods. **Migration:** use
+  `DB::execute_with_params(sql, vec![])` for writes/DDL (returns rows affected),
+  `DB::fetch_all_with_params(sql, params)` for row-returning queries, or
+  `DB::execute_insert_returning(...)` for inserts that need the new id.
+
 ## [1.0.0-rc1] - 2026-06-22
 
 ### Added
