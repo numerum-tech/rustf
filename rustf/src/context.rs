@@ -269,7 +269,19 @@ impl Context {
         self
     }
 
-    /// Render a view template with data
+    /// Render a view template with data.
+    ///
+    /// # Concurrency
+    ///
+    /// Rendering is CPU-bound and runs **synchronously on the current async
+    /// worker thread** — there is no `.await` inside the template engine, so the
+    /// worker is occupied for the full render duration. With the template cache
+    /// (very high hit rate) most renders are microsecond-scale and this is a
+    /// non-issue. But a pathologically large template or data payload can pin a
+    /// worker and raise tail latency for other requests sharing the runtime.
+    /// If you knowingly render heavy pages, offload with
+    /// [`tokio::task::spawn_blocking`] / [`tokio::task::block_in_place`].
+    /// A threshold-gated offload inside the framework is tracked as future work.
     pub fn view(&mut self, template: &str, data: Value) -> Result<()> {
         let views = &self.views;
 
