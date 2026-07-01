@@ -66,7 +66,9 @@ fn extract_inner_type(option_type: &str) -> &str {
 }
 
 // Import the command structures from mod.rs
-use crate::commands::schema::{GenerateTarget, SchemaAction, SchemaCommand};
+use crate::commands::schema::{
+    to_screaming_snake_case, GenerateTarget, SchemaAction, SchemaCommand,
+};
 
 /// Execute schema command for SQLite
 pub async fn execute_schema_command(cmd: SchemaCommand) -> anyhow::Result<()> {
@@ -945,9 +947,9 @@ fn prepare_base_model_variables(
 
     // Generate imports
     let mut imports = vec![
-        "use serde::{Deserialize, Serialize};".to_string(),
-        format!("use sqlx::{{Pool, {}}};", pool_type),
-        "use anyhow::Result;".to_string(),
+        "#[allow(unused_imports)] use serde::{Deserialize, Serialize};".to_string(),
+        format!("#[allow(unused_imports)] use sqlx::{{Pool, {}}};", pool_type),
+        "#[allow(unused_imports)] use anyhow::Result;".to_string(),
     ];
 
     // Check if we need chrono or other imports
@@ -1475,7 +1477,7 @@ fn prepare_base_model_variables(
     let mut column_constants = Vec::new();
     for field in &sorted_fields {
         let field_name = &field.name;
-        let const_name = field_name.to_uppercase();
+        let const_name = to_screaming_snake_case(field_name);
         column_constants.push(format!(
             "    pub const {}: &'static str = \"{}\";",
             const_name, field_name
@@ -2846,8 +2848,8 @@ fn prepare_base_model_variables(
             for value in values {
                 let const_name = format!(
                     "{}_{}",
-                    field.name.to_uppercase(),
-                    value.replace('-', "_").replace(' ', "_")
+                    to_screaming_snake_case(&field.name),
+                    to_screaming_snake_case(value)
                 );
                 enum_constants.push(format!(
                     "    /// {} value for {} field\n    pub const {}: &'static str = \"{}\";",
