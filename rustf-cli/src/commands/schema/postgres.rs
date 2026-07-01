@@ -8,7 +8,7 @@ use std::path::Path;
 use tokio::fs;
 
 // Import utility functions from parent module
-use super::to_pascal_case;
+use super::{to_pascal_case, to_screaming_snake_case};
 
 #[derive(RustEmbed)]
 #[folder = "templates/"]
@@ -947,8 +947,8 @@ fn prepare_base_model_variables(
 
     // Generate imports
     let mut imports = vec![
-        "use serde::{Deserialize, Serialize};".to_string(),
-        "use rustf::Result;".to_string(),
+        "#[allow(unused_imports)] use serde::{Deserialize, Serialize};".to_string(),
+        "#[allow(unused_imports)] use rustf::Result;".to_string(),
     ];
 
     // Check if we need chrono or other imports
@@ -1522,7 +1522,7 @@ fn prepare_base_model_variables(
     let mut column_constants = Vec::new();
     for field in &sorted_fields {
         let field_name = &field.name;
-        let const_name = field_name.to_uppercase();
+        let const_name = to_screaming_snake_case(field_name);
         column_constants.push(format!(
             "    pub const {}: &'static str = \"{}\";",
             const_name, field_name
@@ -2893,8 +2893,8 @@ fn prepare_base_model_variables(
             for value in values {
                 let const_name = format!(
                     "{}_{}",
-                    field.name.to_uppercase(),
-                    value.replace('-', "_").replace(' ', "_")
+                    to_screaming_snake_case(&field.name),
+                    to_screaming_snake_case(value)
                 );
 
                 // Store just the enum value without the type cast

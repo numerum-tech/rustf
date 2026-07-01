@@ -204,3 +204,55 @@ pub fn to_pascal_case(s: &str) -> String {
         .collect()
 }
 
+/// Convert string to SCREAMING_SNAKE_CASE suitable for Rust constants.
+pub fn to_screaming_snake_case(s: &str) -> String {
+    let mut result = String::new();
+    let mut previous_was_separator = true;
+
+    for ch in s.chars() {
+        if ch.is_ascii_alphanumeric() {
+            if ch.is_ascii_uppercase() && !previous_was_separator && !result.ends_with('_') {
+                result.push('_');
+            }
+            result.push(ch.to_ascii_uppercase());
+            previous_was_separator = false;
+        } else if !result.ends_with('_') && !result.is_empty() {
+            result.push('_');
+            previous_was_separator = true;
+        } else {
+            previous_was_separator = true;
+        }
+    }
+
+    let result = result.trim_matches('_').to_string();
+    let result = if result.is_empty() {
+        "VALUE".to_string()
+    } else {
+        result
+    };
+
+    if result
+        .chars()
+        .next()
+        .map(|ch| ch.is_ascii_digit())
+        .unwrap_or(false)
+    {
+        format!("V_{}", result)
+    } else {
+        result
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::to_screaming_snake_case;
+
+    #[test]
+    fn converts_to_screaming_snake_case() {
+        assert_eq!(to_screaming_snake_case("expired"), "EXPIRED");
+        assert_eq!(to_screaming_snake_case("in-progress"), "IN_PROGRESS");
+        assert_eq!(to_screaming_snake_case("two words"), "TWO_WORDS");
+        assert_eq!(to_screaming_snake_case("statusExpired"), "STATUS_EXPIRED");
+        assert_eq!(to_screaming_snake_case("2fa_required"), "V_2FA_REQUIRED");
+    }
+}

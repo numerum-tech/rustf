@@ -28,6 +28,7 @@
 
 {{imports}}
 use rustf::models::{BaseModel, ChangeTracking};
+#[allow(unused_imports)]
 use rustf::models::query_builder::{DatabaseBackend, SqlValue};
 use async_trait::async_trait;
 use std::collections::HashSet;
