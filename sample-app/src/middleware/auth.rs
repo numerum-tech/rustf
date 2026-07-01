@@ -22,13 +22,31 @@ pub struct AuthMiddleware;
 #[async_trait]
 impl InboundMiddleware for AuthMiddleware {
     async fn process_request(&self, ctx: &mut Context) -> rustf::Result<InboundAction> {
+        // AJAX / htmx responses are partials, so render them without the page
+        // layout (chrome). Applies to every XHR request, not just protected
+        // ones, so handlers don't each have to remember to strip the layout.
+        if ctx.is_xhr() {
+            ctx.layout("");
+        }
+
         let protected = PROTECTED_PREFIXES
             .iter()
             .any(|prefix| ctx.path().starts_with(prefix));
 
         if protected && ctx.require_auth().is_err() {
             ctx.flash_error("Please sign in to manage tasks.")?;
-            ctx.redirect("/login")?;
+
+            if ctx.is_xhr() {
+                // A 302 to an XHR/htmx request is followed transparently by the
+                // browser, so the login page would land inside the partial's
+                // target element. Ask the client to do a real, top-level
+                // browser navigation instead — htmx honors `HX-Redirect`.
+                ctx.html("")?;
+                ctx.add_header("HX-Redirect", "/login");
+            } else {
+                ctx.redirect("/login")?;
+            }
+
             return Ok(InboundAction::Stop);
         }
 
