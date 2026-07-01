@@ -5,6 +5,42 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- **BREAKING — auto-discovery layout.** `#[auto_discover]` no longer emits
+  IDE-only `src/_controllers.rs` / `_models.rs` / etc. It now generates
+  framework-owned modules under `src/.rustf/<dir>_gen.rs` and a thin,
+  user-editable wrapper `src/<dir>/mod.rs` that re-exports them. Discovery now
+  also covers `src/middleware/`, `src/events/`, and `src/definitions/`.
+
+  **Migration for existing projects:**
+  1. Delete the legacy `src/_*.rs` files (the macro removes them automatically
+     on the next build; safe to `git rm` them).
+  2. If you do **not** already have a hand-written `src/<dir>/mod.rs`, nothing
+     else is needed — the macro scaffolds the wrapper for you.
+  3. If you **do** have a hand-written `src/<dir>/mod.rs`, the build now fails
+     with a `compile_error!` unless the wrapper keeps the generated import and
+     re-export intact. Add these two lines (custom code alongside is allowed):
+     ```rust
+     #[path = "../.rustf/<dir>_gen.rs"]
+     mod generated;
+     pub use generated::*;
+     ```
+  4. Every `.rs` file in `middleware/`, `events/`, and `definitions/` must
+     export the expected registration entry point (`install(registry)`,
+     `install(emitter)`, `install(defs)` respectively); move helper-only files
+     elsewhere or they will fail to compile.
+  5. Add `.rustf/` to your `.gitignore` — the generated `src/.rustf/` directory
+     is framework-owned and should not be committed. (New projects scaffolded by
+     `rustf-cli` already include this.)
+
+### Fixed
+- File-response helpers (`Response::file_download{,_from}`, `file_inline{,_from}`
+  and their `Context` wrappers) now read files with async `tokio::fs` instead of
+  blocking `std::fs::read`, so serving files no longer stalls a runtime worker
+  thread. These methods are now `async` — add `.await` at call sites.
+
 ## [1.0.0-rc1] - 2026-06-22
 
 ### Added
