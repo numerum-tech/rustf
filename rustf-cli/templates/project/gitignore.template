@@ -51,5 +51,6 @@ node_modules/
 *.bak
 *.backup
 
-# RustF backups (created automatically when using --force)
-/.rustf
+# RustF framework-owned files: --force backups (project root) and
+# auto-discovery generated modules (src/.rustf/). Unanchored so both match.
+.rustf/
