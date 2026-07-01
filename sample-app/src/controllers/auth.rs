@@ -12,7 +12,7 @@ pub fn install() -> Vec<Route> {
 }
 
 async fn login_form(ctx: &mut Context) -> rustf::Result<()> {
-    if is_authenticated(ctx) {
+    if ctx.require_auth().is_ok() {
         ctx.redirect("/task_lists")?;
         return Ok(());
     }
@@ -42,7 +42,7 @@ async fn login(ctx: &mut Context) -> rustf::Result<()> {
 }
 
 async fn register_form(ctx: &mut Context) -> rustf::Result<()> {
-    if is_authenticated(ctx) {
+    if ctx.require_auth().is_ok() {
         ctx.redirect("/task_lists")?;
         return Ok(());
     }
@@ -75,10 +75,4 @@ async fn logout(ctx: &mut Context) -> rustf::Result<()> {
     ctx.logout()?;
     ctx.flash_success("Signed out successfully.")?;
     ctx.redirect("/")
-}
-
-fn is_authenticated(ctx: &Context) -> bool {
-    ctx.session()
-        .map(|session| session.is_authenticated())
-        .unwrap_or(false)
 }

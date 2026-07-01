@@ -8,11 +8,9 @@ pub fn install() -> Vec<Route> {
 }
 
 async fn index(ctx: &mut Context) -> Result<()> {
-    if let Some(session) = ctx.session() {
-        if session.is_authenticated() {
-            ctx.redirect("/task_lists")?;
-            return Ok(());
-        }
+    if ctx.require_auth().is_ok() {
+        ctx.redirect("/task_lists")?;
+        return Ok(());
     }
 
     let data = json!({

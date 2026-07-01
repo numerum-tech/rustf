@@ -11,17 +11,9 @@ use crate::modules::task_lists_service::TaskListsService;
 use rustf::prelude::*;
 
 pub fn install() -> Vec<Route> {
-    async fn before(ctx: &mut Context) -> rustf::Result<BeforeAction> {
-        if current_user_id(ctx).is_err() {
-            ctx.flash_error("Please sign in to access your task lists.")?;
-            ctx.redirect("/login")?;
-            return Ok(BeforeAction::Stop);
-        }
-        Ok(BeforeAction::Continue)
-    }
-
+    // Authentication for the /task_lists prefix is enforced by AuthMiddleware
+    // (src/middleware/auth.rs), so no per-controller guard is needed here.
     routes![
-        before: before,
         GET  "/task_lists"          => index,
         POST "/task_lists"          => create,
         GET  "/task_lists/{id}/edit" => edit_form,
