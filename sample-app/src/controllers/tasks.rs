@@ -3,17 +3,10 @@ use crate::modules::tasks_service::TasksService;
 use rustf::prelude::*;
 
 pub fn install() -> Vec<Route> {
-    async fn before(ctx: &mut Context) -> rustf::Result<BeforeAction> {
-        if current_user_id(ctx).is_err() {
-            ctx.flash_error("Please sign in to manage tasks.")?;
-            ctx.redirect("/login")?;
-            return Ok(BeforeAction::Stop);
-        }
-        Ok(BeforeAction::Continue)
-    }
-
+    // Authentication for the /task_lists and /tasks prefixes is enforced by
+    // AuthMiddleware (src/middleware/auth.rs), so no per-controller guard is
+    // needed here.
     routes![
-        before: before,
         POST "/task_lists/{id}/tasks" => create,
         POST "/tasks/{id}/toggle" => toggle,
         POST "/tasks/{id}/delete" => destroy,
@@ -26,7 +19,7 @@ async fn create(ctx: &mut Context) -> rustf::Result<()> {
     let form = ctx.body_form()?;
     TasksService::create(user_id, list_id, &form).await?;
 
-    if is_htmx(ctx) {
+    if ctx.is_xhr() {
         return render_list_fragment(ctx, user_id, list_id).await;
     }
 
@@ -39,7 +32,7 @@ async fn toggle(ctx: &mut Context) -> rustf::Result<()> {
     let task_id = ctx.param_int("id")? as i64;
     let list_id = TasksService::toggle(user_id, task_id).await?;
 
-    if is_htmx(ctx) {
+    if ctx.is_xhr() {
         return render_list_fragment(ctx, user_id, list_id).await;
     }
 
@@ -52,7 +45,7 @@ async fn destroy(ctx: &mut Context) -> rustf::Result<()> {
     let task_id = ctx.param_int("id")? as i64;
     let list_id = TasksService::delete(user_id, task_id).await?;
 
-    if is_htmx(ctx) {
+    if ctx.is_xhr() {
         return render_list_fragment(ctx, user_id, list_id).await;
     }
 
@@ -70,10 +63,4 @@ fn current_user_id(ctx: &Context) -> rustf::Result<i64> {
     ctx.require_auth()?
         .get_user_id()
         .ok_or_else(|| rustf::Error::validation("Authenticated session is missing a user id"))
-}
-
-fn is_htmx(ctx: &Context) -> bool {
-    ctx.header("HX-Request")
-        .map(|value| value.eq_ignore_ascii_case("true"))
-        .unwrap_or(false)
 }
