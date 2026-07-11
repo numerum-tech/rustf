@@ -22,7 +22,7 @@ impl MySqlAdapter {
     pub async fn new(name: impl Into<String>, connection_url: &str) -> Result<Self> {
         let pool = MySqlPool::connect(connection_url)
             .await
-            .map_err(|e| Error::template(format!("Failed to connect to MySQL: {}", e)))?;
+            .map_err(|e| Error::database_connection(format!("Failed to connect to MySQL: {}", e)))?;
 
         Ok(Self {
             name: name.into(),
@@ -72,7 +72,7 @@ impl DatabaseAdapter for MySqlAdapter {
         let result = query
             .execute(&*self.pool)
             .await
-            .map_err(|e| Error::template(format!("MySQL execute failed: {}", e)))?;
+            .map_err(|e| Error::database_query(format!("MySQL execute failed: {}", e)))?;
 
         Ok(QueryResult {
             rows_affected: result.rows_affected(),
@@ -91,7 +91,7 @@ impl DatabaseAdapter for MySqlAdapter {
         let rows = query
             .fetch_all(&*self.pool)
             .await
-            .map_err(|e| Error::template(format!("MySQL fetch_all failed: {}", e)))?;
+            .map_err(|e| Error::database_query(format!("MySQL fetch_all failed: {}", e)))?;
 
         let mut results = Vec::new();
         for row in rows {
@@ -112,7 +112,7 @@ impl DatabaseAdapter for MySqlAdapter {
         let row = query
             .fetch_optional(&*self.pool)
             .await
-            .map_err(|e| Error::template(format!("MySQL fetch_one failed: {}", e)))?;
+            .map_err(|e| Error::database_query(format!("MySQL fetch_one failed: {}", e)))?;
 
         match row {
             Some(row) => Ok(Some(self.row_to_json(&row)?)),
@@ -125,7 +125,7 @@ impl DatabaseAdapter for MySqlAdapter {
             .fetch_one(&*self.pool)
             .await
             .map(|_| true)
-            .map_err(|e| Error::template(format!("MySQL ping failed: {}", e)))
+            .map_err(|e| Error::database_connection(format!("MySQL ping failed: {}", e)))
     }
 
     fn as_any(&self) -> &dyn std::any::Any {

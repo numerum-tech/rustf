@@ -23,13 +23,15 @@ impl SqliteAdapter {
     /// Create a new SQLite adapter
     pub async fn new(name: impl Into<String>, connection_url: &str) -> Result<Self> {
         let options = SqliteConnectOptions::from_str(connection_url)
-            .map_err(|e| Error::template(format!("Invalid SQLite connection string: {}", e)))?
+            .map_err(|e| {
+                Error::database_connection(format!("Invalid SQLite connection string: {}", e))
+            })?
             .create_if_missing(true);
 
         let pool = sqlx::sqlite::SqlitePoolOptions::new()
             .connect_with(options)
             .await
-            .map_err(|e| Error::template(format!("Failed to connect to SQLite: {}", e)))?;
+            .map_err(|e| Error::database_connection(format!("Failed to connect to SQLite: {}", e)))?;
 
         Ok(Self {
             name: name.into(),
@@ -79,7 +81,7 @@ impl DatabaseAdapter for SqliteAdapter {
         let result = query
             .execute(&*self.pool)
             .await
-            .map_err(|e| Error::template(format!("SQLite execute failed: {}", e)))?;
+            .map_err(|e| Error::database_query(format!("SQLite execute failed: {}", e)))?;
 
         Ok(QueryResult {
             rows_affected: result.rows_affected(),
@@ -98,7 +100,7 @@ impl DatabaseAdapter for SqliteAdapter {
         let rows = query
             .fetch_all(&*self.pool)
             .await
-            .map_err(|e| Error::template(format!("SQLite fetch_all failed: {}", e)))?;
+            .map_err(|e| Error::database_query(format!("SQLite fetch_all failed: {}", e)))?;
 
         let mut results = Vec::new();
         for row in rows {
@@ -119,7 +121,7 @@ impl DatabaseAdapter for SqliteAdapter {
         let row = query
             .fetch_optional(&*self.pool)
             .await
-            .map_err(|e| Error::template(format!("SQLite fetch_one failed: {}", e)))?;
+            .map_err(|e| Error::database_query(format!("SQLite fetch_one failed: {}", e)))?;
 
         match row {
             Some(row) => Ok(Some(self.row_to_json(&row)?)),
@@ -132,7 +134,7 @@ impl DatabaseAdapter for SqliteAdapter {
             .fetch_one(&*self.pool)
             .await
             .map(|_| true)
-            .map_err(|e| Error::template(format!("SQLite ping failed: {}", e)))
+            .map_err(|e| Error::database_connection(format!("SQLite ping failed: {}", e)))
     }
 
     fn as_any(&self) -> &dyn std::any::Any {

@@ -63,7 +63,7 @@ impl DB {
                 }
                 Err(e) => {
                     log::error!("Failed to connect to database: {}", e);
-                    return Err(Error::template(format!(
+                    return Err(Error::database_connection(format!(
                         "Database connection failed: {}",
                         e
                     )));
@@ -75,7 +75,7 @@ impl DB {
 
         DATABASE
             .set(db_option)
-            .map_err(|_| Error::template("Database has already been initialized".to_string()))?;
+            .map_err(|_| Error::database_connection("Database has already been initialized".to_string()))?;
 
         Ok(())
     }
@@ -162,7 +162,7 @@ impl DB {
             let adapter = SqliteAdapter::new(name, url).await?;
             return Ok(Box::new(adapter));
         }
-        Err(Error::template(format!(
+        Err(Error::database_connection(format!(
             "Unsupported database URL scheme (or its driver feature is not enabled): {}",
             url
         )))
@@ -173,7 +173,7 @@ impl DB {
         REGISTRY
             .get()
             .cloned()
-            .ok_or_else(|| Error::template("Database registry not initialized".to_string()))
+            .ok_or_else(|| Error::database_connection("Database registry not initialized".to_string()))
     }
 
     /// Use a specific named database
@@ -201,7 +201,7 @@ impl DB {
         registry
             .get(name)
             .await
-            .ok_or_else(|| Error::template(format!("Database '{}' not found", name)))
+            .ok_or_else(|| Error::database_connection(format!("Database '{}' not found", name)))
     }
 
     /// Get a specific database adapter
@@ -242,7 +242,7 @@ impl DB {
         // Fall back to legacy DATABASE
         match Self::connection() {
             Some(db) => Ok(db.query()),
-            None => Err(Error::template(
+            None => Err(Error::database_connection(
                 "Database not configured. Add database.url to your configuration or call DB::init()".to_string()
             ))
         }
@@ -269,7 +269,7 @@ impl DB {
     /// * `Err(Error)` - If database is not configured
     pub async fn get() -> Result<Arc<AnyDatabase>> {
         Self::connection().ok_or_else(|| {
-            Error::template(
+            Error::database_connection(
                 "Database not configured. Add database.url to your configuration".to_string(),
             )
         })
@@ -308,12 +308,12 @@ impl DB {
     #[cfg(feature = "db-postgres")]
     pub fn pg_pool() -> Result<Arc<sqlx::PgPool>> {
         let db = Self::connection()
-            .ok_or_else(|| Error::template("Database not configured".to_string()))?;
+            .ok_or_else(|| Error::database_connection("Database not configured".to_string()))?;
 
         match db.as_ref() {
             AnyDatabase::Postgres(pool) => Ok(Arc::new(pool.clone())),
             #[allow(unreachable_patterns)]
-            _ => Err(Error::template("Database is not PostgreSQL".to_string())),
+            _ => Err(Error::database_connection("Database is not PostgreSQL".to_string())),
         }
     }
 
@@ -325,12 +325,12 @@ impl DB {
     #[cfg(feature = "db-mysql")]
     pub fn mysql_pool() -> Result<Arc<sqlx::MySqlPool>> {
         let db = Self::connection()
-            .ok_or_else(|| Error::template("Database not configured".to_string()))?;
+            .ok_or_else(|| Error::database_connection("Database not configured".to_string()))?;
 
         match db.as_ref() {
             AnyDatabase::MySQL(pool) => Ok(Arc::new(pool.clone())),
             #[allow(unreachable_patterns)]
-            _ => Err(Error::template("Database is not MySQL".to_string())),
+            _ => Err(Error::database_connection("Database is not MySQL".to_string())),
         }
     }
 
@@ -342,12 +342,12 @@ impl DB {
     #[cfg(feature = "db-sqlite")]
     pub fn sqlite_pool() -> Result<Arc<sqlx::SqlitePool>> {
         let db = Self::connection()
-            .ok_or_else(|| Error::template("Database not configured".to_string()))?;
+            .ok_or_else(|| Error::database_connection("Database not configured".to_string()))?;
 
         match db.as_ref() {
             AnyDatabase::SQLite(pool) => Ok(Arc::new(pool.clone())),
             #[allow(unreachable_patterns)]
-            _ => Err(Error::template("Database is not SQLite".to_string())),
+            _ => Err(Error::database_connection("Database is not SQLite".to_string())),
         }
     }
 
@@ -375,7 +375,7 @@ impl DB {
 
         // Fallback to legacy connection
         let db = Self::connection()
-            .ok_or_else(|| Error::template("Database not configured".to_string()))?;
+            .ok_or_else(|| Error::database_connection("Database not configured".to_string()))?;
 
         // Use the appropriate adapter based on database type
         match db.as_ref() {
@@ -427,7 +427,7 @@ impl DB {
 
         // Fallback to legacy connection
         let db = Self::connection()
-            .ok_or_else(|| Error::template("Database not configured".to_string()))?;
+            .ok_or_else(|| Error::database_connection("Database not configured".to_string()))?;
 
         // Use the appropriate adapter based on database type
         match db.as_ref() {
@@ -476,7 +476,7 @@ impl DB {
 
         // Fallback to legacy connection
         let db = Self::connection()
-            .ok_or_else(|| Error::template("Database not configured".to_string()))?;
+            .ok_or_else(|| Error::database_connection("Database not configured".to_string()))?;
 
         // Use the appropriate adapter based on database type
         match db.as_ref() {
@@ -586,7 +586,7 @@ impl DB {
 
         // Fallback to legacy connection
         let db = Self::connection()
-            .ok_or_else(|| Error::template("Database not configured".to_string()))?;
+            .ok_or_else(|| Error::database_connection("Database not configured".to_string()))?;
 
         // Use the appropriate adapter based on database type
         match db.as_ref() {
@@ -667,7 +667,7 @@ impl DB {
                     .fetch_one(pool)
                     .await
                     .map(|_| true)
-                    .map_err(|e| Error::template(format!("PostgreSQL ping failed: {}", e)))
+                    .map_err(|e| Error::database_connection(format!("PostgreSQL ping failed: {}", e)))
             }
             #[cfg(feature = "db-mysql")]
             AnyDatabase::MySQL(pool) => {
@@ -676,7 +676,7 @@ impl DB {
                     .fetch_one(pool)
                     .await
                     .map(|_| true)
-                    .map_err(|e| Error::template(format!("MySQL ping failed: {}", e)))
+                    .map_err(|e| Error::database_connection(format!("MySQL ping failed: {}", e)))
             }
             #[cfg(feature = "db-sqlite")]
             AnyDatabase::SQLite(pool) => {
@@ -685,7 +685,7 @@ impl DB {
                     .fetch_one(pool)
                     .await
                     .map(|_| true)
-                    .map_err(|e| Error::template(format!("SQLite ping failed: {}", e)))
+                    .map_err(|e| Error::database_connection(format!("SQLite ping failed: {}", e)))
             }
         }
     }

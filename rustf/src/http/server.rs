@@ -1,5 +1,5 @@
 use crate::app::RustF;
-use crate::error::{Error, Result};
+use crate::error::{Error, ErrorChain, Result};
 use hyper::service::service_fn;
 use hyper_util::rt::{TokioExecutor, TokioIo};
 use hyper_util::server::conn::auto::Builder as AutoBuilder;
@@ -189,7 +189,10 @@ impl Server {
                             match app.handle_request_with_peer(req, Some(peer_addr)).await {
                                 Ok(response) => Ok::<_, Infallible>(response.into_hyper()),
                                 Err(e) => {
-                                    log::error!("Request handling error: {}", e);
+                                    log::error!(
+                                        "Request handling error: {}",
+                                        ErrorChain::new(&e).format_for_log()
+                                    );
                                     Ok(crate::http::Response::internal_error().into_hyper())
                                 }
                             }
