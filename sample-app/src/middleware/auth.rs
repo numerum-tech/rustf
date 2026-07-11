@@ -43,7 +43,7 @@ impl InboundMiddleware for AuthMiddleware {
                 // browser navigation instead — htmx honors `HX-Redirect`.
                 // Caveat: `HX-Redirect` is htmx-specific; a non-htmx XHR client
                 // must read the header and navigate itself.
-                ctx.html("")?;
+                ctx.html("not-authenticated")?;
                 ctx.add_header("HX-Redirect", "/login");
             } else {
                 ctx.redirect("/login")?;

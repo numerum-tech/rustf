@@ -22,7 +22,9 @@ impl PostgresAdapter {
     pub async fn new(name: impl Into<String>, connection_url: &str) -> Result<Self> {
         let pool = PgPool::connect(connection_url)
             .await
-            .map_err(|e| Error::template(format!("Failed to connect to PostgreSQL: {}", e)))?;
+            .map_err(|e| {
+                Error::database_connection(format!("Failed to connect to PostgreSQL: {}", e))
+            })?;
 
         Ok(Self {
             name: name.into(),
@@ -72,7 +74,7 @@ impl DatabaseAdapter for PostgresAdapter {
         let result = query
             .execute(&*self.pool)
             .await
-            .map_err(|e| Error::template(format!("PostgreSQL execute failed: {}", e)))?;
+            .map_err(|e| Error::database_query(format!("PostgreSQL execute failed: {}", e)))?;
 
         Ok(QueryResult {
             rows_affected: result.rows_affected(),
@@ -91,7 +93,7 @@ impl DatabaseAdapter for PostgresAdapter {
         let rows = query
             .fetch_all(&*self.pool)
             .await
-            .map_err(|e| Error::template(format!("PostgreSQL fetch_all failed: {}", e)))?;
+            .map_err(|e| Error::database_query(format!("PostgreSQL fetch_all failed: {}", e)))?;
 
         let mut results = Vec::new();
         for row in rows {
@@ -112,7 +114,7 @@ impl DatabaseAdapter for PostgresAdapter {
         let row = query
             .fetch_optional(&*self.pool)
             .await
-            .map_err(|e| Error::template(format!("PostgreSQL fetch_one failed: {}", e)))?;
+            .map_err(|e| Error::database_query(format!("PostgreSQL fetch_one failed: {}", e)))?;
 
         match row {
             Some(row) => Ok(Some(self.row_to_json(&row)?)),
@@ -125,7 +127,7 @@ impl DatabaseAdapter for PostgresAdapter {
             .fetch_one(&*self.pool)
             .await
             .map(|_| true)
-            .map_err(|e| Error::template(format!("PostgreSQL ping failed: {}", e)))
+            .map_err(|e| Error::database_connection(format!("PostgreSQL ping failed: {}", e)))
     }
 
     fn as_any(&self) -> &dyn std::any::Any {

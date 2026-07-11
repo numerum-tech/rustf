@@ -91,6 +91,7 @@ rust-project.json
 # System files
 *.tmp
 *_controllers.rs
+.tmp-sample-smoke/
 
 # mdBook generated output (Pages rebuilds via CI)
 book/book/
