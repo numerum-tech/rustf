@@ -64,6 +64,7 @@ logs/
 # Backup files
 *.bak
 *~
+sample-app.backup-*/
 
 # Generated documentation
 /target/doc/
