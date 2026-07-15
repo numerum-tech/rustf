@@ -106,7 +106,7 @@ wait_for_index() {
 for c in "${CRATES[@]}"; do
   bold "→ $c"
   if [[ "$EXECUTE" -eq 0 ]]; then
-    ( cd "$c" && cargo publish --dry-run --allow-dirty=false )
+    ( cd "$c" && cargo publish --dry-run )
   else
     ( cd "$c" && cargo publish )
     # Add the org team as co-owner (idempotent: a re-run just reports it's
