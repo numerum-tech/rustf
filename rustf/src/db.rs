@@ -73,9 +73,9 @@ impl DB {
             None
         };
 
-        DATABASE
-            .set(db_option)
-            .map_err(|_| Error::database_connection("Database has already been initialized".to_string()))?;
+        DATABASE.set(db_option).map_err(|_| {
+            Error::database_connection("Database has already been initialized".to_string())
+        })?;
 
         Ok(())
     }
@@ -170,10 +170,9 @@ impl DB {
 
     /// Get access to the database registry
     fn get_registry() -> Result<Arc<DatabaseRegistry>> {
-        REGISTRY
-            .get()
-            .cloned()
-            .ok_or_else(|| Error::database_connection("Database registry not initialized".to_string()))
+        REGISTRY.get().cloned().ok_or_else(|| {
+            Error::database_connection("Database registry not initialized".to_string())
+        })
     }
 
     /// Use a specific named database
@@ -313,7 +312,9 @@ impl DB {
         match db.as_ref() {
             AnyDatabase::Postgres(pool) => Ok(Arc::new(pool.clone())),
             #[allow(unreachable_patterns)]
-            _ => Err(Error::database_connection("Database is not PostgreSQL".to_string())),
+            _ => Err(Error::database_connection(
+                "Database is not PostgreSQL".to_string(),
+            )),
         }
     }
 
@@ -330,7 +331,9 @@ impl DB {
         match db.as_ref() {
             AnyDatabase::MySQL(pool) => Ok(Arc::new(pool.clone())),
             #[allow(unreachable_patterns)]
-            _ => Err(Error::database_connection("Database is not MySQL".to_string())),
+            _ => Err(Error::database_connection(
+                "Database is not MySQL".to_string(),
+            )),
         }
     }
 
@@ -347,7 +350,9 @@ impl DB {
         match db.as_ref() {
             AnyDatabase::SQLite(pool) => Ok(Arc::new(pool.clone())),
             #[allow(unreachable_patterns)]
-            _ => Err(Error::database_connection("Database is not SQLite".to_string())),
+            _ => Err(Error::database_connection(
+                "Database is not SQLite".to_string(),
+            )),
         }
     }
 
@@ -667,7 +672,9 @@ impl DB {
                     .fetch_one(pool)
                     .await
                     .map(|_| true)
-                    .map_err(|e| Error::database_connection(format!("PostgreSQL ping failed: {}", e)))
+                    .map_err(|e| {
+                        Error::database_connection(format!("PostgreSQL ping failed: {}", e))
+                    })
             }
             #[cfg(feature = "db-mysql")]
             AnyDatabase::MySQL(pool) => {

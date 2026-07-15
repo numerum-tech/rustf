@@ -20,9 +20,9 @@ pub struct MySqlAdapter {
 impl MySqlAdapter {
     /// Create a new MySQL adapter
     pub async fn new(name: impl Into<String>, connection_url: &str) -> Result<Self> {
-        let pool = MySqlPool::connect(connection_url)
-            .await
-            .map_err(|e| Error::database_connection(format!("Failed to connect to MySQL: {}", e)))?;
+        let pool = MySqlPool::connect(connection_url).await.map_err(|e| {
+            Error::database_connection(format!("Failed to connect to MySQL: {}", e))
+        })?;
 
         Ok(Self {
             name: name.into(),
