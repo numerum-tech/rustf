@@ -6,6 +6,9 @@ Cargo.lock
 # RustF specific
 /private/uploads/*
 !/private/uploads/.gitkeep
+!/private/uploads/README.md
+# Runtime database lives under private/data — never track it
+/private/data/
 
 # Logs
 *.log
