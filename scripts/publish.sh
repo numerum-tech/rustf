@@ -84,22 +84,43 @@ else
   fi
 fi
 
+# ── Sparse-index existence check ─────────────────────────────────────────────
+# The crates.io REST endpoint (api/v1/crates/<name>/<version>) 403s for plain
+# curl, so we query the sparse index instead. Its path is derived from the
+# crate name length: 1→1/<n>, 2→2/<n>, 3→3/<c>/<n>, ≥4→<c1c2>/<c3c4>/<n>.
+sparse_index_url() {
+  local n="$1"
+  case "${#n}" in
+    1) printf 'https://index.crates.io/1/%s' "$n" ;;
+    2) printf 'https://index.crates.io/2/%s' "$n" ;;
+    3) printf 'https://index.crates.io/3/%s/%s' "${n:0:1}" "$n" ;;
+    *) printf 'https://index.crates.io/%s/%s/%s' "${n:0:2}" "${n:2:2}" "$n" ;;
+  esac
+}
+
+# True when <name>@<want> is already live on the index (line-delimited JSON,
+# one object per published version).
+crate_on_index() {
+  local name="$1" want="$2"
+  curl -fsS -A "rustf-publish-script" "$(sparse_index_url "$name")" 2>/dev/null \
+    | grep -q "\"vers\":\"${want}\""
+}
+
 # ── Wait for a crate version to appear on the index ──────────────────────────
-# cargo publish already blocks until the new version is in the index, but we
-# double-check before publishing a dependent so a slow index never breaks the
-# chain.
+# cargo publish already blocks until the new version is available before it
+# returns, so this is a redundant belt-and-braces check before a dependent is
+# published. Non-fatal: a slow index must never abort the chain.
 wait_for_index() {
   local name="$1" want="$2"
-  local url="https://crates.io/api/v1/crates/${name}/${want}"
   for _ in $(seq 1 60); do
-    if curl -fsS "$url" >/dev/null 2>&1; then
+    if crate_on_index "$name" "$want"; then
       green "  ✓ ${name}@${want} live on crates.io"
       return 0
     fi
     sleep 5
   done
-  red "  ✗ timed out waiting for ${name}@${want} on the index"
-  return 1
+  red "  ! ${name}@${want} not visible on the index yet (cargo already reported it published; continuing)"
+  return 0
 }
 
 # ── Publish loop ─────────────────────────────────────────────────────────────
@@ -108,7 +129,13 @@ for c in "${CRATES[@]}"; do
   if [[ "$EXECUTE" -eq 0 ]]; then
     ( cd "$c" && cargo publish --dry-run )
   else
-    ( cd "$c" && cargo publish )
+    # Idempotent: skip a crate whose version is already on the index so a
+    # resumed run (after an earlier partial publish) doesn't error out.
+    if crate_on_index "$c" "$VERSION"; then
+      green "  ✓ $c@$VERSION already on crates.io — skipping publish"
+    else
+      ( cd "$c" && cargo publish )
+    fi
     # Add the org team as co-owner (idempotent: a re-run just reports it's
     # already an owner, which we don't treat as fatal).
     if [[ -n "$OWNER" ]]; then
