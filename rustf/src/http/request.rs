@@ -889,7 +889,6 @@ impl Request {
             .any(|network| network.contains(ip))
     }
 
-
     fn normalize_origin(input: &str) -> Option<String> {
         let parsed = Url::parse(input).ok()?;
         let scheme = parsed.scheme();

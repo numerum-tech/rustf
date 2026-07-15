@@ -101,13 +101,12 @@ impl TemplateCache {
         content: &str,
         version: Option<String>,
     ) -> Result<Arc<Template>> {
-        let mut parser = Parser::new(content)
-            .map_err(|e| Self::annotate_template_error(e, "Failed to compile template", display_name))?;
-        let template_arc = Arc::new(
-            parser
-                .parse()
-                .map_err(|e| Self::annotate_template_error(e, "Failed to compile template", display_name))?,
-        );
+        let mut parser = Parser::new(content).map_err(|e| {
+            Self::annotate_template_error(e, "Failed to compile template", display_name)
+        })?;
+        let template_arc = Arc::new(parser.parse().map_err(|e| {
+            Self::annotate_template_error(e, "Failed to compile template", display_name)
+        })?);
 
         if let Ok(mut cache) = self.cache.write() {
             let entry = CacheEntry {
@@ -684,9 +683,9 @@ impl TotalJsEngine {
             renderer = renderer.with_template_path(path);
         }
 
-        let content = renderer
-            .render(&template_ast)
-            .map_err(|e| TemplateCache::annotate_template_error(e, "Failed to render template", template))?;
+        let content = renderer.render(&template_ast).map_err(|e| {
+            TemplateCache::annotate_template_error(e, "Failed to render template", template)
+        })?;
 
         // Carry any page title/description set in the view (via @{title('...')}
         // / @{description('...')}) so the layout can output them.
@@ -738,7 +737,13 @@ impl TotalJsEngine {
 
             let result = renderer
                 .render_layout_template(&layout_ast, layout_data)
-                .map_err(|e| TemplateCache::annotate_template_error(e, "Failed to render layout", layout_name));
+                .map_err(|e| {
+                    TemplateCache::annotate_template_error(
+                        e,
+                        "Failed to render layout",
+                        layout_name,
+                    )
+                });
             renderer.set_shared_translator(saved_translator);
             result
         } else {

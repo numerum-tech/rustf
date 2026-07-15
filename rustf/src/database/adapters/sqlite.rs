@@ -31,7 +31,9 @@ impl SqliteAdapter {
         let pool = sqlx::sqlite::SqlitePoolOptions::new()
             .connect_with(options)
             .await
-            .map_err(|e| Error::database_connection(format!("Failed to connect to SQLite: {}", e)))?;
+            .map_err(|e| {
+                Error::database_connection(format!("Failed to connect to SQLite: {}", e))
+            })?;
 
         Ok(Self {
             name: name.into(),

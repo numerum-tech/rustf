@@ -20,11 +20,9 @@ pub struct PostgresAdapter {
 impl PostgresAdapter {
     /// Create a new PostgreSQL adapter
     pub async fn new(name: impl Into<String>, connection_url: &str) -> Result<Self> {
-        let pool = PgPool::connect(connection_url)
-            .await
-            .map_err(|e| {
-                Error::database_connection(format!("Failed to connect to PostgreSQL: {}", e))
-            })?;
+        let pool = PgPool::connect(connection_url).await.map_err(|e| {
+            Error::database_connection(format!("Failed to connect to PostgreSQL: {}", e))
+        })?;
 
         Ok(Self {
             name: name.into(),

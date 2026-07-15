@@ -1246,51 +1246,58 @@ impl RustF {
         let cache_enabled = self.config.static_files.cache_enabled;
         let cache_max_age = self.config.static_files.cache_max_age;
 
-        // 1. Try the embedded assets provider first (when feature is active)
-        if let Some(provider) = crate::views::embed_provider::get_assets_provider() {
-            // Normalise the lookup key: prefer the suffix without prefix,
-            // fall back to the full path (without leading slash).
-            let candidates: &[&str] = &[relative_suffix, full_request_path.trim_start_matches('/')];
-            for key in candidates {
-                if key.is_empty() {
-                    continue;
-                }
-                if let Some(data) = provider.get(key) {
-                    let content_type = Self::infer_content_type(Path::new(key));
-                    let response = if cache_enabled {
-                        use std::collections::hash_map::DefaultHasher;
-                        use std::hash::{Hash, Hasher};
-                        let mut hasher = DefaultHasher::new();
-                        data.hash(&mut hasher);
-                        let etag = format!("\"embed-{:x}\"", hasher.finish());
-                        if if_none_match == Some(etag.as_str()) {
-                            Response::not_modified()
-                                .with_header("ETag", &etag)
-                                .with_header("X-Content-Type-Options", "nosniff")
-                                .with_header(
-                                    "Cache-Control",
-                                    &format!("public, max-age={}", cache_max_age),
-                                )
+        // 1. Try the embedded assets provider first — but only when the configured
+        //    storage is `embedded`. The `embedded-views` feature merely compiles the
+        //    provider in; config decides whether it actually serves. This keeps static
+        //    assets consistent with views (same switch) and lets dev builds serve
+        //    public/ from disk without a rebuild even when the feature is enabled.
+        if matches!(self.config.views.storage, TemplateStorage::Embedded) {
+            if let Some(provider) = crate::views::embed_provider::get_assets_provider() {
+                // Normalise the lookup key: prefer the suffix without prefix,
+                // fall back to the full path (without leading slash).
+                let candidates: &[&str] =
+                    &[relative_suffix, full_request_path.trim_start_matches('/')];
+                for key in candidates {
+                    if key.is_empty() {
+                        continue;
+                    }
+                    if let Some(data) = provider.get(key) {
+                        let content_type = Self::infer_content_type(Path::new(key));
+                        let response = if cache_enabled {
+                            use std::collections::hash_map::DefaultHasher;
+                            use std::hash::{Hash, Hasher};
+                            let mut hasher = DefaultHasher::new();
+                            data.hash(&mut hasher);
+                            let etag = format!("\"embed-{:x}\"", hasher.finish());
+                            if if_none_match == Some(etag.as_str()) {
+                                Response::not_modified()
+                                    .with_header("ETag", &etag)
+                                    .with_header("X-Content-Type-Options", "nosniff")
+                                    .with_header(
+                                        "Cache-Control",
+                                        &format!("public, max-age={}", cache_max_age),
+                                    )
+                            } else {
+                                Response::ok()
+                                    .with_header("Content-Type", content_type)
+                                    .with_header("X-Content-Type-Options", "nosniff")
+                                    .with_header(
+                                        "Cache-Control",
+                                        &format!("public, max-age={}", cache_max_age),
+                                    )
+                                    .with_header("ETag", &etag)
+                                    .with_header("Content-Length", &data.len().to_string())
+                                    .with_body(data)
+                            }
                         } else {
                             Response::ok()
                                 .with_header("Content-Type", content_type)
                                 .with_header("X-Content-Type-Options", "nosniff")
-                                .with_header(
-                                    "Cache-Control",
-                                    &format!("public, max-age={}", cache_max_age),
-                                )
-                                .with_header("ETag", &etag)
-                                .with_header("Content-Length", &data.len().to_string())
+                                .with_header("Cache-Control", "no-store, no-cache")
                                 .with_body(data)
-                        }
-                    } else {
-                        Response::ok()
-                            .with_header("Content-Type", content_type)
-                            .with_header("X-Content-Type-Options", "nosniff")
-                            .with_header("Cache-Control", "no-store, no-cache")
-                            .with_body(data)
-                    };
-                    return Ok(response);
+                        };
+                        return Ok(response);
+                    }
                 }
             }
         }
@@ -1534,7 +1541,8 @@ fn sqlite_parent_dir(database_url: &str) -> Option<&Path> {
     }
 
     let path = Path::new(raw);
-    path.parent().filter(|parent| !parent.as_os_str().is_empty())
+    path.parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
 }
 
 #[cfg(test)]
