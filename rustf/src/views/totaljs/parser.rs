@@ -825,7 +825,11 @@ impl Parser {
         let mut in_single_quote = false;
         let mut in_double_quote = false;
         let mut last_was_backslash = false;
+        // Keep chars and their byte offsets in parallel so we can return a byte
+        // index (required by split_at_operator) even when the expression
+        // contains multi-byte UTF-8 characters (e.g. 'ç').
         let chars: Vec<char> = expr.chars().collect();
+        let byte_offsets: Vec<usize> = expr.char_indices().map(|(b, _)| b).collect();
 
         // Look for operators from right to left (for left associativity)
         let mut i = 0;
@@ -867,21 +871,23 @@ impl Parser {
 
             // Only look for operators at depth 0
             if paren_depth == 0 {
-                // Check if any operator matches at this position
+                // Check if any operator matches at this position. Operators are
+                // all ASCII, so a byte-length op spans the same number of chars.
                 for op in operators {
-                    if i + op.len() <= expr.len() {
-                        let slice = &expr[i..i + op.len()];
-                        if slice == *op {
-                            // Make sure this isn't part of a longer operator
-                            // (e.g., don't match "=" in "===")
-                            let before_ok =
-                                i == 0 || !matches!(chars[i - 1], '=' | '!' | '<' | '>');
-                            let after_ok = i + op.len() >= chars.len()
-                                || !matches!(chars[i + op.len()], '=' | '&' | '|');
+                    let op_len = op.len();
+                    if i + op_len <= chars.len()
+                        && op.bytes().zip(&chars[i..i + op_len]).all(|(b, &c)| b as char == c)
+                    {
+                        // Make sure this isn't part of a longer operator
+                        // (e.g., don't match "=" in "===")
+                        let before_ok =
+                            i == 0 || !matches!(chars[i - 1], '=' | '!' | '<' | '>');
+                        let after_ok = i + op_len >= chars.len()
+                            || !matches!(chars[i + op_len], '=' | '&' | '|');
 
-                            if before_ok && after_ok {
-                                return Some(i);
-                            }
+                        if before_ok && after_ok {
+                            // Return a byte offset so split_at_operator slices correctly.
+                            return Some(byte_offsets[i]);
                         }
                     }
                 }
@@ -981,6 +987,7 @@ impl Parser {
         let mut in_double_quote = false;
         let mut last_was_backslash = false;
         let chars: Vec<char> = expr.chars().collect();
+        let byte_offsets: Vec<usize> = expr.char_indices().map(|(b, _)| b).collect();
 
         // Look for '?' from left to right (ternary is right-associative)
         let mut i = 0;
@@ -1022,7 +1029,7 @@ impl Parser {
 
             // Only look for '?' at depth 0
             if paren_depth == 0 && ch == '?' {
-                return Some(i);
+                return Some(byte_offsets[i]);
             }
 
             i += 1;
@@ -1039,6 +1046,7 @@ impl Parser {
         let mut in_double_quote = false;
         let mut last_was_backslash = false;
         let chars: Vec<char> = expr.chars().collect();
+        let byte_offsets: Vec<usize> = expr.char_indices().map(|(b, _)| b).collect();
 
         // Look for ':' from left to right
         let mut i = 0;
@@ -1080,7 +1088,7 @@ impl Parser {
 
             // Only look for ':' at depth 0
             if paren_depth == 0 && ch == ':' {
-                return Some(i);
+                return Some(byte_offsets[i]);
             }
 
             i += 1;
@@ -1332,5 +1340,37 @@ mod tests {
             }
             _ => panic!("Expected variable node"),
         }
+    }
+
+    #[test]
+    fn test_operator_with_multibyte_chars() {
+        // Regression: char index was used as a byte index when slicing, panicking
+        // on multi-byte UTF-8 chars like 'ç' (e.g. "end byte index ... not a char boundary").
+        let parser = Parser::new("").unwrap();
+
+        // Multi-byte literal before a binary operator.
+        let expr = parser.parse_expression("'garçon' == name").unwrap();
+        match expr {
+            Expression::BinaryOp { op, .. } => assert_eq!(op, BinaryOperator::Equal),
+            _ => panic!("Expected binary operation"),
+        }
+
+        // Multi-byte identifier/literal around a ternary.
+        let expr = parser
+            .parse_expression("actif ? 'oui garçon' : 'non élève'")
+            .unwrap();
+        match expr {
+            Expression::Ternary { .. } => {}
+            _ => panic!("Expected ternary expression"),
+        }
+    }
+
+    #[test]
+    fn test_conditional_with_multibyte_string_literal() {
+        // Full template parse path with a multi-byte string literal in the condition.
+        let input = "@{if role == 'gérant'}\nOK\n@{fi}";
+        let mut parser = Parser::new(input).unwrap();
+        let template = parser.parse().unwrap();
+        assert!(!template.nodes.is_empty());
     }
 }
