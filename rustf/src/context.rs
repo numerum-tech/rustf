@@ -34,8 +34,12 @@ pub struct Context {
     session: Option<Arc<Session>>,
     views: Arc<ViewEngine>,
     layout_name: Option<String>,
-    /// Per-request repository for controller-specific data accessible in views
-    repository: HashMap<String, Value>,
+    /// Per-request repository for controller-specific data accessible in views.
+    ///
+    /// Held as a `Value::Object` rather than a `HashMap` so `view` can hand the
+    /// engine `&self.repository` directly instead of rebuilding (and deep-cloning)
+    /// a `Value` on every render. Invariant: always `Value::Object`.
+    repository: Value,
     /// Storage for middleware data (not accessible in views)
     data: HashMap<String, Box<dyn Any + Send + Sync>>,
     /// Signals that the session must be removed from storage and the cookie
@@ -65,7 +69,7 @@ impl Context {
             session: None,
             views,
             layout_name: Some(default_layout),
-            repository: HashMap::new(),
+            repository: Value::Object(serde_json::Map::new()),
             data: HashMap::new(),
             session_destroyed: AtomicBool::new(false),
             cached_form_data: None,
@@ -252,24 +256,79 @@ impl Context {
 
     // Repository methods for per-request data
 
-    /// Set a value in the request-scoped repository
+    /// Set a value in the request-scoped repository, readable in views as
+    /// `@{R.key}` (or `@{repository.key}`).
+    ///
+    /// This is the channel for **everything the page needs that is not its
+    /// single subject**: title, CSRF token, collections, navigation, counters,
+    /// permission flags. Call it once per key, as each piece of data becomes
+    /// available — including from middleware and modules, which hold
+    /// `&mut Context` and can contribute before the handler runs.
+    ///
+    /// Do not assemble a large `json!({...})` and pass it to
+    /// [`view`](Self::view) instead. The model argument carries one simple
+    /// object — see [`view`](Self::view) for the split.
+    ///
+    /// ```rust,ignore
+    /// ctx.repository_set("title", "Edit task");
+    /// ctx.repository_set("items", serde_json::to_value(&items)?);
+    /// ```
+    ///
+    /// # Cost
+    ///
+    /// `Context` hands the engine a borrow of this object, so no clone happens
+    /// here. The engine then deep-clones it once when it builds its render
+    /// context — the same cost the model passed to [`view`](Self::view) pays.
+    /// Both channels are therefore equal-cost; that remaining clone is an
+    /// implementation detail slated to be removed. Do not reshape a page around
+    /// it — put each piece of data in the channel it belongs to.
     pub fn repository_set(&mut self, key: &str, value: impl Into<Value>) -> &mut Self {
-        self.repository.insert(key.to_string(), value.into());
+        // Invariant upheld by `new` and `repository_clear`.
+        if let Some(map) = self.repository.as_object_mut() {
+            map.insert(key.to_string(), value.into());
+        }
         self
     }
 
     /// Get a value from the request-scoped repository
     pub fn repository_get(&self, key: &str) -> Option<&Value> {
-        self.repository.get(key)
+        self.repository.as_object()?.get(key)
     }
 
     /// Clear the request-scoped repository
     pub fn repository_clear(&mut self) -> &mut Self {
-        self.repository.clear();
+        self.repository = Value::Object(serde_json::Map::new());
         self
     }
 
-    /// Render a view template with data.
+    /// Render a view template with its model.
+    ///
+    /// # What belongs in `data`
+    ///
+    /// `data` becomes the view's model, read as `@{M.field}` (or
+    /// `@{model.field}`). It carries **one simple object**: the record or form
+    /// the page is about. Typically `serde_json::to_value(&record)?`.
+    ///
+    /// Everything else — title, CSRF token, collections, navigation, counters —
+    /// goes through [`repository_set`](Self::repository_set) and is read as
+    /// `@{R.key}`. A page with no single subject (a list, a dashboard) passes
+    /// `json!({})` here and puts its data in the repository.
+    ///
+    /// ```rust,ignore
+    /// // Detail page: the record is the model.
+    /// ctx.repository_set("title", "Task detail");
+    /// ctx.view("tasks/show", serde_json::to_value(&task)?)
+    ///
+    /// // List page: no single subject.
+    /// ctx.repository_set("title", "Tasks");
+    /// ctx.repository_set("items", serde_json::to_value(&tasks)?);
+    /// ctx.view("tasks/index", json!({}))
+    /// ```
+    ///
+    /// Do **not** collect unrelated page data into one large `json!({...})`
+    /// here. `data` has a single write point, so anything cross-cutting has to
+    /// be rebuilt by hand in every handler; the repository accumulates across
+    /// middleware, modules, and the handler.
     ///
     /// # Concurrency
     ///
@@ -283,9 +342,7 @@ impl Context {
     /// [`tokio::task::spawn_blocking`] / [`tokio::task::block_in_place`].
     /// A threshold-gated offload inside the framework is tracked as future work.
     pub fn view(&mut self, template: &str, data: Value) -> Result<()> {
-        let views = &self.views;
-
-        let repository_value = Value::Object(self.repository.clone().into_iter().collect());
+        let views = Arc::clone(&self.views);
 
         // Build per-request session Value if a session is active
         let session_value = if let Some(session) = self.session() {
@@ -331,7 +388,7 @@ impl Context {
             template,
             &data,
             self.layout_name.as_deref(),
-            Some(&repository_value),
+            Some(&self.repository),
             session_value.as_ref(),
             Some(&request_meta),
         )?;

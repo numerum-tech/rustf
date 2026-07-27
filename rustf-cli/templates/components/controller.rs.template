@@ -5,6 +5,13 @@
 //! Business logic and model access live in `crate::modules::{{controller_name}}_service`.
 //! If you find yourself about to call `Model::query()` from here, stop and
 //! create the service instead.
+//!
+//! VIEW DATA — two channels, don't mix them up:
+//!   * `ctx.view(tpl, model)` -> `@{M...}`. ONE simple object: the record or
+//!     form the page is about. A page with no single subject passes `json!({})`.
+//!   * `ctx.repository_set(k, v)` -> `@{R.k}`. Everything else: title, csrf,
+//!     collections, nav, counters. Set each key as the data becomes
+//!     available — never assemble one big `json!` and dump it into the model.
 
 use rustf::prelude::*;
 
@@ -22,11 +29,12 @@ pub fn install() -> Vec<Route> {
 }
 
 async fn index(ctx: &mut Context) -> rustf::Result<()> {
-    let data = json!({
-        "title": "{{controller_title}}",
-        "message": "Welcome to the {{controller_name}} controller"
-    });
-    ctx.view("{{route_prefix}}/index", data)
+    // R: one key per piece of data, set as it becomes available.
+    ctx.repository_set("title", "{{controller_title}}");
+    ctx.repository_set("message", "Welcome to the {{controller_name}} controller");
+
+    // M: no single record on this page.
+    ctx.view("{{route_prefix}}/index", json!({}))
 }
 {{#if crud}}
 async fn list(ctx: &mut Context) -> rustf::Result<()> {
@@ -67,11 +75,10 @@ async fn delete(ctx: &mut Context) -> rustf::Result<()> {
 {{/if}}
 {{#if routes}}
 async fn about(ctx: &mut Context) -> rustf::Result<()> {
-    let data = json!({
-        "title": "About {{controller_title}}",
-        "description": "This controller manages {{description}}"
-    });
-    ctx.view("{{route_prefix}}/about", data)
+    ctx.repository_set("title", "About {{controller_title}}");
+    ctx.repository_set("description", "This controller manages {{description}}");
+
+    ctx.view("{{route_prefix}}/about", json!({}))
 }
 
 async fn action(ctx: &mut Context) -> rustf::Result<()> {
