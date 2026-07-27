@@ -241,7 +241,8 @@ ctx.is_xhr() -> bool
 ctx.url() -> &str                               // full path including query
 
 // --- Response writes (all take &mut self) ---
-ctx.view("home/index", json!({"title": "Home"})) // NO extension in the name
+ctx.view("tasks/show", serde_json::to_value(&task)?) // NO extension; model = ONE object (§7.1)
+ctx.view("tasks/index", json!({}))               // no single subject → empty model
 ctx.json(value)
 ctx.html("<h1>hi</h1>")
 ctx.plain("text")
@@ -277,7 +278,9 @@ ctx.get_all_flash() -> HashMap<String, Value>
 
 // --- Data storage — MIND THE GAP ---
 ctx.set::<T>("key", value)? / ctx.get::<T>("key") // middleware-only, NOT in views
-ctx.repository_set("key", value)                  // goes to views as @{R.key}
+ctx.repository_set("key", value)                  // → views as @{R.key}; call once per key,
+                                                  //   as data arrives. Everything the page
+                                                  //   needs EXCEPT its one subject (§7.1)
 ctx.repository_get("key") -> Option<&Value>
 ```
 
@@ -375,6 +378,63 @@ The framework appends the configured extension (default `html`).
 
 Template engine syntax is Total.js-style: `@{value}`, `@{M.field}`,
 `@{R.key}`, `@{foreach x in list}...@{end}`, `@{if cond}...@{fi}`.
+
+### 7.1. View data: model vs repository — the most-failed rule
+
+Two separate channels reach a template. Putting everything into the model is
+the single most common mistake made in this framework.
+
+| Channel | How you set it | Read in view as | What goes in it |
+|---|---|---|---|
+| **model** | 2nd arg of `ctx.view(tpl, model)` | `@{M.field}` / `@{model.field}` | **ONE simple object** — the record or form the page is about |
+| **repository** | `ctx.repository_set(k, v)`, any number of calls | `@{R.key}` / `@{repository.key}` | **everything else** — title, csrf token, collections, nav, counters, flags |
+
+The model is one value written at one call site. The repository accumulates:
+set each key **as the data becomes available**, from middleware, from a
+controller `before` hook, from a module, from the handler. Never gather
+unrelated page data into one big `json!({...})` first.
+
+```rust
+// ✅ Detail page — the record IS the model.
+async fn show(ctx: &mut Context) -> rustf::Result<()> {
+    let id = ctx.param_int("id")? as i64;
+    let task = TaskService::find(id).await?;
+
+    let csrf = ctx.generate_csrf(None)?;          // hoist: &self before &mut self
+    ctx.repository_set("title", "Task detail");
+    ctx.repository_set("csrf_token", csrf);
+
+    ctx.view("tasks/show", serde_json::to_value(&task)?)
+}
+
+// ✅ List page — no single subject, so the model is empty.
+async fn index(ctx: &mut Context) -> rustf::Result<()> {
+    ctx.repository_set("title", "Tasks");
+
+    let items = TaskService::list_all().await?;
+    ctx.repository_set("items", serde_json::to_value(&items)?);
+
+    ctx.view("tasks/index", json!({}))            // view iterates @{R.items}
+}
+
+// ❌ The anti-pattern: one mega-model.
+ctx.view("tasks/index", json!({
+    "title": "Tasks", "csrf_token": csrf, "items": items,
+    "user": user, "nav": nav, "count": count,
+}))
+```
+
+Why it matters, beyond taste:
+
+- The model has exactly **one** write point. Middleware, `before` hooks, and
+  modules hold `&mut Context` but cannot contribute to it — so anything
+  cross-cutting has to be rebuilt by hand in every handler.
+- `ctx.repository_set` takes `&mut self` while `ctx.generate_csrf` and other
+  readers take `&self`. Nesting them is a borrow error — hoist to a local.
+- Cost: the two channels are equal — the engine deep-clones the repository
+  once and the model once when it builds the render context. That remaining
+  clone is an implementation detail being removed. Do NOT reshape a page
+  around it; put each piece of data in the channel it belongs to.
 
 ---
 
@@ -537,9 +597,10 @@ After any generator runs, confirm:
 10. Built-in middleware assumed to be in the prelude → `use rustf::middleware::builtin::*;` is required.
 11. Templates using JSX-ish `{ var }` or Jinja `{{ var }}` → Total.js uses `@{var}`.
 12. `ctx.set` used for data that the view needs → switch to `ctx.repository_set`.
-13. Reaching for middleware when only one controller cares → use `routes![before: <fn>, ...]` inside `install()` instead.
-14. Using `ctx.redirect("https://evil.example")` for an external hop → use the explicit `redirect_external*` methods.
-15. Passing absolute/untrusted paths into `ctx.file_download_from(...)` or `ctx.file_inline_from(...)` without a controlled base dir → keep normal app files under `private/` and prefer the private-rooted helpers.
+13. Whole page dumped into one `ctx.view(tpl, json!({...}))` mega-model → the model takes ONE object (the page's record/form); title, csrf, collections and the rest go to `ctx.repository_set`, one key at a time. See §7.1.
+14. Reaching for middleware when only one controller cares → use `routes![before: <fn>, ...]` inside `install()` instead.
+15. Using `ctx.redirect("https://evil.example")` for an external hop → use the explicit `redirect_external*` methods.
+16. Passing absolute/untrusted paths into `ctx.file_download_from(...)` or `ctx.file_inline_from(...)` without a controlled base dir → keep normal app files under `private/` and prefer the private-rooted helpers.
 
 ---
 

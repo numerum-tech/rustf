@@ -6,6 +6,13 @@
 //! logic, validation, and model access live in
 //! `crate::modules::{{name}}_service`. If you find yourself reaching for
 //! `use crate::models::*` here, push that code into the service instead.
+//!
+//! VIEW DATA — two channels, don't mix them up:
+//!   * `ctx.view(tpl, model)` -> `@{M...}`. ONE simple object: the record or
+//!     form the page is about. A list page has no model; pass `json!({})`.
+//!   * `ctx.repository_set(k, v)` -> `@{R.k}`. Everything else: title, csrf,
+//!     collections, nav, counters. Set each key as the data becomes
+//!     available — never assemble one big `json!` and dump it into the model.
 
 use crate::modules::{{name}}_service::{{pascal_name}}Service;
 use rustf::prelude::*;
@@ -23,30 +30,38 @@ pub fn install() -> Vec<Route> {
 }
 
 async fn index(ctx: &mut Context) -> rustf::Result<()> {
+    // R: push each piece as it becomes available.
+    ctx.repository_set("title", "{{title}}");
+
     let items = {{pascal_name}}Service::list_all().await?;
     ctx.repository_set("items", serde_json::to_value(&items)?);
-    ctx.view("{{name}}/index", json!({ "title": "{{title}}" }))
+
+    // M: a list page has no single subject. View iterates `@{R.items}`.
+    ctx.view("{{name}}/index", json!({}))
 }
 
 async fn show(ctx: &mut Context) -> rustf::Result<()> {
     let id = ctx.param_int("id")? as i64;
     match {{pascal_name}}Service::find(id).await? {
         Some(item) => {
-            ctx.repository_set("item", serde_json::to_value(&item)?);
-            ctx.view("{{name}}/show", json!({
-                "title": format!("{{title_singular}} #{}", id),
-                "csrf_token": ctx.generate_csrf(None)?,
-            }))
+            let csrf = ctx.generate_csrf(None)?;
+            ctx.repository_set("title", format!("{{title_singular}} #{}", id));
+            ctx.repository_set("csrf_token", csrf);
+
+            // M: the record this page is about -> `@{M.field}`.
+            ctx.view("{{name}}/show", serde_json::to_value(&item)?)
         }
         None => ctx.throw404(Some("{{title_singular}} not found")),
     }
 }
 
 async fn new_form(ctx: &mut Context) -> rustf::Result<()> {
-    ctx.view("{{name}}/new", json!({
-        "title": "New {{title_singular}}",
-        "csrf_token": ctx.generate_csrf(None)?,
-    }))
+    let csrf = ctx.generate_csrf(None)?;
+    ctx.repository_set("title", "New {{title_singular}}");
+    ctx.repository_set("csrf_token", csrf);
+
+    // M: empty form — no record yet.
+    ctx.view("{{name}}/new", json!({}))
 }
 
 async fn create(ctx: &mut Context) -> rustf::Result<()> {
@@ -67,11 +82,12 @@ async fn edit_form(ctx: &mut Context) -> rustf::Result<()> {
     let id = ctx.param_int("id")? as i64;
     match {{pascal_name}}Service::find(id).await? {
         Some(item) => {
-            ctx.repository_set("item", serde_json::to_value(&item)?);
-            ctx.view("{{name}}/edit", json!({
-                "title": format!("Edit {{title_singular}} #{}", id),
-                "csrf_token": ctx.generate_csrf(None)?,
-            }))
+            let csrf = ctx.generate_csrf(None)?;
+            ctx.repository_set("title", format!("Edit {{title_singular}} #{}", id));
+            ctx.repository_set("csrf_token", csrf);
+
+            // M: the record being edited — the form binds to `@{M.field}`.
+            ctx.view("{{name}}/edit", serde_json::to_value(&item)?)
         }
         None => ctx.throw404(Some("{{title_singular}} not found")),
     }
