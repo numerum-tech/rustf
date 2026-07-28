@@ -10,13 +10,30 @@ name: CLI build
 # full C cross-toolchain per target. Only x86_64-apple-darwin is cross-built,
 # from an arm64 macOS runner, which Apple's universal SDK handles natively.
 
+# release.yml builds these same targets, but only when a tag is pushed — too
+# late to learn a platform broke. This runs on the way in instead. It is scoped
+# to paths that can actually affect the CLI binary so unrelated commits (docs,
+# sample-app, book) don't pay for a five-platform release build.
+#
+# The two paths lists are duplicated on purpose: GitHub Actions does not
+# support YAML anchors, so they must be kept in sync by hand.
 on:
   push:
-    # TEMPORARY: ci/** included so this workflow can validate itself on its own
-    # branch before merging. Remove the ci/** entry before merge.
-    branches: [main, 'ci/**']
+    branches: [main]
+    paths:
+      - 'rustf-cli/**'
+      - 'rustf/**'
+      - 'rustf-macros/**'
+      - 'rustf-schema/**'
+      - '.github/workflows/cli-build.yml'
   pull_request:
     branches: [main]
+    paths:
+      - 'rustf-cli/**'
+      - 'rustf/**'
+      - 'rustf-macros/**'
+      - 'rustf-schema/**'
+      - '.github/workflows/cli-build.yml'
   workflow_dispatch:
 
 env:
