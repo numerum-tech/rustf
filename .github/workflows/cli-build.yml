@@ -1,0 +1,74 @@
+name: CLI build
+
+# Verifies rustf-cli (and, through its path dependency, rustf) compiles in
+# release mode on every platform we ship prebuilt binaries for. Kept separate
+# from release.yml so a build regression is caught on push rather than only
+# when a tag is cut.
+#
+# Native runners are used wherever one exists: the dependency tree includes C
+# and assembly crates (libsqlite3-sys, ring), so cross-compiling would need a
+# full C cross-toolchain per target. Only x86_64-apple-darwin is cross-built,
+# from an arm64 macOS runner, which Apple's universal SDK handles natively.
+
+on:
+  push:
+    # TEMPORARY: ci/** included so this workflow can validate itself on its own
+    # branch before merging. Remove the ci/** entry before merge.
+    branches: [main, 'ci/**']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  cli-build:
+    name: rustf-cli (${{ matrix.target }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            native: true
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-24.04-arm
+            native: true
+          - target: x86_64-apple-darwin
+            os: macos-latest
+            native: false
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            native: true
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            native: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rustf-cli
+          key: ${{ matrix.target }}
+
+      - name: Build (release)
+        working-directory: rustf-cli
+        run: cargo build --release --target ${{ matrix.target }} --verbose
+
+      # Smoke-test only where the binary can actually execute on the runner,
+      # so the cross-built x86_64-apple-darwin artifact is skipped.
+      - name: Run --version
+        if: matrix.native && runner.os != 'Windows'
+        working-directory: rustf-cli
+        run: ./target/${{ matrix.target }}/release/rustf-cli --version
+
+      - name: Run --version (Windows)
+        if: matrix.native && runner.os == 'Windows'
+        working-directory: rustf-cli
+        run: .\target\${{ matrix.target }}\release\rustf-cli.exe --version
