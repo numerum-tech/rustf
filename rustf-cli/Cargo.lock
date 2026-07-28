@@ -2597,7 +2597,7 @@ dependencies = [
 
 [[package]]
 name = "rustf"
-version = "1.0.0-rc1"
+version = "1.0.0-rc2"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2642,7 +2642,7 @@ dependencies = [
 
 [[package]]
 name = "rustf-cli"
-version = "1.0.0-rc1"
+version = "1.0.0-rc2"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -2689,7 +2689,7 @@ dependencies = [
 
 [[package]]
 name = "rustf-macros"
-version = "1.0.0-rc1"
+version = "1.0.0-rc2"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2699,7 +2699,7 @@ dependencies = [
 
 [[package]]
 name = "rustf-schema"
-version = "1.0.0-rc1"
+version = "1.0.0-rc2"
 dependencies = [
  "chrono",
  "handlebars",
