@@ -36,5 +36,8 @@ jobs:
 
       - name: Test
         working-directory: ${{ matrix.crate }}
-        # redis-server integration tests are #[ignore]'d (no service needed).
+        # Redis-backed session tests probe 127.0.0.1:6379 and skip themselves
+        # when no server answers, so no service container is needed here. To
+        # actually exercise them, add a `redis` service to this job and set
+        # RUSTF_TEST_REDIS=1, which turns an unreachable server into a failure.
         run: cargo test --all-features --no-fail-fast --verbose

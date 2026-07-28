@@ -57,19 +57,32 @@ mod redis_integration {
                 .as_nanos()
         );
 
-        let storage = Arc::new(
-            RedisSessionStorage::from_url(
-                "redis://localhost:6379",
-                &unique_prefix,
-                4,
-                FingerprintMode::Soft,
-                Duration::from_secs(60),
-                Duration::from_secs(5),
-                Duration::from_secs(3),
-            )
-            .await
-            .expect("Redis should be available for integration test"),
-        );
+        // `from_url` issues a timeout-bounded PING, so this doubles as the
+        // availability check: with no server reachable the test skips rather
+        // than failing on a machine or CI runner without Redis. Set
+        // `RUSTF_TEST_REDIS=1` to require it instead.
+        let storage = match RedisSessionStorage::from_url(
+            "redis://localhost:6379",
+            &unique_prefix,
+            4,
+            FingerprintMode::Soft,
+            Duration::from_secs(60),
+            Duration::from_secs(5),
+            Duration::from_secs(3),
+        )
+        .await
+        {
+            Ok(storage) => Arc::new(storage),
+            Err(err) => {
+                if std::env::var_os("RUSTF_TEST_REDIS").is_some() {
+                    panic!("RUSTF_TEST_REDIS is set but Redis is unreachable: {err}");
+                }
+                eprintln!(
+                    "skipping Redis session integration test — no server on 127.0.0.1:6379 ({err})"
+                );
+                return;
+            }
+        };
 
         let mut config = SessionConfig::new();
         config.cookie_name = "redis_test_sid".to_string();

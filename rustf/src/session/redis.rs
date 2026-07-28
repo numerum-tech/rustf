@@ -432,18 +432,35 @@ mod tests {
     use super::*;
     use tokio::test;
 
-    async fn create_test_storage() -> RedisSessionStorage {
+    /// Connects to the default Redis server, returning `None` when none is
+    /// reachable so these tests skip instead of failing on machines and CI
+    /// runners without one. `RedisSessionStorage::new` issues a timeout-bounded
+    /// `PING`, so an `Ok` here means a real round-trip succeeded.
+    ///
+    /// Set `RUSTF_TEST_REDIS=1` to turn an unreachable server back into a
+    /// failure — a CI job that provisions Redis should set it so this coverage
+    /// cannot be lost silently.
+    async fn try_test_storage() -> Option<RedisSessionStorage> {
         match RedisSessionStorage::new().await {
-            Ok(storage) => storage,
-            Err(err) => panic!(
-                "Redis connection failed: {err}. Start Redis on 127.0.0.1:6379 to run Redis session tests."
-            ),
+            Ok(storage) => Some(storage),
+            Err(err) => {
+                if std::env::var_os("RUSTF_TEST_REDIS").is_some() {
+                    panic!(
+                        "RUSTF_TEST_REDIS is set but Redis is unreachable: {err}. \
+                         Start Redis on 127.0.0.1:6379 to run Redis session tests."
+                    );
+                }
+                eprintln!("skipping Redis session test — no server on 127.0.0.1:6379 ({err})");
+                None
+            }
         }
     }
 
     #[test]
     async fn test_redis_storage_get_missing_fingerprint() {
-        let storage = create_test_storage().await;
+        let Some(storage) = try_test_storage().await else {
+            return;
+        };
         let session_id = "test_missing_fingerprint";
 
         // Test that get() works without fingerprint parameter
@@ -454,7 +471,9 @@ mod tests {
 
     #[test]
     async fn test_redis_storage_basic_operations() {
-        let storage = create_test_storage().await;
+        let Some(storage) = try_test_storage().await else {
+            return;
+        };
         let session_id = "test_redis_session_123";
 
         // Test session doesn't exist initially
@@ -498,7 +517,9 @@ mod tests {
 
     #[test]
     async fn test_redis_storage_ttl() {
-        let storage = create_test_storage().await;
+        let Some(storage) = try_test_storage().await else {
+            return;
+        };
         let session_id = "expiring_redis_session";
 
         // Store session data with very short TTL
@@ -521,7 +542,9 @@ mod tests {
 
     #[test]
     async fn test_redis_storage_stats() {
-        let storage = create_test_storage().await;
+        let Some(storage) = try_test_storage().await else {
+            return;
+        };
 
         // Clean up any existing test sessions
         for i in 0..3 {
@@ -557,7 +580,9 @@ mod tests {
 
     #[test]
     async fn test_redis_storage_concurrent_access() {
-        let storage = create_test_storage().await;
+        let Some(storage) = try_test_storage().await else {
+            return;
+        };
         let session_id = "concurrent_redis_session";
 
         // Clean up any existing session
