@@ -12,12 +12,31 @@ on:
     tags: ["v*"]
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
+  # upload-rust-binary-action uploads into an *existing* GitHub Release; it does
+  # not create one. Without this job every upload failed with "release not
+  # found" after building successfully — which is what happened for both
+  # v1.0.0-rc1 and v1.0.0-rc2.
+  create-release:
+    name: create GitHub Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: taiki-e/create-gh-release-action@v1
+        with:
+          changelog: CHANGELOG.md
+          token: ${{ secrets.GITHUB_TOKEN }}
+
   upload-binaries:
+    needs: create-release
     name: ${{ matrix.target }}
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write
     strategy:
       fail-fast: false
       matrix:
