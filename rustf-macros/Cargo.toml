@@ -1,6 +1,6 @@
 [package]
 name = "rustf-macros"
-version = "1.0.0-rc1"
+version = "1.0.0-rc2"
 edition = "2021"
 description = "Procedural macros for RustF framework - auto-discovery of controllers and models"
 license = "MIT OR Apache-2.0"

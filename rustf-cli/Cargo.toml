@@ -1,6 +1,6 @@
 [package]
 name = "rustf-cli"
-version = "1.0.0-rc1"
+version = "1.0.0-rc2"
 edition = "2021"
 description = "CLI tool for analyzing RustF projects with MCP server support for AI agents"
 authors = ["RustF Team"]
@@ -71,8 +71,8 @@ md5 = "0.7"
 indexmap = "2.0"
 
 # RustF framework and schema
-rustf = { version = "1.0.0-rc1", path = "../rustf" }
-rustf-schema = { version = "1.0.0-rc1", path = "../rustf-schema", features = ["codegen"] }
+rustf = { version = "1.0.0-rc2", path = "../rustf" }
+rustf-schema = { version = "1.0.0-rc2", path = "../rustf-schema", features = ["codegen"] }
 
 # Template engine for code generation
 handlebars = "4.5"

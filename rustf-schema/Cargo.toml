@@ -1,6 +1,6 @@
 [package]
 name = "rustf-schema"
-version = "1.0.0-rc1"
+version = "1.0.0-rc2"
 edition = "2021"
 description = "Database schema definitions and code generation for RustF framework"
 license = "MIT OR Apache-2.0"

@@ -1,6 +1,6 @@
 [package]
 name = "rustf"
-version = "1.0.0-rc1"
+version = "1.0.0-rc2"
 edition = "2021"
 description = "A simple MVC web framework inspired by Total.js"
 license = "MIT OR Apache-2.0"
@@ -49,8 +49,8 @@ ipnetwork = "0.20"
 toml = "0.9"
 serde-toml-merge = "0.3"
 rust-embed = { version = "8.0", optional = true }
-rustf-macros = { version = "1.0.0-rc1", path = "../rustf-macros" }
-rustf-schema = { version = "1.0.0-rc1", path = "../rustf-schema", optional = true }
+rustf-macros = { version = "1.0.0-rc2", path = "../rustf-macros" }
+rustf-schema = { version = "1.0.0-rc2", path = "../rustf-schema", optional = true }
 redis = { version = "0.27", features = ["tokio-comp"], optional = true }
 deadpool-redis = { version = "0.18", optional = true }
 clap = { version = "4.4", features = ["derive"], optional = true }
