@@ -556,7 +556,7 @@ mod tests {
             .iter()
             .any(|(k, v)| k == "Content-Type" && v.contains("text/html")));
 
-        let body_str = String::from_utf8(response.body).unwrap();
+        let body_str = String::from_utf8(response.body.into_vec().unwrap()).unwrap();
         assert!(body_str.contains("404"));
         assert!(body_str.contains("Not Found"));
         assert!(body_str.contains("test-123"));
@@ -577,7 +577,7 @@ mod tests {
             .iter()
             .any(|(k, v)| k == "Content-Type" && v.contains("application/json")));
 
-        let body_str = String::from_utf8(response.body).unwrap();
+        let body_str = String::from_utf8(response.body.into_vec().unwrap()).unwrap();
         let mut body_bytes = body_str.clone().into_bytes();
         let json_data: Value = simd_json::from_slice(&mut body_bytes).unwrap();
 
@@ -614,7 +614,7 @@ mod tests {
             .iter()
             .any(|(k, v)| k == "Content-Type" && v.contains("application/json")));
 
-        let body_str = String::from_utf8(response.body).unwrap();
+        let body_str = String::from_utf8(response.body.into_vec().unwrap()).unwrap();
         let mut body_bytes = body_str.clone().into_bytes();
         let health_data: HealthCheckResult = simd_json::from_slice(&mut body_bytes).unwrap();
 

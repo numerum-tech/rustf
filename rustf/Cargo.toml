@@ -97,6 +97,9 @@ cli = ["clap"]
 tokio-test = "0.4"
 tempfile = "3.8"
 criterion = "0.5"
+# Needed by streaming-body tests to build chunk streams by hand.
+bytes = "1"
+futures = "0.3"
 
 [[bench]]
 name = "configuration"

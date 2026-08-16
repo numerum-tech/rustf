@@ -1,6 +1,10 @@
-use crate::error::Result;
+use crate::error::{Error, Result};
+use crate::http::body::{Body, BodyStream};
 use bytes::Bytes;
-use http_body_util::Full;
+use futures::TryStreamExt;
+use http_body_util::combinators::UnsyncBoxBody;
+use http_body_util::{BodyExt, Full, StreamBody};
+use hyper::body::Frame;
 use hyper::header::{HeaderName, HeaderValue};
 use hyper::StatusCode;
 use percent_encoding::{utf8_percent_encode, AsciiSet, CONTROLS};
@@ -28,11 +32,16 @@ const RFC5987_ATTR_CHARS: &AsciiSet = &CONTROLS
     .add(b'{')
     .add(b'}');
 
-#[derive(Debug, Clone)]
+/// An HTTP response.
+///
+/// The body is either buffered or streamed — see [`Body`]. `Response` is
+/// deliberately not `Clone`: a streaming body is a one-shot source of bytes
+/// and cannot be duplicated.
+#[derive(Debug)]
 pub struct Response {
     pub status: StatusCode,
     pub headers: Vec<(String, String)>,
-    pub body: Vec<u8>,
+    pub body: Body,
 }
 
 impl Response {
@@ -40,7 +49,7 @@ impl Response {
         Self {
             status,
             headers: Vec::new(),
-            body: Vec::new(),
+            body: Body::empty(),
         }
     }
 
@@ -204,6 +213,90 @@ impl Response {
             .with_header("Content-Type", &content_type)
             .with_header("Content-Length", &contents.len().to_string())
             .with_body(contents))
+    }
+
+    /// Stream a file download instead of buffering it in memory.
+    ///
+    /// Identical headers to [`Self::file_download`], but memory stays flat at
+    /// one 64 KiB chunk regardless of file size. Prefer this for anything
+    /// large enough that holding it entirely in memory — once per concurrent
+    /// request — would matter.
+    ///
+    /// Because the body is streamed, the response is committed as soon as the
+    /// first chunk goes out. An I/O error partway through cannot become a 500;
+    /// the client receives a truncated download under the `200 OK` already
+    /// sent.
+    pub async fn file_download_stream<P: AsRef<Path>>(
+        path: P,
+        download_name: Option<&str>,
+    ) -> Result<Self> {
+        let base_dir = Self::default_private_base_dir()?;
+        Self::file_download_stream_from(base_dir, path, download_name).await
+    }
+
+    /// Stream a file download, constrained to a base directory.
+    pub async fn file_download_stream_from<B: AsRef<Path>, P: AsRef<Path>>(
+        base_dir: B,
+        path: P,
+        download_name: Option<&str>,
+    ) -> Result<Self> {
+        let safe_path = Self::resolve_contained_file(base_dir.as_ref(), path.as_ref())?;
+        let (file, size) = Self::open_sized(&safe_path).await?;
+
+        let content_type = Self::guess_content_type(&safe_path);
+        let filename = download_name
+            .or_else(|| safe_path.file_name().and_then(|n| n.to_str()))
+            .unwrap_or("download");
+        let content_disposition = Self::build_attachment_content_disposition(filename);
+
+        // `Content-Length` comes from the stream's declared size in
+        // `into_hyper`, so it is not set here.
+        Ok(Self::ok()
+            .with_header("Content-Type", &content_type)
+            .with_header("Content-Disposition", &content_disposition)
+            .with_body(Body::from_file(file, size)))
+    }
+
+    /// Stream a file for inline display instead of buffering it in memory.
+    pub async fn file_inline_stream<P: AsRef<Path>>(path: P) -> Result<Self> {
+        let base_dir = Self::default_private_base_dir()?;
+        Self::file_inline_stream_from(base_dir, path).await
+    }
+
+    /// Stream a file for inline display, constrained to a base directory.
+    pub async fn file_inline_stream_from<B: AsRef<Path>, P: AsRef<Path>>(
+        base_dir: B,
+        path: P,
+    ) -> Result<Self> {
+        let safe_path = Self::resolve_contained_file(base_dir.as_ref(), path.as_ref())?;
+        let (file, size) = Self::open_sized(&safe_path).await?;
+        let content_type = Self::guess_content_type(&safe_path);
+
+        Ok(Self::ok()
+            .with_header("Content-Type", &content_type)
+            .with_body(Body::from_file(file, size)))
+    }
+
+    /// Open a file and read its length, rejecting anything that is not a
+    /// regular file.
+    ///
+    /// Directories and special files (FIFOs, devices) report a length that
+    /// does not describe a readable byte count, which would produce a
+    /// `Content-Length` the body never satisfies and hang the client.
+    async fn open_sized(path: &Path) -> Result<(tokio::fs::File, u64)> {
+        let file = tokio::fs::File::open(path)
+            .await
+            .map_err(crate::error::Error::Io)?;
+        let metadata = file.metadata().await.map_err(crate::error::Error::Io)?;
+
+        if !metadata.is_file() {
+            return Err(crate::error::Error::InvalidInput(format!(
+                "Not a regular file: {}",
+                path.display()
+            )));
+        }
+
+        Ok((file, metadata.len()))
     }
 
     /// Send binary data response (Total.js: controller.binary)
@@ -422,19 +515,67 @@ impl Response {
         }
     }
 
-    pub fn with_body(mut self, body: Vec<u8>) -> Self {
-        self.body = body;
+    /// Set the body.
+    ///
+    /// Accepts anything convertible into a [`Body`] — `Vec<u8>`, `String`,
+    /// `&str`, `Bytes`, or a [`BodyStream`] for streamed responses.
+    pub fn with_body(mut self, body: impl Into<Body>) -> Self {
+        self.body = body.into();
         self
     }
 
-    /// Get the body size in bytes
-    pub fn body_size(&self) -> usize {
-        self.body.len()
+    /// Stream the body from a chunk stream instead of buffering it.
+    ///
+    /// Headers and status are sent as soon as the first chunk is produced and
+    /// cannot be changed afterwards. Decide status, redirects, and
+    /// authorization before calling this.
+    pub fn with_stream(mut self, stream: BodyStream) -> Self {
+        self.body = Body::Stream(stream);
+        self
     }
 
-    pub fn into_hyper(self) -> hyper::Response<Full<Bytes>> {
-        let mut response = hyper::Response::new(Full::new(Bytes::from(self.body)));
+    /// Body size in bytes, when known without consuming the body.
+    ///
+    /// `None` for a stream that did not declare its total length.
+    pub fn body_size(&self) -> Option<usize> {
+        self.body.len_hint()
+    }
+
+    // `UnsyncBoxBody` rather than `BoxBody`: a body stream is `Send` but not
+    // `Sync`, which is all hyper requires to drive a connection.
+    pub fn into_hyper(self) -> hyper::Response<UnsyncBoxBody<Bytes, Error>> {
+        // A stream that knows its total length gets an explicit
+        // `Content-Length` so clients can show real progress instead of an
+        // indeterminate spinner. Buffered bodies need no help here: hyper
+        // derives the header from the body's own size hint.
+        let declared_len = match &self.body {
+            Body::Stream(stream) => stream.size(),
+            Body::Full(_) => None,
+        };
+
+        let body = match self.body {
+            Body::Full(bytes) => Full::new(Bytes::from(bytes))
+                .map_err(|never| match never {})
+                .boxed_unsync(),
+            Body::Stream(stream) => {
+                StreamBody::new(stream.into_stream().map_ok(Frame::data)).boxed_unsync()
+            }
+        };
+
+        let mut response = hyper::Response::new(body);
         *response.status_mut() = self.status;
+
+        if let Some(len) = declared_len {
+            let already_set = self
+                .headers
+                .iter()
+                .any(|(name, _)| name.eq_ignore_ascii_case("content-length"));
+            if !already_set {
+                response
+                    .headers_mut()
+                    .insert(hyper::header::CONTENT_LENGTH, HeaderValue::from(len));
+            }
+        }
 
         for (name, value) in self.headers {
             match (
@@ -493,7 +634,7 @@ mod tests {
             .await
             .unwrap();
 
-        assert_eq!(response.body, b"hello");
+        assert_eq!(response.body.as_slice(), Some(&b"hello"[..]));
         assert!(response
             .headers
             .iter()

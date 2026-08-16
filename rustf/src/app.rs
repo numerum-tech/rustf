@@ -1200,9 +1200,7 @@ impl RustF {
                 return Ok(MiddlewareResult::Stop(
                     Response::forbidden(Some("This endpoint requires an AJAX (XHR) request"))
                         .with_header("Content-Type", "application/json")
-                        .with_body(
-                            r#"{"error":"This endpoint requires an AJAX (XHR) request"}"#.into(),
-                        ),
+                        .with_body(r#"{"error":"This endpoint requires an AJAX (XHR) request"}"#),
                 ));
             }
 

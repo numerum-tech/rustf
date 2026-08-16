@@ -110,7 +110,7 @@ impl Context {
         }
 
         // Update body
-        response.body = body;
+        response.body = body.into();
 
         // Update Content-Type (remove old, add new)
         response
