@@ -118,7 +118,15 @@ impl OutboundMiddleware for CompressionMiddleware {
         }
 
         if let Some(response) = ctx.res.as_mut() {
-            if response.body.len() < MIN_COMPRESS_SIZE {
+            // Streaming bodies pass through uncompressed. Their bytes do not
+            // exist yet when outbound middleware runs, so there is nothing to
+            // read; compressing them needs a flush-per-chunk encoder wrapped
+            // around the stream, which is a separate change.
+            let Some(plain) = response.body.as_slice() else {
+                return Ok(());
+            };
+
+            if plain.len() < MIN_COMPRESS_SIZE {
                 return Ok(());
             }
 
@@ -133,13 +141,14 @@ impl OutboundMiddleware for CompressionMiddleware {
             // Compress the body
             let mut encoder = GzEncoder::new(Vec::new(), self.level);
             encoder
-                .write_all(&response.body)
+                .write_all(plain)
                 .map_err(|e| crate::error::Error::internal(format!("gzip write error: {}", e)))?;
             let compressed = encoder
                 .finish()
                 .map_err(|e| crate::error::Error::internal(format!("gzip finish error: {}", e)))?;
 
-            response.body = compressed;
+            let compressed_len = compressed.len();
+            response.body = compressed.into();
 
             // Update headers
             // Strong ETags are representation-specific; once we rewrite the
@@ -156,7 +165,7 @@ impl OutboundMiddleware for CompressionMiddleware {
                 .push(("Vary".to_string(), "Accept-Encoding".to_string()));
 
             // Update Content-Length to reflect compressed size
-            let compressed_len = response.body.len().to_string();
+            let compressed_len = compressed_len.to_string();
             for (k, v) in response.headers.iter_mut() {
                 if k.eq_ignore_ascii_case("content-length") {
                     *v = compressed_len.clone();
@@ -197,11 +206,18 @@ mod tests {
         let mut ctx = make_ctx(Some("gzip"));
         let body = b"Hello, world! This is a test response body that is long enough.".repeat(5);
         if let Some(res) = ctx.res.as_mut() {
-            res.body = body.to_vec();
+            res.body = body.to_vec().into();
         }
-        let original_len = ctx.res.as_ref().map(|r| r.body.len()).unwrap_or(0);
+        let original_len = ctx
+            .res
+            .as_ref()
+            .map(|r| r.body.len_hint().unwrap_or(0))
+            .unwrap_or(0);
         middleware.process_response(&mut ctx).await.unwrap();
-        assert_eq!(ctx.res.as_ref().map(|r| r.body.len()), Some(original_len));
+        assert_eq!(
+            ctx.res.as_ref().map(|r| r.body.len_hint().unwrap_or(0)),
+            Some(original_len)
+        );
     }
 
     #[tokio::test]
@@ -210,13 +226,20 @@ mod tests {
         let mut ctx = make_ctx(None);
         let body = b"Hello, world!".repeat(100);
         if let Some(res) = ctx.res.as_mut() {
-            res.body = body.to_vec();
+            res.body = body.to_vec().into();
             res.headers
                 .push(("content-type".to_string(), "text/html".to_string()));
         }
-        let original_len = ctx.res.as_ref().map(|r| r.body.len()).unwrap_or(0);
+        let original_len = ctx
+            .res
+            .as_ref()
+            .map(|r| r.body.len_hint().unwrap_or(0))
+            .unwrap_or(0);
         middleware.process_response(&mut ctx).await.unwrap();
-        assert_eq!(ctx.res.as_ref().map(|r| r.body.len()), Some(original_len));
+        assert_eq!(
+            ctx.res.as_ref().map(|r| r.body.len_hint().unwrap_or(0)),
+            Some(original_len)
+        );
     }
 
     #[tokio::test]
@@ -226,7 +249,7 @@ mod tests {
         let body = b"Hello, world! ".repeat(100);
         let original_len = body.len();
         if let Some(res) = ctx.res.as_mut() {
-            res.body = body.to_vec();
+            res.body = body.to_vec().into();
             res.headers.push((
                 "content-type".to_string(),
                 "text/html; charset=utf-8".to_string(),
@@ -236,7 +259,7 @@ mod tests {
 
         let res = ctx.res.as_ref().unwrap();
         // Compressed body must be smaller than original
-        assert!(res.body.len() < original_len);
+        assert!(res.body.len_hint().unwrap_or(0) < original_len);
         // Content-Encoding header must be set
         let has_encoding = res
             .headers
@@ -256,16 +279,23 @@ mod tests {
         let middleware = CompressionMiddleware::new();
         let mut ctx = make_ctx(Some("gzip"));
         if let Some(res) = ctx.res.as_mut() {
-            res.body = b"already compressed".repeat(100).to_vec();
+            res.body = b"already compressed".repeat(100).to_vec().into();
             res.headers
                 .push(("content-encoding".to_string(), "gzip".to_string()));
             res.headers
                 .push(("content-type".to_string(), "text/plain".to_string()));
         }
-        let original_len = ctx.res.as_ref().map(|r| r.body.len()).unwrap_or(0);
+        let original_len = ctx
+            .res
+            .as_ref()
+            .map(|r| r.body.len_hint().unwrap_or(0))
+            .unwrap_or(0);
         middleware.process_response(&mut ctx).await.unwrap();
         // Body unchanged — already encoded
-        assert_eq!(ctx.res.as_ref().map(|r| r.body.len()), Some(original_len));
+        assert_eq!(
+            ctx.res.as_ref().map(|r| r.body.len_hint().unwrap_or(0)),
+            Some(original_len)
+        );
     }
 
     #[tokio::test]
@@ -273,13 +303,20 @@ mod tests {
         let middleware = CompressionMiddleware::new();
         let mut ctx = make_ctx(Some("gzip"));
         if let Some(res) = ctx.res.as_mut() {
-            res.body = b"tiny".to_vec();
+            res.body = b"tiny".to_vec().into();
             res.headers
                 .push(("content-type".to_string(), "text/plain".to_string()));
         }
-        let original_len = ctx.res.as_ref().map(|r| r.body.len()).unwrap_or(0);
+        let original_len = ctx
+            .res
+            .as_ref()
+            .map(|r| r.body.len_hint().unwrap_or(0))
+            .unwrap_or(0);
         middleware.process_response(&mut ctx).await.unwrap();
-        assert_eq!(ctx.res.as_ref().map(|r| r.body.len()), Some(original_len));
+        assert_eq!(
+            ctx.res.as_ref().map(|r| r.body.len_hint().unwrap_or(0)),
+            Some(original_len)
+        );
     }
 
     #[tokio::test]
@@ -289,13 +326,13 @@ mod tests {
         let body = b"\x89PNG\r\n\x1a\n".repeat(100);
         let original_len = body.len();
         if let Some(res) = ctx.res.as_mut() {
-            res.body = body.to_vec();
+            res.body = body.to_vec().into();
             res.headers
                 .push(("content-type".to_string(), "image/png".to_string()));
         }
         middleware.process_response(&mut ctx).await.unwrap();
         assert_eq!(
-            ctx.res.as_ref().map(|r| r.body.len()),
+            ctx.res.as_ref().map(|r| r.body.len_hint().unwrap_or(0)),
             Some(original_len),
             "PNG body should not be compressed"
         );

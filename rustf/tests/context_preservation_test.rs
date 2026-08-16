@@ -68,7 +68,7 @@ async fn test_middleware_context_preservation() {
 
     // Check response body contains success markers
     let response = ctx.res.as_ref().expect("Response should be set");
-    let body_str = String::from_utf8_lossy(&response.body);
+    let body_str = String::from_utf8_lossy(response.body.as_slice().unwrap());
 
     println!("Response body: {}", body_str);
 

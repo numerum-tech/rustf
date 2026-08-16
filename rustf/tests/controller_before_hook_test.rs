@@ -76,7 +76,7 @@ async fn before_runs_and_continues() {
         "expected 200, got {:?}",
         res.status
     );
-    let body = String::from_utf8(res.body.clone()).unwrap();
+    let body = String::from_utf8(res.body.as_slice().unwrap().to_vec()).unwrap();
     assert!(
         body.contains(r#""section":"users""#),
         "before's repository value missing from handler response: {}",
@@ -195,7 +195,7 @@ async fn before_absent_is_backward_compatible() {
         .expect("handle_request returned Err");
 
     assert_eq!(res.status, hyper::StatusCode::OK);
-    let body = String::from_utf8(res.body.clone()).unwrap();
+    let body = String::from_utf8(res.body.as_slice().unwrap().to_vec()).unwrap();
     assert!(
         body.contains(r#""pong":true"#),
         "handler did not run: {}",

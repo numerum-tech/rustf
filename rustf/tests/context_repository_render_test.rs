@@ -27,7 +27,15 @@ fn ctx_with_template(body: &str) -> (Context, TempDir) {
 }
 
 fn rendered(ctx: &Context) -> String {
-    String::from_utf8(ctx.get_response().unwrap().body.clone()).unwrap()
+    String::from_utf8(
+        ctx.get_response()
+            .unwrap()
+            .body
+            .as_slice()
+            .unwrap()
+            .to_vec(),
+    )
+    .unwrap()
 }
 
 #[test]
@@ -42,7 +50,10 @@ fn repository_and_model_reach_the_template_in_separate_namespaces() {
     let out = rendered(&ctx);
     assert!(out.contains("T=Hello"), "repository scalar missing: {out}");
     assert!(out.contains("N=World"), "model field missing: {out}");
-    assert!(out.contains("ID=42"), "nested repository value missing: {out}");
+    assert!(
+        out.contains("ID=42"),
+        "nested repository value missing: {out}"
+    );
 }
 
 #[test]

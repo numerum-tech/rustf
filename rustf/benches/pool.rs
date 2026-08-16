@@ -51,7 +51,7 @@ fn benchmark_response_direct_allocation(c: &mut Criterion) {
         b.iter(|| {
             let mut response = Response::ok();
             response.status = black_box(StatusCode::OK);
-            response.body = black_box(b"Hello World".to_vec());
+            response.body = black_box(b"Hello World".to_vec()).into();
             // Response dropped and deallocated
         })
     });
