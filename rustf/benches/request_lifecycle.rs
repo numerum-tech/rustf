@@ -28,7 +28,7 @@ fn build_app(with_compression: bool) -> RustF {
             ctx.json(json!({
                 "ok": true,
                 "framework": "rustf",
-                "echo": ctx.query("q").unwrap_or("").to_string(),
+                "echo": ctx.query_str_or("q", ""),
             }))?;
             Ok(())
         })
