@@ -461,16 +461,16 @@ let mut filter = ModelFilter::new();
 filter = filter.where_eq("is_active", true);
 
 // Conditionally add filters based on user input
-if let Some(search) = ctx.query("search") {
+if let Ok(search) = ctx.query_str("search") {
     filter = filter.where_like("name", &format!("%{}%", search));
 }
 
-if let Some(role) = ctx.query("role") {
+if let Ok(role) = ctx.query_str("role") {
     filter = filter.where_eq("role", role);
 }
 
-if let Some(min_age) = ctx.query("min_age") {
-    filter = filter.where_gte("age", min_age.parse::<i32>()?);
+if let Ok(min_age) = ctx.query_int("min_age") {
+    filter = filter.where_gte("age", min_age);
 }
 
 // Use the conditionally built filter
@@ -1935,9 +1935,7 @@ use rustf::prelude::*;
 
 async fn list_users(ctx: &mut Context) -> Result<()> {
     // Parse page from query parameters
-    let page = ctx.query("page")
-        .and_then(|p| p.parse::<u32>().ok())
-        .unwrap_or(1);
+    let page = ctx.query_as_or::<u32>("page", 1);
     
     let per_page = 20;
     
@@ -1970,9 +1968,7 @@ use rustf::prelude::*;
 
 async fn list_users(ctx: &mut Context) -> Result<()> {
     // Parse page from query parameters
-    let page = ctx.query("page")
-        .and_then(|p| p.parse::<u32>().ok())
-        .unwrap_or(1);
+    let page = ctx.query_as_or::<u32>("page", 1);
     
     let per_page = 20;
     
@@ -2134,11 +2130,9 @@ let pagination = U::paginate(total, page, 20, "/posts?page={0}#results");
 
 ```rust
 async fn search_posts(ctx: &mut Context) -> Result<()> {
-    let page = ctx.query("page")
-        .and_then(|p| p.parse::<u32>().ok())
-        .unwrap_or(1);
-    let search = ctx.query("q").unwrap_or("");
-    let category = ctx.query("category").unwrap_or("all");
+    let page = ctx.query_as_or::<u32>("page", 1);
+    let search = ctx.query_str_or("q", "");
+    let category = ctx.query_str_or("category", "all");
     
     // Build query with filters
     let total = Posts::query()?

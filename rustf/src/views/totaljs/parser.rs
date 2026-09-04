@@ -876,12 +876,14 @@ impl Parser {
                 for op in operators {
                     let op_len = op.len();
                     if i + op_len <= chars.len()
-                        && op.bytes().zip(&chars[i..i + op_len]).all(|(b, &c)| b as char == c)
+                        && op
+                            .bytes()
+                            .zip(&chars[i..i + op_len])
+                            .all(|(b, &c)| b as char == c)
                     {
                         // Make sure this isn't part of a longer operator
                         // (e.g., don't match "=" in "===")
-                        let before_ok =
-                            i == 0 || !matches!(chars[i - 1], '=' | '!' | '<' | '>');
+                        let before_ok = i == 0 || !matches!(chars[i - 1], '=' | '!' | '<' | '>');
                         let after_ok = i + op_len >= chars.len()
                             || !matches!(chars[i + op_len], '=' | '&' | '|');
 

@@ -2634,6 +2634,7 @@ dependencies = [
  "sqlx",
  "thiserror 2.0.17",
  "tokio",
+ "tokio-stream",
  "toml 0.9.8",
  "url",
  "urlencoding",

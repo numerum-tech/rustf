@@ -1,8 +1,18 @@
 # Work Plan - RustF Framework Development
 
-**Last Updated**: 2026-04-24
+**Last Updated**: 2026-09-04
 **Current Sprint**: Release Candidate 1 Polishing
 **Branch**: `perf-sweep-and-skill` (pending merge to `main`)
+
+---
+
+## Pending (2026-09-04)
+
+- [ ] **Streaming for 1.0 — reviewed, uncommitted.** Branch `feat/streaming-body`. Three Codex passes; the third returned **ship** with zero findings. Report: `docs/reviews/2026-09-04-codex-streaming-review.md`. Awaiting Morle's diff review before commit.
+- [ ] **Context API cleanup — implemented, uncommitted.** Plan and outcome: `docs/plans/2026-09-04-context-api-cleanup-plan.md`. Removed the 16 type-first aliases, untyped `param()`/`query()`, `ctx.text()`, `ctx.cancel()`, `ctx.csrf()`, `body_form_data_cloned()`, `RequestData`, and 11 dead `Response::` constructors; added the `*_as::<T>` family; made `FormData` multi-value; replaced `body_form_typed`'s JSON bridge with a real form deserializer. 694 tests green, scaffold smoke test passes. Awaiting Morle's diff review.
+- [ ] **TODO — WebSocket support (Total.js `SOCKET` model).** Plan: `docs/plans/2026-09-04-websocket-plan.md`. Additive; target 1.1.0 unless 1.0 must carry it. Open decisions: 1.0 vs 1.1, room layer in v1, per-route flag syntax.
+- [ ] **TODO — resurrect or delete the dead test directories.** `rustf/tests/{integration,security,performance,unit}/` hold nine `.rs` files with no `main.rs`, so cargo has never compiled them. They still use the pre-rc `async fn(mut ctx: Context) -> Result<Response>` signature. Either port them to the current API and wire them into the harness, or delete them — right now they read as coverage that does not exist.
+- [ ] **TODO — `rustf-cli new project`'s `schemas/sessions.yaml` does not parse.** `schema generate models` fails on the scaffold's own shipped schema: `unknown field 'description'`. Found during the 2026-09-04 scaffold smoke test. Either add `description` to the field schema or drop it from the template.
 
 ---
 

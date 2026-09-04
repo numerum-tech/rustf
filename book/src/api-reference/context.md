@@ -28,34 +28,46 @@ pub struct Context {
 ### URL Parameters
 
 ```rust
-// Untyped
-ctx.param("id") -> Option<&str>
-
-// Typed accessors (source-first, recommended)
-ctx.param_str("id")            -> Result<String>
-ctx.param_int("id")            -> Result<i32>
+ctx.param_str("id")               -> Result<String>
+ctx.param_int("id")               -> Result<i32>
+ctx.param_as::<T>("id")           -> Result<T>   // any FromStr type
 ctx.param_str_or("id", "default") -> String
-ctx.param_int_or("id", 0)      -> i32
+ctx.param_int_or("id", 0)         -> i32
+ctx.param_as_or::<T>("id", def)   -> T
 ```
 
-> `param_int` returns `i32`. If your model id type is `i64`, do
-> `let id = ctx.param_int("id")? as i64;` — `where_eq` accepts
-> `Into<SqlValue>` so the cast is safe across `i32`/`i64` columns.
+`param_as` covers everything `param_int` does not — `i64`, `u32`, `Uuid`,
+`NaiveDate`, `IpAddr`, `Decimal`. For an `i64` model id write
+`ctx.param_as::<i64>("id")?` rather than casting.
+
+There is no untyped `ctx.param()`. Raw access, when you genuinely need the
+whole map, is `ctx.req.params`.
 
 ### Query Parameters
 
 ```rust
-// Untyped (e.g. ?page=2)
-ctx.query("page") -> Option<&str>
-
-// Typed (source-first, recommended)
-ctx.query_str("page")             -> Result<String>
-ctx.query_int("page")             -> Result<i32>
-ctx.query_bool("active")          -> Result<bool>
-ctx.query_str_or("page", "1")     -> String
-ctx.query_int_or("limit", 10)     -> i32
+// e.g. ?page=2
+ctx.query_str("page")              -> Result<String>
+ctx.query_int("page")              -> Result<i32>
+ctx.query_bool("active")           -> Result<bool>
+ctx.query_as::<T>("start")         -> Result<T>   // any FromStr type
+ctx.query_str_or("page", "1")      -> String
+ctx.query_int_or("limit", 10)      -> i32
 ctx.query_bool_or("active", false) -> bool
+ctx.query_as_or::<T>("start", def) -> T
 ```
+
+`query_as` covers `f64`, `i64`, `Uuid`, `NaiveDate`, `DateTime<Utc>`,
+`IpAddr`, `Decimal` — anything implementing `FromStr`:
+
+```rust
+let start: NaiveDate = ctx.query_as("start")?;
+let radius = ctx.query_as_or::<f64>("radius", 5.0);
+```
+
+An empty value counts as missing, so `?page=` behaves like no `page` at all.
+
+There is no untyped `ctx.query()`. Raw access is `ctx.req.query`.
 
 ### Request Body
 
@@ -72,23 +84,26 @@ let body: serde_json::Value = ctx.full_body()?;
 #### Form data
 
 ```rust
-// Returns FormData — a newtype wrapper around HashMap<String, String>
-// that derefs to the underlying map. Use it as a map directly.
-let form = ctx.body_form()?;            // FormData
-let email = form.get("email").cloned(); // works via Deref
+// FormData keeps every value of a repeated field (checkboxes, `tags[]`).
+let form = ctx.body_form()?;
+let email = form.get("email");            // Option<&str> — the first value
+let tags  = form.get_all("tags");         // Vec<&str>    — all of them
+let price = form.get_as::<f64>("price")?; // typed getters: get_str/get_int/get_bool/get_as
 
-// Form data with array support (multi-value fields like checkboxes)
-let form = ctx.body_form_data()?;       // &HashMap<String, FormValue>
+// The raw map, when you want to inspect FormValue::Single vs Multiple
+let raw = ctx.body_form_data()?;          // &HashMap<String, FormValue>
 
-// Strongly-typed form parsing via serde
+// Strongly-typed form parsing via serde. Non-string fields are parsed from
+// their string form, and a repeated field fills a `Vec`.
 #[derive(Deserialize)]
-struct LoginForm { email: String, password: String }
-let form: LoginForm = ctx.body_form_typed()?;
+struct NewProduct { name: String, price: f64, tags: Vec<String> }
+let product: NewProduct = ctx.body_form_typed()?;
 
 // Individual field accessors (source-first, recommended)
 let email   = ctx.body_str("email")?;                // Required, returns String
 let age     = ctx.body_int("age")?;                  // Parse as i32
 let active  = ctx.body_bool("active")?;              // Parse as bool
+let due     = ctx.body_as::<NaiveDate>("due")?;      // Any FromStr type
 let name    = ctx.body_str_or("name", "Anonymous");  // Optional with default
 ```
 
@@ -149,7 +164,6 @@ ctx.json(data: impl Serialize) -> Result<()>
 
 ```rust
 ctx.html(content: impl Into<String>)  -> Result<()>
-ctx.text(content: impl Into<String>)  -> Result<()>
 ctx.plain(text: impl Into<String>)    -> Result<()>
 ```
 
@@ -203,15 +217,86 @@ ctx.binary(
     download_name: Option<&str>,
 ) -> Result<()>
 
+// Streamed: 64 KiB chunks, flat memory regardless of file size
+ctx.file_download_stream<P: AsRef<Path>>(path: P, filename: Option<&str>) -> Result<()>
+ctx.file_inline_stream<P: AsRef<Path>>(path: P) -> Result<()>
+// ..._from(base_dir, path, ..) variants exist for both, as for the buffered helpers
+```
+
+### Streaming Responses
+
+```rust
 ctx.stream(
-    data: Vec<u8>,
+    body: impl Into<Body>,          // Vec<u8> → buffered; Body::from_stream(..) → chunked
     content_type: &str,
     download_name: Option<&str>,
 ) -> Result<()>
 ```
 
-> The current `stream` buffers the full body in memory. True chunked
-> streaming at the hyper layer is on the roadmap, not yet shipped.
+`Body::from_stream(s)` takes any `Stream<Item = rustf::Result<Bytes>>`. A
+stream of unknown length is sent with `Transfer-Encoding: chunked`;
+`Body::from_sized_stream(s, len)` declares the total and gets a
+`Content-Length` instead. Status and headers go out with the first chunk, so
+authorise and validate *before* handing over the stream — an `Err` yielded
+mid-flight can only truncate the body (it is logged at `error` level).
+
+```rust
+use rustf::prelude::*;
+use bytes::Bytes;
+
+async fn export(ctx: &mut Context) -> rustf::Result<()> {
+    let rows = futures::stream::iter((1..=1_000_000).map(|n| {
+        Ok(Bytes::from(format!("{n},row {n}\n")))
+    }));
+    ctx.stream(Body::from_stream(rows), "text/csv", Some("rows.csv"))
+}
+```
+
+Outbound middleware that inspects the body (compression, for one) sees a
+stream as opaque and passes it through untouched.
+
+### Server-Sent Events
+
+```rust
+ctx.sse(events: impl Stream<Item = SseEvent | rustf::Result<SseEvent>> + Send + 'static) -> Result<()>
+ctx.sse_with_keep_alive(events, interval: Duration)                                     -> Result<()>
+
+SseEvent::new(data)          // one event; multi-line data → one `data:` line per line
+SseEvent::json(&value)?      // data = serde_json::to_string(value)
+SseEvent::comment(text)      // `:text` line, ignored by clients (keep-alive)
+    .id("42")                // echoed back as Last-Event-ID on reconnect
+    .event("progress")       // dispatched to addEventListener("progress", ..)
+    .retry(Duration)         // client reconnect delay
+```
+
+Sets `Content-Type: text/event-stream`, `Cache-Control: no-cache` and
+`X-Accel-Buffering: no`. The response stays open until the stream ends; if
+the stream yields `Result<SseEvent>`, the first `Err` aborts it (logged at
+`error` level, and `EventSource` reconnects). Use `sse_with_keep_alive` when
+the feed can go quiet for longer than a proxy's idle timeout (15 s clears the
+common 30 s default); it emits one comment per interval of silence, the first
+a full interval after the stream starts, and never while events are flowing.
+
+`HEAD` requests to any route run the `GET` handler and return its headers
+with no body. The static file server does not support `Range` requests.
+
+```rust
+use rustf::prelude::*;
+use tokio_stream::wrappers::ReceiverStream;
+
+async fn progress(ctx: &mut Context) -> rustf::Result<()> {
+    let (tx, rx) = tokio::sync::mpsc::channel(16);
+    tokio::spawn(async move {
+        for pct in (0..=100).step_by(10) {
+            if tx.send(SseEvent::new(pct.to_string()).event("progress")).await.is_err() {
+                break; // client disconnected
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+        }
+    });
+    ctx.sse_with_keep_alive(ReceiverStream::new(rx), std::time::Duration::from_secs(15))
+}
+```
 
 ## Session Management
 
@@ -308,12 +393,6 @@ ctx.get::<T>(key: &str)      -> Option<&T>
 ctx.has_data(key: &str)      -> bool
 ```
 
-## Request Data Helper
-
-```rust
-ctx.request_data() -> Result<RequestData>   // structured aggregate
-```
-
 ## Response Management
 
 ```rust
@@ -328,7 +407,7 @@ ctx.take_response() -> Option<Response>     // framework calls this after the ha
 
 ```rust
 async fn get_user(ctx: &mut Context) -> rustf::Result<()> {
-    let user_id = ctx.param_int("id")? as i64;
+    let user_id = ctx.param_as::<i64>("id")?;
     // ... fetch user via your service module ...
     ctx.json(json!({"user": user_id}))
 }

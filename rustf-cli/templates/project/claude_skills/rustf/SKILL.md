@@ -97,7 +97,7 @@ pub fn install() -> Vec<Route> {
 `:id`-style parameters are **not supported** — they become literal path
 segments, and requests silently 404. This is different from actix/axum.
 
-Read the param with `ctx.param_int("id")? as i64` (returns `i32` —
+Read the param with `ctx.param_as::<i64>("id")?` (returns `i32` —
 cast if your data layer uses `i64`).
 
 ---
@@ -224,15 +224,19 @@ static CACHE: Lazy<dashmap::DashMap<i64, String>> = Lazy::new(DashMap::new);
 ## 4. Context API cheat sheet (top ~30 methods)
 
 ```rust
-// --- Request reads ---
-ctx.param("id") -> Option<&str>                 // route param (untyped)
-ctx.param_int("id") -> rustf::Result<i32>       // i32 — cast to i64 for model IDs
+// --- Request reads (always typed; never .parse() one of these by hand) ---
 ctx.param_str("id") -> rustf::Result<String>
-ctx.query("q") -> Option<&str>                  // query string param
-ctx.query_str("q") / query_int / query_bool     // typed
-ctx.body_json::<T>() -> rustf::Result<T>        // simd-json parse (synchronous)
-ctx.body_form() -> rustf::Result<FormData>      // newtype around HashMap<String,String>; derefs to it
-ctx.body_str("name") / body_int / body_bool     // typed form field
+ctx.param_int("id") -> rustf::Result<i32>
+ctx.param_as::<i64>("id") -> rustf::Result<i64>  // any FromStr: i64, Uuid, NaiveDate…
+ctx.param_str_or / param_int_or / param_as_or    // same, with a default
+ctx.query_str("q") / query_int / query_bool      // typed
+ctx.query_as::<f64>("radius") -> rustf::Result<f64>
+ctx.query_str_or / query_int_or / query_bool_or / query_as_or
+ctx.body_json::<T>() -> rustf::Result<T>         // simd-json parse (synchronous)
+ctx.body_form() -> rustf::Result<FormData>       // get / get_all / get_str / get_int / get_as::<T>
+ctx.body_form_typed::<T>() -> rustf::Result<T>   // parses f64/i64/bool/Vec<T> fields
+ctx.body_str("name") / body_int / body_bool / body_as::<T>
+ctx.req.params / ctx.req.query                   // raw maps, if you really need them
 ctx.header("x-foo") -> Option<&str>
 ctx.req.cookie("name") -> Option<String>        // cookies live on Request — cache-backed
 ctx.req.cookies() -> &HashMap<String,String>    // same cache, whole map
@@ -298,6 +302,17 @@ and `ctx.file_inline("uploads/report.pdf")?` resolve paths relative to the
 configured private directory by default. For files outside the private root,
 use the explicit `ctx.file_download_from(...)` / `ctx.file_inline_from(...)`
 variants.
+
+**Streaming convention:** the buffered file helpers hold the whole file in
+memory once per concurrent request. For anything large use the streamed
+twins — `ctx.file_download_stream(...)` / `ctx.file_inline_stream(...)` (and
+their `_from` variants) — which send 64 KiB chunks. For generated output
+(CSV export, log tail) build a `Body::from_stream(stream_of_Result<Bytes>)` and
+pass it to `ctx.stream(body, content_type, download_name)`; a `Vec<u8>` there
+is still sent buffered. For push notifications use `ctx.sse(stream_of_SseEvent)`
+(or `ctx.sse_with_keep_alive(stream, Duration)` behind a proxy). Authorise and
+validate *before* handing over a stream: once the first chunk is out the
+status cannot change, and a mid-stream `Err` only truncates the body.
 
 **`ctx.data` vs `ctx.repository`** — different stores, different audiences.
 If a template can't see a value, it is probably in `data` instead of
@@ -397,7 +412,7 @@ unrelated page data into one big `json!({...})` first.
 ```rust
 // ✅ Detail page — the record IS the model.
 async fn show(ctx: &mut Context) -> rustf::Result<()> {
-    let id = ctx.param_int("id")? as i64;
+    let id = ctx.param_as::<i64>("id")?;
     let task = TaskService::find(id).await?;
 
     let csrf = ctx.generate_csrf(None)?;          // hoist: &self before &mut self
@@ -601,6 +616,8 @@ After any generator runs, confirm:
 14. Reaching for middleware when only one controller cares → use `routes![before: <fn>, ...]` inside `install()` instead.
 15. Using `ctx.redirect("https://evil.example")` for an external hop → use the explicit `redirect_external*` methods.
 16. Passing absolute/untrusted paths into `ctx.file_download_from(...)` or `ctx.file_inline_from(...)` without a controlled base dir → keep normal app files under `private/` and prefer the private-rooted helpers.
+17. Hand-writing `.unwrap_or("1").parse::<i32>().unwrap_or(1)` on a query, param or form value → there is a typed accessor for it. Use `*_int` / `*_bool` / `*_as::<T>` for required values and the `*_or` variants for optional ones. There is no untyped `ctx.param()` / `ctx.query()`.
+18. Reading a repeated field (`tags[]`, a checkbox group) with `form.get("tags")` → that returns only the first value. Use `form.get_all("tags")`, or a `Vec<T>` field with `ctx.body_form_typed()`.
 
 ---
 

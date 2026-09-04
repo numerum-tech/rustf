@@ -12,9 +12,11 @@
 //! - Payloads produced incrementally, where time-to-first-byte matters
 //!
 //! Handlers rarely construct a `Body` directly. `ctx.json()`, `ctx.view()` and
-//! friends produce buffered bodies; `ctx.stream_file()` produces a streaming
-//! one. `Body` implements `From` for the common owned byte containers, so
-//! `Response::with_body(vec)` and `response.body = vec.into()` both work.
+//! friends produce buffered bodies; `ctx.file_download_stream()`,
+//! `ctx.file_inline_stream()`, `ctx.sse()` and `ctx.stream()` produce
+//! streaming ones. `Body` implements `From` for the common owned byte
+//! containers, so `Response::with_body(vec)` and `response.body = vec.into()`
+//! both work.
 //!
 //! # Middleware
 //!
@@ -53,10 +55,13 @@ pub struct BodyStream {
 impl BodyStream {
     /// Wrap a stream of chunks.
     ///
-    /// An `Err` item aborts the response mid-flight. Because the status line
-    /// and headers were already sent when the first chunk went out, there is
-    /// no way to turn this into a 500 — the client sees a truncated body on a
-    /// `200 OK`. Validate before the first chunk, not during.
+    /// An `Err` item aborts the response mid-flight: hyper drops the
+    /// connection and the error is logged at `error` level. There is no way
+    /// to turn it into a 500 — depending on how much hyper had already
+    /// flushed, the client sees either a reset before any bytes or a
+    /// truncated body under the status already sent. It never sees a
+    /// terminating chunk, so a truncated download is not mistaken for a
+    /// complete one. Validate before the first chunk, not during.
     pub fn new<S>(stream: S) -> Self
     where
         S: Stream<Item = Result<Bytes>> + Send + 'static,
@@ -83,9 +88,102 @@ impl BodyStream {
     }
 
     /// Consume this wrapper, yielding the underlying chunk stream.
+    ///
+    /// The declared size, if any, is not enforced here; see
+    /// [`Self::into_enforced_stream`].
     pub fn into_stream(self) -> BoxStream<'static, Result<Bytes>> {
         self.inner
     }
+
+    /// Consume this wrapper, yielding a chunk stream that honours the
+    /// declared size.
+    ///
+    /// Without a declared size this is [`Self::into_stream`]. With one, the
+    /// stream is capped at exactly that many bytes: a chunk that would
+    /// overshoot is truncated (a file that grew after its length was read,
+    /// say) and the stream ends there, and a source that ends short yields an
+    /// `Err` so the connection is dropped rather than left hanging with a
+    /// `Content-Length` the client is still waiting on. Both cases are logged.
+    pub fn into_enforced_stream(self) -> BoxStream<'static, Result<Bytes>> {
+        match self.size {
+            Some(size) => enforce_size(self.inner, size).boxed(),
+            None => self.inner,
+        }
+    }
+}
+
+/// Cap `stream` at `declared` bytes and fail if it ends before reaching them.
+fn enforce_size(
+    stream: BoxStream<'static, Result<Bytes>>,
+    declared: u64,
+) -> impl Stream<Item = Result<Bytes>> + Send + 'static {
+    // Nothing was promised, so nothing is sent: the source is never polled,
+    // which also means a misbehaving source cannot yield a stray empty chunk.
+    if declared == 0 {
+        return futures::stream::empty().boxed();
+    }
+
+    struct State {
+        inner: BoxStream<'static, Result<Bytes>>,
+        remaining: u64,
+        declared: u64,
+        finished: bool,
+    }
+
+    futures::stream::unfold(
+        State {
+            inner: stream,
+            remaining: declared,
+            declared,
+            finished: false,
+        },
+        |mut state| async move {
+            if state.finished {
+                return None;
+            }
+
+            match state.inner.next().await {
+                Some(Ok(mut chunk)) => {
+                    let len = chunk.len() as u64;
+                    if len > state.remaining {
+                        log::warn!(
+                            "Response body stream produced more than its declared {} bytes; \
+                             truncating to the declared length",
+                            state.declared
+                        );
+                        chunk.truncate(state.remaining as usize);
+                    }
+                    state.remaining -= chunk.len() as u64;
+                    if state.remaining == 0 {
+                        // Exactly full: stop polling the source so an
+                        // over-producing stream is never observed by hyper.
+                        state.finished = true;
+                    }
+                    Some((Ok(chunk), state))
+                }
+                Some(Err(error)) => {
+                    state.finished = true;
+                    Some((Err(error), state))
+                }
+                None => {
+                    state.finished = true;
+                    if state.remaining > 0 {
+                        let sent = state.declared - state.remaining;
+                        Some((
+                            Err(Error::internal(format!(
+                                "response body stream ended after {} of {} declared bytes",
+                                sent, state.declared
+                            ))),
+                            state,
+                        ))
+                    } else {
+                        None
+                    }
+                }
+            }
+        },
+    )
+    .boxed()
 }
 
 impl fmt::Debug for BodyStream {
@@ -157,7 +255,9 @@ impl Body {
     pub fn len_hint(&self) -> Option<usize> {
         match self {
             Body::Full(bytes) => Some(bytes.len()),
-            Body::Stream(stream) => stream.size().map(|n| n as usize),
+            // `try_from` rather than `as`: on a 32-bit target a declared size
+            // above `usize::MAX` must read as unknown, not as a wrapped number.
+            Body::Stream(stream) => stream.size().and_then(|n| usize::try_from(n).ok()),
         }
     }
 
@@ -336,6 +436,88 @@ mod tests {
         assert_eq!(
             chunks,
             vec![Bytes::from_static(b"one"), Bytes::from_static(b"two")]
+        );
+    }
+
+    #[tokio::test]
+    async fn enforced_stream_passes_an_exact_size_through_unchanged() {
+        let body = Body::from_sized_stream(
+            futures::stream::iter(vec![
+                Ok(Bytes::from_static(b"abc")),
+                Ok(Bytes::from_static(b"de")),
+            ]),
+            5,
+        );
+        let Body::Stream(stream) = body else {
+            panic!("expected a streaming body");
+        };
+        let chunks: Vec<Result<Bytes>> = stream.into_enforced_stream().collect().await;
+        let bytes: Vec<u8> = chunks
+            .into_iter()
+            .flat_map(|c| c.expect("no error for an exact size"))
+            .collect();
+        assert_eq!(bytes, b"abcde");
+    }
+
+    #[tokio::test]
+    async fn enforced_stream_truncates_an_over_producing_source() {
+        // Declared 4, source has 7: the client must receive exactly the 4
+        // bytes promised by Content-Length and the stream must end there.
+        let body = Body::from_sized_stream(
+            futures::stream::iter(vec![
+                Ok(Bytes::from_static(b"abc")),
+                Ok(Bytes::from_static(b"defg")),
+                Ok(Bytes::from_static(b"never polled")),
+            ]),
+            4,
+        );
+        let Body::Stream(stream) = body else {
+            panic!("expected a streaming body");
+        };
+        let chunks: Vec<Result<Bytes>> = stream.into_enforced_stream().collect().await;
+        assert_eq!(chunks.len(), 2);
+        let bytes: Vec<u8> = chunks
+            .into_iter()
+            .flat_map(|c| c.expect("truncation is not an error"))
+            .collect();
+        assert_eq!(bytes, b"abcd");
+    }
+
+    #[tokio::test]
+    async fn enforced_stream_with_zero_declared_size_never_polls_the_source() {
+        let polled = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let flag = polled.clone();
+        let source = futures::stream::poll_fn(move |_| {
+            flag.store(true, std::sync::atomic::Ordering::SeqCst);
+            std::task::Poll::Ready(Some(Ok(Bytes::from_static(b"unexpected"))))
+        });
+        let body = Body::from_sized_stream(source, 0);
+        let Body::Stream(stream) = body else {
+            panic!("expected a streaming body");
+        };
+        let chunks: Vec<Result<Bytes>> = stream.into_enforced_stream().collect().await;
+        assert!(chunks.is_empty());
+        assert!(!polled.load(std::sync::atomic::Ordering::SeqCst));
+    }
+
+    #[tokio::test]
+    async fn enforced_stream_fails_when_the_source_ends_short() {
+        // Declared 10, source has 3: leaving the connection open would hang
+        // the client waiting for 7 more bytes, so the stream must error.
+        let body = Body::from_sized_stream(
+            futures::stream::iter(vec![Ok(Bytes::from_static(b"abc"))]),
+            10,
+        );
+        let Body::Stream(stream) = body else {
+            panic!("expected a streaming body");
+        };
+        let chunks: Vec<Result<Bytes>> = stream.into_enforced_stream().collect().await;
+        assert_eq!(chunks.len(), 2);
+        assert_eq!(chunks[0].as_ref().unwrap(), &Bytes::from_static(b"abc"));
+        let message = chunks[1].as_ref().unwrap_err().to_string();
+        assert!(
+            message.contains("3 of 10"),
+            "error should say how short it fell: {message}"
         );
     }
 

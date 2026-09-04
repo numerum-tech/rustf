@@ -103,7 +103,7 @@ mod tests {
         ctx.add_header("X-Processing-Time", "125ms");
 
         // Call text which should preserve headers
-        ctx.text("Plain text response").unwrap();
+        ctx.plain("Plain text response").unwrap();
 
         let response = ctx.get_response().unwrap();
 

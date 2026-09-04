@@ -7,7 +7,7 @@ use rustf::RustF;
 
 fn install_text_route() -> Vec<Route> {
     async fn index(ctx: &mut Context) -> rustf::Result<()> {
-        ctx.text("compress-me ".repeat(200))
+        ctx.plain("compress-me ".repeat(200))
     }
 
     routes![

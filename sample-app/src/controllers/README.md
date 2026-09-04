@@ -35,7 +35,7 @@ async fn index(ctx: &mut Context) -> rustf::Result<()> {
 }
 
 async fn show(ctx: &mut Context) -> rustf::Result<()> {
-    let id = ctx.param_int("id")? as i64;
+    let id = ctx.param_as::<i64>("id")?;
     ctx.json(json!({"id": id}))
 }
 
@@ -48,9 +48,9 @@ async fn create(ctx: &mut Context) -> rustf::Result<()> {
 ## Common APIs
 
 ```rust
-ctx.param("id");
+ctx.param_str("id")?;
 ctx.param_int("id")?;
-ctx.query("q");
+ctx.query_str("q")?;
 ctx.body_form()?;
 ctx.body_json::<MyInput>()?;
 

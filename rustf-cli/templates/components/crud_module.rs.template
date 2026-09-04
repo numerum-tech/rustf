@@ -14,7 +14,6 @@
 use crate::models::{{name}}::{{pascal_name}};
 use rustf::models::BaseModel;
 use rustf::prelude::*;
-use std::collections::HashMap;
 
 pub struct {{pascal_name}}Service;
 
@@ -41,10 +40,10 @@ impl {{pascal_name}}Service {
     /// `schemas/{{name}}.yaml`. The generated model's builder gives you
     /// a typed setter per field (e.g. `.email("...")`, `.age(42)`). The
     /// `.save()` call uses the global DB connection — no pool argument.
-    pub async fn create(_form: &HashMap<String, String>) -> rustf::Result<i64> {
+    pub async fn create(_form: &FormData) -> rustf::Result<i64> {
         // let item = {{pascal_name}}::builder()
-        //     .field_one(form.get("field_one").cloned().unwrap_or_default())
-        //     .field_two(form.get("field_two").and_then(|s| s.parse().ok()).unwrap_or_default())
+        //     .field_one(form.get_str("field_one")?)
+        //     .field_two(form.get_as::<i64>("field_two")?)
         //     .save()
         //     .await?;
         // Ok(item.id() as i64)
@@ -59,15 +58,15 @@ impl {{pascal_name}}Service {
     /// `update()` emits UPDATE only for the fields you actually changed.
     ///
     /// TODO: add your real `.set_field_name(...)` calls below.
-    pub async fn update(id: i64, _form: &HashMap<String, String>) -> rustf::Result<()> {
+    pub async fn update(id: i64, _form: &FormData) -> rustf::Result<()> {
         let Some(mut item) = Self::find(id).await? else {
             return Err(rustf::Error::validation("{{title_singular}} not found"));
         };
 
-        // if let Some(v) = form.get("field_one") {
-        //     item.set_field_one(v.clone());
+        // if let Ok(v) = form.get_str("field_one") {
+        //     item.set_field_one(v);
         // }
-        // if let Some(v) = form.get("field_two").and_then(|s| s.parse().ok()) {
+        // if let Ok(v) = form.get_as::<i64>("field_two") {
         //     item.set_field_two(v);
         // }
         let _ = &item; // silence "unused" while TODO stubs are in place

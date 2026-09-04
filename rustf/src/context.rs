@@ -1,7 +1,6 @@
 use crate::error::{Error, Result};
-use crate::http::{
-    BodyData, FileCollection, FormData, FormValue, Request, RequestData, Response, UploadedFile,
-};
+use crate::http::request::short_type_name;
+use crate::http::{Body, FileCollection, FormData, FormValue, Request, Response, UploadedFile};
 use crate::session::Session;
 use crate::views::ViewEngine;
 use hyper::StatusCode;
@@ -46,7 +45,6 @@ pub struct Context {
     /// cleared in the outbound middleware.
     session_destroyed: AtomicBool,
     /// Cached form data to avoid re-parsing
-    cached_form_data: Option<Result<HashMap<String, String>>>,
     /// Cached form data with array support
     cached_form_data_arrays: Option<Result<HashMap<String, FormValue>>>,
 }
@@ -72,7 +70,6 @@ impl Context {
             repository: Value::Object(serde_json::Map::new()),
             data: HashMap::new(),
             session_destroyed: AtomicBool::new(false),
-            cached_form_data: None,
             cached_form_data_arrays: None,
         }
     }
@@ -651,6 +648,54 @@ impl Context {
         Ok(())
     }
 
+    /// Stream a file download instead of buffering it in memory.
+    ///
+    /// Same headers and path rules as [`Self::file_download`], but memory
+    /// stays flat at one 64 KiB chunk however large the file is. Prefer this
+    /// for anything big enough that holding it in memory once per concurrent
+    /// request would matter. An I/O error after the first chunk cannot become
+    /// a 500; the client receives a truncated download.
+    pub async fn file_download_stream<P: AsRef<Path>>(
+        &mut self,
+        path: P,
+        download_name: Option<&str>,
+    ) -> Result<()> {
+        let new_response = Response::file_download_stream(path, download_name).await?;
+        self.update_response(new_response);
+        Ok(())
+    }
+
+    /// Stream a file download, constrained to a base directory.
+    pub async fn file_download_stream_from<B: AsRef<Path>, P: AsRef<Path>>(
+        &mut self,
+        base_dir: B,
+        path: P,
+        download_name: Option<&str>,
+    ) -> Result<()> {
+        let new_response =
+            Response::file_download_stream_from(base_dir, path, download_name).await?;
+        self.update_response(new_response);
+        Ok(())
+    }
+
+    /// Stream a file for inline display instead of buffering it in memory.
+    pub async fn file_inline_stream<P: AsRef<Path>>(&mut self, path: P) -> Result<()> {
+        let new_response = Response::file_inline_stream(path).await?;
+        self.update_response(new_response);
+        Ok(())
+    }
+
+    /// Stream a file for inline display, constrained to a base directory.
+    pub async fn file_inline_stream_from<B: AsRef<Path>, P: AsRef<Path>>(
+        &mut self,
+        base_dir: B,
+        path: P,
+    ) -> Result<()> {
+        let new_response = Response::file_inline_stream_from(base_dir, path).await?;
+        self.update_response(new_response);
+        Ok(())
+    }
+
     /// Send binary data response (Total.js: controller.binary)
     pub fn binary(
         &mut self,
@@ -663,14 +708,67 @@ impl Context {
         Ok(())
     }
 
-    /// Send streaming response (Total.js: controller.stream)
+    /// Send a streaming response (Total.js: controller.stream).
+    ///
+    /// `body` is anything convertible into a [`Body`](crate::http::Body): a
+    /// `Vec<u8>` is sent buffered, a `Body::from_stream(..)` is sent chunk by
+    /// chunk as it is produced. Headers already set on the response (by
+    /// inbound middleware, say) are preserved, as with every `ctx.*` sender.
+    ///
+    /// ```rust,no_run
+    /// use rustf::prelude::*;
+    /// use bytes::Bytes;
+    ///
+    /// async fn export(ctx: &mut Context) -> rustf::Result<()> {
+    ///     let rows = futures::stream::iter((1..=3).map(|n| {
+    ///         Ok(Bytes::from(format!("{n},row {n}\n")))
+    ///     }));
+    ///     ctx.stream(Body::from_stream(rows), "text/csv", Some("rows.csv"))
+    /// }
+    /// ```
     pub fn stream(
         &mut self,
-        data: Vec<u8>,
+        body: impl Into<Body>,
         content_type: &str,
         download_name: Option<&str>,
     ) -> Result<()> {
-        let new_response = Response::stream(data, content_type, download_name);
+        let new_response = Response::stream(body, content_type, download_name);
+        self.update_response(new_response);
+        Ok(())
+    }
+
+    /// Send a Server-Sent Events stream.
+    ///
+    /// The response stays open and each [`SseEvent`](crate::http::SseEvent)
+    /// is pushed to the client as it arrives; it ends when `events` ends.
+    /// `events` may yield `SseEvent` or `rustf::Result<SseEvent>`; an `Err`
+    /// aborts the stream. See [`crate::http::sse`] for the wire format and a
+    /// channel-backed example.
+    pub fn sse<S>(&mut self, events: S) -> Result<()>
+    where
+        S: futures::Stream + Send + 'static,
+        S::Item: crate::http::sse::SseItem,
+    {
+        let new_response = Response::sse(events);
+        self.update_response(new_response);
+        Ok(())
+    }
+
+    /// Send a Server-Sent Events stream with idle keep-alive comments.
+    ///
+    /// Use this when the feed can go quiet for longer than the idle timeout
+    /// of a proxy in front of the server. See
+    /// [`crate::http::sse::keep_alive`] for choosing the interval.
+    pub fn sse_with_keep_alive<S>(
+        &mut self,
+        events: S,
+        keep_alive: std::time::Duration,
+    ) -> Result<()>
+    where
+        S: futures::Stream + Send + 'static,
+        S::Item: crate::http::sse::SseItem,
+    {
+        let new_response = Response::sse_with_keep_alive(events, keep_alive);
         self.update_response(new_response);
         Ok(())
     }
@@ -707,16 +805,6 @@ impl Context {
         let session = self.require_session()?;
         session.flash_remove(key);
         Ok(())
-    }
-
-    /// Get a URL parameter
-    pub fn param(&self, key: &str) -> Option<&str> {
-        self.req.params.get(key).map(|s| s.as_str())
-    }
-
-    /// Get a query parameter
-    pub fn query(&self, key: &str) -> Option<&str> {
-        self.req.query.get(key).map(|s| s.as_str())
     }
 
     // Source-first query parameter methods (canonical implementation)
@@ -765,42 +853,31 @@ impl Context {
         self.query_bool(key).unwrap_or(default)
     }
 
-    // Type-first query parameter methods (delegate to source-first)
-
-    /// Get a query parameter (returns error if missing)
-    /// Prefer [`query_str`](Self::query_str) for discoverability.
-    pub fn str_query(&self, key: &str) -> Result<String> {
-        self.query_str(key)
+    /// Get a query parameter parsed into any `FromStr` type.
+    ///
+    /// The typed accessor for everything `query_int` and `query_bool` do not
+    /// cover — `f64`, `i64`, `u32`, `Uuid`, `Decimal`, `NaiveDate`,
+    /// `DateTime<Utc>`, `IpAddr`. Never hand-write `.parse()` on a query value.
+    ///
+    /// ```ignore
+    /// let start: NaiveDate = ctx.query_as("start")?;
+    /// let radius: f64 = ctx.query_as("radius")?;
+    /// ```
+    pub fn query_as<T: std::str::FromStr>(&self, key: &str) -> Result<T> {
+        let value = self.query_str(key)?;
+        value.trim().parse::<T>().map_err(|_| {
+            Error::InvalidInput(format!(
+                "Query parameter '{}' must be a valid {}",
+                key,
+                short_type_name::<T>()
+            ))
+        })
     }
 
-    /// Get a query parameter as integer
-    /// Prefer [`query_int`](Self::query_int) for discoverability.
-    pub fn int_query(&self, key: &str) -> Result<i32> {
-        self.query_int(key)
-    }
-
-    /// Get a query parameter as boolean
-    /// Prefer [`query_bool`](Self::query_bool) for discoverability.
-    pub fn bool_query(&self, key: &str) -> Result<bool> {
-        self.query_bool(key)
-    }
-
-    /// Get a query parameter with default
-    /// Prefer [`query_str_or`](Self::query_str_or) for discoverability.
-    pub fn str_query_or(&self, key: &str, default: &str) -> String {
-        self.query_str_or(key, default)
-    }
-
-    /// Get a query parameter as integer with default
-    /// Prefer [`query_int_or`](Self::query_int_or) for discoverability.
-    pub fn int_query_or(&self, key: &str, default: i32) -> i32 {
-        self.query_int_or(key, default)
-    }
-
-    /// Get a query parameter as boolean with default
-    /// Prefer [`query_bool_or`](Self::query_bool_or) for discoverability.
-    pub fn bool_query_or(&self, key: &str, default: bool) -> bool {
-        self.query_bool_or(key, default)
+    /// Get a query parameter parsed into any `FromStr` type, or a default if
+    /// the parameter is missing, empty or unparseable.
+    pub fn query_as_or<T: std::str::FromStr>(&self, key: &str, default: T) -> T {
+        self.query_as(key).unwrap_or(default)
     }
 
     // Source-first route parameter methods (canonical implementation)
@@ -836,30 +913,31 @@ impl Context {
         self.param_int(key).unwrap_or(default)
     }
 
-    // Type-first route parameter methods (delegate to source-first)
-
-    /// Get a route parameter (returns error if missing)
-    /// Prefer [`param_str`](Self::param_str) for discoverability.
-    pub fn str_param(&self, key: &str) -> Result<String> {
-        self.param_str(key)
+    /// Get a route parameter parsed into any `FromStr` type.
+    ///
+    /// The typed accessor for everything `param_int` does not cover — `i64`,
+    /// `u32`, `Uuid`, `NaiveDate`, `IpAddr`. Never hand-write `.parse()` on a
+    /// route parameter.
+    ///
+    /// ```ignore
+    /// let id: i64 = ctx.param_as("id")?;
+    /// let uuid: Uuid = ctx.param_as("uuid")?;
+    /// ```
+    pub fn param_as<T: std::str::FromStr>(&self, key: &str) -> Result<T> {
+        let value = self.param_str(key)?;
+        value.trim().parse::<T>().map_err(|_| {
+            Error::InvalidInput(format!(
+                "Route parameter '{}' must be a valid {}",
+                key,
+                short_type_name::<T>()
+            ))
+        })
     }
 
-    /// Get a route parameter as integer
-    /// Prefer [`param_int`](Self::param_int) for discoverability.
-    pub fn int_param(&self, key: &str) -> Result<i32> {
-        self.param_int(key)
-    }
-
-    /// Get a route parameter with default
-    /// Prefer [`param_str_or`](Self::param_str_or) for discoverability.
-    pub fn str_param_or(&self, key: &str, default: &str) -> String {
-        self.param_str_or(key, default)
-    }
-
-    /// Get a route parameter as integer with default
-    /// Prefer [`param_int_or`](Self::param_int_or) for discoverability.
-    pub fn int_param_or(&self, key: &str, default: i32) -> i32 {
-        self.param_int_or(key, default)
+    /// Get a route parameter parsed into any `FromStr` type, or a default if
+    /// the parameter is missing, empty or unparseable.
+    pub fn param_as_or<T: std::str::FromStr>(&self, key: &str, default: T) -> T {
+        self.param_as(key).unwrap_or(default)
     }
 
     /// Get request body as JSON
@@ -868,15 +946,12 @@ impl Context {
     }
 
     /// Get request body as form data (cached to avoid re-parsing).
-    /// Returns a [`FormData`] wrapper with typed getters: `form.get_int("id")?`, `form.get_str("name")?`, etc.
+    ///
+    /// Returns a [`FormData`] wrapper with typed getters: `form.get_int("id")?`,
+    /// `form.get_str("name")?`, `form.get_as::<f64>("price")?`. Multi-value
+    /// fields keep every value — `form.get_all("tags")`.
     pub fn body_form(&mut self) -> Result<FormData> {
-        if self.cached_form_data.is_none() {
-            self.cached_form_data = Some(self.req.body_as_form());
-        }
-        match self.cached_form_data.as_ref().unwrap() {
-            Ok(data) => Ok(FormData::new(data.clone())),
-            Err(e) => Err(Error::InvalidInput(e.to_string())),
-        }
+        Ok(FormData::new(self.body_form_data()?.clone()))
     }
 
     /// Get request body as form data with array support (field[] syntax)
@@ -891,32 +966,24 @@ impl Context {
         }
     }
 
-    /// Get request body as form data with array support (cloned)
-    /// Use this only when you need ownership of the data
-    pub fn body_form_data_cloned(&mut self) -> Result<HashMap<String, FormValue>> {
-        self.body_form_data().map(|data| data.clone())
-    }
-
-    /// Parse form data into a typed structure
+    /// Parse the form body into a typed structure.
+    ///
+    /// Fields are parsed out of their string form, so `f64`, `i64`, `bool`,
+    /// `Option<T>` and `Vec<T>` all work; a multi-value field (`tags[]`)
+    /// deserializes into a sequence field.
+    ///
+    /// ```ignore
+    /// #[derive(Deserialize)]
+    /// struct NewProduct {
+    ///     name: String,
+    ///     price: f64,
+    ///     tags: Vec<String>,
+    /// }
+    /// let product: NewProduct = ctx.body_form_typed()?;
+    /// ```
     pub fn body_form_typed<T: DeserializeOwned>(&mut self) -> Result<T> {
         let form_data = self.body_form_data()?;
-
-        // Convert HashMap<String, FormValue> to serde_json::Value for deserialization
-        let mut json_map = serde_json::Map::new();
-        for (key, value) in form_data.iter() {
-            let json_value = match value {
-                FormValue::Single(s) => serde_json::Value::String(s.clone()),
-                FormValue::Multiple(v) => serde_json::Value::Array(
-                    v.iter()
-                        .map(|s| serde_json::Value::String(s.clone()))
-                        .collect(),
-                ),
-            };
-            json_map.insert(key.clone(), json_value);
-        }
-
-        let json_value = serde_json::Value::Object(json_map);
-        serde_json::from_value(json_value).map_err(Error::Json)
+        crate::http::form_de::from_form_data(form_data)
     }
 
     // Source-first body field methods (canonical implementation)
@@ -968,42 +1035,31 @@ impl Context {
         self.body_bool(key).unwrap_or(default)
     }
 
-    // Type-first body field methods (delegate to source-first)
-
-    /// Get a field from body (returns error if missing)
-    /// Prefer [`body_str`](Self::body_str) for discoverability.
-    pub fn str_body(&mut self, key: &str) -> Result<String> {
-        self.body_str(key)
+    /// Get a body field parsed into any `FromStr` type.
+    ///
+    /// The typed accessor for everything `body_int` and `body_bool` do not
+    /// cover — `f64`, `i64`, `Uuid`, `Decimal`, `NaiveDate`. Never hand-write
+    /// `.parse()` on a body field.
+    ///
+    /// ```ignore
+    /// let price: f64 = ctx.body_as("price")?;
+    /// let due: NaiveDate = ctx.body_as("due_date")?;
+    /// ```
+    pub fn body_as<T: std::str::FromStr>(&mut self, key: &str) -> Result<T> {
+        let value = self.body_str(key)?;
+        value.trim().parse::<T>().map_err(|_| {
+            Error::InvalidInput(format!(
+                "Field '{}' must be a valid {}",
+                key,
+                short_type_name::<T>()
+            ))
+        })
     }
 
-    /// Get a field from body as integer
-    /// Prefer [`body_int`](Self::body_int) for discoverability.
-    pub fn int_body(&mut self, key: &str) -> Result<i32> {
-        self.body_int(key)
-    }
-
-    /// Get a field from body as boolean
-    /// Prefer [`body_bool`](Self::body_bool) for discoverability.
-    pub fn bool_body(&mut self, key: &str) -> Result<bool> {
-        self.body_bool(key)
-    }
-
-    /// Get a field from body with default
-    /// Prefer [`body_str_or`](Self::body_str_or) for discoverability.
-    pub fn str_body_or(&mut self, key: &str, default: &str) -> String {
-        self.body_str_or(key, default)
-    }
-
-    /// Get a field from body as integer with default
-    /// Prefer [`body_int_or`](Self::body_int_or) for discoverability.
-    pub fn int_body_or(&mut self, key: &str, default: i32) -> i32 {
-        self.body_int_or(key, default)
-    }
-
-    /// Get a field from body as boolean with default
-    /// Prefer [`body_bool_or`](Self::body_bool_or) for discoverability.
-    pub fn bool_body_or(&mut self, key: &str, default: bool) -> bool {
-        self.body_bool_or(key, default)
+    /// Get a body field parsed into any `FromStr` type, or a default if the
+    /// field is missing, empty or unparseable.
+    pub fn body_as_or<T: std::str::FromStr>(&mut self, key: &str, default: T) -> T {
+        self.body_as(key).unwrap_or(default)
     }
 
     /// Get the full body data as JSON (converts form data to JSON if needed)
@@ -1087,43 +1143,6 @@ impl Context {
         serde_json::Value::Object(json_map)
     }
 
-    /// Extract request data for passing to service layers
-    pub fn request_data(&mut self) -> Result<RequestData> {
-        // Build body data based on content type
-        let content_type = self
-            .req
-            .headers
-            .get("content-type")
-            .map(|s| s.as_str())
-            .unwrap_or("");
-
-        let body = if content_type.contains("application/json") {
-            let json = self.body_json::<serde_json::Value>()?;
-            BodyData::Json(json)
-        } else if content_type.contains("application/x-www-form-urlencoded")
-            || content_type.contains("multipart/form-data")
-        {
-            let form = self.body_form_data()?;
-            BodyData::Form(form.clone())
-        } else {
-            let text = self.req.body_as_string();
-            if text.is_empty() {
-                BodyData::Empty
-            } else {
-                BodyData::Text(text)
-            }
-        };
-
-        Ok(RequestData::new(
-            self.req.query.clone(),
-            self.req.params.clone(),
-            body,
-            self.req.headers.clone(),
-            self.req.method.clone(),
-            self.req.uri.clone(),
-        ))
-    }
-
     /// Get a header value
     pub fn header(&self, name: &str) -> Option<&str> {
         let normalized = name.to_ascii_lowercase();
@@ -1151,21 +1170,6 @@ impl Context {
         let json_string = serde_json::to_string(&data)?;
         self.update_response_body(json_string.into_bytes(), "application/json", None);
         Ok(())
-    }
-
-    /// Return text response
-    pub fn text(&mut self, content: impl Into<String>) -> Result<()> {
-        self.update_response_body(
-            content.into().into_bytes(),
-            "text/plain; charset=utf-8",
-            None,
-        );
-        Ok(())
-    }
-
-    /// Total.js style "cancel" - return self for chaining
-    pub fn cancel(&self) -> &Self {
-        self
     }
 
     /// Session convenience methods
@@ -1273,11 +1277,6 @@ impl Context {
         self.req.split()
     }
 
-    /// Generate or retrieve CSRF token (Total.js: controller.csrf)
-    pub fn csrf(&self) -> String {
-        self.generate_csrf(None).unwrap_or_default()
-    }
-
     /// Verify CSRF token for the current request (one-time use)
     pub fn verify_csrf(&mut self, token_id: Option<&str>) -> Result<bool> {
         let token_id = token_id.unwrap_or("_csrf_token");
@@ -1377,12 +1376,12 @@ impl Context {
             if let Ok(form_data) = self.body_form() {
                 // Try token_id field
                 if let Some(token) = form_data.get(token_id) {
-                    return Some(token.clone());
+                    return Some(token.to_string());
                 }
                 // Try _token field for default
                 if token_id == "_csrf_token" {
                     if let Some(token) = form_data.get("_token") {
-                        return Some(token.clone());
+                        return Some(token.to_string());
                     }
                 }
             }
@@ -1484,23 +1483,9 @@ mod tests {
     }
 
     #[test]
-    fn test_request_data_returns_error_for_invalid_json() {
-        let mut request = Request::new("POST", "/test", "1.1");
-        request
-            .headers
-            .insert("content-type".to_string(), "application/json".to_string());
-        request.set_body(br#"{"broken": }"#.to_vec());
-
-        let views = Arc::new(ViewEngine::new());
-        let mut ctx = Context::new(request, views);
-
-        assert!(ctx.request_data().is_err());
-    }
-
-    #[test]
     fn test_redirect_replaces_stale_content_headers() {
         let mut ctx = create_test_context();
-        ctx.text("hello").unwrap();
+        ctx.plain("hello").unwrap();
         ctx.add_header("X-Test", "keep");
         ctx.redirect("/next").unwrap();
 
@@ -1525,23 +1510,138 @@ mod tests {
         let ctx = create_test_context();
 
         // Test mandatory query methods
-        assert_eq!(ctx.str_query("page").unwrap(), "2");
-        assert_eq!(ctx.int_query("page").unwrap(), 2);
-        assert_eq!(ctx.bool_query("active").unwrap(), true);
+        assert_eq!(ctx.query_str("page").unwrap(), "2");
+        assert_eq!(ctx.query_int("page").unwrap(), 2);
+        assert_eq!(ctx.query_bool("active").unwrap(), true);
 
         // Test missing required query param
-        assert!(ctx.str_query("missing").is_err());
-        assert!(ctx.int_query("missing").is_err());
+        assert!(ctx.query_str("missing").is_err());
+        assert!(ctx.query_int("missing").is_err());
 
         // Test optional query methods
-        assert_eq!(ctx.str_query_or("page", "1"), "2");
-        assert_eq!(ctx.int_query_or("page", 1), 2);
-        assert_eq!(ctx.bool_query_or("active", false), true);
+        assert_eq!(ctx.query_str_or("page", "1"), "2");
+        assert_eq!(ctx.query_int_or("page", 1), 2);
+        assert_eq!(ctx.query_bool_or("active", false), true);
 
         // Test defaults for missing params
-        assert_eq!(ctx.str_query_or("missing", "default"), "default");
-        assert_eq!(ctx.int_query_or("missing", 99), 99);
-        assert_eq!(ctx.bool_query_or("missing", true), true);
+        assert_eq!(ctx.query_str_or("missing", "default"), "default");
+        assert_eq!(ctx.query_int_or("missing", 99), 99);
+        assert_eq!(ctx.query_bool_or("missing", true), true);
+    }
+
+    #[test]
+    fn test_query_as_parses_types_the_int_and_bool_accessors_do_not_cover() {
+        let mut request = Request::new("GET", "/test", "1.1");
+        request
+            .query
+            .insert("radius".to_string(), "12.5".to_string());
+        request
+            .query
+            .insert("start".to_string(), "2026-09-04".to_string());
+        request
+            .query
+            .insert("big".to_string(), "9000000000".to_string());
+        request
+            .query
+            .insert("bad".to_string(), "twelve".to_string());
+        let ctx = Context::new(request, Arc::new(ViewEngine::new()));
+
+        assert_eq!(ctx.query_as::<f64>("radius").unwrap(), 12.5);
+        assert_eq!(ctx.query_as::<i64>("big").unwrap(), 9_000_000_000);
+        assert!(
+            ctx.query_as::<std::net::IpAddr>("missing").is_err(),
+            "a missing parameter is an error, not a default"
+        );
+
+        // The error names the parameter and the expected type, without the
+        // module path serde would otherwise print.
+        let error = ctx.query_as::<f64>("bad").unwrap_err().to_string();
+        assert!(
+            error.contains("bad") && error.contains("f64"),
+            "unhelpful error: {}",
+            error
+        );
+
+        assert_eq!(ctx.query_as_or::<f64>("radius", 1.0), 12.5);
+        assert_eq!(ctx.query_as_or::<f64>("bad", 1.0), 1.0);
+        assert_eq!(ctx.query_as_or::<f64>("missing", 1.0), 1.0);
+    }
+
+    #[test]
+    fn test_param_as_parses_types_the_int_accessor_does_not_cover() {
+        let ctx = create_test_context();
+
+        assert_eq!(ctx.param_as::<i64>("id").unwrap(), 123);
+        assert_eq!(ctx.param_as::<u32>("id").unwrap(), 123);
+        assert!(ctx.param_as::<i64>("slug").is_err());
+        assert!(ctx.param_as::<i64>("missing").is_err());
+        assert_eq!(ctx.param_as_or::<i64>("id", 0), 123);
+        assert_eq!(ctx.param_as_or::<i64>("slug", -1), -1);
+    }
+
+    #[test]
+    fn test_body_as_parses_form_fields_into_any_from_str_type() {
+        let mut request = Request::new("POST", "/test", "1.1");
+        request.headers.insert(
+            "content-type".to_string(),
+            "application/x-www-form-urlencoded".to_string(),
+        );
+        request.set_body(b"price=19.99&qty=7&label=widget".to_vec());
+        let mut ctx = Context::new(request, Arc::new(ViewEngine::new()));
+
+        assert_eq!(ctx.body_as::<f64>("price").unwrap(), 19.99);
+        assert_eq!(ctx.body_as::<i64>("qty").unwrap(), 7);
+        assert!(ctx.body_as::<f64>("label").is_err());
+        assert_eq!(ctx.body_as_or::<f64>("label", 0.0), 0.0);
+        assert_eq!(ctx.body_as_or::<f64>("missing", 2.5), 2.5);
+    }
+
+    #[test]
+    fn test_body_form_keeps_every_value_of_a_repeated_field() {
+        let mut request = Request::new("POST", "/test", "1.1");
+        request.headers.insert(
+            "content-type".to_string(),
+            "application/x-www-form-urlencoded".to_string(),
+        );
+        request.set_body(b"title=Hello&tags[]=rust&tags[]=web".to_vec());
+        let mut ctx = Context::new(request, Arc::new(ViewEngine::new()));
+
+        let form = ctx.body_form().unwrap();
+        assert_eq!(form.get("title"), Some("Hello"));
+        assert_eq!(form.get_all("tags"), vec!["rust", "web"]);
+    }
+
+    #[test]
+    fn test_body_form_typed_parses_non_string_fields() {
+        #[derive(serde::Deserialize)]
+        struct NewProduct {
+            name: String,
+            price: f64,
+            quantity: i64,
+            in_stock: bool,
+            note: Option<String>,
+            tags: Vec<String>,
+        }
+
+        let mut request = Request::new("POST", "/test", "1.1");
+        request.headers.insert(
+            "content-type".to_string(),
+            "application/x-www-form-urlencoded".to_string(),
+        );
+        request.set_body(
+            b"name=Widget&price=19.99&quantity=42&in_stock=on&note=&tags[]=new&tags[]=sale"
+                .to_vec(),
+        );
+        let mut ctx = Context::new(request, Arc::new(ViewEngine::new()));
+
+        let product: NewProduct = ctx.body_form_typed().unwrap();
+        assert_eq!(product.name, "Widget");
+        // The old JSON-of-strings bridge failed here with "invalid type: string".
+        assert_eq!(product.price, 19.99);
+        assert_eq!(product.quantity, 42);
+        assert!(product.in_stock);
+        assert_eq!(product.note, None);
+        assert_eq!(product.tags, vec!["new".to_string(), "sale".to_string()]);
     }
 
     #[test]
@@ -1549,19 +1649,19 @@ mod tests {
         let ctx = create_test_context();
 
         // Test mandatory param methods
-        assert_eq!(ctx.str_param("id").unwrap(), "123");
-        assert_eq!(ctx.int_param("id").unwrap(), 123);
-        assert_eq!(ctx.str_param("slug").unwrap(), "test-post");
+        assert_eq!(ctx.param_str("id").unwrap(), "123");
+        assert_eq!(ctx.param_int("id").unwrap(), 123);
+        assert_eq!(ctx.param_str("slug").unwrap(), "test-post");
 
         // Test missing required param
-        assert!(ctx.str_param("missing").is_err());
-        assert!(ctx.int_param("missing").is_err());
+        assert!(ctx.param_str("missing").is_err());
+        assert!(ctx.param_int("missing").is_err());
 
         // Test optional param methods
-        assert_eq!(ctx.str_param_or("id", "0"), "123");
-        assert_eq!(ctx.int_param_or("id", 0), 123);
-        assert_eq!(ctx.str_param_or("missing", "default"), "default");
-        assert_eq!(ctx.int_param_or("missing", 42), 42);
+        assert_eq!(ctx.param_str_or("id", "0"), "123");
+        assert_eq!(ctx.param_int_or("id", 0), 123);
+        assert_eq!(ctx.param_str_or("missing", "default"), "default");
+        assert_eq!(ctx.param_int_or("missing", 42), 42);
     }
 
     #[test]
@@ -1579,12 +1679,12 @@ mod tests {
         let views = Arc::new(ViewEngine::new());
         let ctx = Context::new(request, views);
 
-        assert_eq!(ctx.bool_query("yes").unwrap(), true);
-        assert_eq!(ctx.bool_query("one").unwrap(), true);
-        assert_eq!(ctx.bool_query("on").unwrap(), true);
-        assert_eq!(ctx.bool_query("true").unwrap(), true);
-        assert_eq!(ctx.bool_query("false").unwrap(), false);
-        assert_eq!(ctx.bool_query("zero").unwrap(), false);
+        assert_eq!(ctx.query_bool("yes").unwrap(), true);
+        assert_eq!(ctx.query_bool("one").unwrap(), true);
+        assert_eq!(ctx.query_bool("on").unwrap(), true);
+        assert_eq!(ctx.query_bool("true").unwrap(), true);
+        assert_eq!(ctx.query_bool("false").unwrap(), false);
+        assert_eq!(ctx.query_bool("zero").unwrap(), false);
     }
 
     #[test]
@@ -1592,12 +1692,12 @@ mod tests {
         let ctx = create_test_context();
 
         // Check error messages
-        let err = ctx.str_query("missing").unwrap_err();
+        let err = ctx.query_str("missing").unwrap_err();
         assert!(err
             .to_string()
             .contains("Query parameter 'missing' is required"));
 
-        let err = ctx.int_param("slug").unwrap_err();
+        let err = ctx.param_int("slug").unwrap_err();
         assert!(err
             .to_string()
             .contains("Route parameter 'slug' must be a valid integer"));

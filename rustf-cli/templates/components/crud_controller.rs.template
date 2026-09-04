@@ -41,7 +41,7 @@ async fn index(ctx: &mut Context) -> rustf::Result<()> {
 }
 
 async fn show(ctx: &mut Context) -> rustf::Result<()> {
-    let id = ctx.param_int("id")? as i64;
+    let id = ctx.param_as::<i64>("id")?;
     match {{pascal_name}}Service::find(id).await? {
         Some(item) => {
             let csrf = ctx.generate_csrf(None)?;
@@ -79,7 +79,7 @@ async fn create(ctx: &mut Context) -> rustf::Result<()> {
 }
 
 async fn edit_form(ctx: &mut Context) -> rustf::Result<()> {
-    let id = ctx.param_int("id")? as i64;
+    let id = ctx.param_as::<i64>("id")?;
     match {{pascal_name}}Service::find(id).await? {
         Some(item) => {
             let csrf = ctx.generate_csrf(None)?;
@@ -94,7 +94,7 @@ async fn edit_form(ctx: &mut Context) -> rustf::Result<()> {
 }
 
 async fn update(ctx: &mut Context) -> rustf::Result<()> {
-    let id = ctx.param_int("id")? as i64;
+    let id = ctx.param_as::<i64>("id")?;
     let form = ctx.body_form()?;
     match {{pascal_name}}Service::update(id, &form).await {
         Ok(()) => {
@@ -109,7 +109,7 @@ async fn update(ctx: &mut Context) -> rustf::Result<()> {
 }
 
 async fn destroy(ctx: &mut Context) -> rustf::Result<()> {
-    let id = ctx.param_int("id")? as i64;
+    let id = ctx.param_as::<i64>("id")?;
     {{pascal_name}}Service::delete(id).await?;
     ctx.flash_success("{{title_singular}} deleted.")?;
     ctx.redirect("/{{name}}")

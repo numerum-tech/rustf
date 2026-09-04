@@ -150,7 +150,7 @@ let js_type = U::get_content_type("js");       // "application/javascript"
 
 // Use in file serving
 async fn serve_file(ctx: Context) -> Result<Response> {
-    let filename = ctx.param("filename")?;
+    let filename = ctx.param_str("filename")?;
     let extension = filename.split('.').last().unwrap_or("txt");
     let content_type = U::get_content_type(extension);
     

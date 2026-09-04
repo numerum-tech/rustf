@@ -196,8 +196,8 @@ async fn user_profile(ctx: &mut Context) -> Result<()> {
 
 ```rust
 async fn login_handler(ctx: &mut Context) -> Result<()> {
-    let email = ctx.str_body("email")?;
-    let password = ctx.str_body("password")?;
+    let email = ctx.body_str("email")?;
+    let password = ctx.body_str("password")?;
     
     // Authenticate user (check database, verify password, etc.)
     let user = authenticate_user(&email, &password).await?;
@@ -246,7 +246,7 @@ async fn update_preferences(ctx: &mut Context) -> Result<()> {
         .unwrap_or_else(|| HashMap::new());
     
     // Update preferences from request
-    let theme = ctx.str_body("theme")?;
+    let theme = ctx.body_str("theme")?;
     preferences.insert("theme".to_string(), json!(theme));
     
     // Save back to session
@@ -263,7 +263,7 @@ async fn create_item(ctx: &mut Context) -> Result<()> {
     ctx.require_auth()?;
     
     // Process form data
-    let name = ctx.str_body("name")?;
+    let name = ctx.body_str("name")?;
     
     // Create item in database
     match create_item_in_db(&name).await {

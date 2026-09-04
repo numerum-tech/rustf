@@ -45,41 +45,81 @@ impl FormValue {
 
 /// Parsed form data with typed getters (e.g. `get_int`, `get_str`).
 ///
-/// Returned by [`Context::body_form`](crate::Context::body_form). Implements
-/// `Deref<Target = HashMap<String, String>>` so you can use `.get("key")` and
-/// iteration as with a plain map.
+/// Returned by [`Context::body_form`](crate::Context::body_form).
+///
+/// Multi-value fields — repeated checkboxes, `tags[]` — keep every value.
+/// [`get`](Self::get) returns the first, [`get_all`](Self::get_all) returns
+/// them all. Prefer the typed getters (`get_int`, `get_bool`, `get_as::<T>`)
+/// over parsing strings by hand.
 #[derive(Debug, Clone, Default, Serialize)]
 #[serde(transparent)]
-pub struct FormData(HashMap<String, String>);
-
-impl std::ops::Deref for FormData {
-    type Target = HashMap<String, String>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
+pub struct FormData(HashMap<String, FormValue>);
 
 impl FormData {
     /// Create from a parsed form map (used by `Context::body_form`).
-    pub fn new(map: HashMap<String, String>) -> Self {
+    pub fn new(map: HashMap<String, FormValue>) -> Self {
         Self(map)
+    }
+
+    /// First value submitted for `key`, or `None` if the field is absent.
+    pub fn get(&self, key: &str) -> Option<&str> {
+        self.0.get(key).map(FormValue::as_string)
+    }
+
+    /// Every value submitted for `key`; empty if the field is absent.
+    ///
+    /// A field submitted once yields a one-element vector, so a `tags[]` group
+    /// with a single box ticked behaves like one with several.
+    pub fn get_all(&self, key: &str) -> Vec<&str> {
+        self.0.get(key).map(FormValue::as_array).unwrap_or_default()
+    }
+
+    /// The raw entry for `key`, single or multiple.
+    pub fn get_value(&self, key: &str) -> Option<&FormValue> {
+        self.0.get(key)
+    }
+
+    /// Whether the field was submitted at all (even empty).
+    pub fn contains_key(&self, key: &str) -> bool {
+        self.0.contains_key(key)
+    }
+
+    /// Number of distinct fields submitted.
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    /// Whether no fields were submitted.
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    /// Iterate over the submitted field names.
+    pub fn keys(&self) -> impl Iterator<Item = &str> {
+        self.0.keys().map(|k| k.as_str())
+    }
+
+    /// Iterate over the submitted fields and their raw values.
+    pub fn iter(&self) -> impl Iterator<Item = (&str, &FormValue)> {
+        self.0.iter().map(|(k, v)| (k.as_str(), v))
+    }
+
+    /// Consume the wrapper and return the underlying map.
+    pub fn into_inner(self) -> HashMap<String, FormValue> {
+        self.0
     }
 
     /// Get a required string field (errors if missing or empty).
     pub fn get_str(&self, key: &str) -> Result<String> {
-        self.0
-            .get(key)
+        self.get(key)
             .filter(|s| !s.is_empty())
-            .cloned()
+            .map(|s| s.to_string())
             .ok_or_else(|| Error::InvalidInput(format!("Field '{}' is required", key)))
     }
 
     /// Get a required integer field (errors if missing or invalid).
     pub fn get_int(&self, key: &str) -> Result<i32> {
-        self.get_str(key)?
-            .parse()
-            .map_err(|_| Error::InvalidInput(format!("Field '{}' must be a valid integer", key)))
+        self.get_as(key)
     }
 
     /// Get a required boolean field (errors if missing). Accepts "true", "1", "yes", "on", "checked".
@@ -91,29 +131,67 @@ impl FormData {
         ))
     }
 
+    /// Get a required field parsed into any `FromStr` type.
+    ///
+    /// Covers `f64`, `u64`, `Uuid`, `NaiveDate`, `Decimal`, `IpAddr` and the
+    /// rest, so no call site needs a hand-written `.parse()` chain.
+    pub fn get_as<T: std::str::FromStr>(&self, key: &str) -> Result<T> {
+        let value = self.get_str(key)?;
+        value.trim().parse::<T>().map_err(|_| {
+            Error::InvalidInput(format!(
+                "Field '{}' must be a valid {}",
+                key,
+                short_type_name::<T>()
+            ))
+        })
+    }
+
     /// Get a string field, or a default if missing or empty.
     pub fn get_str_or(&self, key: &str, default: &str) -> String {
-        self.0
-            .get(key)
-            .filter(|s| !s.is_empty())
-            .cloned()
-            .unwrap_or_else(|| default.to_string())
+        self.get_str(key).unwrap_or_else(|_| default.to_string())
     }
 
     /// Get an integer field, or a default if missing or invalid.
     pub fn get_int_or(&self, key: &str, default: i32) -> i32 {
-        self.get_str(key)
-            .ok()
-            .and_then(|s| s.parse().ok())
-            .unwrap_or(default)
+        self.get_int(key).unwrap_or(default)
     }
 
     /// Get a boolean field, or a default if missing. Accepts "true", "1", "yes", "on", "checked".
     pub fn get_bool_or(&self, key: &str, default: bool) -> bool {
-        self.get_str(key)
-            .map(|s| matches!(s.as_str(), "true" | "1" | "yes" | "on" | "checked"))
-            .unwrap_or(default)
+        self.get_bool(key).unwrap_or(default)
     }
+
+    /// Get a field parsed into any `FromStr` type, or a default if missing or invalid.
+    pub fn get_as_or<T: std::str::FromStr>(&self, key: &str, default: T) -> T {
+        self.get_as(key).unwrap_or(default)
+    }
+
+    /// Get every value for a multi-value field, each parsed into `T`.
+    ///
+    /// Errors on the first value that does not parse, naming the field.
+    pub fn get_all_as<T: std::str::FromStr>(&self, key: &str) -> Result<Vec<T>> {
+        self.get_all(key)
+            .into_iter()
+            .map(|value| {
+                value.trim().parse::<T>().map_err(|_| {
+                    Error::InvalidInput(format!(
+                        "Field '{}' must contain only valid {} values",
+                        key,
+                        short_type_name::<T>()
+                    ))
+                })
+            })
+            .collect()
+    }
+}
+
+/// Type name without its module path, for error messages an end user reads.
+///
+/// `std::any::type_name::<NaiveDate>()` yields `chrono::naive::date::NaiveDate`;
+/// only the last segment is useful in a validation message.
+pub(crate) fn short_type_name<T: ?Sized>() -> &'static str {
+    let full = std::any::type_name::<T>();
+    full.rsplit("::").next().unwrap_or(full)
 }
 
 pub struct Request {
@@ -264,27 +342,6 @@ impl Request {
 
     /// Parse request body as form (application/x-www-form-urlencoded or multipart/form-data).
     /// For multipart requests, parses on first call and uses cached fields so fields like `oldid` are present.
-    pub fn body_as_form(&mut self) -> Result<HashMap<String, String>> {
-        // Use cached multipart form fields if already parsed (e.g. by files())
-        if let Some(ref form) = self.multipart_form_data {
-            return Ok(form.clone());
-        }
-        // Parse multipart on first use so body_form() sees all fields
-        if self
-            .headers
-            .get("content-type")
-            .map(|v| v.starts_with("multipart/form-data"))
-            == Some(true)
-        {
-            self.parse_files()?;
-            if let Some(ref form) = self.multipart_form_data {
-                return Ok(form.clone());
-            }
-        }
-        let body_str = String::from_utf8_lossy(&self.body_bytes);
-        Ok(Self::parse_query(&body_str))
-    }
-
     /// Parse form data with support for arrays (field[] syntax)
     pub fn body_as_form_data(&mut self) -> Result<HashMap<String, FormValue>> {
         if let Some(ref form) = self.multipart_form_data {
@@ -840,15 +897,6 @@ impl Request {
             .collect()
     }
 
-    /// Generate or retrieve CSRF token (Total.js: request.csrf())
-    ///
-    /// This generates a cryptographically secure CSRF token for the current request.
-    /// In a full implementation, this would typically be stored in the session
-    /// and validated against form submissions.
-    pub fn csrf(&self) -> String {
-        Self::generate_csrf_token()
-    }
-
     /// Generate a cryptographically secure CSRF token
     pub(crate) fn generate_csrf_token() -> String {
         use rand::{thread_rng, Rng};
@@ -1192,15 +1240,21 @@ mod tests {
     #[test]
     fn test_form_data_getters() {
         let mut map = HashMap::new();
-        map.insert("name".to_string(), "Alice".to_string());
-        map.insert("age".to_string(), "30".to_string());
-        map.insert("active".to_string(), "true".to_string());
-        map.insert("empty".to_string(), "".to_string());
+        map.insert("name".to_string(), FormValue::Single("Alice".to_string()));
+        map.insert("age".to_string(), FormValue::Single("30".to_string()));
+        map.insert("active".to_string(), FormValue::Single("true".to_string()));
+        map.insert("empty".to_string(), FormValue::Single("".to_string()));
+        map.insert("price".to_string(), FormValue::Single("19.99".to_string()));
+        map.insert(
+            "tags".to_string(),
+            FormValue::Multiple(vec!["rust".to_string(), "web".to_string()]),
+        );
         let form = FormData::new(map);
 
         assert_eq!(form.get_str("name").unwrap(), "Alice");
         assert_eq!(form.get_int("age").unwrap(), 30);
         assert!(form.get_bool("active").unwrap());
+        assert_eq!(form.get_as::<f64>("price").unwrap(), 19.99);
 
         assert!(form.get_str("missing").is_err());
         assert!(form.get_str("empty").is_err());
@@ -1211,16 +1265,37 @@ mod tests {
         assert_eq!(form.get_str_or("empty", "default"), "default");
         assert_eq!(form.get_int_or("age", 0), 30);
         assert_eq!(form.get_int_or("missing", 42), 42);
-        assert_eq!(form.get_bool_or("active", false), true);
-        assert_eq!(form.get_bool_or("missing", true), true);
+        assert!(form.get_bool_or("active", false));
+        assert!(form.get_bool_or("missing", true));
+        assert_eq!(form.get_as_or::<f64>("missing", 1.5), 1.5);
     }
 
     #[test]
-    fn test_form_data_deref() {
+    fn test_form_data_keeps_every_value_of_a_multi_value_field() {
         let mut map = HashMap::new();
-        map.insert("k".to_string(), "v".to_string());
+        map.insert("k".to_string(), FormValue::Single("v".to_string()));
+        map.insert(
+            "tags".to_string(),
+            FormValue::Multiple(vec!["rust".to_string(), "web".to_string()]),
+        );
+        map.insert(
+            "ids".to_string(),
+            FormValue::Multiple(vec!["1".to_string(), "2".to_string()]),
+        );
         let form = FormData::new(map);
-        assert_eq!(form.get("k"), Some(&"v".to_string()));
+
+        assert_eq!(form.get("k"), Some("v"));
+        assert_eq!(form.get_all("k"), vec!["v"]);
+        // The lossy behaviour this replaced returned only one of the two.
+        assert_eq!(form.get_all("tags"), vec!["rust", "web"]);
+        // Reading a multi-value field as a scalar takes the first value.
+        assert_eq!(form.get("tags"), Some("rust"));
+        assert_eq!(form.get_all_as::<i32>("ids").unwrap(), vec![1, 2]);
+        assert!(form.get_all_as::<i32>("tags").is_err());
+        assert_eq!(form.get_all("missing"), Vec::<&str>::new());
+        assert!(form.contains_key("k"));
+        assert!(!form.contains_key("missing"));
+        assert_eq!(form.len(), 3);
     }
 
     #[test]
@@ -1723,30 +1798,6 @@ file contents\r\n\
         // Test single segment
         request.uri = "/dashboard".to_string();
         assert_eq!(request.split(), vec!["dashboard"]);
-    }
-
-    #[test]
-    fn test_csrf_token() {
-        let request = Request::default();
-
-        // Test CSRF token generation
-        let token1 = request.csrf();
-        let token2 = request.csrf();
-
-        // Tokens should be different each time (new generation)
-        assert_ne!(token1, token2);
-
-        // Tokens should be base64 encoded (contain valid base64 characters)
-        assert!(token1
-            .chars()
-            .all(|c| c.is_alphanumeric() || c == '+' || c == '/' || c == '='));
-        assert!(token2
-            .chars()
-            .all(|c| c.is_alphanumeric() || c == '+' || c == '/' || c == '='));
-
-        // Tokens should have reasonable length (base64 encoding of 32 bytes = 44 chars with padding)
-        assert!(token1.len() >= 40);
-        assert!(token2.len() >= 40);
     }
 
     #[test]

@@ -108,7 +108,7 @@ In views (for helpers):
 In controllers (for validators):
 ```rust
 async fn create_user(ctx: Context) -> Result<Response> {
-    let email = ctx.param("email")?;
+    let email = ctx.param_str("email")?;
     
     // Get validators from global definitions
     let definitions = rustf::definitions::get().await;
@@ -258,7 +258,7 @@ impl Validator for PasswordStrengthValidator {
 
 ```rust
 async fn update_password(ctx: Context) -> Result<Response> {
-    let new_password = ctx.param("new_password")?;
+    let new_password = ctx.param_str("new_password")?;
     
     // Get validator from global definitions
     let definitions = rustf::definitions::get().await;
@@ -583,7 +583,7 @@ pub struct ValidationMiddleware;
 impl InboundMiddleware for ValidationMiddleware {
     fn process_request(&self, ctx: &mut Context) -> Result<InboundAction> {
         // Get email from request
-        let email = ctx.param("email")?;
+        let email = ctx.param_str("email")?;
         
         // Get validator from global definitions
         // Note: Using block_on since middleware is synchronous

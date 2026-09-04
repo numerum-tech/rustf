@@ -15,7 +15,7 @@ pub fn install() -> Vec<Route> {
 
 async fn create(ctx: &mut Context) -> rustf::Result<()> {
     let user_id = current_user_id(ctx)?;
-    let list_id = ctx.param_int("id")? as i64;
+    let list_id = ctx.param_as::<i64>("id")?;
     let form = ctx.body_form()?;
     TasksService::create(user_id, list_id, &form).await?;
 
@@ -29,7 +29,7 @@ async fn create(ctx: &mut Context) -> rustf::Result<()> {
 
 async fn toggle(ctx: &mut Context) -> rustf::Result<()> {
     let user_id = current_user_id(ctx)?;
-    let task_id = ctx.param_int("id")? as i64;
+    let task_id = ctx.param_as::<i64>("id")?;
     let list_id = TasksService::toggle(user_id, task_id).await?;
 
     if ctx.is_xhr() {
@@ -42,7 +42,7 @@ async fn toggle(ctx: &mut Context) -> rustf::Result<()> {
 
 async fn destroy(ctx: &mut Context) -> rustf::Result<()> {
     let user_id = current_user_id(ctx)?;
-    let task_id = ctx.param_int("id")? as i64;
+    let task_id = ctx.param_as::<i64>("id")?;
     let list_id = TasksService::delete(user_id, task_id).await?;
 
     if ctx.is_xhr() {

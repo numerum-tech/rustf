@@ -102,14 +102,15 @@ async fn get_user(ctx: &mut Context) -> rustf::Result<()> {
     let id = ctx.param_str("id")?;            // -> String
 
     // Integer parameter (returns i32; cast to i64 if your model uses i64)
-    // let id = ctx.param_int("id")? as i64;
+    // let id = ctx.param_as::<i64>("id")?;
     Ok(())
 }
 ```
 
-`ctx.param("id")` is also available and returns `Option<&str>` — useful
-when the parameter is genuinely optional. The typed accessors return
-`Err` when missing or unparseable.
+The typed accessors return `Err` when the parameter is missing or
+unparseable. For a genuinely optional parameter use `param_str_or` /
+`param_int_or` / `param_as_or` with a default, or read `ctx.req.params`
+directly.
 
 ## Route Registration
 

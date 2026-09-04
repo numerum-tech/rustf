@@ -77,7 +77,7 @@ This project is optimized for AI coding assistants:
 
 ## 🛠️ Framework Features
 
-- **Total.js-inspired API**: Familiar `ctx.param()`, `ctx.json()`, `ctx.view()` patterns
+- **Total.js-inspired API**: Familiar `ctx.param_int()`, `ctx.json()`, `ctx.view()` patterns
 - **Auto-Discovery**: Automatic registration of controllers, models, and middleware
 - **Built-in Middleware**: Session by default; opt-in logging, CORS, rate limiting, CSRF, compression, and method override
 - **Session Management**: Flash messages and persistent session data

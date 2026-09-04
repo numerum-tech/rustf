@@ -99,7 +99,7 @@ Use controller routes plus the private-rooted helpers:
 
 ```rust
 async fn download_file(ctx: &mut Context) -> Result<()> {
-    let relative_path = ctx.param("path").unwrap_or_default();
+    let relative_path = ctx.param_str_or("path", "");
 
     // Authorize access before sending the file.
     // file_download() resolves relative paths from private/
@@ -108,7 +108,7 @@ async fn download_file(ctx: &mut Context) -> Result<()> {
 }
 
 async fn preview_file(ctx: &mut Context) -> Result<()> {
-    let relative_path = ctx.param("path").unwrap_or_default();
+    let relative_path = ctx.param_str_or("path", "");
     ctx.file_inline(&relative_path, None)?;
     Ok(())
 }

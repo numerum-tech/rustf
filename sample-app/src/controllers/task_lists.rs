@@ -53,7 +53,7 @@ async fn create(ctx: &mut Context) -> rustf::Result<()> {
 
 async fn edit_form(ctx: &mut Context) -> rustf::Result<()> {
     let user_id = current_user_id(ctx)?;
-    let id = ctx.param_int("id")? as i64;
+    let id = ctx.param_as::<i64>("id")?;
     let item = TaskListsService::find_owned(user_id, id).await?;
     ctx.repository_set("item", serde_json::to_value(&item)?);
     ctx.view(
@@ -67,7 +67,7 @@ async fn edit_form(ctx: &mut Context) -> rustf::Result<()> {
 
 async fn update(ctx: &mut Context) -> rustf::Result<()> {
     let user_id = current_user_id(ctx)?;
-    let id = ctx.param_int("id")? as i64;
+    let id = ctx.param_as::<i64>("id")?;
     let form = ctx.body_form()?;
     match TaskListsService::update(user_id, id, &form).await {
         Ok(()) => {
@@ -83,7 +83,7 @@ async fn update(ctx: &mut Context) -> rustf::Result<()> {
 
 async fn destroy(ctx: &mut Context) -> rustf::Result<()> {
     let user_id = current_user_id(ctx)?;
-    let id = ctx.param_int("id")? as i64;
+    let id = ctx.param_as::<i64>("id")?;
     TaskListsService::delete(user_id, id).await?;
     ctx.flash_success("Task list deleted.")?;
     ctx.redirect("/task_lists")

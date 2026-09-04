@@ -8,7 +8,7 @@ use tokio::net::{TcpListener, TcpStream};
 
 fn install_text_route() -> Vec<Route> {
     async fn index(ctx: &mut Context) -> rustf::Result<()> {
-        ctx.text("hosted-ok")
+        ctx.plain("hosted-ok")
     }
 
     routes![
