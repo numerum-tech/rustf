@@ -387,7 +387,7 @@ async fn index(ctx: Context) -> Result<Response> {
 
 async fn show(ctx: Context) -> Result<Response> {
     // Show handlers return single resources
-    let id = ctx.param("id").unwrap_or("0");
+    let id = ctx.param_str_or("id", "0");
     let user = Users::find(id.parse()?).await?;
     ctx.view("/users/show", json!({"user": user}))
 }
@@ -414,10 +414,8 @@ async fn create(ctx: Context) -> Result<Response> {
 // Use Result<Response> consistently
 async fn handler(ctx: Context) -> Result<Response> {
     // Validate input
-    let user_id = ctx.param("id")
-        .ok_or_else(|| Error::bad_request("User ID required"))?
-        .parse::<i64>()
-        .map_err(|_| Error::bad_request("Invalid user ID"))?;
+    // `param_as` reports both the missing and the unparseable case for you.
+    let user_id = ctx.param_as::<i64>("id")?;
     
     // Business logic with error propagation
     let user = Users::find(user_id).await
@@ -459,7 +457,7 @@ ctx.redirect("/users")
 ctx.file_download("uploads/document.pdf", Some("document.pdf"))
 
 // Text responses
-ctx.text("Plain text response")
+ctx.plain("Plain text response")
 ```
 
 ### Validation Conventions
@@ -514,13 +512,11 @@ ctx.verify_csrf_token()?;
 
 ```rust
 // Always validate and sanitize input
-let user_input = ctx.query("search")
-    .map(|s| s.trim())
-    .filter(|s| !s.is_empty())
-    .ok_or_else(|| Error::bad_request("Search query required"))?;
+// `query_str` already treats an empty value as missing.
+let user_input = ctx.query_str("search")?;
 
 // Prevent directory traversal
-let filename = ctx.param("filename").unwrap_or("");
+let filename = ctx.param_str_or("filename", "");
 if filename.contains("..") || filename.contains('/') {
     return ctx.throw403(Some("Invalid filename"));
 }

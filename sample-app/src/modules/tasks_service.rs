@@ -1,8 +1,8 @@
 use crate::models::tasks::Tasks;
 use chrono::Utc;
+use rustf::FormData;
 use rustf::models::BaseModel;
 use std::borrow::Cow;
-use std::collections::HashMap;
 
 pub struct TasksService;
 
@@ -10,7 +10,7 @@ impl TasksService {
     pub async fn create(
         user_id: i64,
         list_id: i64,
-        form: &HashMap<String, String>,
+        form: &FormData,
     ) -> rustf::Result<i64> {
         let title = required_field(form, "title")?;
         let details = optional_field(form, "details");
@@ -61,17 +61,17 @@ impl TasksService {
     }
 }
 
-fn required_field<'a>(form: &'a HashMap<String, String>, key: &str) -> rustf::Result<Cow<'a, str>> {
+fn required_field<'a>(form: &'a FormData, key: &str) -> rustf::Result<Cow<'a, str>> {
     form.get(key)
-        .map(|value| value.trim())
+        .map(str::trim)
         .filter(|value| !value.is_empty())
         .map(Cow::from)
         .ok_or_else(|| rustf::Error::validation(format!("Field '{}' is required", key)))
 }
 
-fn optional_field(form: &HashMap<String, String>, key: &str) -> Option<String> {
+fn optional_field(form: &FormData, key: &str) -> Option<String> {
     form.get(key)
-        .map(|value| value.trim())
+        .map(str::trim)
         .filter(|value| !value.is_empty())
         .map(ToOwned::to_owned)
 }

@@ -376,16 +376,16 @@ let mut filter = ModelFilter::new();
 filter = filter.where_eq("is_active", true);
 
 // Conditionally add filters based on user input
-if let Some(search) = ctx.query("search") {
+if let Ok(search) = ctx.query_str("search") {
     filter = filter.where_like("name", &format!("%{}%", search));
 }
 
-if let Some(role) = ctx.query("role") {
+if let Ok(role) = ctx.query_str("role") {
     filter = filter.where_eq("role", role);
 }
 
-if let Some(min_age) = ctx.query("min_age") {
-    filter = filter.where_gte("age", min_age.parse::<i32>()?);
+if let Ok(min_age) = ctx.query_int("min_age") {
+    filter = filter.where_gte("age", min_age);
 }
 
 // Use the conditionally built filter

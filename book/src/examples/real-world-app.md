@@ -95,7 +95,7 @@ async fn index(ctx: &mut Context) -> Result<()> {
 }
 
 async fn search(ctx: &mut Context) -> Result<()> {
-    let query = ctx.query("q").unwrap_or("");
+    let query = ctx.query_str_or("q", "");
     
     if query.is_empty() {
         return ctx.redirect("/");
@@ -141,7 +141,7 @@ async fn index(ctx: &mut Context) -> Result<()> {
 }
 
 async fn show(ctx: &mut Context) -> Result<()> {
-    let post_id = ctx.int_param("id")?;
+    let post_id = ctx.param_as::<i64>("id")?;
     let post = get_post_by_id(post_id)?;
     
     if post.is_none() {

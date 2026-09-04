@@ -19,9 +19,7 @@ use rustf::prelude::*;
 
 async fn list_users(ctx: &mut Context) -> Result<()> {
     // Parse page from query parameters
-    let page = ctx.query("page")
-        .and_then(|p| p.parse::<u32>().ok())
-        .unwrap_or(1);
+    let page = ctx.query_as_or::<u32>("page", 1);
     
     let per_page = 20;
     
@@ -181,11 +179,9 @@ let pagination = U::paginate(total, page, 20, "/posts?page={0}#results");
 
 ```rust
 async fn search_posts(ctx: &mut Context) -> Result<()> {
-    let page = ctx.query("page")
-        .and_then(|p| p.parse::<u32>().ok())
-        .unwrap_or(1);
-    let search = ctx.query("q").unwrap_or("");
-    let category = ctx.query("category").unwrap_or("all");
+    let page = ctx.query_as_or::<u32>("page", 1);
+    let search = ctx.query_str_or("q", "");
+    let category = ctx.query_str_or("category", "all");
     
     // Build query with filters
     let total = Posts::query()?

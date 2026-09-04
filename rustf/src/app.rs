@@ -17,6 +17,19 @@ use std::sync::Arc;
 use tokio::net::TcpListener;
 use tokio::sync::RwLock;
 
+/// Static files larger than this are streamed rather than read into memory.
+///
+/// Below it a file is buffered so gzip and other body-inspecting middleware
+/// still apply; above it the response holds one 64 KiB chunk at a time. 1 MiB
+/// keeps every stylesheet and script bundle on the compressible path while
+/// images, fonts and archives stream.
+///
+/// Streaming changes the memory profile only. The static server does not
+/// honour `Range` requests, so seeking in video or resuming an interrupted
+/// download is not supported; put such media behind a dedicated file server
+/// or CDN.
+pub const STATIC_STREAM_THRESHOLD: u64 = 1024 * 1024;
+
 /// Memory-safe RustF application with Arc-based component sharing
 ///
 /// This refactored version uses Arc for safe sharing of framework components
@@ -1054,6 +1067,50 @@ impl RustF {
         B: hyper::body::Body,
         B::Error: std::fmt::Display,
     {
+        let is_head = req.method() == hyper::Method::HEAD;
+        let mut response = self.dispatch_request(req, peer_addr).await?;
+
+        // A HEAD response carries the headers a GET would have produced and
+        // no body. The handler ran as for GET (a static file may be a
+        // multi-megabyte stream at this point), so record the length the body
+        // would have had, then discard it before a single byte is sent.
+        if is_head {
+            let would_have_sent = match &response.body {
+                crate::http::Body::Full(bytes) => Some(bytes.len() as u64),
+                crate::http::Body::Stream(stream) => stream.size(),
+            };
+            // Any caller Content-Length is stale once the body is gone
+            // (`into_hyper` drops it anyway); the advertised length is the
+            // only channel that survives.
+            response
+                .headers
+                .retain(|(name, _)| !name.eq_ignore_ascii_case("content-length"));
+            response.body = crate::http::Body::empty();
+
+            // 1xx and 204 never carry Content-Length; a 304's body was already
+            // empty and its length (if any) is the validator's business, not
+            // this wrapper's. An open-ended stream has no length to advertise.
+            let status = response.status;
+            let may_advertise = !status.is_informational()
+                && status != hyper::StatusCode::NO_CONTENT
+                && status != hyper::StatusCode::NOT_MODIFIED;
+            if let (true, Some(len)) = (may_advertise, would_have_sent) {
+                response = response.advertise_content_length(len);
+            }
+        }
+
+        Ok(response)
+    }
+
+    async fn dispatch_request<B>(
+        &self,
+        req: hyper::Request<B>,
+        peer_addr: Option<SocketAddr>,
+    ) -> Result<Response>
+    where
+        B: hyper::body::Body,
+        B::Error: std::fmt::Display,
+    {
         let request =
             Request::from_hyper_with_connection(req, peer_addr, Arc::clone(&self.trusted_proxies))
                 .await?;
@@ -1193,8 +1250,19 @@ impl RustF {
     async fn execute_route_handler(&self, ctx: &mut Context) -> Result<MiddlewareResult> {
         // Try to match route. Use `path()` (not the raw `uri`) so HTTP/2 — where
         // the URI is the absolute `http://host/path` form — routes like HTTP/1.
-        if let Some((route_info, params)) = self.router.match_route(&ctx.req.method, ctx.req.path())
-        {
+        // HEAD is served by the GET handler when no HEAD route exists; the
+        // body is discarded in `handle_request_with_peer`.
+        let matched = self
+            .router
+            .match_route(&ctx.req.method, ctx.req.path())
+            .or_else(|| {
+                if ctx.req.method.eq_ignore_ascii_case("HEAD") {
+                    self.router.match_route("GET", ctx.req.path())
+                } else {
+                    None
+                }
+            });
+        if let Some((route_info, params)) = matched {
             // Check XHR constraint if the route requires it
             if route_info.xhr_only && !ctx.is_xhr() {
                 return Ok(MiddlewareResult::Stop(
@@ -1398,17 +1466,11 @@ impl RustF {
         if_modified_since: Option<&str>,
     ) -> Result<Option<Response>> {
         use std::time::{SystemTime, UNIX_EPOCH};
-        use tokio::io::AsyncReadExt;
 
-        // Open the file once. This resolves the path a single time and gives us
-        // a file descriptor we can both stat and read — no TOCTOU race, one fewer
-        // syscall on cache misses compared to separate metadata() + read() calls.
-        let mut file = match tokio::fs::File::open(path).await {
-            Ok(f) => f,
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
-            Err(e) => return Err(e.into()),
-        };
-
+        // Prove the path is inside the static root and names a regular file
+        // *before* opening anything. Opening first would touch a symlink's
+        // escaped target, and opening a FIFO or device blocks the thread it
+        // runs on until a writer shows up.
         let canonical_path = match tokio::fs::canonicalize(path).await {
             Ok(path) => path,
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
@@ -1417,8 +1479,22 @@ impl RustF {
         if !canonical_path.starts_with(canonical_base) {
             return Ok(None);
         }
+        match tokio::fs::metadata(&canonical_path).await {
+            Ok(meta) if meta.is_file() => {}
+            Ok(_) => return Ok(None),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+            Err(e) => return Err(e.into()),
+        }
 
-        // fstat() on the open fd — no second path lookup
+        let file = match tokio::fs::File::open(&canonical_path).await {
+            Ok(f) => f,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+            Err(e) => return Err(e.into()),
+        };
+
+        // fstat() on the open fd: the size and mtime that go into the ETag
+        // and Content-Length describe the file actually being served, even if
+        // it was replaced between the checks above and the open.
         let metadata = file.metadata().await?;
         if !metadata.is_file() {
             return Ok(None);
@@ -1466,9 +1542,10 @@ impl RustF {
                 }
             }
 
-            // Cache miss — read from the already-open fd, pre-allocate from known size
-            let mut content = Vec::with_capacity(metadata.len() as usize);
-            file.read_to_end(&mut content).await?;
+            // Cache miss — body from the already-open fd. `Content-Length`
+            // comes from the body in both branches: hyper derives it for a
+            // buffered body, `into_hyper` emits the declared size for a stream.
+            let body = Self::static_file_body(file, metadata.len()).await?;
 
             Ok(Some(
                 Response::ok()
@@ -1480,22 +1557,40 @@ impl RustF {
                     )
                     .with_header("ETag", &etag)
                     .with_header("Last-Modified", &last_modified)
-                    .with_header("Content-Length", &content.len().to_string())
-                    .with_body(content),
+                    .with_body(body),
             ))
         } else {
-            // No caching — read from the already-open fd, pre-allocate from known size
-            let mut content = Vec::with_capacity(metadata.len() as usize);
-            file.read_to_end(&mut content).await?;
+            // No caching — body from the already-open fd
+            let body = Self::static_file_body(file, metadata.len()).await?;
 
             Ok(Some(
                 Response::ok()
                     .with_header("Content-Type", content_type)
                     .with_header("X-Content-Type-Options", "nosniff")
                     .with_header("Cache-Control", "no-store, no-cache")
-                    .with_body(content),
+                    .with_body(body),
             ))
         }
+    }
+
+    /// Build the body for a static file that is already open.
+    ///
+    /// Small files are read fully so outbound middleware can still see the
+    /// bytes — gzip in particular, which matters far more for a 40 KiB
+    /// stylesheet than for a video. Files above
+    /// [`STATIC_STREAM_THRESHOLD`] are streamed in 64 KiB chunks instead:
+    /// per-request memory stays flat, and compressing a multi-megabyte asset
+    /// on every request would cost more CPU than the bytes it saves.
+    async fn static_file_body(mut file: tokio::fs::File, size: u64) -> Result<crate::http::Body> {
+        use tokio::io::AsyncReadExt;
+
+        if size > STATIC_STREAM_THRESHOLD {
+            return Ok(crate::http::Body::from_file(file, size));
+        }
+
+        let mut content = Vec::with_capacity(size as usize);
+        file.read_to_end(&mut content).await?;
+        Ok(content.into())
     }
 
     /// Format a Unix timestamp as an RFC 7231 HTTP date string.

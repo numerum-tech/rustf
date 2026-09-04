@@ -108,9 +108,7 @@ In views (for helpers), using Total.js syntax:
 In controllers (for validators):
 ```rust
 async fn create_user(ctx: &mut Context) -> rustf::Result<()> {
-    let email = ctx.param("email")
-        .ok_or_else(|| rustf::Error::internal("missing email param"))?
-        .to_string();
+    let email = ctx.param_str("email")?;
     
     // Get validators from global definitions
     let definitions = rustf::definitions::get().await;
@@ -250,9 +248,7 @@ impl Validator for PasswordStrengthValidator {
 
 ```rust
 async fn update_password(ctx: &mut Context) -> rustf::Result<()> {
-    let new_password = ctx.param("new_password")
-        .ok_or_else(|| rustf::Error::internal("missing new_password param"))?
-        .to_string();
+    let new_password = ctx.param_str("new_password")?;
     
     // Get validator from global definitions
     let definitions = rustf::definitions::get().await;
@@ -580,10 +576,10 @@ pub struct ValidationMiddleware;
 
 impl InboundMiddleware for ValidationMiddleware {
     fn process_request(&self, ctx: &mut Context) -> Result<InboundAction> {
-        // Get email from request (param returns Option<&str>)
-        let email = match ctx.param("email") {
-            Some(e) => e.to_string(),
-            None => return Ok(InboundAction::Continue),
+        // Get email from request (param_str errors when absent or empty)
+        let email = match ctx.param_str("email") {
+            Ok(e) => e,
+            Err(_) => return Ok(InboundAction::Continue),
         };
         
         // Get validator from global definitions

@@ -65,7 +65,7 @@ Controller:
 
 ```rust
 async fn dashboard(ctx: &mut Context) -> rustf::Result<()> {
-    let user_id = ctx.param_int("id")? as i64;
+    let user_id = ctx.param_as::<i64>("id")?;
     let data = crate::modules::user_service::UserService::find_dashboard_data(user_id).await?;
     ctx.json(data)
 }

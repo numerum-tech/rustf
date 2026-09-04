@@ -103,7 +103,7 @@ async fn list_posts(ctx: &mut Context) -> Result<()> {
 
 ```rust
 async fn get_post(ctx: &mut Context) -> Result<()> {
-    let post_id = ctx.int_param("id")?;
+    let post_id = ctx.param_as::<i64>("id")?;
     
     // In a real app, fetch from database
     if post_id == 1 {
@@ -168,7 +168,7 @@ async fn create_post(ctx: &mut Context) -> Result<()> {
 
 ```rust
 async fn update_post(ctx: &mut Context) -> Result<()> {
-    let post_id = ctx.int_param("id")?;
+    let post_id = ctx.param_as::<i64>("id")?;
     let request: UpdatePostRequest = ctx.body_json()?;
     
     // In a real app, fetch and update in database
@@ -211,7 +211,7 @@ async fn update_post(ctx: &mut Context) -> Result<()> {
 
 ```rust
 async fn delete_post(ctx: &mut Context) -> Result<()> {
-    let post_id = ctx.int_param("id")?;
+    let post_id = ctx.param_as::<i64>("id")?;
     
     // In a real app, delete from database
     if post_id == 1 {

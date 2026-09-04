@@ -7,6 +7,154 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Generic typed accessors on `Context`**: `query_as::<T>` / `param_as::<T>` /
+  `body_as::<T>` and their `_or` variants, for any `T: FromStr`. These cover the
+  types the `_int` / `_bool` accessors do not — `f64`, `i64`, `u32`, `Uuid`,
+  `Decimal`, `NaiveDate`, `DateTime<Utc>`, `IpAddr` — so no call site needs a
+  hand-written `.parse()` chain. The error names the parameter and the expected
+  type: `Query parameter 'start' must be a valid NaiveDate`.
+- **`FormData` typed getters**: `get_as::<T>`, `get_as_or::<T>`, `get_all_as::<T>`,
+  alongside the existing `get_str` / `get_int` / `get_bool`.
+- **`FormData` and `FormValue` are exported** from the crate root and the
+  prelude, so a service can take `&FormData` without reaching into
+  `rustf::http`.
+- **Streaming response bodies.** `Response.body` is now a `Body` enum —
+  `Body::Full(Vec<u8>)` (buffered, the default) or `Body::Stream(BodyStream)`
+  (chunks produced on demand). A stream that declares its size is sent with
+  `Content-Length`; an open-ended one falls back to chunked transfer encoding.
+  `with_body` accepts `impl Into<Body>`, so every existing `with_body(vec)`,
+  `ctx.json()` and `ctx.view()` call site compiles unchanged.
+- **Streamed file responses**: `ctx.file_download_stream[_from]` and
+  `ctx.file_inline_stream[_from]` (and the matching `Response::` constructors)
+  serve a file in 64 KiB chunks, so peak memory per request is flat regardless
+  of file size. Same path-containment rules as the buffered variants.
+- **Server-Sent Events**: `ctx.sse(events)` / `Response::sse(events)` take a
+  `Stream<Item = SseEvent>` and emit the `text/event-stream` wire format with
+  `Cache-Control: no-cache` and `X-Accel-Buffering: no`. `SseEvent` builds one
+  event (`data`, `id`, `event`, `retry`, or a comment; `SseEvent::json` for
+  serialised payloads). The stream may yield `SseEvent` or
+  `rustf::Result<SseEvent>` (sealed trait `SseItem`), so a fallible source
+  can abort the feed with an `Err`. `ctx.sse_with_keep_alive(events, interval)`
+  injects a comment line once per interval while the feed is idle (the first
+  one a full interval after the stream starts) so proxies do not drop the
+  connection. Field values are split on `\r\n`, `\n` and bare `\r` into one
+  field line each, so an attacker-controlled `id`, `event` or `data` cannot
+  forge another field whatever line ending it uses.
+- **Static files above 1 MiB are streamed** (`STATIC_STREAM_THRESHOLD`).
+  Smaller assets stay buffered so gzip and other body-inspecting middleware
+  still apply to stylesheets and scripts. ETag / Last-Modified / 304 handling
+  is unchanged. `Range` requests are still not supported by the static
+  server; streaming changes the memory profile, not the protocol surface.
+- **`HEAD` requests.** A `HEAD` with no matching `HEAD` route runs the `GET`
+  handler; the response keeps the headers (including the `Content-Length`
+  the body would have had) and the body is discarded before anything is
+  sent. Static files behave the same way. No length is invented for an
+  open-ended stream, and none is added to a `1xx`, `204` or `304`.
+- **Declared stream sizes are enforced.** A `Body::from_sized_stream` (or
+  streamed file) that produces more than its declared length is truncated to
+  it and logged; one that ends short yields an error so the connection is
+  dropped instead of leaving the client waiting on a `Content-Length` that
+  will never be satisfied.
+- `Body`, `BodyStream` and `SseEvent` are exported from the prelude.
+- `tokio-stream` is now a dependency, so `ReceiverStream::new(rx)` is the
+  idiomatic way to feed an mpsc channel into `ctx.sse`.
+
+### Changed
+- **BREAKING — `FormData` preserves multi-value fields.** It wrapped
+  `HashMap<String, String>`, so a repeated field (a checkbox group, `tags[]`)
+  silently kept only one value. It now wraps `HashMap<String, FormValue>`:
+  `get(key)` returns `Option<&str>` (the first value) and the new
+  `get_all(key)` returns every value. The
+  `Deref<Target = HashMap<String, String>>` impl is gone; use `get`, `get_all`,
+  `get_value`, `contains_key`, `len`, `is_empty`, `keys`, `iter` or
+  `into_inner()`. A function that took `&HashMap<String, String>` from
+  `ctx.body_form()` now takes `&FormData`.
+- **BREAKING — `ctx.body_form_typed::<T>()` parses non-string fields.** It used
+  to build a JSON object of strings and hand it to `serde_json`, so a struct
+  field typed `f64` or `bool` failed with `invalid type: string`. A form-aware
+  deserializer now parses primitives out of their string form, maps a repeated
+  field onto a `Vec<T>` field, and treats an empty value as `None` for an
+  `Option<T>` field. Error messages name the field and the expected type.
+
+- **BREAKING — `Response` is no longer `Clone`.** A streaming body is a
+  one-shot source of bytes. Nothing in the framework cloned a response
+  (`ctx.res` moves via `take_response()`); app code that did must clone the
+  pieces it needs instead.
+- **BREAKING — `Response::body_size()` returns `Option<usize>`.** An
+  open-ended stream has no length; returning `0` would have silently misled
+  middleware that gates on size. `Body::len_hint()` is the same query on the
+  body itself.
+- **`ctx.stream(body, ..)` / `Response::stream(body, ..)` now stream.** The
+  first argument is `impl Into<Body>`; a `Vec<u8>` still works and is sent
+  buffered exactly as before, a `Body::from_stream(..)` is sent chunk by
+  chunk. Previously this helper buffered everything and set
+  `Transfer-Encoding: chunked` next to a `Content-Length` — a protocol
+  violation — which it no longer does.
+- `Response::into_hyper` returns `UnsyncBoxBody<Bytes, Error>` rather than
+  `BoxBody`: a boxed stream is `Send` but not `Sync`, which is all hyper
+  requires.
+- **`Response::into_hyper` is now the single authority on framing headers.**
+  A hand-set `Transfer-Encoding` is always dropped (with a warning), and a
+  hand-set `Content-Length` is always dropped, so a stale, duplicated or
+  contradictory value can never reach the wire: hyper derives the length of a
+  buffered body, a sized stream supplies its declared size, and an empty body
+  standing in for a representation (`HEAD`, `304`) carries the value given to
+  the new `Response::advertise_content_length(len)`.
+- **BREAKING — `Response` gained a private field.** It can no longer be built
+  as a struct literal; use `Response::new(status)` / `Response::ok()` and the
+  `with_*` builders. The three public fields (`status`, `headers`, `body`)
+  are unchanged. Done now, before 1.0, so later fields are non-breaking.
+- `Body::len_hint()` / `Response::body_size()` return `None` rather than a
+  wrapped value when a declared stream size does not fit `usize`.
+- `Response::file_*` helpers resolve and validate paths with `tokio::fs`
+  instead of blocking `std::fs` calls inside async code.
+- Compression middleware passes streaming bodies through uncompressed; their
+  bytes do not exist yet when outbound middleware runs. Streaming gzip needs a
+  flush-per-chunk encoder and is separate work.
+- A stream that yields an `Err` mid-flight is now logged at `error` level.
+  The status and headers were already sent, so the client sees a truncated
+  body under the original status; this log is the only server-side trace.
+
+### Removed
+- **BREAKING — untyped `ctx.param()` and `ctx.query()`.** They returned
+  `Option<&str>`, were the first autocomplete hit, and led directly to
+  `ctx.query("page").unwrap_or("1").parse::<i32>().unwrap_or(1)`. Use the typed
+  accessors (`param_str`, `query_int`, `query_as::<T>`, the `_or` variants).
+  The raw maps remain public as `ctx.req.params` and `ctx.req.query`.
+- **BREAKING — the 16 type-first accessor aliases**: `str_query`, `int_query`,
+  `bool_query`, `str_query_or`, `int_query_or`, `bool_query_or`, `str_param`,
+  `int_param`, `str_param_or`, `int_param_or`, `str_body`, `int_body`,
+  `bool_body`, `str_body_or`, `int_body_or`, `bool_body_or`. Every one had an
+  identical source-first spelling (`query_str`, `param_int`, `body_bool_or`, …);
+  the replacement is the same words in the other order.
+- **BREAKING — `ctx.text()`.** It was byte-identical to `ctx.plain()`, which is
+  the Total.js spelling. Use `ctx.plain()`.
+- **BREAKING — `ctx.cancel()`.** A no-op that returned `&Self` and did nothing.
+- **BREAKING — `ctx.csrf()` and `Request::csrf()`.** `ctx.csrf()` wrapped
+  `generate_csrf(None)` in `unwrap_or_default()`, so with no session it returned
+  `""` and forms rendered an empty token that failed every POST with no hint.
+  `Request::csrf()` returned a fresh random token on each call that was never
+  stored in a session, so it could never validate. Use
+  `ctx.generate_csrf(None) -> Result<String>`.
+- **BREAKING — `ctx.body_form_data_cloned()`.** Call `.clone()` on
+  `ctx.body_form_data()` instead.
+- **BREAKING — `RequestData`, `BodyData` and `ctx.request_data()`.** The type
+  had no callers, and its methods were the type-first spellings being removed.
+- **BREAKING — the unused `Response` constructors**: `json`, `html`, `text`,
+  `success`, `bad_request`, `unauthorized`, `conflict`, `no_content`,
+  `not_implemented`, `not_found_with_message`, `internal_server_error`. None had
+  a caller outside `response.rs`'s own tests: they are leftovers from the old
+  `Result<Response>` handler signature. No user-facing path takes a user-built
+  `Response` — handlers return `Result<()>` and `InboundAction::Stop` carries no
+  payload — but `Response` reaches the prelude, so every dead constructor was
+  showing up in autocomplete. The constructors the framework itself uses stay
+  (`new`, `ok`, `not_found`, `internal_error`, `forbidden`, `not_modified`,
+  `redirect*`, `file_*`, `binary`, `stream`, `sse*`, `with_body`,
+  `with_stream`). This also removes the `internal_error` /
+  `internal_server_error` pair.
+- `Request::body_as_form()`, superseded by `Request::body_as_form_data()`.
+
 ## [1.0.0-rc2] - 2026-07-28
 
 ### Changed

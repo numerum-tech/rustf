@@ -67,7 +67,10 @@ pub use app::RustF;
 pub use config::AppConfig;
 pub use context::Context;
 pub use error::{Error, Result};
-pub use http::{FileCollection, Request, Response, RunningServer, ServerHandle, UploadedFile};
+pub use http::{
+    FileCollection, FormData, FormValue, Request, Response, RunningServer, ServerHandle,
+    UploadedFile,
+};
 pub use middleware::{InboundAction, InboundMiddleware, MiddlewareResult, OutboundMiddleware};
 pub use routing::{BeforeAction, BeforeFn, Route, RouteHandler};
 
@@ -160,6 +163,12 @@ pub mod prelude {
 
     // File upload types
     pub use crate::http::{FileCollection, UploadedFile};
+
+    // Parsed form bodies, for services that take `&FormData`
+    pub use crate::http::{FormData, FormValue};
+
+    // Streaming response bodies and Server-Sent Events
+    pub use crate::http::{Body, BodyStream, SseEvent};
 
     // Re-export auto-discovery macros for convenience
     pub use rustf_macros::{

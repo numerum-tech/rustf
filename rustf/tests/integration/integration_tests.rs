@@ -231,7 +231,7 @@ async fn test_response_types() {
     assert!(html_response.headers.iter().any(|(k, v)| k == "Content-Type" && v.contains("text/html")));
     
     // Test text response
-    let text_response = ctx.text("Plain text").unwrap();
+    let text_response = ctx.plain("Plain text").unwrap();
     assert_eq!(text_response.status, hyper::StatusCode::OK);
     assert!(text_response.headers.iter().any(|(k, v)| k == "Content-Type" && v.contains("text/plain")));
     

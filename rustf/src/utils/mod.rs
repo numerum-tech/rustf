@@ -400,7 +400,7 @@ pub mod U {
     /// # Example
     /// ```rust,ignore
     /// let total_users = Users::count().await?;
-    /// let page = U::parse_int(ctx.query("page").unwrap_or("1"), 1) as u32;
+    /// let page = ctx.query_int_or("page", 1) as u32;
     /// let per_page = 20;
     ///
     /// let pagination = U::paginate(total_users, page, per_page, "/users?page={0}");

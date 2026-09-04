@@ -83,7 +83,7 @@ async fn submit(ctx: &mut Context) -> Result<()> {
 }
 
 async fn show_item(ctx: &mut Context) -> Result<()> {
-    let item_id = ctx.param("id").unwrap_or("0").to_string();
+    let item_id = ctx.param_str_or("id", "0");
     let data = json!({"id": item_id});
     ctx.json(data)
 }
@@ -296,10 +296,10 @@ The framework ensures that all context modifications made by middleware (such as
 #### Request Data
 ```rust
 // URL parameters (/users/{id} -> id)
-let user_id = ctx.param("id").unwrap_or("0");
+let user_id = ctx.param_str_or("id", "0");
 
 // Query parameters (?page=2 -> page)
-let page = ctx.query("page").unwrap_or("1");
+let page = ctx.query_str_or("page", "1");
 
 // Form data - Three approaches available:
 
@@ -317,9 +317,9 @@ let form: LoginForm = ctx.body_form_typed()?;
 let email = form.email;
 
 // 3. Individual field helpers (for simple cases)
-let email = ctx.str_body("email")?;              // Required field
+let email = ctx.body_str("email")?;              // Required field
 let name = ctx.str_body_or("name", "Anonymous"); // Optional with default
-let age = ctx.int_body("age")?;                  // Parse as integer
+let age = ctx.body_int("age")?;                  // Parse as integer
 let active = ctx.bool_body_or("active", false);  // Parse as boolean
 
 // JSON body
@@ -366,11 +366,22 @@ ctx.throw400(Some("Invalid input"))?                    // Sets 400 error
 ctx.throw500(None)?                                      // Sets 500 error
 
 // Plain text
-ctx.text("Hello, world!")?                              // Sets text response
+ctx.plain("Hello, world!")?                             // Sets text response
 
-// File responses
+// File responses (buffered — whole file in memory)
 ctx.file_download("/path/to/file", Some("name.pdf"))?   // Sets file download
 ctx.file_inline("/path/to/image.jpg")?                  // Sets inline file
+
+// File responses (streamed — 64 KiB chunks, flat memory however large the file)
+ctx.file_download_stream("exports/big.zip", None).await?
+ctx.file_inline_stream("media/video.mp4").await?
+
+// Any byte stream: Vec<u8> is sent buffered, Body::from_stream(..) chunk by chunk
+ctx.stream(Body::from_stream(rows), "text/csv", Some("rows.csv"))?
+
+// Server-Sent Events: response stays open, one SseEvent per push
+ctx.sse(events)?                                        // Stream<Item = SseEvent>
+ctx.sse_with_keep_alive(events, Duration::from_secs(15))? // + idle comments for proxies
 ```
 
 #### Session Management
@@ -1054,17 +1065,17 @@ async fn safe_form_handler(ctx: &mut Context) -> Result<()> {
 // ❌ Approach 1: Manual (verbose, error-prone)
 async fn manual_approach(ctx: &mut Context) -> Result<()> {
     let form_data = ctx.body_form()?;
-    let name = form_data.get("name").unwrap_or(&String::new()).clone();
-    let email = form_data.get("email").unwrap_or(&String::new()).clone();
-    let age = form_data.get("age").unwrap_or(&String::new()).parse::<i32>().unwrap_or(0);
+    let name = form_data.get("name").unwrap_or("").to_string();
+    let email = form_data.get("email").unwrap_or("").to_string();
+    let age = form_data.get("age").unwrap_or("0").parse::<i32>().unwrap_or(0);
     // ... lots of repetitive code
 }
 
 // ⚠️ Approach 2: Field helpers (good for simple forms)
 async fn field_helpers_approach(ctx: &mut Context) -> Result<()> {
-    let name = ctx.str_body("name")?;
-    let email = ctx.str_body("email")?;
-    let age = ctx.int_body("age")?;
+    let name = ctx.body_str("name")?;
+    let email = ctx.body_str("email")?;
+    let age = ctx.body_int("age")?;
     // Good for 2-3 fields, becomes verbose with many fields
 }
 
@@ -1147,8 +1158,8 @@ struct UpdateUserRequest {
 
 async fn list_users(ctx: &mut Context) -> Result<()> {
     // Parse query parameters for pagination
-    let page = ctx.query("page").unwrap_or("1").parse::<i32>().unwrap_or(1);
-    let limit = ctx.query("limit").unwrap_or("10").parse::<i32>().unwrap_or(10);
+    let page = ctx.query_int_or("page", 1);
+    let limit = ctx.query_int_or("limit", 10);
     
     let users = vec![
         User {
@@ -1179,7 +1190,7 @@ async fn list_users(ctx: &mut Context) -> Result<()> {
 }
 
 async fn get_user(ctx: &mut Context) -> Result<()> {
-    let user_id = ctx.param("id").unwrap_or("0");
+    let user_id = ctx.param_str_or("id", "0");
     
     match user_id.parse::<i32>() {
         Ok(id) if id > 0 => {
@@ -1231,7 +1242,7 @@ async fn create_user(ctx: &mut Context) -> Result<()> {
 }
 
 async fn update_user(ctx: &mut Context) -> Result<()> {
-    let user_id = ctx.param("id").unwrap_or("0");
+    let user_id = ctx.param_str_or("id", "0");
     let request: UpdateUserRequest = ctx.body_json()?;
     
     match user_id.parse::<i32>() {
@@ -1251,7 +1262,7 @@ async fn update_user(ctx: &mut Context) -> Result<()> {
 }
 
 async fn delete_user(ctx: &mut Context) -> Result<()> {
-    let user_id = ctx.param("id").unwrap_or("0");
+    let user_id = ctx.param_str_or("id", "0");
     
     match user_id.parse::<i32>() {
         Ok(id) if id > 0 => {
@@ -1269,7 +1280,7 @@ async fn delete_user(ctx: &mut Context) -> Result<()> {
 }
 
 async fn search_users(ctx: &mut Context) -> Result<()> {
-    let query = ctx.query("q").unwrap_or("");
+    let query = ctx.query_str_or("q", "");
     
     if query.is_empty() {
         return ctx.throw400(Some("Search query is required"));
@@ -1318,7 +1329,7 @@ routes![
 ]
 
 async fn get_user(ctx: &mut Context) -> Result<()> {
-    let id = ctx.param("id").unwrap_or("0");
+    let id = ctx.param_str_or("id", "0");
     
     // Validate and parse parameter
     match id.parse::<i32>() {
@@ -1331,8 +1342,8 @@ async fn get_user(ctx: &mut Context) -> Result<()> {
 }
 
 async fn get_user_post(ctx: &mut Context) -> Result<()> {
-    let user_id = ctx.param("user_id").unwrap_or("0");
-    let post_id = ctx.param("post_id").unwrap_or("0");
+    let user_id = ctx.param_str_or("user_id", "0");
+    let post_id = ctx.param_str_or("post_id", "0");
     
     ctx.json(json!({
         "user_id": user_id,
@@ -1342,8 +1353,8 @@ async fn get_user_post(ctx: &mut Context) -> Result<()> {
 }
 
 async fn download_file(ctx: &mut Context) -> Result<()> {
-    let category = ctx.param("category").unwrap_or("general");
-    let filename = ctx.param("filename").unwrap_or("file.txt");
+    let category = ctx.param_str_or("category", "general");
+    let filename = ctx.param_str_or("filename", "file.txt");
     
     // Security: validate file path (prevent directory traversal)
     if filename.contains("..") || filename.contains('/') {
@@ -1360,10 +1371,9 @@ async fn download_file(ctx: &mut Context) -> Result<()> {
 ```rust
 // URL: /search?q=rust&category=programming&page=2
 async fn search(ctx: &mut Context) -> Result<()> {
-    let query = ctx.query("q").unwrap_or("");
-    let category = ctx.query("category").unwrap_or("all");
-    let page = ctx.query("page").unwrap_or("1")
-        .parse::<i32>().unwrap_or(1);
+    let query = ctx.query_str_or("q", "");
+    let category = ctx.query_str_or("category", "all");
+    let page = ctx.query_int_or("page", 1);
     
     if query.is_empty() {
         return ctx.throw400(Some("Search query is required"));
@@ -1426,7 +1436,7 @@ async fn handle_upload(ctx: &mut Context) -> Result<()> {
 }
 
 async fn serve_file(ctx: &mut Context) -> Result<()> {
-    let filename = ctx.param("filename").unwrap_or("missing");
+    let filename = ctx.param_str_or("filename", "missing");
     let file_path = format!("uploads/{}", filename);
     
     // Security check
@@ -1538,7 +1548,7 @@ async fn api_handler(ctx: &mut Context) -> Result<()> {
 
 ```rust
 async fn comprehensive_error_handler(ctx: &mut Context) -> Result<()> {
-    let action = ctx.param("action").unwrap_or("");
+    let action = ctx.param_str_or("action", "");
     
     match action {
         "unauthorized" => ctx.throw401(Some("Please log in")),
@@ -1652,7 +1662,7 @@ async fn create_user(ctx: &mut Context) -> Result<()> {
 ```rust
 // ✅ Good: Proper error handling with user feedback
 async fn process_payment(ctx: &mut Context) -> Result<()> {
-    let amount_str = ctx.query("amount").unwrap_or("0");
+    let amount_str = ctx.query_str_or("amount", "0");
     
     let amount = match amount_str.parse::<f64>() {
         Ok(amt) if amt > 0.0 => amt,
@@ -1715,7 +1725,7 @@ async fn api_list_users(ctx: &mut Context) -> Result<()> {
 ```rust
 // ✅ Good: Security-aware controller
 async fn download_file(ctx: &mut Context) -> Result<()> {
-    let filename = ctx.param("filename").unwrap_or("");
+    let filename = ctx.param_str_or("filename", "");
     
     // Prevent directory traversal attacks
     if filename.contains("..") || filename.contains('/') || filename.contains('\\') {

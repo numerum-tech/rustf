@@ -92,7 +92,7 @@ ctx.html("<h1>Direct HTML</h1>")
 ctx.json(data)
 
 // Text response
-ctx.text("Plain text response")
+ctx.plain("Plain text response")
 ```
 
 ## Total.js Template Syntax
@@ -2131,7 +2131,7 @@ impl ProductController {
     
     #[route(GET, "/products/:id")]
     pub async fn show(mut ctx: Context) -> Result<Response> {
-        let id = ctx.param("id")?;
+        let id = ctx.param_str("id")?;
         
         // Fetch product from database
         let product = json!({
@@ -2155,7 +2155,7 @@ impl ProductController {
     
     #[route(POST, "/products/:id/buy")]
     pub async fn purchase(ctx: Context) -> Result<Response> {
-        let id = ctx.param("id")?;
+        let id = ctx.param_str("id")?;
         
         // Process purchase...
         

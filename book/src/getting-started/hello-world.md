@@ -185,7 +185,7 @@ The `Context` provides several response methods:
 
 - `ctx.html(content)` - Send HTML response
 - `ctx.json(data)` - Send JSON response
-- `ctx.text(content)` - Send plain text
+- `ctx.plain(content)` - Send plain text
 - `ctx.redirect(url)` - Redirect to another URL
 - `ctx.status(code)` - Set HTTP status code
 
@@ -204,7 +204,7 @@ pub fn install() -> Vec<Route> {
 
 async fn personalized_hello(ctx: &mut Context) -> Result<()> {
     // Get route parameter
-    let name = ctx.param("name").unwrap_or("World");
+    let name = ctx.param_str_or("name", "World");
     
     let message = format!("Hello, {}! Welcome to RustF!", name);
     ctx.html(&format!("<h1>{}</h1>", message))

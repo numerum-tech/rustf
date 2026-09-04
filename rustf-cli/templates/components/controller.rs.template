@@ -48,7 +48,7 @@ async fn list(ctx: &mut Context) -> rustf::Result<()> {
 }
 
 async fn show(ctx: &mut Context) -> rustf::Result<()> {
-    let id = ctx.param_int("id")? as i64;
+    let id = ctx.param_as::<i64>("id")?;
     // TODO: call crate::modules::{{controller_name}}_service::find(id).await?
     let item = json!({ "id": id, "name": format!("Item {}", id) });
     ctx.json(json!({ "success": true, "data": item }))
@@ -61,14 +61,14 @@ async fn create(ctx: &mut Context) -> rustf::Result<()> {
 }
 
 async fn update(ctx: &mut Context) -> rustf::Result<()> {
-    let id = ctx.param_int("id")? as i64;
+    let id = ctx.param_as::<i64>("id")?;
     let body: serde_json::Value = ctx.body_json()?;
     // TODO: call crate::modules::{{controller_name}}_service::update(id, body).await?
     ctx.json(json!({ "success": true, "id": id, "data": body }))
 }
 
 async fn delete(ctx: &mut Context) -> rustf::Result<()> {
-    let id = ctx.param_int("id")? as i64;
+    let id = ctx.param_as::<i64>("id")?;
     // TODO: call crate::modules::{{controller_name}}_service::delete(id).await?
     ctx.json(json!({ "success": true, "id": id }))
 }

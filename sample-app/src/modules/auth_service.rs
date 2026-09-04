@@ -1,9 +1,9 @@
 use crate::models::users::Users;
+use rustf::FormData;
 use bcrypt::{hash, verify, DEFAULT_COST};
 use chrono::Utc;
 use serde::Serialize;
 use std::borrow::Cow;
-use std::collections::HashMap;
 
 pub struct AuthService;
 
@@ -15,7 +15,7 @@ pub struct AuthenticatedUser {
 }
 
 impl AuthService {
-    pub async fn register(form: &HashMap<String, String>) -> rustf::Result<AuthenticatedUser> {
+    pub async fn register(form: &FormData) -> rustf::Result<AuthenticatedUser> {
         let display_name = required_field(form, "display_name")?;
         let email = normalize_email(required_field(form, "email")?);
         let password = required_field(form, "password")?;
@@ -49,7 +49,7 @@ impl AuthService {
     }
 
     pub async fn authenticate(
-        form: &HashMap<String, String>,
+        form: &FormData,
     ) -> rustf::Result<AuthenticatedUser> {
         let email = normalize_email(required_field(form, "email")?);
         let password = required_field(form, "password")?;
@@ -78,9 +78,9 @@ impl AuthService {
     }
 }
 
-fn required_field<'a>(form: &'a HashMap<String, String>, key: &str) -> rustf::Result<Cow<'a, str>> {
+fn required_field<'a>(form: &'a FormData, key: &str) -> rustf::Result<Cow<'a, str>> {
     form.get(key)
-        .map(|value| value.trim())
+        .map(str::trim)
         .filter(|value| !value.is_empty())
         .map(Cow::from)
         .ok_or_else(|| rustf::Error::validation(format!("Field '{}' is required", key)))

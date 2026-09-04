@@ -94,7 +94,7 @@ ctx.html("<h1>Direct HTML</h1>")
 ctx.json(data)
 
 // Text response
-ctx.text("Plain text response")
+ctx.plain("Plain text response")
 ```
 
 ## Total.js Template Syntax
