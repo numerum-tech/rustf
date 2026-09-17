@@ -39,6 +39,7 @@
 - [Workers](advanced/workers.md)
 - [Events](advanced/events.md)
 - [Modules](advanced/modules.md)
+- [WebSocket](advanced/websocket.md)
 
 # API Reference
 

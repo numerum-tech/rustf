@@ -82,6 +82,14 @@ pub enum NewCommand {
         path: Option<PathBuf>,
     },
 
+    /// Generate a WebSocket controller: a `SOCKET` route, a room with
+    /// on_open/on_message/on_close, a page, and a browser client.
+    Socket {
+        /// Socket name (used for the route, the file, and the view directory)
+        #[arg(short, long)]
+        name: String,
+    },
+
     /// Generate a background worker for async task execution
     Worker {
         /// Worker name (will be converted to kebab-case for registration)

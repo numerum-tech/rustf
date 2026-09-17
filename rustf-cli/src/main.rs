@@ -200,6 +200,7 @@ async fn main() -> anyhow::Result<()> {
                     force,
                     path,
                 } => commands::new::run(project_name, path, force).await,
+                NewCommand::Socket { name } => new_component::generate_socket(name).await,
                 NewCommand::Worker { name } => new_component::generate_worker(name).await,
                 NewCommand::Crud { name } => new_component::generate_crud(name).await,
             }

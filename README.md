@@ -47,8 +47,10 @@ rustf = { version = "1.0.0-rc1", default-features = false, features = [
 ```
 
 Available: `db-postgres`, `db-mysql`, `db-sqlite` (each pulls in the `database`
-core + `decimal`), and `redis` (the only built-in cross-instance session store —
-keep it, or supply a custom `SessionStorage`, for multi-instance deployments).
+core + `decimal`), `redis` (the only built-in cross-instance session store —
+keep it, or supply a custom `SessionStorage`, for multi-instance deployments),
+and `websocket` (the `SOCKET` route keyword and the room model; drop it to lose
+the `tokio-tungstenite` dependency).
 `schema` is optional and now disabled unless you enable it explicitly.
 TOML config, auto-discovery, and UUID support are always compiled (not features).
 See the
@@ -113,6 +115,7 @@ Primary documentation lives in the RustF book:
 - **[Views](https://numerum-tech.github.io/rustf/guides/views.html)** - Template system and rendering
 - **[Sessions](https://numerum-tech.github.io/rustf/guides/sessions.html)** - Sessions, auth state, and flash messages
 - **[Configuration](https://numerum-tech.github.io/rustf/guides/configuration.html)** - File-based and environment configuration
+- **[WebSocket](https://numerum-tech.github.io/rustf/advanced/websocket.html)** - `SOCKET` routes, rooms, and the raw socket
 - **[CLI Tool](https://numerum-tech.github.io/rustf/advanced/cli.html)** - Project scaffolding and tooling
 - **[API Reference](https://numerum-tech.github.io/rustf/api-reference/context.html)** - Public framework API
 
@@ -307,6 +310,32 @@ pub fn install() -> Vec<Route> {
 }
 ```
 
+### 🔌 WebSocket
+✅ **Implemented** - Total.js-shaped: one room per URL, configured once.
+
+```rust
+pub fn install() -> Vec<Route> {
+    routes![
+        GET    "/chat"        => page,
+        SOCKET "/chat/{room}" => chat,     // GET + Upgrade; a plain GET gets 426
+    ]
+}
+
+async fn chat(ctx: &mut Context) -> rustf::Result<()> {
+    ctx.socket(|room| {
+        room.on_message(|client, message| async move {
+            client.room().send_except(message, client.id())   // relay to everyone else
+        });
+    })
+}
+```
+
+Reach any live room from an HTTP handler, a worker or a scheduled job with
+`SOCKET::room("/chat/general")`. Same-origin enforced by default, per-route
+`[json]` and `[max = ..]` flags, `1001` on graceful shutdown, and
+`ctx.websocket(|socket| ..)` when you want the raw connection.
+Scaffold one with `rustf-cli new socket --name chat`.
+
 ### 🛠️ CLI Tool & MCP Server
 ✅ **Implemented** - Full-featured development tool:
 - Project scaffolding with `rustf-cli new project <project-name>`
@@ -409,7 +438,7 @@ RustF delivers exceptional performance with production-ready optimizations:
 
 ### Future Enhancements
 - 🎨 **Enhanced template engine** with more features
-- 🌐 **WebSocket support** for real-time applications
+- 🌐 **Cross-process WebSocket broadcast** (Redis pub/sub behind `SOCKET::room`)
 - 📦 **Crates.io publication** and ecosystem growth
 - 🔌 **Plugin system** for third-party extensions
 - 🚀 **Further performance optimizations** based on production feedback

@@ -96,6 +96,13 @@ pub enum Error {
     #[error("Redis pool error: {0}")]
     RedisPool(String),
 
+    /// A WebSocket connection failed: a protocol violation, a closed socket,
+    /// or an oversized frame. Carries a message rather than the tungstenite
+    /// error so that the dependency stays out of RustF's public API.
+    #[cfg(feature = "websocket")]
+    #[error("WebSocket error: {0}")]
+    WebSocket(String),
+
     // Error with context chain
     #[error("{message}")]
     WithContext {
@@ -242,6 +249,8 @@ impl Error {
             Error::Redis(_) => "E_REDIS",
             #[cfg(feature = "redis")]
             Error::RedisPool(_) => "E_REDIS_POOL",
+            #[cfg(feature = "websocket")]
+            Error::WebSocket(_) => "E_WEBSOCKET",
             Error::WithContext { source, .. } => source.error_code(),
         }
     }

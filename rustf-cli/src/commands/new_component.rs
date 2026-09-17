@@ -316,6 +316,142 @@ pub async fn generate_event(name: String, lifecycle: bool, custom: bool) -> Resu
 }
 
 /// Generate a worker file
+/// Reject a component name that is not a safe path segment and a valid Rust
+/// identifier.
+///
+/// `to_snake_case` leaves separators and punctuation alone, so `chat/v2` or
+/// `../../evil` would otherwise be written straight into a path, and `2chat`
+/// or `chat.v2` would be emitted as a function name that does not parse.
+fn validate_component_name(snake_name: &str, original: &str) -> Result<()> {
+    if snake_name.is_empty() {
+        return Err(anyhow!("the name cannot be empty"));
+    }
+
+    let valid = snake_name
+        .chars()
+        .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
+        && !snake_name.starts_with(|c: char| c.is_ascii_digit());
+
+    if !valid {
+        return Err(anyhow!(
+            "`{original}` is not a usable component name: it becomes both a file name \
+             and a Rust function, so it must be letters, digits and underscores only, \
+             and must not start with a digit (for example `chat` or `live_feed`)"
+        ));
+    }
+
+    // `_` on its own is the wildcard pattern, not a name.
+    if snake_name.chars().all(|c| c == '_') {
+        return Err(anyhow!(
+            "`{original}` is not a usable component name: it would generate a function \
+             called `{snake_name}`, which is not an identifier"
+        ));
+    }
+
+    if RUST_KEYWORDS.contains(&snake_name) {
+        return Err(anyhow!(
+            "`{original}` is a Rust keyword, so `async fn {snake_name}(..)` would not \
+             compile; pick another name (for example `{snake_name}_socket`)"
+        ));
+    }
+
+    Ok(())
+}
+
+/// Reserved words that cannot be used as a function name.
+///
+/// Includes the 2018/2021 reserved-for-future-use set: a generated file that
+/// does not compile is a worse failure than a rejected name.
+const RUST_KEYWORDS: [&str; 51] = [
+    "as", "async", "await", "break", "const", "continue", "crate", "dyn", "else", "enum",
+    "extern", "false", "fn", "for", "if", "impl", "in", "let", "loop", "match", "mod", "move",
+    "mut", "pub", "ref", "return", "self", "static", "struct", "super", "trait", "true", "try",
+    "type", "union", "unsafe", "use", "where", "while", "abstract", "become", "box", "do",
+    "final", "gen", "macro", "override", "priv", "typeof", "unsized", "virtual",
+];
+
+/// Generate a WebSocket controller: the `SOCKET` route, the room handlers, the
+/// page that opens the socket, and a browser client for it.
+pub async fn generate_socket(name: String) -> Result<()> {
+    let project_path = std::env::current_dir()?;
+    let snake_name = to_snake_case(&name);
+    // The name becomes a path component *and* a Rust function name, so a
+    // separator would write outside `src/controllers/`, and a leading digit or
+    // a dot would emit something that does not compile.
+    validate_component_name(&snake_name, &name)?;
+    // Routes and view directories read better with dashes than underscores.
+    let route_name = snake_name.replace('_', "-");
+
+    let controllers_dir = project_path.join("src").join("controllers");
+    let views_dir = project_path.join("views").join(&route_name);
+    let controller_path = controllers_dir.join(format!("{}.rs", snake_name));
+    let view_path = views_dir.join("index.html");
+
+    // Every check before any filesystem change, so a name clash cannot leave a
+    // stray directory (or half a feature) behind.
+    for path in [&controller_path, &view_path] {
+        if path.exists() {
+            return Err(anyhow!(
+                "{} already exists; pick another name or remove it first",
+                path.display()
+            ));
+        }
+    }
+
+    let mut handlebars = Handlebars::new();
+    handlebars.register_template_string(
+        "socket",
+        include_str!("../../templates/components/socket.rs.template"),
+    )?;
+    handlebars.register_template_string(
+        "socket_view",
+        include_str!("../../templates/views/socket/index.html.template"),
+    )?;
+
+    let mut vars = HashMap::new();
+    vars.insert("name", route_name.clone());
+    vars.insert("name_underscored", snake_name.clone());
+    vars.insert("title", to_title_case(&snake_name));
+
+    // Render both before writing either: a template error must not leave one
+    // half of the scaffold on disk.
+    let controller = handlebars.render("socket", &vars)?;
+    let view = handlebars.render("socket_view", &vars)?;
+
+    for dir in [&controllers_dir, &views_dir] {
+        if !dir.exists() {
+            fs::create_dir_all(dir)?;
+        }
+    }
+
+    File::create(&controller_path)?.write_all(controller.as_bytes())?;
+    if let Err(error) = File::create(&view_path).and_then(|mut f| f.write_all(view.as_bytes())) {
+        // Roll the controller back, so a failed run leaves nothing to clean up
+        // by hand and a retry is not blocked by its own leftovers.
+        let _ = fs::remove_file(&controller_path);
+        return Err(error.into());
+    }
+
+    println!("✅ Created WebSocket controller");
+    println!("   Controller: {}", controller_path.display());
+    println!("   View:       {}", view_path.display());
+    println!("\n📝 Next steps:");
+    println!("   - Controllers are auto-discovered from src/controllers/");
+    println!("   - Open http://127.0.0.1:8000/{}", route_name);
+    println!(
+        "   - The socket is at ws://127.0.0.1:8000/{}/socket",
+        route_name
+    );
+    println!("   - Push into the room from anywhere:");
+    println!(
+        "       SOCKET::room(\"/{}/socket\").map(|r| r.send_json(&payload));",
+        route_name
+    );
+    println!("   - Guide: https://numerum-tech.github.io/rustf/advanced/websocket.html");
+
+    Ok(())
+}
+
 pub async fn generate_worker(name: String) -> Result<()> {
     let project_path = std::env::current_dir()?;
     let workers_dir = project_path.join("src").join("workers");

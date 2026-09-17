@@ -1,0 +1,56 @@
+<section>
+    <h1>@{M.title}</h1>
+
+    <ul id="log"></ul>
+
+    <form id="composer">
+        <input id="text" autocomplete="off" placeholder="Say something" />
+        <button type="submit">Send</button>
+    </form>
+</section>
+
+<script>
+// Same host, same port — `ws:` on http, `wss:` on https.
+const url = (location.protocol === 'https:' ? 'wss://' : 'ws://')
+    + location.host + '/{{name}}/socket';
+
+const socket = new WebSocket(url);
+const log = document.getElementById('log');
+
+function line(text) {
+    const li = document.createElement('li');
+    li.textContent = text;
+    log.appendChild(li);
+}
+
+socket.addEventListener('message', (event) => {
+    // The route is declared `[json]`, so the server only ever relays valid
+    // JSON. Still guarded: drop the flag and this would otherwise throw.
+    let message;
+    try {
+        message = JSON.parse(event.data);
+    } catch {
+        line(String(event.data));
+        return;
+    }
+    switch (message.type) {
+        case 'welcome': line(`connected as #${message.id} (${message.online} online)`); break;
+        case 'left':    line(`#${message.id} left`); break;
+        default:        line(event.data);
+    }
+});
+
+socket.addEventListener('close', (event) => {
+    // 1001 is the server going away; anything else is worth showing.
+    line(`disconnected (${event.code})`);
+});
+
+document.getElementById('composer').addEventListener('submit', (event) => {
+    event.preventDefault();
+    const input = document.getElementById('text');
+    if (!input.value || socket.readyState !== WebSocket.OPEN) return;
+    socket.send(JSON.stringify({ type: 'say', text: input.value }));
+    line(`you: ${input.value}`);
+    input.value = '';
+});
+</script>

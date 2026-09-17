@@ -1198,8 +1198,11 @@ impl RustF {
                                 ctx.take_response().unwrap_or_else(Response::internal_error);
                             ctx.set_response(response);
                             self.run_outbound_stack(ctx, &outbound_stack).await?;
-                            let final_response =
+                            #[allow(unused_mut)]
+                            let mut final_response =
                                 ctx.take_response().unwrap_or_else(Response::internal_error);
+                            #[cfg(feature = "websocket")]
+                            self.start_pending_upgrade(ctx, &mut final_response);
                             return Ok(MiddlewareResult::Stop(final_response));
                         }
                         InboundAction::Capture => {
@@ -1227,9 +1230,74 @@ impl RustF {
         self.run_outbound_stack(ctx, &outbound_stack).await?;
 
         // Get the final response from context
-        let final_response = ctx.take_response().unwrap_or_else(Response::internal_error);
+        #[allow(unused_mut)]
+        let mut final_response = ctx.take_response().unwrap_or_else(Response::internal_error);
+
+        #[cfg(feature = "websocket")]
+        self.start_pending_upgrade(ctx, &mut final_response);
 
         Ok(MiddlewareResult::Stop(final_response))
+    }
+
+    /// Hand a queued WebSocket upgrade to the runtime, if the response that is
+    /// actually going out is still the `101`.
+    ///
+    /// Deliberately the last thing that happens: outbound middleware runs after
+    /// the handler and can replace the response. Spawning any earlier would
+    /// leave a task waiting on an upgrade that is never going to happen,
+    /// because the client received a `403` (or anything else) instead.
+    #[cfg(feature = "websocket")]
+    fn start_pending_upgrade(&self, ctx: &mut Context, final_response: &mut Response) {
+        let Some(pending) = ctx.take_pending_upgrade() else {
+            return;
+        };
+
+        // Shutdown may have begun while this request was in the handler or in
+        // outbound middleware. Re-checking here, immediately before the task is
+        // registered, is what keeps a late upgrade from escaping the drain.
+        if crate::websocket::upgrade::is_shutting_down() {
+            log::info!(
+                "WebSocket upgrade on {} refused: the server is shutting down",
+                ctx.req.path()
+            );
+            *final_response = Response::new(hyper::StatusCode::SERVICE_UNAVAILABLE)
+                .with_header("Content-Type", "text/plain; charset=utf-8")
+                .with_body(
+                    "The server is shutting down and is not accepting WebSocket connections."
+                        .as_bytes()
+                        .to_vec(),
+                );
+            return;
+        }
+
+        if pending.matches(final_response) {
+            // hyper resolves `OnUpgrade` only after this `101` has been
+            // written, so the task simply parks until the response is on
+            // the wire. `spawn_tracked` refuses if shutdown began in the
+            // meantime, which is the only remaining way this could race.
+            if !crate::websocket::upgrade::spawn_tracked(pending) {
+                log::info!(
+                    "WebSocket upgrade on {} refused: the server began shutting down",
+                    ctx.req.path()
+                );
+                *final_response = Response::new(hyper::StatusCode::SERVICE_UNAVAILABLE)
+                    .with_header("Content-Type", "text/plain; charset=utf-8")
+                    .with_body(
+                        "The server is shutting down and is not accepting WebSocket connections."
+                            .as_bytes()
+                            .to_vec(),
+                    );
+            }
+        } else {
+            log::error!(
+                "WebSocket upgrade on {} was discarded: the response going out is no longer the \
+                 negotiated 101 (status {}). `ctx.websocket`/`ctx.socket` must be the last call \
+                 in the handler, and outbound middleware must not alter a 101 or its \
+                 Upgrade/Connection/Sec-WebSocket-Accept headers.",
+                ctx.req.path(),
+                final_response.status
+            );
+        }
     }
 
     async fn run_outbound_stack(
@@ -1272,7 +1340,22 @@ impl RustF {
                 ));
             }
 
+            // A `SOCKET` route is registered as `GET`, because the opening
+            // handshake is one. A `GET` that is *not* a handshake must never
+            // reach the handler: it would call `ctx.websocket`, get a rejection
+            // response back, and look like a mysterious 4xx. Answer it here
+            // with the status that says what to do instead.
+            #[cfg(feature = "websocket")]
+            if route_info.socket.is_some() && !ctx.req.is_websocket_upgrade() {
+                return Ok(MiddlewareResult::Stop(
+                    crate::websocket::handshake::upgrade_required(
+                        "This endpoint speaks WebSocket. Connect with ws:// or wss://.",
+                    ),
+                ));
+            }
+
             ctx.req.params = params;
+            ctx.socket_options = route_info.socket;
 
             // Run controller-level `before` hook if any (wired via the
             // `routes![before: ..., ...]` macro arm). If it returns

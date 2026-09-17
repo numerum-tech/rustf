@@ -47,6 +47,16 @@ pub struct Context {
     /// Cached form data to avoid re-parsing
     /// Cached form data with array support
     cached_form_data_arrays: Option<Result<HashMap<String, FormValue>>>,
+    /// The matched route's `SOCKET` settings, copied in by the dispatcher.
+    ///
+    /// `Some` only while a `SOCKET` route's handler is running; that is what
+    /// lets `ctx.websocket` / `ctx.socket` refuse to upgrade from an ordinary
+    /// `GET` route, which would otherwise silently skip the `426` guard.
+    pub(crate) socket_options: Option<crate::routing::SocketOptions>,
+    /// An upgrade the handler asked for, picked up by the dispatcher once the
+    /// handler returns. See `websocket::upgrade`.
+    #[cfg(feature = "websocket")]
+    pub(crate) pending_upgrade: Option<crate::websocket::upgrade::PendingUpgrade>,
 }
 
 // Context is automatically Send + Sync due to Arc<T> being Send + Sync
@@ -71,6 +81,9 @@ impl Context {
             data: HashMap::new(),
             session_destroyed: AtomicBool::new(false),
             cached_form_data_arrays: None,
+            socket_options: None,
+            #[cfg(feature = "websocket")]
+            pending_upgrade: None,
         }
     }
 
@@ -89,6 +102,17 @@ impl Context {
     /// Take the response, leaving None in its place
     pub fn take_response(&mut self) -> Option<Response> {
         self.res.take()
+    }
+
+    /// Take the queued WebSocket upgrade, if the handler accepted one.
+    ///
+    /// Called by the dispatcher after the handler returns; see
+    /// `websocket::upgrade` for why the upgrade cannot happen inline.
+    #[cfg(feature = "websocket")]
+    pub(crate) fn take_pending_upgrade(
+        &mut self,
+    ) -> Option<crate::websocket::upgrade::PendingUpgrade> {
+        self.pending_upgrade.take()
     }
 
     /// Update response body and content-type while preserving other headers

@@ -194,6 +194,40 @@ pub(crate) fn short_type_name<T: ?Sized>() -> &'static str {
     full.rsplit("::").next().unwrap_or(full)
 }
 
+/// Does this header set describe a WebSocket handshake?
+///
+/// RFC 6455 §4.2.1: a handshake is a `GET` carrying `Upgrade: websocket` and
+/// `Connection: Upgrade`. Both header values are token lists, so
+/// `Connection: keep-alive, Upgrade` — which several proxies emit — has to
+/// count, and tokens are compared case-insensitively.
+///
+/// Deliberately *not* checked here: `Sec-WebSocket-Key` and
+/// `Sec-WebSocket-Version`. This predicate only answers "is an upgrade being
+/// attempted", so that a malformed handshake still reaches the socket route
+/// and gets a descriptive `400` from handshake validation instead of a
+/// misleading `426`.
+///
+/// `headers` must be keyed by lowercase header name, which is how
+/// `from_hyper_with_connection` builds the map (hyper normalises names).
+fn is_websocket_upgrade_headers(method: &str, headers: &HashMap<String, String>) -> bool {
+    if !method.eq_ignore_ascii_case("GET") {
+        return false;
+    }
+
+    let has_token = |name: &str, token: &str| {
+        headers
+            .get(name)
+            .map(|value| {
+                value
+                    .split(',')
+                    .any(|part| part.trim().eq_ignore_ascii_case(token))
+            })
+            .unwrap_or(false)
+    };
+
+    has_token("upgrade", "websocket") && has_token("connection", "upgrade")
+}
+
 pub struct Request {
     pub method: String,
     pub uri: String,
@@ -212,6 +246,23 @@ pub struct Request {
     cookies_cache: once_cell::sync::OnceCell<HashMap<String, String>>,
     peer_addr: Option<SocketAddr>,
     trusted_proxies: Arc<Vec<IpNetwork>>,
+    /// Pending HTTP upgrade handle, taken from the hyper request during
+    /// construction when — and only when — the request is a WebSocket
+    /// handshake.
+    ///
+    /// hyper stores this as a request extension that dies with the hyper
+    /// request, so it has to be moved out *before* `into_body()` consumes it.
+    /// `None` for every ordinary request, and for requests built by tests or
+    /// benches (no server connection behind them, so nothing to upgrade).
+    upgrade: Option<hyper::upgrade::OnUpgrade>,
+    /// A singleton WebSocket handshake header arrived more than once.
+    ///
+    /// `headers` is a map, so the second value silently overwrites the first
+    /// and the duplication becomes invisible. For `Origin` in particular that
+    /// is a security problem — a proxy and this server could each act on a
+    /// different value — so the fact is recorded here and the handshake is
+    /// refused. Meaningless for non-handshake requests, which never read it.
+    duplicate_handshake_header: bool,
 }
 
 impl Default for Request {
@@ -228,6 +279,8 @@ impl Default for Request {
             cookies_cache: once_cell::sync::OnceCell::new(),
             peer_addr: None,
             trusted_proxies: Arc::new(Vec::new()),
+            upgrade: None,
+            duplicate_handshake_header: false,
         }
     }
 }
@@ -249,6 +302,8 @@ impl Request {
             cookies_cache: once_cell::sync::OnceCell::new(),
             peer_addr: None,
             trusted_proxies: Arc::new(Vec::new()),
+            upgrade: None,
+            duplicate_handshake_header: false,
         }
     }
 
@@ -272,7 +327,7 @@ impl Request {
 
     /// Build a `Request` from Hyper plus connection metadata.
     pub async fn from_hyper_with_connection<B>(
-        req: HyperRequest<B>,
+        mut req: HyperRequest<B>,
         peer_addr: Option<SocketAddr>,
         trusted_proxies: Arc<Vec<IpNetwork>>,
     ) -> Result<Self>
@@ -283,11 +338,43 @@ impl Request {
         let method = req.method().to_string();
         let uri = req.uri().to_string();
 
-        // Extract headers
+        // Extract headers. A repeated header collapses into one entry here, so
+        // note it for the three handshake fields RFC 6455 allows exactly one
+        // of — `validate` refuses the handshake rather than acting on whichever
+        // value happened to win.
+        const SINGLETON_HANDSHAKE_HEADERS: [&str; 3] =
+            ["origin", "sec-websocket-key", "sec-websocket-version"];
+        // Comma-list fields that a proxy or client may legitimately split
+        // across several lines. Joining them keeps the value RFC 7230 says it
+        // is; overwriting would turn `Connection: Upgrade` plus
+        // `Connection: keep-alive` into a failed upgrade.
+        const LIST_HANDSHAKE_HEADERS: [&str; 3] = [
+            "connection",
+            "sec-websocket-protocol",
+            "sec-websocket-extensions",
+        ];
+
         let mut headers = HashMap::new();
+        let mut duplicate_handshake_header = false;
         for (name, value) in req.headers() {
             if let Ok(value_str) = value.to_str() {
-                headers.insert(name.to_string(), value_str.to_string());
+                let name = name.to_string();
+
+                if LIST_HANDSHAKE_HEADERS.contains(&name.as_str()) {
+                    headers
+                        .entry(name)
+                        .and_modify(|existing: &mut String| {
+                            existing.push_str(", ");
+                            existing.push_str(value_str);
+                        })
+                        .or_insert_with(|| value_str.to_string());
+                    continue;
+                }
+
+                let previous = headers.insert(name.clone(), value_str.to_string());
+                if previous.is_some() && SINGLETON_HANDSHAKE_HEADERS.contains(&name.as_str()) {
+                    duplicate_handshake_header = true;
+                }
             }
         }
 
@@ -301,6 +388,30 @@ impl Request {
             .and_then(|value| value.parse::<u64>().ok())
             .unwrap_or(0);
         let has_transfer_encoding = req.headers().contains_key("transfer-encoding");
+
+        // Take the pending upgrade *before* `into_body()` drops the hyper
+        // request and the extension with it. Only for real WebSocket
+        // handshakes: `hyper::upgrade::on` removes the extension, and calling
+        // it on an ordinary request would hand back a handle that can never
+        // resolve. Handshakes carry no body, so `has_body` below is false and
+        // nothing is read from a connection that is about to be upgraded.
+        // The extension check matters: `hyper::upgrade::on` falls back to a
+        // handle that never resolves when no upgrade is pending, so taking it
+        // unconditionally would make `has_upgrade()` lie. hyper only inserts
+        // the extension on HTTP/1.1 connections, which is also exactly where
+        // WebSocket is supported — an h2 handshake therefore lands with
+        // `upgrade: None` and is refused with a clear error instead of hanging.
+        let upgrade = if is_websocket_upgrade_headers(&method, &headers)
+            && req
+                .extensions()
+                .get::<hyper::upgrade::OnUpgrade>()
+                .is_some()
+        {
+            Some(hyper::upgrade::on(&mut req))
+        } else {
+            None
+        };
+
         let body_hint = req.body().size_hint();
         let has_body = content_length > 0 || has_transfer_encoding || body_hint.lower() > 0;
 
@@ -330,6 +441,8 @@ impl Request {
             cookies_cache: once_cell::sync::OnceCell::new(),
             peer_addr,
             trusted_proxies,
+            upgrade,
+            duplicate_handshake_header,
         })
     }
 
@@ -562,6 +675,45 @@ impl Request {
 
         // Check URI scheme
         self.uri.starts_with("https://")
+    }
+
+    /// Is this request a WebSocket handshake?
+    ///
+    /// True when the request is a `GET` with `Upgrade: websocket` and
+    /// `Connection: Upgrade`. Says nothing about whether the handshake is
+    /// *valid* — `Sec-WebSocket-Key` and `Sec-WebSocket-Version` are checked
+    /// later, so that a broken handshake gets a `400` explaining what is wrong
+    /// rather than a `426` telling it to do what it already tried to do.
+    pub fn is_websocket_upgrade(&self) -> bool {
+        is_websocket_upgrade_headers(&self.method, &self.headers)
+    }
+
+    /// Did a singleton WebSocket handshake header arrive more than once?
+    ///
+    /// See [`Request::is_websocket_upgrade`]; a handshake for which this is
+    /// true is refused with `400`.
+    pub fn has_duplicate_handshake_header(&self) -> bool {
+        self.duplicate_handshake_header
+    }
+
+    /// Take the pending upgrade handle, leaving `None` behind.
+    ///
+    /// `Some` only for a WebSocket handshake that arrived over a real server
+    /// connection. Requests built by hand (`Request::new`, benches, unit
+    /// tests) always yield `None`, as do handshakes that hyper could not
+    /// upgrade. Consumed once, by the task that performs the upgrade.
+    pub(crate) fn take_upgrade(&mut self) -> Option<hyper::upgrade::OnUpgrade> {
+        self.upgrade.take()
+    }
+
+    /// Is an upgrade handle still available on this request?
+    ///
+    /// Distinct from [`Request::is_websocket_upgrade`], which only reads
+    /// headers: this reports whether the connection can actually be upgraded.
+    /// Test-only — production code takes the handle rather than asking.
+    #[cfg(test)]
+    pub(crate) fn has_upgrade(&self) -> bool {
+        self.upgrade.is_some()
     }
 
     /// Check if request is AJAX/XHR (supports traditional XHR and htmx)
@@ -1815,5 +1967,138 @@ file contents\r\n\
         let input3 = b"";
         let encoded3 = Request::base64_encode(input3);
         assert_eq!(encoded3, "");
+    }
+}
+
+#[cfg(test)]
+mod websocket_upgrade_tests {
+    use super::*;
+    use http_body_util::Full;
+    use hyper::body::Bytes;
+    use std::sync::Arc;
+
+    fn handshake_headers() -> HashMap<String, String> {
+        let mut headers = HashMap::new();
+        headers.insert("upgrade".into(), "websocket".into());
+        headers.insert("connection".into(), "Upgrade".into());
+        headers
+    }
+
+    #[test]
+    fn detects_a_plain_handshake() {
+        assert!(is_websocket_upgrade_headers("GET", &handshake_headers()));
+    }
+
+    #[test]
+    fn header_tokens_are_case_insensitive() {
+        let mut headers = HashMap::new();
+        headers.insert("upgrade".into(), "WebSocket".into());
+        headers.insert("connection".into(), "UPGRADE".into());
+        assert!(is_websocket_upgrade_headers("get", &headers));
+    }
+
+    #[test]
+    fn connection_token_is_found_inside_a_list() {
+        // Proxies routinely rewrite this to `keep-alive, Upgrade`.
+        let mut headers = handshake_headers();
+        headers.insert("connection".into(), "keep-alive, Upgrade".into());
+        assert!(is_websocket_upgrade_headers("GET", &headers));
+
+        headers.insert("upgrade".into(), "h2c, websocket".into());
+        assert!(is_websocket_upgrade_headers("GET", &headers));
+    }
+
+    #[test]
+    fn a_substring_is_not_a_token() {
+        // `upgrade-insecure-requests` contains "upgrade" but is not the token.
+        let mut headers = handshake_headers();
+        headers.insert("connection".into(), "upgrade-insecure-requests".into());
+        assert!(!is_websocket_upgrade_headers("GET", &headers));
+    }
+
+    #[test]
+    fn rejects_non_get_and_missing_headers() {
+        assert!(
+            !is_websocket_upgrade_headers("POST", &handshake_headers()),
+            "a handshake is a GET"
+        );
+
+        let mut only_upgrade = HashMap::new();
+        only_upgrade.insert("upgrade".into(), "websocket".into());
+        assert!(!is_websocket_upgrade_headers("GET", &only_upgrade));
+
+        let mut only_connection = HashMap::new();
+        only_connection.insert("connection".into(), "Upgrade".into());
+        assert!(!is_websocket_upgrade_headers("GET", &only_connection));
+
+        let mut other_protocol = handshake_headers();
+        other_protocol.insert("upgrade".into(), "h2c".into());
+        assert!(!is_websocket_upgrade_headers("GET", &other_protocol));
+
+        assert!(!is_websocket_upgrade_headers("GET", &HashMap::new()));
+    }
+
+    #[tokio::test]
+    async fn is_websocket_upgrade_reads_the_built_request() {
+        let hyper_req = hyper::Request::builder()
+            .method("GET")
+            .uri("/chat")
+            .header("upgrade", "websocket")
+            .header("connection", "Upgrade")
+            .header("sec-websocket-version", "13")
+            .body(Full::new(Bytes::new()))
+            .unwrap();
+
+        let request = Request::from_hyper_with_connection(hyper_req, None, Arc::new(Vec::new()))
+            .await
+            .unwrap();
+
+        assert!(request.is_websocket_upgrade());
+    }
+
+    #[tokio::test]
+    async fn no_upgrade_handle_without_a_real_connection() {
+        // A hand-built request carries no `OnUpgrade` extension, so there is
+        // nothing to upgrade even though the headers ask for it. The handle
+        // must stay `None` rather than become one that never resolves.
+        let hyper_req = hyper::Request::builder()
+            .method("GET")
+            .uri("/chat")
+            .header("upgrade", "websocket")
+            .header("connection", "Upgrade")
+            .body(Full::new(Bytes::new()))
+            .unwrap();
+
+        let mut request =
+            Request::from_hyper_with_connection(hyper_req, None, Arc::new(Vec::new()))
+                .await
+                .unwrap();
+
+        assert!(request.is_websocket_upgrade());
+        assert!(!request.has_upgrade());
+        assert!(request.take_upgrade().is_none());
+    }
+
+    #[tokio::test]
+    async fn ordinary_requests_carry_no_upgrade_handle() {
+        let hyper_req = hyper::Request::builder()
+            .method("GET")
+            .uri("/chat")
+            .body(Full::new(Bytes::new()))
+            .unwrap();
+
+        let request = Request::from_hyper_with_connection(hyper_req, None, Arc::new(Vec::new()))
+            .await
+            .unwrap();
+
+        assert!(!request.is_websocket_upgrade());
+        assert!(!request.has_upgrade());
+    }
+
+    #[test]
+    fn hand_built_requests_default_to_no_upgrade() {
+        let request = Request::new("GET", "/chat", "HTTP/1.1");
+        assert!(!request.has_upgrade());
+        assert!(!Request::default().has_upgrade());
     }
 }

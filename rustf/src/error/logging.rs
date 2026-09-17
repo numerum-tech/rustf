@@ -406,6 +406,8 @@ impl ErrorLogger {
             Error::Redis(_) => "Redis".to_string(),
             #[cfg(feature = "redis")]
             Error::RedisPool(_) => "RedisPool".to_string(),
+            #[cfg(feature = "websocket")]
+            Error::WebSocket(_) => "WebSocket".to_string(),
         }
     }
 }

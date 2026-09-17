@@ -7,7 +7,67 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **`routes!` no longer accepts `SOCKET` as a custom HTTP method.** The macro's
+  catch-all arm used to stringify any identifier, so `routes![SOCKET "/x" => h]`
+  registered a route whose method was literally `SOCKET`. It now builds a
+  WebSocket route: the entry registers as `GET`, a plain `GET` gets `426`, and
+  with `--no-default-features` (no `websocket` feature) the invocation does not
+  compile. Anything genuinely dispatching a custom `SOCKET` method must build
+  the route with `Route::new("SOCKET", path, handler)` instead.
+- **`TrieRouter::add_route` takes a `RouteInfo`** instead of five positional
+  arguments. `Router::add_route(Route)` — what applications and controllers
+  use — is unchanged.
+
 ### Added
+- **WebSocket support**, behind the default-on `websocket` feature. Total.js
+  shaped: `routes![SOCKET "/chat/{room}" => chat]` registers a `GET` route that
+  only accepts a handshake — a plain `GET` gets `426 Upgrade Required` and the
+  handler never runs. `ctx.socket(|room| ..)` configures the room for the
+  matched URL for the first client, with `on_open` / `on_message` /
+  `on_close` / `on_error` closures; everyone after joins it. (Once per room,
+  not once per process: an autodestroyed room — or one whose closure panicked —
+  is configured again by the next connection, so keep external side effects out
+  of it.) `SocketRoom` has
+  `send`, `send_except`, `send_to`, the `_json` variants, `online`, `find`,
+  `autodestroy` (on by default) and `destroy`; `SocketClient` carries the
+  handshake's params, query, headers, IP and session. `SOCKET::room(path)` —
+  RustF's `F.connections[url]` — reaches any live room from an HTTP handler, a
+  worker or a scheduled job.
+- **Per-route socket flags**, mirroring Total.js's
+  `ROUTE('SOCKET /x/', fn, ['json'], 1024)`:
+  `SOCKET "/feed" => feed, [json, max = 1 << 20]`. `[json]` closes any message —
+  text or binary — whose payload is not valid JSON with `1003`; `[max = N]`
+  overrides the configured message cap and closes an oversize message with
+  `1009`. Supporting this required rewriting
+  `routes!` as an incremental tt-muncher — every existing call site is
+  unchanged, but a malformed `routes!` now produces a less precise error.
+- **`ctx.websocket(|socket| ..)`** — the raw escape hatch, one `WebSocket` per
+  connection with `recv` / `send` / `send_json` / `close` / `split`. Control
+  frames are handled by the runtime: pings are answered automatically, a close
+  frame ends `recv`, and the close handshake is completed rather than the
+  socket being dropped.
+- **`[websocket]` configuration**: `max_message_size` (1 MiB default, against
+  tungstenite's 64 MiB), `max_frame_size`, `ping_interval` (server-side
+  keepalive, which closes a connection with `1001` when nothing comes back
+  between two pings), `allowed_origins`, `accept_subprotocols`,
+  `require_origin` (refuse a handshake with no `Origin` at all — off by
+  default, since that would break non-browser clients) and `max_connections`
+  (cap on concurrent sockets; over it, a handshake gets `503`).
+- **Origin enforcement on the handshake.** Same-origin by default, since a
+  WebSocket handshake carries cookies and CSRF tokens do not apply to it.
+  `allowed_origins` extends the default rather than replacing it; `Origin: null`
+  is never same-origin; a request with no `Origin` (a non-browser client) is
+  allowed; `["*"]` turns the check off.
+- **Graceful shutdown closes sockets** with `1001 Going Away` and waits for the
+  connections to finish, bounded by `[server] shutdown_timeout`. Upgraded
+  connections leave hyper's control, so they are tracked separately.
+- **`rustf-cli new socket --name <name>`** scaffolds a `SOCKET` route, a room
+  with the three handlers, a page, and a dependency-free browser client.
+- **Documentation**: `docs/ABOUT_WEBSOCKET.md` and the book's
+  [WebSocket chapter](book/src/advanced/websocket.md), with a Total.js → RustF
+  mapping table and the limits spelled out (HTTP/1.1 only, no cross-process
+  broadcast, no permessage-deflate).
 - **Generic typed accessors on `Context`**: `query_as::<T>` / `param_as::<T>` /
   `body_as::<T>` and their `_or` variants, for any `T: FromStr`. These cover the
   types the `_int` / `_bool` accessors do not — `f64`, `i64`, `u32`, `Uuid`,

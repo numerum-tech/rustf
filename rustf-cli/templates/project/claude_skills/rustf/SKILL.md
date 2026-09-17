@@ -90,6 +90,7 @@ pub fn install() -> Vec<Route> {
         PUT    "/posts/{id}"      => update,
         DELETE "/posts/{id}"      => destroy,
         XHR    "/api/data"        => xhr_only,   // XHR is a first-class method here
+        SOCKET "/posts/live"      => live,       // WebSocket; see §7.5
     ]
 }
 ```
@@ -450,6 +451,78 @@ Why it matters, beyond taste:
   once and the model once when it builds the render context. That remaining
   clone is an implementation detail being removed. Do NOT reshape a page
   around it; put each piece of data in the channel it belongs to.
+
+---
+
+## 7.5. Real-time: SSE for one-way, `SOCKET` for two-way
+
+Pick by direction, not by taste:
+
+- **Server → browser only** (progress, notifications, a live feed):
+  `ctx.sse(..)`. It is plain HTTP, reconnects on its own, and needs no new
+  route keyword.
+- **Both directions** (chat, collaborative editing, a control channel):
+  a `SOCKET` route.
+
+`SOCKET` registers a `GET` route that only accepts a handshake. A plain `GET`
+to it gets `426 Upgrade Required` and the handler never runs.
+
+```rust
+pub fn install() -> Vec<Route> {
+    routes![
+        GET    "/chat"        => page,
+        SOCKET "/chat/{room}" => chat,
+    ]
+}
+
+async fn chat(ctx: &mut Context) -> rustf::Result<()> {
+    // Authorise here — this runs on the handshake, before any upgrade.
+    if ctx.session().map(|s| s.is_authenticated()) != Some(true) {
+        return ctx.throw401(Some("Sign in first"));
+    }
+
+    // Runs for the FIRST client on this URL. Everyone after joins this room.
+    // (Once per room, not once per process: an empty room is dropped when its
+    //  last client leaves, and a panicking closure discards its room too, so
+    //  the next connection configures a new one.)
+    ctx.socket(|room| {
+        room.on_open(|client| async move {
+            client.send_json(&json!({ "type": "welcome", "id": client.id() }))
+        });
+        room.on_message(|client, message| async move {
+            client.room().send_except(message, client.id())
+        });
+        room.on_close(|client, _code| async move {
+            client.room().send_json(&json!({ "type": "left", "id": client.id() }))
+        });
+    })
+}
+```
+
+Rules that bite:
+
+- **`ctx.socket` / `ctx.websocket` must be the LAST call in the handler.** It
+  writes the `101`; anything that replaces `ctx.res` afterwards is discarded
+  with an error in the log.
+- **The configure closure runs once per room, not once per client.** Do not
+  put per-client work in it — that belongs in `on_open`. And not once per
+  process either: a room that autodestroys (the default, when its last client
+  leaves) *or* whose closure panicked is configured again by the next
+  connection. Keep external side effects out of it.
+- **`on_close` and `on_error` are bounded at five seconds** and cancelled if
+  they overrun — they run while the connection is being torn down. Cleanup that
+  must complete belongs in a `WORKER`.
+- **Room sends are not `.await`ed.** `room.send*` and `client.send*` are
+  synchronous: they queue onto a bounded per-client channel. Only the closures
+  themselves are async.
+- **`SOCKET` needs the `websocket` feature** (on by default).
+- Push into a live room from anywhere else with
+  `SOCKET::room("/chat/general")` — an HTTP handler, a worker, a scheduled job.
+- Want the raw connection instead of a room? `ctx.websocket(|mut socket| async
+  move { while let Some(m) = socket.recv().await { socket.send(m?).await?; } Ok(()) })`.
+- Scaffold the whole thing: `rustf-cli new socket --name chat`.
+
+Full guide: `docs/ABOUT_WEBSOCKET.md`.
 
 ---
 

@@ -280,6 +280,31 @@ a full interval after the stream starts, and never while events are flowing.
 `HEAD` requests to any route run the `GET` handler and return its headers
 with no body. The static file server does not support `Range` requests.
 
+### WebSocket
+
+Both take a `SOCKET` route and must be the **last** call in the handler: they
+write the `101`, and anything that replaces `ctx.res` afterwards is discarded.
+
+```rust
+ctx.socket(configure: impl FnOnce(&SocketRoom) + Send + 'static) -> Result<()>
+ctx.websocket(callback: impl FnOnce(WebSocket) -> Future<Output = Result<()>> + Send + 'static) -> Result<()>
+ctx.is_upgrading() -> bool     // false when the handshake was rejected
+```
+
+`ctx.socket` is the Total.js model: RustF keeps one `SocketRoom` per matched
+URL, `configure` runs for the first client on that path, and everyone after
+joins the room it set up. It runs once per *room*, not once per process — a
+room with `autodestroy` on (the default) disappears when its last client leaves,
+and the next connection configures a new one. `ctx.websocket` hands over the raw
+connection instead.
+
+A rejected handshake (`400` / `403` / `426`) still returns `Ok(())`, with the
+response already written to `ctx.res`. Errors *after* the upgrade cannot reach
+the client and are logged.
+
+See [WebSocket](../advanced/websocket.md) for rooms, `SOCKET::room`, the
+per-route `[json]` / `[max = ..]` flags, and the origin policy.
+
 ```rust
 use rustf::prelude::*;
 use tokio_stream::wrappers::ReceiverStream;

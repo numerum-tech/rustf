@@ -1,13 +1,57 @@
 # WebSocket support — assessment and implementation plan
 
-**Status:** TODO — not started. Assessment done 2026-09-04.
-**Blocked on:** Codex sign-off of the streaming fixes, then the Context API
-cleanup (`2026-09-04-context-api-cleanup-plan.md`) if Morle wants that first.
-Independent of both technically; ordering is a release-scope choice.
-**Target:** 1.1.0 unless Morle decides 1.0.0 must say "WebSocket" on the tin.
-Everything here is additive (new route kind, new `Context` method, new
-module), so it does not need to precede the 1.0 freeze.
+**Status:** IMPLEMENTED — 2026-09-17. Steps 1–11 done, reviewed and verified.
+**Note:** this document is the *plan*. Where it and the code disagree, the code
+and `docs/ABOUT_WEBSOCKET.md` are authoritative; §2's sketches in particular
+were refined during implementation and six adversarial review passes. The
+notable departures:
+
+* `room.send*` / `client.send*` are **synchronous** (they queue onto a bounded
+  per-client channel); only the handler closures are `async`.
+* Room configuration runs once per room *generation*, not once per URL for the
+  life of the process: with `autodestroy` on — the default — an empty room is
+  dropped and the next connection configures a new one, as does a closure that
+  panicked. A later connection's closure is never invoked, silently, rather
+  than "ignored with a debug log".
+* `on_close` and `on_error` are bounded at five seconds and cancelled if they
+  overrun, because both run while the connection is being torn down.
+* Configuration deliberately does **not** hold the room registry lock, so a
+  configure closure may call `SOCKET::room`; the room is published while still
+  initialising and joiners wait on a readiness flag.
+* Added beyond the plan: `[websocket] require_origin` and `max_connections`,
+  duplicate-handshake-header rejection, a keepalive that closes a peer that
+  stops answering, and validation that the `101` still matches what was
+  negotiated before the upgrade is spawned.
+
+**Branch:** `feat/websocket`, based on `dev` (`c735676`).
+**Target:** **1.0.0.** Morle's call on 2026-09-17: the release waits for
+WebSocket rather than shipping without it.
+**Scope:** full plan, steps 1–11 — raw socket *and* the Total.js room layer,
+config, shutdown, CLI generator, docs, sample-app demo.
 **Author context:** Claude with Morle. Every commit reviewed before landing.
+
+## Decisions (2026-09-17) — §6 closed
+
+| # | Question | Decision |
+|---|---|---|
+| 1 | 1.0.0 or 1.1.0? | **1.0.0.** Hold the release for it. |
+| 2 | Room layer in v1? | **Yes** — full steps 1–11, not just the raw socket. |
+| 3 | `websocket` feature default-on? | **Yes**, same policy as `redis`. |
+| 4 | Event registration shape | **Closures** on the room (`room.on_message(..)`); no `SocketHandler` trait in v1. |
+| 5 | Route keyword | **`SOCKET`**; authorization stays on the existing `before:` hook / `require_auth()`. |
+| 6 | Per-route flags | **Macro suffix**, not a builder: `SOCKET "/chat" => chat, [json]` and `[json, max = 1048576]`. Closest to Total.js's `ROUTE('SOCKET /chat/', fn, ['json'], 1024)`. Requires rewriting `routes!` as a tt-muncher (see note below). |
+
+### Note on decision 6 — what the macro suffix costs
+
+`routes!` today is a flat `$($method:ident $path:literal => $handler:expr),*`
+repetition. A per-element optional `[flags]` group cannot be added to it: an
+`expr` fragment may only be followed by `=>`, `,` or `;`, so `=> $handler [json]`
+will not compile, and `=> $handler, [json]` collides with the `,` repetition
+separator (local ambiguity). The macro therefore becomes an incremental
+tt-muncher with an internal `@munch` accumulator. Behaviour for every existing
+call site is unchanged and covered by the existing macro tests, but error
+messages on a malformed `routes!` get worse — that is the price of the
+Total.js-shaped syntax.
 
 ---
 
@@ -128,17 +172,17 @@ Total.js facts that shape the Rust API:
 
 | Total.js | RustF | Note |
 |---|---|---|
-| `ROUTE('SOCKET /chat/{room}/', action, ['json'], 1024)` | `routes![SOCKET "/chat/{room}" => chat]` | flags/limits come from `[websocket]` config and per-route builder (`.json()`, `.max_message_size(..)`) |
+| `ROUTE('SOCKET /chat/{room}/', action, ['json'], 1024)` | `routes![SOCKET "/chat/{room}" => chat, [json, max = 1024]]` | flags are a macro suffix (decision 6); unset limits fall back to `[websocket]` config |
 | `'+SOCKET'` / `'-SOCKET'` | `routes![before: require_auth, SOCKET .. ]` or `ctx.require_auth()?` in the action | RustF already has the `before:` hook and `require_auth`; no new syntax |
 | action `function() { this.on('open'/'message'/'close') }` | `async fn chat(ctx: &mut Context) -> Result<()>` that calls `ctx.socket(\|room\| ..)` | see below; runs per handshake, but the `room` it configures is shared per URL like Total.js |
-| `self` (socket controller) | `SocketRoom` (per matched path, auto-created on first client) | `send(msg)`, `send_except(msg, client)`, `send_to(id, msg)`, `online()`, `connections()`, `find(id)`, `destroy()`, `autodestroy(bool)` |
-| `client` | `SocketClient` | `id()`, `params()`, `query()`, `headers()`, `ip()`, `session()`, `send(msg)`, `send_json(&T)`, `close(code, reason)` |
-| `self.on('open', f)` | `room.on_open(\|client\| async move { .. })` | registered once per room (first handshake wins; later registrations ignored with a debug log) — same "runs once per URL" semantics as Total.js |
-| `self.on('message', f)` | `room.on_message(\|client, msg\| async move { .. })` | `msg: Message` (`Text`/`Binary`) or `recv_json::<T>()` when the route is `.json()` |
-| `self.on('close', f)` | `room.on_close(\|client, code\| async move { .. })` | |
-| `self.on('error', f)` | `room.on_error(\|client, err\| async move { .. })` | default: log at `error`, close `1011` |
+| `self` (socket controller) | `SocketRoom` (per matched path, auto-created on first client) | `send(msg)`, `send_except(msg, id)`, `send_to(id, msg)`, `send_json[_except]`, `online()`, `is_empty()`, `client_ids()`, `find(id)`, `destroy()`, `autodestroy(bool)`, `path()` — all the `send*` methods are **synchronous** |
+| `client` | `SocketClient` | `id()`, `room()`, `params()` / `param(n)`, `query()` / `query_param(n)`, `headers()` / `header(n)`, `ip()`, `session()`, `send(msg)`, `send_text(..)`, `send_json(&T)`, `close(code, reason)` |
+| `self.on('open', f)` | `room.on_open(\|client\| async move { .. })` | registered during configuration, which runs once per room *generation* — a later connection's closure is simply never invoked, unless the room has since been autodestroyed or its closure panicked |
+| `self.on('message', f)` | `room.on_message(\|client, msg\| async move { .. })` | `msg: Message` (`Text`/`Binary`); read it as a type with `msg.parse::<T>()`, which works for either frame kind |
+| `self.on('close', f)` | `room.on_close(\|client, code\| async move { .. })` | `code` is the peer's own, `1005` for a close with no status, `1006` for a connection that vanished, or the code the server closed with; best effort and bounded at 5s |
+| `self.on('error', f)` | `room.on_error(\|client, err\| async move { .. })` | without one, the error is logged at `error`. A handler returning `Err` does **not** close the connection; a *protocol* failure closes with the code RFC 6455 gives it (`1009`/`1007`/`1002`/`1006`), not `1011`. Bounded at 5s |
 | `F.connections[url]` | `SOCKET::room("/chat/room1")` global (like `CONF`, `WORKER`) | `Option<Arc<SocketRoom>>`; `SOCKET::rooms()` |
-| `['json']` | `Message::json()` / `client.send_json(&T)` / `msg.parse::<T>()` | always available; the route-level `.json()` flag additionally rejects non-JSON text with `1003` |
+| `['json']` | `Message::json()` / `client.send_json(&T)` / `msg.parse::<T>()` | always available; the route-level `[json]` flag additionally closes any message — text *or* binary — whose payload is not valid JSON with `1003` |
 
 ### Handler (the Total.js action, in Rust)
 
@@ -302,31 +346,10 @@ working echo socket and are the first reviewable milestone.
 
 ---
 
-## 6. Open decisions for Morle
+## 6. Open decisions for Morle — CLOSED
 
-1. **Ship in 1.0.0 or 1.1.0?** Additive, so 1.1 is safe. Argument for 1.0:
-   "production framework" pitch gets asked "WebSocket?" immediately;
-   argument against: 1.0 is already carrying the streaming break set and the
-   Context API cleanup.
-2. **Room layer (`ctx.socket` / `SocketRoom`) in v1?** Recommend yes (step 6):
-   it is the Total.js model and what every chat/notification example needs.
-   The raw `ctx.websocket` closure ships too, as the building block.
-3. **Default feature on?** Recommend yes, consistent with `redis`.
-4. **Event registration shape**: closures on the room
-   (`room.on_message(|client, msg| async move {..})`, recommended — closest
-   to `self.on('message', fn)` and zero ceremony) vs a
-   `SocketHandler` trait with `on_open/on_message/on_close` methods
-   implemented on a struct (more Rust-typical, but a struct + impl block per
-   route is exactly the ceremony Total.js avoids). Closures first; trait as
-   sugar later if asked.
-5. **Route keyword**: `SOCKET` — settled by Total.js lineage
-   (`ROUTE('SOCKET /path')`). Authorization stays on the existing `before:`
-   hook / `require_auth()` instead of inventing `+SOCKET` / `-SOCKET`
-   prefixes in the macro; mention the Total.js equivalence in docs.
-6. **Per-route flags** (`['json']`, max length): via a builder on the route
-   (`Route::websocket(..).json().max_message_size(1 << 20)`) or a macro
-   suffix (`SOCKET "/chat" => chat, [json]`)? Recommend builder; the macro
-   already has enough arms.
+All six answered on 2026-09-17; see the decisions table at the top of this
+document. Nothing here is still open.
 
 ## 7. Out of scope (say so in docs)
 

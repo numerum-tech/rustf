@@ -61,6 +61,14 @@ sha1 = "0.10"
 md-5 = "0.10"
 flate2 = "1.0"
 
+# WebSocket transport. Server-side only: `handshake` gives us
+# `derive_accept_key`, and `from_raw_socket` wraps the upgraded hyper IO. The
+# `connect`/TLS features are client-side and would pull in `url` + a TLS stack
+# for nothing.
+tokio-tungstenite = { version = "0.30", default-features = false, features = [
+    "handshake",
+], optional = true }
+
 # Fast JSON parsing (2-3x faster than serde_json)
 # Note: simd-json is primarily for parsing, not serialization
 simd-json = { version = "0.13", features = ["serde", "alloc"] }
@@ -69,6 +77,7 @@ simd-json = { version = "0.13", features = ["serde", "alloc"] }
 default = [
     "embedded-views",
     "redis",
+    "websocket",
     "db-postgres",
     "db-mysql",
     "db-sqlite",
@@ -88,6 +97,10 @@ db-sqlite = ["database", "sqlx/sqlite"]
 # On by default; disable with --no-default-features to drop the redis deps, then
 # supply a custom SessionStorage implementation for shared sessions.
 redis = ["dep:redis", "dep:deadpool-redis"]
+# WebSocket support: the `SOCKET` route keyword, `ctx.socket` / `ctx.websocket`,
+# and the `SocketRoom` layer. On by default, same policy as `redis`; drop it
+# with --no-default-features to lose the tungstenite dependency.
+websocket = ["dep:tokio-tungstenite"]
 embedded-views = ["rust-embed", "rustf-macros/embedded-views"]
 schema = ["rustf-schema"]
 # Implied by `database` (decimal support is only useful with a DB). Listed
@@ -102,6 +115,13 @@ criterion = "0.5"
 # Needed by streaming-body tests to build chunk streams by hand.
 bytes = "1"
 futures = "0.3"
+# The WebSocket wire tests need a real client, which is the one place the
+# client-side half of tokio-tungstenite is wanted.
+tokio-tungstenite = { version = "0.30", features = ["connect"] }
+# Used by the wire test to derive Sec-WebSocket-Accept independently, so the
+# assertion does not just repeat what the implementation computed.
+sha1 = "0.10"
+base64 = "0.22"
 
 [[bench]]
 name = "configuration"

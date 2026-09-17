@@ -71,6 +71,9 @@ pub struct AppConfig {
     #[serde(default, rename = "private")]
     pub r#private: PrivateConfig,
 
+    #[serde(default)]
+    pub websocket: WebSocketSettings,
+
     // All other sections - user-defined configuration sections
     // These sections are stored as TOML values and can be deserialized on-demand
     #[serde(flatten)]
@@ -267,6 +270,88 @@ pub struct CorsConfig {
     pub allowed_headers: Vec<String>,
 }
 
+/// `[websocket]` — limits and policy for WebSocket connections.
+///
+/// ```toml
+/// [websocket]
+/// max_message_size = 1048576
+/// max_frame_size   = 262144
+/// ping_interval    = 30
+/// allowed_origins  = []
+/// accept_subprotocols = []
+/// ```
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WebSocketSettings {
+    /// Largest message accepted, in bytes. Oversize closes with `1009`.
+    ///
+    /// Defaults to 1 MiB. tungstenite's own default is 64 MiB, which is a
+    /// memory-exhaustion vector on a public endpoint.
+    #[serde(default = "default_ws_max_message_size")]
+    pub max_message_size: usize,
+
+    /// Largest single frame accepted, in bytes. Defaults to 256 KiB.
+    #[serde(default = "default_ws_max_frame_size")]
+    pub max_frame_size: usize,
+
+    /// Seconds between server-sent pings. `0` disables the keepalive.
+    ///
+    /// Pings detect peers that vanished without a close frame — the half-open
+    /// connections that otherwise accumulate behind NATs and load balancers.
+    #[serde(default = "default_ws_ping_interval")]
+    pub ping_interval: u64,
+
+    /// Origins allowed *in addition to* the request's own origin.
+    ///
+    /// Empty (the default) means same-origin only. A single `"*"` disables
+    /// the check, which re-opens Cross-Site WebSocket Hijacking: a page on any
+    /// site could then open an authenticated socket with the visitor's
+    /// cookies. Only appropriate for endpoints that carry no ambient
+    /// authority.
+    #[serde(default)]
+    pub allowed_origins: Vec<String>,
+
+    /// Subprotocols the server understands, most preferred first.
+    ///
+    /// The first entry the client also offered is echoed back in
+    /// `Sec-WebSocket-Protocol`. Matching is case-sensitive, as RFC 7230
+    /// tokens require. Empty means none is negotiated.
+    #[serde(default)]
+    pub accept_subprotocols: Vec<String>,
+
+    /// Refuse a handshake that carries no `Origin` header at all.
+    ///
+    /// Off by default: an absent `Origin` normally means a non-browser client,
+    /// which attaches no cookies of its own, and refusing those would break
+    /// every service-to-service socket. Turn it on for an endpoint only ever
+    /// opened by a browser, where a missing `Origin` more likely means a proxy
+    /// stripped it while still forwarding `Cookie`.
+    #[serde(default)]
+    pub require_origin: bool,
+
+    /// Largest number of WebSocket connections served at once. `0` is no limit.
+    ///
+    /// The handshake is cheap and a connection is long-lived, so without a cap
+    /// an unauthenticated client can hold open as many tasks and outbound
+    /// queues as it likes. Over the limit, the handshake gets
+    /// `503 Service Unavailable`.
+    #[serde(default)]
+    pub max_connections: usize,
+}
+
+impl Default for WebSocketSettings {
+    fn default() -> Self {
+        Self {
+            max_message_size: default_ws_max_message_size(),
+            max_frame_size: default_ws_max_frame_size(),
+            ping_interval: default_ws_ping_interval(),
+            allowed_origins: Vec::new(),
+            accept_subprotocols: Vec::new(),
+            require_origin: false,
+            max_connections: 0,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LoggingConfig {
     #[serde(default = "default_log_level")]
@@ -314,6 +399,15 @@ fn default_timeout() -> u64 {
     30
 }
 fn default_shutdown_timeout() -> u64 {
+    30
+}
+fn default_ws_max_message_size() -> usize {
+    1024 * 1024
+}
+fn default_ws_max_frame_size() -> usize {
+    256 * 1024
+}
+fn default_ws_ping_interval() -> u64 {
     30
 }
 fn default_max_connections() -> usize {

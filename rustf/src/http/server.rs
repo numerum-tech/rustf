@@ -7,6 +7,7 @@ use hyper_util::server::graceful::GracefulShutdown;
 use std::convert::Infallible;
 use std::net::SocketAddr;
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::net::TcpListener;
 use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
@@ -159,6 +160,11 @@ impl Server {
         let app_ref = Arc::clone(&self.app);
 
         let builder = AutoBuilder::new(TokioExecutor::new());
+        // The shutting-down flag is process-global, so a server starting up
+        // must clear whatever a previous one left behind.
+        #[cfg(feature = "websocket")]
+        crate::websocket::upgrade::reset_shutdown_state();
+
         let graceful = GracefulShutdown::new();
         let mut shutdown_rx = std::pin::pin!(shutdown_rx);
 
@@ -221,6 +227,16 @@ impl Server {
                 }
             }
         }
+
+        // Upgraded WebSocket connections are no longer hyper connections, so
+        // `GracefulShutdown` cannot see them. Close them first — otherwise the
+        // drain below would wait on HTTP requests while sockets stayed open
+        // with no way to learn the server is going away.
+        #[cfg(feature = "websocket")]
+        crate::websocket::upgrade::shutdown_sockets(Duration::from_secs(
+            self.app.config.server.shutdown_timeout,
+        ))
+        .await;
 
         // Stop accepting, then drain in-flight connections.
         log::info!("Waiting for in-flight connections to complete...");

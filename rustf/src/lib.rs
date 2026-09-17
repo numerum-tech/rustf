@@ -41,6 +41,8 @@ pub mod session;
 pub mod shared;
 pub mod utils;
 pub mod views;
+#[cfg(feature = "websocket")]
+pub mod websocket;
 pub mod workers;
 
 // CLI support for command-line argument parsing
@@ -73,6 +75,11 @@ pub use http::{
 };
 pub use middleware::{InboundAction, InboundMiddleware, MiddlewareResult, OutboundMiddleware};
 pub use routing::{BeforeAction, BeforeFn, Route, RouteHandler};
+#[cfg(feature = "websocket")]
+pub use websocket::{
+    ClientId, CloseCode, Message, SocketClient, SocketRoom, WebSocket, WebSocketReceiver,
+    WebSocketSender, SOCKET,
+};
 
 // Re-export database access for backward compatibility
 pub use configuration::{CONF, DEBUG};
@@ -169,6 +176,13 @@ pub mod prelude {
 
     // Streaming response bodies and Server-Sent Events
     pub use crate::http::{Body, BodyStream, SseEvent};
+
+    // WebSocket: the `SOCKET` route keyword's room model and the raw socket.
+    #[cfg(feature = "websocket")]
+    pub use crate::websocket::{
+        ClientId, CloseCode, Message, SocketClient, SocketRoom, WebSocket, WebSocketReceiver,
+        WebSocketSender, SOCKET,
+    };
 
     // Re-export auto-discovery macros for convenience
     pub use rustf_macros::{
