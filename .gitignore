@@ -96,3 +96,6 @@ rust-project.json
 
 # mdBook generated output (Pages rebuilds via CI)
 book/book/
+
+# graft's local graph cache — regenerable, not committed (run `graft build`).
+/graft/
