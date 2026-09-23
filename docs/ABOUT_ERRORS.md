@@ -129,6 +129,55 @@ assert_eq!(error.status_code(), 401);
 assert!(!error.is_retryable());
 ```
 
+### What Happens When a Handler Returns `Err`
+
+A handler that returns `Err` is not a crash. The framework reads
+`Error::status_code()` and answers with that status, so the idiomatic guard
+works exactly as written:
+
+```rust
+async fn edit(ctx: &mut Context) -> rustf::Result<()> {
+    ctx.require_auth()?;                  // no session          -> 401 Unauthorized
+    let id = ctx.param_int("id")?;        // "/posts/abc"        -> 400 Bad Request
+    let post = Post::find(id).await?
+        .ok_or_else(|| Error::validation("No such post"))?;      // -> 400 Bad Request
+
+    ctx.view("posts/edit", json!(post))
+}
+```
+
+The mapping is the one in `Error::status_code()`: `Validation` and
+`InvalidInput` → 400, `Authentication` → 401, `Authorization` → 403,
+`RouteNotFound` and `ModelNotFound` → 404, `Timeout` → 408, `RateLimit` → 429,
+everything else → 500.
+
+Three things follow from this:
+
+- **Outbound middleware still runs** over the error response, so security
+  headers, CORS and compression apply to a 401 exactly as to a 200.
+- **A partial response is discarded.** If the handler wrote to `ctx` and *then*
+  returned `Err`, the half-written body does not go out.
+- **A 5xx never discloses its message.** `Error::client_message()` returns the
+  error's own text only for `Validation`, `InvalidInput`, `Authentication` and
+  `Authorization`; everything else — including anything added with
+  `with_context` — collapses to the canonical reason phrase. The full chain
+  goes to the error log instead. A 4xx is logged at debug, so a flood of bad
+  requests cannot flood the log.
+
+The body is plain text for a browser and JSON for an API client, decided by
+`Request::wants_json()`: true for XHR/htmx requests and for an `Accept` header
+that ranks `application/json` at least as high as `text/html`.
+
+```json
+{ "error": "Authentication required", "code": "E_AUTH" }
+```
+
+A 5xx reports `"code": "E_INTERNAL"` regardless of which variant failed.
+
+When you want a different body or a redirect instead of a status, write the
+response yourself and return `Ok(())` — `ctx.throw401(..)`, `ctx.redirect(..)`
+and friends are unaffected by any of this.
+
 ## Error Context and Chaining
 
 ### Adding Context to Errors

@@ -735,6 +735,55 @@ impl Request {
         false
     }
 
+    /// Whether the client would rather have JSON than HTML.
+    ///
+    /// True for XHR/htmx requests, and for an `Accept` header that ranks
+    /// `application/json` at least as high as `text/html`. A request that
+    /// asks for neither (`*/*`, or no header at all) is not a JSON request —
+    /// plain text is the safer default for a curl or a health probe.
+    pub fn wants_json(&self) -> bool {
+        if self.is_xhr() {
+            return true;
+        }
+
+        let Some(accept) = self.headers.get("accept") else {
+            return false;
+        };
+
+        let mut json_q = 0.0f32;
+        let mut html_q = 0.0f32;
+
+        for entry in accept.split(',') {
+            let mut fields = entry.split(';');
+            let Some(media) = fields.next() else {
+                continue;
+            };
+            let media = media.trim().to_ascii_lowercase();
+
+            // A malformed or out-of-range q is treated as absent (q=1), which
+            // is what a lenient parser should do with a header it cannot fix.
+            let mut quality = 1.0f32;
+            for param in fields {
+                let param = param.trim().to_ascii_lowercase();
+                if let Some(value) = param.strip_prefix("q=") {
+                    if let Ok(parsed) = value.trim().parse::<f32>() {
+                        if (0.0..=1.0).contains(&parsed) {
+                            quality = parsed;
+                        }
+                    }
+                }
+            }
+
+            match media.as_str() {
+                "application/json" => json_q = json_q.max(quality),
+                "text/html" | "application/xhtml+xml" => html_q = html_q.max(quality),
+                _ => {}
+            }
+        }
+
+        json_q > 0.0 && json_q >= html_q
+    }
+
     /// Get preferred language from Accept-Language header
     pub fn language(&self) -> Option<&str> {
         if let Some(accept_lang) = self.headers.get("accept-language") {
@@ -1277,6 +1326,46 @@ mod urlencoding {
 mod tests {
     use super::*;
     use std::sync::Arc;
+
+    /// Build a GET request carrying one header.
+    fn with_header(name: &str, value: &str) -> Request {
+        let mut request = Request::new("GET", "/", "HTTP/1.1");
+        request.headers.insert(name.to_string(), value.to_string());
+        request
+    }
+
+    #[test]
+    fn test_wants_json_ranks_json_against_html() {
+        // No Accept at all, and the wildcard curl sends: neither asks for JSON.
+        assert!(!Request::new("GET", "/", "HTTP/1.1").wants_json());
+        assert!(!with_header("accept", "*/*").wants_json());
+
+        // A plain API client.
+        assert!(with_header("accept", "application/json").wants_json());
+        assert!(with_header("accept", "APPLICATION/JSON").wants_json());
+
+        // A browser: text/html is present, application/json is not.
+        assert!(!with_header(
+            "accept",
+            "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+        )
+        .wants_json());
+
+        // Both present — q decides, and a tie goes to JSON.
+        assert!(with_header("accept", "text/html;q=0.8, application/json;q=0.9").wants_json());
+        assert!(!with_header("accept", "text/html;q=0.9, application/json;q=0.8").wants_json());
+        assert!(with_header("accept", "text/html, application/json").wants_json());
+
+        // A malformed or out-of-range q is treated as absent (q=1).
+        assert!(with_header("accept", "application/json;q=banana, text/html;q=0.9").wants_json());
+        assert!(with_header("accept", "application/json;q=7, text/html;q=0.9").wants_json());
+
+        // XHR wins regardless of Accept.
+        assert!(
+            with_header("x-requested-with", "XMLHttpRequest").wants_json(),
+            "an XHR asks for JSON even without an Accept header"
+        );
+    }
 
     #[test]
     fn test_path_normalizes_origin_and_absolute_forms() {

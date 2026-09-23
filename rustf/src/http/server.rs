@@ -199,7 +199,12 @@ impl Server {
                                         "Request handling error: {}",
                                         ErrorChain::new(&e).format_for_log()
                                     );
-                                    Ok(crate::http::Response::internal_error().into_hyper())
+                                    // Everything past routing already maps its
+                                    // own errors; what reaches here failed
+                                    // before a `Context` existed (a malformed
+                                    // request line, an unreadable body), so
+                                    // there is no `Accept` to negotiate with.
+                                    Ok(crate::http::Response::from_error(&e, false).into_hyper())
                                 }
                             }
                         }

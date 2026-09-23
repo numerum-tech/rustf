@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **A handler returning `Err` now answers with the error's own status instead of
+  a blanket `500`.** `ctx.require_auth()?` is a `401`, `ctx.param_int("id")?` on
+  `/posts/abc` is a `400`, and the rest of `Error::status_code()`'s mapping
+  (403, 404, 408, 429) applies too. Previously every failing handler flattened
+  to `500 Internal Server Error`, which made the idiomatic guard unusable and
+  left the 401/403/404/429/408 arms of `Error::status_code()` as dead code.
+  The mapping also covers controller `before` hooks and middleware errors.
+
+  It runs before the outbound middleware stack, so security headers, CORS and
+  compression apply to the error response; a response the handler had already
+  written is discarded in favour of the error's; and a `5xx` never discloses
+  its own message — `Error::client_message()` returns the error text only for
+  `Validation`, `InvalidInput`, `Authentication` and `Authorization`, and
+  everything else (including anything added with `with_context`) collapses to
+  the canonical reason phrase, with the full chain going to the error log.
+
+  **This changes the status code of every failing handler.** Anything asserting
+  `500` on a route that returns `Err` needs updating.
+- **A `SOCKET` route on an app with no middleware at all now upgrades.** The
+  zero-middleware fast path in `execute_middleware_chain` returned before
+  `start_pending_upgrade` ran, so such an app answered the handshake with `101`
+  and then never upgraded. Every builtin middleware is opt-in and the session
+  middleware is only registered when sessions are enabled, so the path was
+  reachable.
+
+### Added
+- **`Request::wants_json()`** — whether the client would rather have JSON than
+  HTML: true for XHR/htmx requests, and for an `Accept` header that ranks
+  `application/json` at least as high as `text/html` (q-values respected). A
+  request that asks for neither (`*/*`, or no header) is not a JSON request.
+- **`Response::from_error(&Error, json: bool)`** — builds the response for a
+  framework error: status from `Error::status_code()`, body from
+  `Error::client_message()`, as plain text or as
+  `{"error": ..., "code": ...}`. A `5xx` reports `"code": "E_INTERNAL"`
+  whichever variant failed.
+- **`Error::client_message()`** — the text an error may safely show the client.
+
 ### Changed
 - **`routes!` no longer accepts `SOCKET` as a custom HTTP method.** The macro's
   catch-all arm used to stringify any identifier, so `routes![SOCKET "/x" => h]`

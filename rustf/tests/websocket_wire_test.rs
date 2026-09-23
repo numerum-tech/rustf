@@ -46,14 +46,10 @@ async fn greet(ctx: &mut Context) -> rustf::Result<()> {
 /// Requires an authenticated session. Nothing here has one, so it must 401
 /// and never upgrade.
 ///
-/// Written as an explicit `throw401` rather than `ctx.require_auth()?`
-/// because the framework currently flattens every handler `Err` to a bare
-/// `500` (`http/server.rs`), so `?` would not produce the status this is
-/// checking. That is a pre-existing gap, unrelated to WebSocket.
+/// Written the way an app author would write it — `ctx.require_auth()?` — which
+/// also pins the handler-error status mapping on the socket path.
 async fn guarded(ctx: &mut Context) -> rustf::Result<()> {
-    if ctx.session().map(|session| session.is_authenticated()) != Some(true) {
-        return ctx.throw401(Some("Authentication required"));
-    }
+    ctx.require_auth()?;
 
     ctx.websocket(|mut socket| async move {
         while socket.recv().await.is_some() {}
@@ -224,7 +220,9 @@ async fn websocket_routes_behave_correctly_on_the_wire() {
         "426 must advertise the protocol to switch to: {response}"
     );
     assert!(
-        response.to_lowercase().contains("sec-websocket-version: 13"),
+        response
+            .to_lowercase()
+            .contains("sec-websocket-version: 13"),
         "426 must advertise the supported version: {response}"
     );
 

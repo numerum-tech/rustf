@@ -268,4 +268,95 @@ impl Error {
             _ => 500,
         }
     }
+
+    /// The text this error may safely show the client.
+    ///
+    /// A 4xx describes what the *caller* got wrong, so its message is part of
+    /// the answer. Everything else collapses to the canonical reason phrase:
+    /// a 5xx message names internals (a connection string, a file path, a
+    /// driver's complaint) and must not leave the process, and even at 4xx a
+    /// `Timeout`, `RateLimit` or `ModelNotFound` message describes the server
+    /// rather than the request. The full chain goes to the log instead.
+    pub fn client_message(&self) -> &str {
+        match self {
+            Error::Validation(msg)
+            | Error::InvalidInput(msg)
+            | Error::Authentication(msg)
+            | Error::Authorization(msg) => msg,
+            // Delegate rather than return the context string: `with_context`
+            // is where callers record *internal* detail ("while loading the
+            // billing profile from the replica"), so only the wrapped error
+            // decides what the client sees.
+            Error::WithContext { source, .. } => source.client_message(),
+            _ => reason_phrase(self.status_code()),
+        }
+    }
+}
+
+/// The canonical reason phrase for the statuses [`Error::status_code`] can
+/// produce. Used as the response body wherever the error's own message is not
+/// safe to disclose.
+fn reason_phrase(status: u16) -> &'static str {
+    match status {
+        400 => "Bad Request",
+        401 => "Unauthorized",
+        403 => "Forbidden",
+        404 => "Not Found",
+        408 => "Request Timeout",
+        429 => "Too Many Requests",
+        _ => "Internal Server Error",
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn client_message_discloses_only_what_the_caller_caused() {
+        // A 4xx describes the request, so the message is the answer.
+        assert_eq!(
+            Error::validation("email is not a valid address").client_message(),
+            "email is not a valid address"
+        );
+        assert_eq!(
+            Error::authentication("Session expired").client_message(),
+            "Session expired"
+        );
+        assert_eq!(
+            Error::authorization("administrators only").client_message(),
+            "administrators only"
+        );
+
+        // A 5xx describes the server and must not leave the process.
+        let internal = Error::internal("postgres://admin:hunter2@10.0.0.7/billing is down");
+        assert_eq!(internal.status_code(), 500);
+        assert_eq!(internal.client_message(), "Internal Server Error");
+
+        // 4xx variants whose message still names internals fall back to the
+        // reason phrase.
+        assert_eq!(
+            Error::ModelNotFound("internal_billing_ledger".into()).client_message(),
+            "Not Found"
+        );
+        assert_eq!(
+            Error::rate_limit("10.0.0.7 exceeded 100/min").client_message(),
+            "Too Many Requests"
+        );
+        assert_eq!(
+            Error::Timeout("replica-3 did not answer in 30s".into()).client_message(),
+            "Request Timeout"
+        );
+
+        // `with_context` records internal detail; the wrapped error still
+        // decides what the client reads.
+        let wrapped = Error::authentication("Session expired")
+            .with_context("while verifying the token against /etc/rustf/keys/admin.pem");
+        assert_eq!(wrapped.status_code(), 401);
+        assert_eq!(wrapped.client_message(), "Session expired");
+
+        let wrapped_internal =
+            Error::internal("shard 4 offline").with_context("while loading the billing profile");
+        assert_eq!(wrapped_internal.client_message(), "Internal Server Error");
+    }
 }

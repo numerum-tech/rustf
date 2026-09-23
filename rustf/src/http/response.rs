@@ -92,6 +92,40 @@ impl Response {
             .with_body(body.as_bytes().to_vec())
     }
 
+    /// Build the response for a framework [`Error`].
+    ///
+    /// The status comes from [`Error::status_code`] — this is what turns a
+    /// `ctx.require_auth()?` into a `401` instead of a blanket `500` — and the
+    /// body from [`Error::client_message`], which never discloses a 5xx's
+    /// detail. Pass `json = true` (see [`Request::wants_json`]) to answer an
+    /// API client with `{"error": ..., "code": ...}` instead of plain text.
+    ///
+    /// [`Request::wants_json`]: crate::http::Request::wants_json
+    pub fn from_error(error: &Error, json: bool) -> Self {
+        let status_code = error.status_code();
+        let status = StatusCode::from_u16(status_code).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
+        let message = error.client_message();
+
+        if json {
+            // The error code is as coarse as the message: a 4xx names the
+            // variant so a client can branch on it, a 5xx says only that
+            // something inside failed.
+            let code = if status_code < 500 {
+                error.error_code()
+            } else {
+                "E_INTERNAL"
+            };
+            let body = serde_json::json!({ "error": message, "code": code });
+            Self::new(status)
+                .with_header("Content-Type", "application/json; charset=utf-8")
+                .with_body(body.to_string().into_bytes())
+        } else {
+            Self::new(status)
+                .with_header("Content-Type", "text/plain; charset=utf-8")
+                .with_body(message.as_bytes().to_vec())
+        }
+    }
+
     /// 304 Not Modified
     pub fn not_modified() -> Self {
         Self::new(StatusCode::NOT_MODIFIED)

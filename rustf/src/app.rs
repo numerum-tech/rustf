@@ -1137,8 +1137,13 @@ impl RustF {
         // Create memory-safe context with Arc references
         let mut context = Context::new(request, Arc::clone(&self.views));
 
-        // Execute middleware chain + route handler
-        let result = self.execute_middleware_chain(&mut context).await?;
+        // Execute middleware chain + route handler. A middleware that returns
+        // `Err` gets the same treatment as a handler that does: its status,
+        // not a blanket 500.
+        let result = match self.execute_middleware_chain(&mut context).await {
+            Ok(result) => result,
+            Err(e) => return Ok(Self::response_for_error(&context, &e)),
+        };
 
         // Get response from result
         let response = match result {
@@ -1161,7 +1166,18 @@ impl RustF {
         use crate::middleware::InboundAction;
         // Fast path: no middleware registered
         if self.middleware.is_empty() {
-            return self.execute_route_handler(ctx).await;
+            #[allow(unused_mut)]
+            let mut result = self.execute_route_handler(ctx).await?;
+            // There is no outbound stack to run, but a queued upgrade still
+            // has to reach the runtime. Without this, an app with no
+            // middleware at all (every builtin is opt-in, and the session
+            // middleware is only registered when sessions are enabled) would
+            // answer a handshake with `101` and then never upgrade.
+            #[cfg(feature = "websocket")]
+            if let MiddlewareResult::Stop(ref mut response) = result {
+                self.start_pending_upgrade(ctx, response);
+            }
+            return Ok(result);
         }
 
         // Get sorted middleware (by priority) — zero-cost slice borrow
@@ -1179,7 +1195,31 @@ impl RustF {
             if let Some(ref inbound) = middleware.inbound {
                 if inbound.should_run(ctx) {
                     // Process the request (now async)
-                    let action = inbound.process_request(ctx).await?;
+                    let action = match inbound.process_request(ctx).await {
+                        Ok(action) => action,
+                        Err(e) => {
+                            // The error carries the status (a middleware doing
+                            // its own `ctx.require_auth()?` means 401), and the
+                            // outbound stack accumulated *so far* still runs
+                            // over it, so the response is not sent without the
+                            // security headers a successful one would carry.
+                            //
+                            // This middleware is deliberately not pushed onto
+                            // that stack: unlike `InboundAction::Stop`, an
+                            // `Err` means its inbound phase did not finish, so
+                            // its outbound phase has no state to pair with.
+                            //
+                            // No `start_pending_upgrade` here, unlike the other
+                            // early returns: inbound middleware runs before the
+                            // handler, so there is no queued upgrade yet.
+                            let response = Self::response_for_error(ctx, &e);
+                            ctx.set_response(response);
+                            self.run_outbound_stack(ctx, &outbound_stack).await?;
+                            return Ok(MiddlewareResult::Stop(
+                                ctx.take_response().unwrap_or_else(Response::internal_error),
+                            ));
+                        }
+                    };
 
                     match action {
                         InboundAction::Continue => {
@@ -1314,6 +1354,30 @@ impl RustF {
         Ok(())
     }
 
+    /// Turn an error raised during request handling into the response the
+    /// client should see.
+    ///
+    /// A 5xx is a fault worth the error log and the full chain; a 4xx is a
+    /// normal outcome of a bad request and is logged at debug so that a burst
+    /// of them cannot be used to flood the log.
+    fn response_for_error(ctx: &Context, error: &crate::error::Error) -> Response {
+        if error.status_code() >= 500 {
+            log::error!(
+                "Request handling error: {}",
+                crate::error::ErrorChain::new(error).format_for_log()
+            );
+        } else {
+            log::debug!(
+                "{} {} -> {}: {}",
+                ctx.req.method,
+                ctx.req.path(),
+                error.status_code(),
+                error
+            );
+        }
+        Response::from_error(error, ctx.req.wants_json())
+    }
+
     /// Execute the route handler (final step in the chain)
     async fn execute_route_handler(&self, ctx: &mut Context) -> Result<MiddlewareResult> {
         // Try to match route. Use `path()` (not the raw `uri`) so HTTP/2 — where
@@ -1363,17 +1427,24 @@ impl RustF {
             // already wrote to ctx.res.
             if let Some(before) = route_info.before {
                 use crate::routing::BeforeAction;
-                match before(ctx).await? {
-                    BeforeAction::Stop => {
+                match before(ctx).await {
+                    Ok(BeforeAction::Stop) => {
                         let response = ctx.take_response().unwrap_or_else(Response::internal_error);
                         return Ok(MiddlewareResult::Stop(response));
                     }
-                    BeforeAction::Continue => { /* fall through to handler */ }
+                    Ok(BeforeAction::Continue) => { /* fall through to handler */ }
+                    Err(e) => return Ok(MiddlewareResult::Stop(Self::response_for_error(ctx, &e))),
                 }
             }
 
-            // Handler modifies context in place (sets response)
-            (route_info.handler)(ctx).await?;
+            // Handler modifies context in place (sets response). An error is
+            // not a crash: `ctx.require_auth()?` means 401, `?` on a
+            // validation error means 400. Turn it into that response here so
+            // outbound middleware still runs over it, and so whatever partial
+            // response the handler had written is discarded.
+            if let Err(e) = (route_info.handler)(ctx).await {
+                return Ok(MiddlewareResult::Stop(Self::response_for_error(ctx, &e)));
+            }
 
             // Get the response from context or return 500 if not set
             let response = ctx.take_response().unwrap_or_else(Response::internal_error);
