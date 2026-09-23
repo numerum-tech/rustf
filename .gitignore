@@ -99,3 +99,6 @@ book/book/
 
 # graft's local graph cache — regenerable, not committed (run `graft build`).
 /graft/
+
+# Project-local scratch (review transcripts, diffs) — never committed
+/tmp/
