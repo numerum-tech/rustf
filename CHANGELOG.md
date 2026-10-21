@@ -11,9 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **A handler returning `Err` now answers with the error's own status instead of
   a blanket `500`.** `ctx.require_auth()?` is a `401`, `ctx.param_int("id")?` on
   `/posts/abc` is a `400`, and the rest of `Error::status_code()`'s mapping
-  (403, 404, 408, 429) applies too. Previously every failing handler flattened
+  (403, 404, 429) applies too. Previously every failing handler flattened
   to `500 Internal Server Error`, which made the idiomatic guard unusable and
-  left the 401/403/404/429/408 arms of `Error::status_code()` as dead code.
+  left the 401/403/404/429 arms of `Error::status_code()` as dead code.
   The mapping also covers controller `before` hooks and middleware errors.
 
   It runs before the outbound middleware stack, so security headers, CORS and
@@ -26,6 +26,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
   **This changes the status code of every failing handler.** Anything asserting
   `500` on a route that returns `Err` needs updating.
+- **`Error::Timeout` maps to `504 Gateway Timeout`, not `408 Request Timeout`.**
+  The framework raises it when a dependency does not answer in time (a worker
+  run with a timeout, for instance), which is the server's failure, not a slow
+  client. As a 5xx it is now logged as an error and its message is masked.
+- **A malformed JSON body is a `400`, not a `500`.** `ctx.body_json()` /
+  `Request::body_as_json()` reported a parse failure as `Error::Internal`; it is
+  now `Error::InvalidInput`, the same as a form body that does not deserialize.
+  The client reads only `Invalid JSON body`; the parser's diagnostic, which can
+  name fields of the server-side type, is logged at debug.
+- **`ctx.body_form_typed()` no longer echoes the deserializer's diagnostic to
+  the client.** A form that does not deserialize is still a `400`, but its body
+  is now `Invalid form data` instead of serde's text (which named the struct's
+  fields, their Rust types and enum variants). The diagnostic is logged at
+  debug. Any client that parsed that message needs updating.
+- **An early inbound exit still gets every outbound-only middleware.** When an
+  inbound middleware returned `Err` or `InboundAction::Stop`, only the outbound
+  middleware it had already passed in priority order ran over the response. An
+  auth middleware at priority `-100` therefore sent its `401` — and a rate
+  limiter at `-900` its `429` — without `SecurityHeadersMiddleware` (priority
+  `0`). Outbound-only middleware further down the list now runs too; dual-phase
+  middleware whose inbound phase never ran is still skipped.
 - **A `SOCKET` route on an app with no middleware at all now upgrades.** The
   zero-middleware fast path in `execute_middleware_chain` returned before
   `start_pending_upgrade` ran, so such an app answered the handshake with `101`
@@ -35,9 +56,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **`Request::wants_json()`** — whether the client would rather have JSON than
-  HTML: true for XHR/htmx requests, and for an `Accept` header that ranks
-  `application/json` at least as high as `text/html` (q-values respected). A
-  request that asks for neither (`*/*`, or no header) is not a JSON request.
+  HTML: true for an `Accept` header that ranks a JSON type (`application/json`
+  or any `+json` suffix, such as `application/problem+json`) at least as high as
+  `text/html` (q-values respected). When `Accept` names neither, a classic XHR
+  (`X-Requested-With: XMLHttpRequest`) counts as JSON; htmx does not — even
+  with `X-Requested-With` added by an interceptor — since it swaps the response
+  into the page.
 - **`Response::from_error(&Error, json: bool)`** — builds the response for a
   framework error: status from `Error::status_code()`, body from
   `Error::client_message()`, as plain text or as

@@ -60,7 +60,7 @@ mod tests {
 
         let err = Error::timeout("Request timed out");
         assert_eq!(err.error_code(), "E_TIMEOUT");
-        assert_eq!(err.status_code(), 408);
+        assert_eq!(err.status_code(), 504);
         assert!(err.is_retryable());
     }
 }

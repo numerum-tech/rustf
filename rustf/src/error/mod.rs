@@ -263,7 +263,10 @@ impl Error {
             Error::Authorization(_) => 403,
             Error::RouteNotFound(_) | Error::ModelNotFound(_) => 404,
             Error::RateLimit(_) => 429,
-            Error::Timeout(_) => 408,
+            // A timeout the framework raises is a dependency (worker, database,
+            // upstream) that did not answer in time — a gateway timeout, not
+            // the client's slow request.
+            Error::Timeout(_) => 504,
             Error::WithContext { source, .. } => source.status_code(),
             _ => 500,
         }
@@ -275,7 +278,7 @@ impl Error {
     /// the answer. Everything else collapses to the canonical reason phrase:
     /// a 5xx message names internals (a connection string, a file path, a
     /// driver's complaint) and must not leave the process, and even at 4xx a
-    /// `Timeout`, `RateLimit` or `ModelNotFound` message describes the server
+    /// `RateLimit` or `ModelNotFound` message describes the server
     /// rather than the request. The full chain goes to the log instead.
     pub fn client_message(&self) -> &str {
         match self {
@@ -302,8 +305,8 @@ fn reason_phrase(status: u16) -> &'static str {
         401 => "Unauthorized",
         403 => "Forbidden",
         404 => "Not Found",
-        408 => "Request Timeout",
         429 => "Too Many Requests",
+        504 => "Gateway Timeout",
         _ => "Internal Server Error",
     }
 }
@@ -345,7 +348,7 @@ mod tests {
         );
         assert_eq!(
             Error::Timeout("replica-3 did not answer in 30s".into()).client_message(),
-            "Request Timeout"
+            "Gateway Timeout"
         );
 
         // `with_context` records internal detail; the wrapped error still

@@ -1185,7 +1185,7 @@ impl RustF {
         let mut outbound_stack = Vec::new();
 
         // Phase 1: INBOUND - Process request through middleware
-        for middleware in middleware_list {
+        for (index, middleware) in middleware_list.iter().enumerate() {
             if middleware.inbound.is_none() && middleware.has_outbound() {
                 outbound_stack.push(middleware);
                 continue;
@@ -1214,6 +1214,10 @@ impl RustF {
                             // handler, so there is no queued upgrade yet.
                             let response = Self::response_for_error(ctx, &e);
                             ctx.set_response(response);
+                            Self::push_remaining_outbound_only(
+                                &mut outbound_stack,
+                                &middleware_list[index + 1..],
+                            );
                             self.run_outbound_stack(ctx, &outbound_stack).await?;
                             return Ok(MiddlewareResult::Stop(
                                 ctx.take_response().unwrap_or_else(Response::internal_error),
@@ -1237,6 +1241,10 @@ impl RustF {
                             let response =
                                 ctx.take_response().unwrap_or_else(Response::internal_error);
                             ctx.set_response(response);
+                            Self::push_remaining_outbound_only(
+                                &mut outbound_stack,
+                                &middleware_list[index + 1..],
+                            );
                             self.run_outbound_stack(ctx, &outbound_stack).await?;
                             #[allow(unused_mut)]
                             let mut final_response =
@@ -1277,6 +1285,26 @@ impl RustF {
         self.start_pending_upgrade(ctx, &mut final_response);
 
         Ok(MiddlewareResult::Stop(final_response))
+    }
+
+    /// On an early exit (an inbound `Stop` or `Err`), add the outbound-only
+    /// middleware the inbound loop had not reached yet.
+    ///
+    /// Outbound-only middleware (security headers, CSP, ...) decorates every
+    /// response and has no inbound state to pair with, so it must not depend
+    /// on where the short-circuiting middleware sits in the priority order.
+    /// Without this, an auth middleware at priority -100 returning 401 skips
+    /// `SecurityHeadersMiddleware` at priority 0. Dual-phase middleware further
+    /// down is still skipped: its inbound phase never ran.
+    fn push_remaining_outbound_only<'a>(
+        outbound_stack: &mut Vec<&'a crate::middleware::DualPhaseMiddlewareInstance>,
+        remaining: &'a [crate::middleware::DualPhaseMiddlewareInstance],
+    ) {
+        outbound_stack.extend(
+            remaining
+                .iter()
+                .filter(|m| m.inbound.is_none() && m.has_outbound()),
+        );
     }
 
     /// Hand a queued WebSocket upgrade to the runtime, if the response that is

@@ -27,7 +27,7 @@ use rustf::error::Error;
 #### HTTP and Network Errors
 - `Http(hyper::Error)` - HTTP protocol errors
 - `Network(String)` - Network connectivity issues
-- `Timeout(String)` - Request timeout errors
+- `Timeout(String)` - A dependency (worker, database, upstream) timed out; 504
 - `ExternalService { service, message }` - External API failures
 
 #### Data Processing Errors
@@ -148,13 +148,16 @@ async fn edit(ctx: &mut Context) -> rustf::Result<()> {
 
 The mapping is the one in `Error::status_code()`: `Validation` and
 `InvalidInput` → 400, `Authentication` → 401, `Authorization` → 403,
-`RouteNotFound` and `ModelNotFound` → 404, `Timeout` → 408, `RateLimit` → 429,
-everything else → 500.
+`RouteNotFound` and `ModelNotFound` → 404, `RateLimit` → 429, `Timeout` → 504 (a
+dependency did not answer in time), everything else → 500.
 
 Three things follow from this:
 
 - **Outbound middleware still runs** over the error response, so security
-  headers, CORS and compression apply to a 401 exactly as to a 200.
+  headers, CORS and compression apply to a 401 exactly as to a 200. When an
+  inbound middleware fails (or stops), every outbound-only middleware runs,
+  whatever its priority; dual-phase middleware whose inbound phase was never
+  reached does not.
 - **A partial response is discarded.** If the handler wrote to `ctx` and *then*
   returned `Err`, the half-written body does not go out.
 - **A 5xx never discloses its message.** `Error::client_message()` returns the
@@ -165,8 +168,11 @@ Three things follow from this:
   requests cannot flood the log.
 
 The body is plain text for a browser and JSON for an API client, decided by
-`Request::wants_json()`: true for XHR/htmx requests and for an `Accept` header
-that ranks `application/json` at least as high as `text/html`.
+`Request::wants_json()`: true for an `Accept` header that ranks a JSON type
+(`application/json`, or any `+json`) at least as high as `text/html`. When
+`Accept` names neither, a classic XHR (`X-Requested-With: XMLHttpRequest`)
+gets JSON. An htmx request gets plain text unless its `Accept` asks for JSON,
+because htmx swaps the body into the page.
 
 ```json
 { "error": "Authentication required", "code": "E_AUTH" }

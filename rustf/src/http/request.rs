@@ -450,7 +450,13 @@ impl Request {
         // Use simd-json for faster parsing (2-3x faster than serde_json)
         let mut body_bytes = self.body_bytes.clone();
         simd_json::from_slice(&mut body_bytes)
-            .map_err(|e| Error::internal(format!("Failed to parse JSON: {}", e)))
+            // The client sent the body, so a body that does not parse is its
+            // mistake (400). The parser's diagnostic can name fields and enum
+            // variants of the server-side type, so it goes to the log only.
+            .map_err(|e| {
+                log::debug!("Rejected JSON body: {}", e);
+                Error::InvalidInput("Invalid JSON body".to_string())
+            })
     }
 
     /// Parse request body as form (application/x-www-form-urlencoded or multipart/form-data).
@@ -737,21 +743,33 @@ impl Request {
 
     /// Whether the client would rather have JSON than HTML.
     ///
-    /// True for XHR/htmx requests, and for an `Accept` header that ranks
-    /// `application/json` at least as high as `text/html`. A request that
-    /// asks for neither (`*/*`, or no header at all) is not a JSON request —
-    /// plain text is the safer default for a curl or a health probe.
+    /// True when the `Accept` header ranks a JSON type (`application/json` or
+    /// any `+json` such as `application/problem+json`) at least as high as
+    /// `text/html`. When `Accept` names neither (`*/*`, or no header at all),
+    /// a classic XHR (`X-Requested-With: XMLHttpRequest`) still counts as a
+    /// JSON request; anything else gets plain text, the safer default for a
+    /// curl or a health probe. htmx is deliberately not treated as JSON.
     pub fn wants_json(&self) -> bool {
-        if self.is_xhr() {
-            return true;
-        }
+        // htmx swaps the response into the page, so it wants HTML or text,
+        // never JSON; only the `Accept` header can say otherwise for it —
+        // even when a shared interceptor also adds `X-Requested-With`.
+        let htmx = self
+            .headers
+            .get("hx-request")
+            .is_some_and(|value| value.eq_ignore_ascii_case("true"));
+        let classic_xhr = !htmx
+            && self
+                .headers
+                .get("x-requested-with")
+                .is_some_and(|value| value.eq_ignore_ascii_case("xmlhttprequest"));
 
         let Some(accept) = self.headers.get("accept") else {
-            return false;
+            return classic_xhr;
         };
 
         let mut json_q = 0.0f32;
         let mut html_q = 0.0f32;
+        let mut named_json_or_html = false;
 
         for entry in accept.split(',') {
             let mut fields = entry.split(';');
@@ -774,13 +792,21 @@ impl Request {
                 }
             }
 
-            match media.as_str() {
-                "application/json" => json_q = json_q.max(quality),
-                "text/html" | "application/xhtml+xml" => html_q = html_q.max(quality),
-                _ => {}
+            // Any structured-syntax `+json` suffix (RFC 6839), whatever the
+            // top-level type: `application/problem+json`, `model/gltf+json`.
+            let is_json = media == "application/json" || media.ends_with("+json");
+            if is_json {
+                json_q = json_q.max(quality);
+                named_json_or_html = true;
+            } else if media == "text/html" || media == "application/xhtml+xml" {
+                html_q = html_q.max(quality);
+                named_json_or_html = true;
             }
         }
 
+        if !named_json_or_html {
+            return classic_xhr;
+        }
         json_q > 0.0 && json_q >= html_q
     }
 
@@ -1360,11 +1386,59 @@ mod tests {
         assert!(with_header("accept", "application/json;q=banana, text/html;q=0.9").wants_json());
         assert!(with_header("accept", "application/json;q=7, text/html;q=0.9").wants_json());
 
-        // XHR wins regardless of Accept.
+        // Real client defaults: axios lists JSON before a wildcard; fetch sends
+        // only the wildcard.
+        assert!(with_header("accept", "application/json, text/plain, */*").wants_json());
+        assert!(!with_header("accept", "*/*").wants_json());
+
+        // Structured `+json` types count as JSON, any of them.
+        assert!(with_header("accept", "application/problem+json").wants_json());
+        assert!(with_header("accept", "application/x-made-up+json").wants_json());
+        assert!(with_header("accept", "model/gltf+json").wants_json());
+        assert!(with_header("accept", "application/vnd.api+json, text/html;q=0.5").wants_json());
+
+        // A classic XHR is JSON when Accept does not decide...
         assert!(
             with_header("x-requested-with", "XMLHttpRequest").wants_json(),
             "an XHR asks for JSON even without an Accept header"
         );
+        let mut xhr_wildcard = with_header("x-requested-with", "XMLHttpRequest");
+        xhr_wildcard
+            .headers
+            .insert("accept".to_string(), "*/*".to_string());
+        assert!(xhr_wildcard.wants_json());
+
+        // ...but an XHR that explicitly asks for HTML gets it.
+        let mut xhr_html = with_header("x-requested-with", "XMLHttpRequest");
+        xhr_html
+            .headers
+            .insert("accept".to_string(), "text/html".to_string());
+        assert!(!xhr_html.wants_json());
+
+        // htmx swaps the body into the page: never JSON on its own say-so.
+        assert!(!with_header("hx-request", "true").wants_json());
+        let mut htmx_html = with_header("hx-request", "true");
+        htmx_html
+            .headers
+            .insert("accept".to_string(), "text/html".to_string());
+        assert!(!htmx_html.wants_json());
+        let mut htmx_json = with_header("hx-request", "true");
+        htmx_json
+            .headers
+            .insert("accept".to_string(), "application/json".to_string());
+        assert!(
+            htmx_json.wants_json(),
+            "an explicit Accept still wins for htmx"
+        );
+        // htmx plus an interceptor-added X-Requested-With is still htmx.
+        let mut htmx_xhr = with_header("hx-request", "true");
+        htmx_xhr
+            .headers
+            .insert("x-requested-with".to_string(), "XMLHttpRequest".to_string());
+        htmx_xhr
+            .headers
+            .insert("accept".to_string(), "*/*".to_string());
+        assert!(!htmx_xhr.wants_json());
     }
 
     #[test]

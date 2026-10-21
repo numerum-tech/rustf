@@ -20,9 +20,22 @@ use crate::error::{Error as RustfError, Result};
 use crate::http::request::FormValue;
 
 /// Deserialize a parsed form body into `T`.
+///
+/// The client reads only a fixed message: the deserializer's diagnostic names
+/// fields, types and enum variants of the server-side struct, so it goes to
+/// the debug log instead.
 pub(crate) fn from_form_data<T: DeserializeOwned>(map: &HashMap<String, FormValue>) -> Result<T> {
+    deserialize_form(map).map_err(|error| {
+        log::debug!("Rejected form body: {}", error);
+        RustfError::InvalidInput("Invalid form data".to_string())
+    })
+}
+
+/// The deserialization itself, with the full diagnostic.
+fn deserialize_form<T: DeserializeOwned>(
+    map: &HashMap<String, FormValue>,
+) -> std::result::Result<T, FormError> {
     T::deserialize(FormDeserializer { map })
-        .map_err(|error| RustfError::InvalidInput(error.to_string()))
 }
 
 /// Error type for form deserialization.
@@ -582,7 +595,7 @@ mod tests {
             ("tags", single("x")),
         ]);
 
-        let error = from_form_data::<Product>(&data).unwrap_err().to_string();
+        let error = deserialize_form::<Product>(&data).unwrap_err().to_string();
         assert!(
             error.contains("price") && error.contains("f64"),
             "error should name the field and the expected type, got: {}",
@@ -593,12 +606,21 @@ mod tests {
     #[test]
     fn missing_required_field_is_reported() {
         let data = form(&[("price", single("1.0"))]);
-        let error = from_form_data::<Product>(&data).unwrap_err().to_string();
+        let error = deserialize_form::<Product>(&data).unwrap_err().to_string();
         assert!(
             error.contains("name"),
             "error should name the missing field, got: {}",
             error
         );
+    }
+
+    #[test]
+    fn client_facing_error_does_not_name_the_field() {
+        let data = form(&[("price", single("not-a-price"))]);
+        let error = from_form_data::<Product>(&data).unwrap_err();
+        assert_eq!(error.status_code(), 400);
+        assert_eq!(error.client_message(), "Invalid form data");
+        assert!(!error.to_string().contains("price"), "got: {}", error);
     }
 
     #[test]
