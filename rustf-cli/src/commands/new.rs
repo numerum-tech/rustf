@@ -531,6 +531,17 @@ mod tests {
         assert!(normalize_project_name("123app").is_err());
     }
 
+    /// The scaffold must ship a schema that `schema generate models` accepts.
+    #[test]
+    fn test_scaffold_sessions_schema_parses() {
+        let template = Templates::get("schemas/sessions.yaml.template")
+            .expect("sessions schema template is embedded");
+        let yaml = std::str::from_utf8(template.data.as_ref()).unwrap();
+        let tables = rustf_schema::parser::SchemaParser::parse_yaml(yaml)
+            .unwrap_or_else(|e| panic!("scaffold sessions.yaml does not parse: {}", e));
+        assert!(tables.contains_key("Sessions"));
+    }
+
     #[test]
     fn test_project_name_to_title() {
         assert_eq!(project_name_to_title("my_app"), "My App");
