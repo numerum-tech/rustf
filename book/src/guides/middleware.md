@@ -512,8 +512,8 @@ use async_trait::async_trait;
 impl InboundMiddleware for MetricsMiddleware {
     async fn process_request(&self, ctx: &mut Context) -> Result<InboundAction> {
         // Store request data for metrics
-        ctx.set("metrics_start", Instant::now());
-        ctx.set("metrics_path", ctx.req.uri.clone());
+        ctx.set("metrics_start", Instant::now())?;
+        ctx.set("metrics_path", ctx.req.uri.clone())?;
         
         Ok(InboundAction::Capture)
     }
@@ -523,7 +523,7 @@ impl InboundMiddleware for MetricsMiddleware {
 impl OutboundMiddleware for MetricsMiddleware {
     async fn process_response(&self, ctx: &mut Context) -> Result<()> {
         if let Some(start) = ctx.get::<Instant>("metrics_start") {
-            let path = ctx.get::<String>("metrics_path").unwrap_or_default();
+            let path = ctx.get::<String>("metrics_path").cloned().unwrap_or_default();
             let duration = start.elapsed();
             
             // Get status from response
@@ -556,7 +556,7 @@ impl InboundMiddleware for CacheMiddleware {
         }
         
         // Store key for outbound phase
-        ctx.set("cache_key", cache_key);
+        ctx.set("cache_key", cache_key)?;
         Ok(InboundAction::Capture)
     }
 }

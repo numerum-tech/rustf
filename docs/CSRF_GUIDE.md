@@ -56,34 +56,47 @@ Cross-Site Request Forgery (CSRF) attacks trick users into performing unintended
 
 Add CSRF protection with zero configuration:
 
-```rust
-use rustf::prelude::*;
-use rustf::security::CsrfMiddleware;
+Routes live in controllers (each controller exposes `pub fn install() -> Vec<Route>`),
+and middleware is registered on the app builder with `.middleware_from(...)`:
 
-#[tokio::main]
-async fn main() -> Result<()> {
-    let mut app = RustF::new();
-    
-    // Enable CSRF protection (default configuration)
-    app.middleware("csrf", CsrfMiddleware::new());
-    
-    // Your routes - CSRF automatically applied
-    app.post("/users", create_user_handler);         // Protected
-    app.put("/users/:id", update_user_handler);      // Protected  
-    app.delete("/users/:id", delete_user_handler);   // Protected
-    app.get("/users", list_users_handler);           // Not protected
-    
-    app.listen("127.0.0.1:8080").await?;
-    Ok(())
+```rust
+// src/controllers/users.rs
+use rustf::prelude::*;
+
+pub fn install() -> Vec<Route> {
+    routes![
+        GET    "/users"      => list_users,    // Not protected (GET)
+        POST   "/users"      => create_user,   // Protected
+        PUT    "/users/{id}" => update_user,   // Protected
+        DELETE "/users/{id}" => delete_user,   // Protected
+    ]
 }
 
-async fn create_user_handler(ctx: Context) -> Result<Response> {
+async fn create_user(ctx: &mut Context) -> rustf::Result<()> {
     // CSRF already validated by middleware
     let form_data = ctx.body_form()?;
     
     // Process request normally
-    let user = create_user(&form_data).await?;
+    let user = create_user_record(&form_data).await?;
     ctx.json(json!({"message": "User created", "id": user.id}))
+}
+```
+
+```rust
+// src/main.rs
+use rustf::prelude::*;
+use rustf::security::CsrfMiddleware;
+
+#[tokio::main]
+async fn main() -> rustf::Result<()> {
+    RustF::new()
+        .controllers(auto_controllers!())
+        // Enable CSRF protection (default configuration)
+        .middleware_from(|registry| {
+            registry.register_inbound("csrf", CsrfMiddleware::new());
+        })
+        .serve(Some("127.0.0.1:8080"))
+        .await
 }
 ```
 
@@ -91,7 +104,7 @@ async fn create_user_handler(ctx: Context) -> Result<Response> {
 
 With zero configuration, the CSRF middleware:
 - Protects POST, PUT, PATCH, DELETE requests
-- Exempts all `/api/*` routes (configurable)
+- Exempts no routes by default (add exemptions with `.exempt(...)`)
 - Stores tokens in the session
 - Returns appropriate error responses
 
@@ -102,16 +115,19 @@ With zero configuration, the CSRF middleware:
 CSRF protection is applied automatically based on HTTP methods:
 
 ```rust
-// These routes are automatically protected:
-app.post("/users", create_user);           // ✅ CSRF Required
-app.put("/users/:id", update_user);        // ✅ CSRF Required  
-app.patch("/users/:id", partial_update);   // ✅ CSRF Required
-app.delete("/users/:id", delete_user);     // ✅ CSRF Required
+// In a controller's install():
+routes![
+    // These routes are automatically protected:
+    POST   "/users"      => create_user,     // ✅ CSRF Required
+    PUT    "/users/{id}" => update_user,      // ✅ CSRF Required
+    PATCH  "/users/{id}" => partial_update,   // ✅ CSRF Required
+    DELETE "/users/{id}" => delete_user,      // ✅ CSRF Required
 
-// These routes bypass CSRF protection:
-app.get("/users", list_users);             // ⏭️ CSRF Bypassed
-app.head("/users/:id", check_user);        // ⏭️ CSRF Bypassed
-app.options("/users", cors_preflight);     // ⏭️ CSRF Bypassed
+    // These routes bypass CSRF protection:
+    GET    "/users"      => list_users,       // ⏭️ CSRF Bypassed
+    HEAD   "/users/{id}" => check_user,       // ⏭️ CSRF Bypassed
+    OPTIONS "/users"     => cors_preflight,   // ⏭️ CSRF Bypassed
+]
 ```
 
 ### Session Integration
@@ -145,14 +161,19 @@ let csrf_config = CsrfConfig::new()
     // Error handling
     .error_message("Security validation failed. Please refresh and try again.")
     .redirect_on_failure("/login")          // Redirect instead of error page
-    .flash_error_key("security_error")      // Custom flash message key
     
     // HTTP method customization
     .protect_method("CUSTOM")               // Add custom method protection
     .exempt_method("DELETE");               // Remove DELETE protection
 
 let csrf_middleware = CsrfMiddleware::with_config(csrf_config);
-app.middleware("csrf", csrf_middleware);
+
+// Register on the app builder:
+RustF::new()
+    .controllers(auto_controllers!())
+    .middleware_from(move |registry| {
+        registry.register_inbound("csrf", csrf_middleware);
+    });
 ```
 
 ### Configuration Builder Methods
@@ -162,7 +183,6 @@ app.middleware("csrf", csrf_middleware);
 | `exempt(route)` | Add route exemption pattern | `.exempt("/api/*")` |
 | `error_message(msg)` | Custom error message | `.error_message("Token expired")` |
 | `redirect_on_failure(url)` | Redirect URL on failure | `.redirect_on_failure("/login")` |
-| `flash_error_key(key)` | Flash message key | `.flash_error_key("csrf_error")` |
 | `disabled()` | Disable CSRF globally | `.disabled()` |
 | `protect_method(method)` | Add protected HTTP method | `.protect_method("CUSTOM")` |
 | `exempt_method(method)` | Remove method protection | `.exempt_method("PUT")` |
@@ -236,11 +256,11 @@ CSRF tokens are generated and managed automatically:
 ```rust
 // Token generation happens automatically when:
 // 1. First CSRF-protected request is made
-// 2. ctx.generate_csrf() is called explicitly
+// 2. ctx.generate_csrf(None) is called explicitly
 
-async fn show_form(ctx: Context) -> Result<Response> {
+async fn show_form(ctx: &mut Context) -> Result<()> {
     // Automatically generates and stores token in session
-    ctx.generate_csrf()?;
+    ctx.generate_csrf(None)?;
     
     // Token is accessible in templates via @{csrf_token} and @{csrf}
     ctx.view("user/form", json!({
@@ -275,7 +295,7 @@ if ctx.verify_csrf(None)? {  // Default token
 // Expired tokens are automatically removed on verification attempt
 
 // 4. Session destruction - All tokens cleared
-ctx.session.destroy();  // All tokens removed
+ctx.session_destroy();  // All tokens removed
 ```
 
 ## Context Integration
@@ -285,12 +305,12 @@ ctx.session.destroy();  // All tokens removed
 RustF provides convenient methods on the Context for CSRF operations:
 
 ```rust
-async fn form_controller(ctx: Context) -> Result<Response> {
+async fn form_controller(ctx: &mut Context) -> Result<()> {
     // Generate CSRF token (stored in session)
-    let csrf_token = ctx.generate_csrf()?;
+    let csrf_token = ctx.generate_csrf(None)?;
     
     // Manual verification (usually not needed due to middleware)
-    if !ctx.verify_csrf()? {
+    if !ctx.verify_csrf(None)? {
         return ctx.throw403(Some("CSRF validation failed"));
     }
     
@@ -308,7 +328,7 @@ async fn form_controller(ctx: Context) -> Result<Response> {
 Generates a new CSRF token with optional custom ID and stores it in the session:
 
 ```rust
-async fn api_csrf_token(ctx: Context) -> Result<Response> {
+async fn api_csrf_token(ctx: &mut Context) -> Result<()> {
     // Default token
     let token = ctx.generate_csrf(None)?;
     
@@ -329,7 +349,7 @@ async fn api_csrf_token(ctx: Context) -> Result<Response> {
 Manually verify and consume CSRF token (rarely needed due to middleware):
 
 ```rust
-async fn manual_verification(ctx: Context) -> Result<Response> {
+async fn manual_verification(ctx: &mut Context) -> Result<()> {
     // Verify default token (consumed after successful verification)
     match ctx.verify_csrf(None)? {
         true => {
@@ -344,10 +364,10 @@ async fn manual_verification(ctx: Context) -> Result<Response> {
 }
 
 // Verify custom token
-async fn verify_upload(ctx: Context) -> Result<Response> {
+async fn verify_upload(ctx: &mut Context) -> Result<()> {
     if ctx.verify_csrf(Some("upload_csrf"))? {
         // Upload token valid and consumed
-        process_upload(&ctx).await
+        process_upload(ctx).await
     } else {
         ctx.throw403(Some("Invalid upload token"))
     }
@@ -359,7 +379,7 @@ async fn verify_upload(ctx: Context) -> Result<Response> {
 CSRF tokens support multiple forms with different token IDs:
 
 ```rust
-async fn show_forms(ctx: Context) -> Result<Response> {
+async fn show_forms(ctx: &mut Context) -> Result<()> {
     // Generate multiple tokens for different forms
     ctx.generate_csrf(None)?;  // Default token
     ctx.generate_csrf(Some("upload_csrf"))?;  // Upload form
@@ -432,17 +452,19 @@ let csrf_config = CsrfConfig::new()
     .error_message("Security token expired. Please refresh the page.")
     
     // Redirect instead of error page
-    .redirect_on_failure("/login")
-    
-    // Custom flash message key
-    .flash_error_key("security_alert");
+    .redirect_on_failure("/login");
 
-app.middleware("csrf", CsrfMiddleware::with_config(csrf_config));
+RustF::new()
+    .controllers(auto_controllers!())
+    .middleware_from(move |registry| {
+        registry.register_inbound("csrf", CsrfMiddleware::with_config(csrf_config));
+    });
 
-// In your login template, show the flash message:
-// {{#if flash.security_alert}}
-//     <div class="alert alert-danger">{{flash.security_alert}}</div>  
-// {{/if}}
+// The failure message is flashed under the `error_msg` key.
+// In your login template (Total.js), show the flash message:
+// @{if flash.error_msg}
+//     <div class="alert alert-danger">@{flash.error_msg}</div>
+// @{fi}
 ```
 
 ### Error Detection
@@ -461,8 +483,8 @@ Create an endpoint to provide CSRF tokens for AJAX requests:
 
 ```rust
 // CSRF token endpoint
-async fn csrf_token_api(ctx: Context) -> Result<Response> {
-    let token = ctx.generate_csrf()?;
+async fn csrf_token_api(ctx: &mut Context) -> rustf::Result<()> {
+    let token = ctx.generate_csrf(None)?;
     
     ctx.json(json!({
         "csrf_token": token,
@@ -471,8 +493,8 @@ async fn csrf_token_api(ctx: Context) -> Result<Response> {
     }))
 }
 
-// Register the endpoint (this bypasses CSRF as it's a GET request)
-app.get("/api/csrf-token", csrf_token_api);
+// Register the endpoint in a controller's install() (GET bypasses CSRF):
+// routes![ GET "/api/csrf-token" => csrf_token_api ]
 ```
 
 ### JavaScript Integration
@@ -575,9 +597,9 @@ await csrf.apiCall('/api/users', {
 Include CSRF tokens in HTML forms using the context helper:
 
 ```rust
-async fn show_user_form(ctx: Context) -> Result<Response> {
+async fn show_user_form(ctx: &mut Context) -> Result<()> {
     // Ensure CSRF token exists
-    ctx.generate_csrf()?;
+    ctx.generate_csrf(None)?;
     
     ctx.view("users/form", json!({
         "user": load_user_data().await?,
@@ -622,8 +644,8 @@ Template (Total.js syntax):
 If you need to include tokens manually in data:
 
 ```rust
-async fn manual_form(ctx: Context) -> Result<Response> {
-    let csrf_token = ctx.generate_csrf()?;
+async fn manual_form(ctx: &mut Context) -> Result<()> {
+    let csrf_token = ctx.generate_csrf(None)?;
     
     ctx.view("forms/manual", json!({
         "csrf_token": csrf_token,
@@ -663,7 +685,7 @@ Template:
 Form processing requires no changes - CSRF is handled by middleware:
 
 ```rust
-async fn process_user_form(ctx: Context) -> Result<Response> {
+async fn process_user_form(ctx: &mut Context) -> Result<()> {
     // CSRF already validated by middleware
     let form_data = ctx.body_form()?;
     
@@ -674,7 +696,7 @@ async fn process_user_form(ctx: Context) -> Result<Response> {
     let user = create_user(&user_data).await?;
     
     // Success response
-    ctx.flash_success("User created successfully!");
+    ctx.flash_success("User created successfully!")?;
     ctx.redirect("/users")
 }
 ```
@@ -716,57 +738,61 @@ let csrf_config = CsrfConfig::new()
     .protect_method("MERGE")        // Custom REST method
     .exempt_method("DELETE");       // Remove DELETE protection
 
-app.middleware("csrf", CsrfMiddleware::with_config(csrf_config));
-
-// Custom method handling
-app.route("CUSTOM", "/resources/:id", custom_method_handler);
+RustF::new()
+    .controllers(auto_controllers!())
+    .middleware_from(move |registry| {
+        registry.register_inbound("csrf", CsrfMiddleware::with_config(csrf_config));
+    });
 ```
 
-### Multiple CSRF Configurations
+### Differentiating CSRF Across Routes
 
-Apply different CSRF configurations to different route groups:
-
-```rust
-// Public API - no CSRF
-let public_routes = RouteGroup::new("/api/public")
-    .route("POST", "/contact", contact_handler)
-    .route("POST", "/newsletter", newsletter_handler);
-
-// Private API - CSRF required
-let private_api_config = CsrfConfig::new()
-    .error_message("API authentication failed");
-
-let private_routes = RouteGroup::new("/api/private")
-    .middleware("csrf", CsrfMiddleware::with_config(private_api_config))
-    .route("POST", "/users", create_user)
-    .route("PUT", "/users/:id", update_user);
-
-app.route_group(public_routes);
-app.route_group(private_routes);
-```
-
-### Bypass Middleware for Specific Controllers
-
-Exempt specific controllers from global CSRF protection:
+RustF registers a single CSRF middleware globally; there is no `RouteGroup` type
+or per-group middleware. To apply different behavior to different paths, configure
+exemptions (and protected methods) on one `CsrfConfig` and let path patterns
+decide. Routes themselves are declared in controllers via `install()`:
 
 ```rust
-// Global CSRF protection
-app.middleware("csrf", CsrfMiddleware::new());
-
-// Routes with CSRF
-app.post("/users", create_user_handler);
-app.put("/users/:id", update_user_handler);
-
-// Exempt webhook routes
-app.post("/webhook/stripe", stripe_webhook_handler);  // Exempt via /api/* default
-app.post("/integration/github", github_webhook_handler);  // Need explicit exemption
-
-// Add specific exemptions
+// One CSRF config: public API paths are exempt, everything else is protected.
 let csrf_config = CsrfConfig::new()
-    .exempt("/integration/*")
-    .exempt("/external/callback");
-    
-app.middleware("csrf", CsrfMiddleware::with_config(csrf_config));
+    .exempt("/api/public/*")              // public endpoints bypass CSRF
+    .error_message("CSRF validation failed");
+
+RustF::new()
+    .controllers(auto_controllers!())
+    .middleware_from(move |registry| {
+        registry.register_inbound("csrf", CsrfMiddleware::with_config(csrf_config));
+    });
+
+// src/controllers/api.rs
+pub fn install() -> Vec<Route> {
+    routes![
+        // Exempt by the /api/public/* pattern above:
+        POST "/api/public/contact"     => contact_handler,
+        POST "/api/public/newsletter"  => newsletter_handler,
+        // Protected (not exempt):
+        POST "/api/private/users"      => create_user,
+        PUT  "/api/private/users/{id}" => update_user,
+    ]
+}
+```
+
+### Exempting Webhook Routes
+
+Webhooks usually come from external systems that cannot send a CSRF token, so
+exempt their paths in the config:
+
+```rust
+let csrf_config = CsrfConfig::new()
+    .exempt("/webhook/*")          // all webhook routes
+    .exempt("/integration/*")      // all integration callbacks
+    .exempt("/external/callback"); // a single exact route
+
+RustF::new()
+    .controllers(auto_controllers!())
+    .middleware_from(move |registry| {
+        registry.register_inbound("csrf", CsrfMiddleware::with_config(csrf_config));
+    });
 ```
 
 ## Troubleshooting
@@ -859,7 +885,7 @@ let custom = ctx.generate_csrf(Some("custom_id"))?;  // Custom token
 
 ```rust
 // Generate new token for each form submission
-async fn show_form_after_submit(ctx: Context) -> Result<Response> {
+async fn show_form_after_submit(ctx: &mut Context) -> Result<()> {
     // Generate fresh token for the next submission
     ctx.generate_csrf(None)?;
     ctx.view("form", data)
@@ -874,7 +900,10 @@ Enable debug logging to troubleshoot CSRF issues:
 
 ```rust
 // Add logging middleware to see request flow
-app.middleware("logging", LoggingMiddleware::new());
+RustF::new()
+    .middleware_from(|registry| {
+        registry.register_dual("logging", LoggingMiddleware::new());
+    });
 
 // Check CSRF middleware execution
 // Look for log entries showing CSRF validation
@@ -883,31 +912,31 @@ app.middleware("logging", LoggingMiddleware::new());
 Check CSRF token presence and expiration:
 
 ```rust
-async fn debug_csrf(ctx: Context) -> Result<Response> {
+async fn debug_csrf(ctx: &mut Context) -> Result<()> {
     // Check default token
-    let token_data: Option<serde_json::Value> = ctx.session.get("_csrf_token");
+    let token_data: Option<serde_json::Value> = ctx.session_get("_csrf_token");
     let token_info = if let Some(data) = token_data {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH).unwrap()
+            .as_secs();
+        let expired = data.get("valid_to")
+            .and_then(|v| v.as_u64())
+            .map(|exp| now > exp)
+            .unwrap_or(true);
         json!({
             "token": data.get("token"),
             "expires_at": data.get("valid_to"),
-            "expired": {
-                let now = std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH).unwrap()
-                    .as_secs();
-                data.get("valid_to")
-                    .and_then(|v| v.as_u64())
-                    .map(|exp| now > exp)
-                    .unwrap_or(true)
-            }
+            "expired": expired
         })
     } else {
         json!(null)
     };
     
+    let form_data = ctx.body_form().unwrap_or_default();
     ctx.json(json!({
         "token_info": token_info,
-        "headers": ctx.request.headers,
-        "form_data": ctx.body_form().unwrap_or_default()
+        "headers": ctx.req.headers,
+        "form_data": form_data
     }))
 }
 ```
@@ -920,7 +949,10 @@ Start with default CSRF configuration and customize as needed:
 
 ```rust
 // Good: Start simple
-app.middleware("csrf", CsrfMiddleware::new());
+RustF::new()
+    .middleware_from(|registry| {
+        registry.register_inbound("csrf", CsrfMiddleware::new());
+    });
 
 // Then customize for specific needs
 let csrf_config = CsrfConfig::new()
@@ -933,12 +965,16 @@ let csrf_config = CsrfConfig::new()
 Organize routes to minimize exemptions:
 
 ```rust
-// Good: Group exempt routes under common prefixes
-app.post("/api/webhook/stripe", stripe_handler);        // Auto-exempt
-app.post("/api/webhook/github", github_handler);        // Auto-exempt
-app.post("/api/integration/slack", slack_handler);      // Auto-exempt
+// Good: Group exempt routes under common prefixes (in a controller's install()).
+// These become exempt only once you configure the matching prefix,
+// e.g. CsrfConfig::new().exempt("/api/webhook/*").exempt("/api/integration/*"):
+routes![
+    POST "/api/webhook/stripe"    => stripe_handler,
+    POST "/api/webhook/github"    => github_handler,
+    POST "/api/integration/slack" => slack_handler,
+]
 
-// Better than scattered exemptions
+// Better than scattered exemptions in the config:
 let csrf_config = CsrfConfig::new()
     .exempt("/webhook/stripe")      // Scattered
     .exempt("/integration/github")  // Scattered  
@@ -951,14 +987,14 @@ Use context methods for token management:
 
 ```rust
 // Good: Generate tokens before rendering
-async fn show_form(ctx: Context) -> Result<Response> {
+async fn show_form(ctx: &mut Context) -> Result<()> {
     ctx.generate_csrf(None)?;  // Default token
     ctx.generate_csrf(Some("api_csrf"))?;  // API token
     ctx.view("form", data)  // Tokens accessible in templates
 }
 
 // Good: Regenerate after consumption
-async fn handle_form(ctx: Context) -> Result<Response> {
+async fn handle_form(ctx: &mut Context) -> Result<()> {
     if !ctx.verify_csrf(None)? {
         return ctx.throw403(Some("Invalid token"));
     }
@@ -978,15 +1014,18 @@ Provide user-friendly error messages:
 ```rust
 let csrf_config = CsrfConfig::new()
     .error_message("Your session has expired. Please refresh the page and try again.")
-    .redirect_on_failure("/login")  // Better UX than error page
-    .flash_error_key("security_message");
+    .redirect_on_failure("/login");  // Better UX than error page
 ```
 
 ### 5. Testing
 
-Test CSRF protection in your application:
+Test CSRF protection in your application. RustF does not ship a built-in HTTP
+test client, so the snippet below is **illustrative pseudo-code** — adapt it to
+whatever HTTP client/test harness you use to exercise your running app:
 
-```rust
+```rust,ignore
+// Illustrative only: `app.post(...).send()` and `test_app_with_csrf()` are not
+// RustF APIs. Drive your app through a real HTTP client (e.g. reqwest) instead.
 #[cfg(test)]
 mod tests {
     use super::*;

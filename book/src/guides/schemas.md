@@ -568,14 +568,17 @@ async fn my_controller(ctx: &mut Context) -> rustf::Result<()> {
 #### In Middleware
 
 ```rust
+use async_trait::async_trait;
 use rustf::middleware::{InboundMiddleware, InboundAction};
 use rustf::context::Context;
 use rustf::error::Result;
+use serde_json::json;
 
 pub struct ValidationMiddleware;
 
+#[async_trait]
 impl InboundMiddleware for ValidationMiddleware {
-    fn process_request(&self, ctx: &mut Context) -> Result<InboundAction> {
+    async fn process_request(&self, ctx: &mut Context) -> Result<InboundAction> {
         // Get email from request (param_str errors when absent or empty)
         let email = match ctx.param_str("email") {
             Ok(e) => e,
@@ -583,11 +586,8 @@ impl InboundMiddleware for ValidationMiddleware {
         };
         
         // Get validator from global definitions
-        // Note: Using block_on since middleware is synchronous
-        let definitions = futures::executor::block_on(
-            rustf::definitions::get()
-        );
-        let defs = futures::executor::block_on(definitions.read());
+        let definitions = rustf::definitions::get().await;
+        let defs = definitions.read().await;
         // `validators.get` returns Option, not Result.
         if let Some(validator) = defs.validators.get("email") {
             validator.validate(&json!(email), None)?;

@@ -593,6 +593,7 @@ Inbound runs before the handler; outbound runs after. A single struct can
 implement both phases to attach a request ID and inspect/adjust the response.
 
 ```rust
+use async_trait::async_trait;
 use rustf::prelude::*;
 use rustf::middleware::{InboundMiddleware, OutboundMiddleware, InboundAction};
 

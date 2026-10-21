@@ -36,35 +36,36 @@ default_root = ""                  # Base URL path for deployment (e.g., "/app")
 ```rust
 use rustf::prelude::*;
 
-#[rustf::install]
-impl HomeController {
-    #[route(GET, "/")]
-    pub async fn index(ctx: Context) -> Result<Response> {
-        // Render a template with data
-        ctx.view("home/index", json!({
-            "title": "Welcome",
-            "message": "Hello from RustF!",
-            "features": vec!["Fast", "Safe", "Productive"]
-        }))
-    }
-    
-    #[route(GET, "/about")]
-    pub async fn about(mut ctx: Context) -> Result<Response> {
-        // Render with custom layout
-        ctx.layout("layouts/special")
-            .view("about", json!({
-                "title": "About Us"
-            }))
-    }
-    
-    #[route(GET, "/standalone")]
-    pub async fn standalone(mut ctx: Context) -> Result<Response> {
-        // Render without layout
-        ctx.layout("")  // Empty string = no layout
-            .view("standalone", json!({
-                "content": "This page has no layout"
-            }))
-    }
+pub fn install() -> Vec<Route> {
+    routes![
+        GET "/"           => index,
+        GET "/about"      => about,
+        GET "/standalone" => standalone,
+    ]
+}
+
+async fn index(ctx: &mut Context) -> rustf::Result<()> {
+    // Page-level data (title, lists, flags) goes in the repository -> @{R.key}
+    ctx.repository_set("title", "Welcome");
+    ctx.repository_set("message", "Hello from RustF!");
+    ctx.repository_set("features", json!(["Fast", "Safe", "Productive"]));
+
+    // The model is ONE object (the page's subject); this page has none
+    ctx.view("home/index", json!({}))
+}
+
+async fn about(ctx: &mut Context) -> rustf::Result<()> {
+    // Render with custom layout
+    ctx.repository_set("title", "About Us");
+    ctx.layout("layouts/special");
+    ctx.view("about", json!({}))
+}
+
+async fn standalone(ctx: &mut Context) -> rustf::Result<()> {
+    // Render without layout
+    ctx.repository_set("content", "This page has no layout");
+    ctx.layout("");  // Empty string = no layout
+    ctx.view("standalone", json!({}))
 }
 ```
 
@@ -74,7 +75,7 @@ impl HomeController {
 // Basic template rendering
 ctx.view("template_name", data)
 
-// Set custom layout (requires mut ctx)
+// Set custom layout
 ctx.layout("layouts/special")
     .view("template", data)
 
@@ -718,7 +719,7 @@ Use it in your main templates:
 
 RustF follows the Total.js pattern for layouts:
 - **Default layout**: Configured in `config.toml` as `views.default_layout` (default: `"layouts/default"`)
-- **Custom layout**: Use `ctx.layout("path/to/layout")` in controller (requires `mut ctx`)
+- **Custom layout**: Use `ctx.layout("path/to/layout")` in controller
 - **No layout**: Use `ctx.layout("")` with empty string
 - **Layout inheritance**: Templates can specify their own layout with `@{layout('path')}`
 
@@ -727,27 +728,30 @@ RustF follows the Total.js pattern for layouts:
 ```rust
 use rustf::prelude::*;
 
-#[rustf::install]
-impl PageController {
-    // Uses default layout from config
-    #[route(GET, "/")]
-    pub async fn index(ctx: Context) -> Result<Response> {
-        ctx.view("home/index", json!({"title": "Home"}))
-    }
-    
-    // Custom layout
-    #[route(GET, "/admin")]
-    pub async fn admin(mut ctx: Context) -> Result<Response> {
-        ctx.layout("layouts/admin")  // Set custom layout
-            .view("admin/dashboard", json!({"user": "Admin"}))
-    }
-    
-    // No layout (standalone page)
-    #[route(GET, "/api-doc")]
-    pub async fn api_doc(mut ctx: Context) -> Result<Response> {
-        ctx.layout("")  // Empty string = no layout
-            .view("docs/api", json!({"version": "1.0"}))
-    }
+pub fn install() -> Vec<Route> {
+    routes![
+        GET "/"        => index,
+        GET "/admin"   => admin,
+        GET "/api-doc" => api_doc,
+    ]
+}
+
+// Uses default layout from config
+async fn index(ctx: &mut Context) -> rustf::Result<()> {
+    ctx.repository_set("title", "Home");
+    ctx.view("home/index", json!({}))
+}
+
+// Custom layout
+async fn admin(ctx: &mut Context) -> rustf::Result<()> {
+    ctx.layout("layouts/admin");  // Set custom layout
+    ctx.view("admin/dashboard", json!({"user": "Admin"}))
+}
+
+// No layout (standalone page)
+async fn api_doc(ctx: &mut Context) -> rustf::Result<()> {
+    ctx.layout("");  // Empty string = no layout
+    ctx.view("docs/api", json!({"version": "1.0"}))
 }
 ```
 
@@ -758,7 +762,7 @@ Define a layout (`views/layouts/default.html`):
 <!DOCTYPE html>
 <html>
 <head>
-    <title>@{if model.title}@{model.title} - @{fi}My App</title>
+    <title>@{if R.title}@{R.title} - @{fi}My App</title>
     @{css('/static/css/main.css')}
 </head>
 <body>
@@ -1153,20 +1157,26 @@ The `@{head}` placeholder is a convenience feature inherited from Total.js for a
 
 ### Custom Template Functions
 
-Register custom functions for Total.js templates:
+Custom functions usable in templates (`@{my_helper(...)}`) are registered as
+**helpers** through the Definitions system — there is no public
+`engine.register_function(...)` method. Register the helper inside a definitions
+module's `install` function:
 
 ```rust
-use rustf::views::TotalJsEngine;
+use rustf::definitions::Definitions;
 
-// In your app setup
-let mut engine = TotalJsEngine::new("views");
-engine.register_function("format_price", |args| {
-    if let Some(Value::Number(n)) = args.first() {
-        Value::String(format!("${:.2}", n.as_f64().unwrap_or(0.0)))
-    } else {
-        Value::String("$0.00".to_string())
-    }
-});
+pub fn install(defs: &mut Definitions) {
+    // `defs.helpers` is the public HelperRegistry; `register_fn` takes a
+    // name, description, and a closure `Fn(&[Value], _) -> Result<Value>`.
+    defs.helpers.register_fn(
+        "format_price",
+        "Format a number as a price",
+        |args, _| {
+            let amount = args.first().and_then(|v| v.as_f64()).unwrap_or(0.0);
+            Ok(serde_json::Value::String(format!("${:.2}", amount)))
+        },
+    );
+}
 
 // Use in template
 // @{format_price(19.99)} => "$19.99"
@@ -1177,15 +1187,16 @@ engine.register_function("format_price", |args| {
 Automatic CSRF token injection:
 
 ```rust
-// In controller - generate token and render view
-ctx.generate_csrf()?;
+// In controller - generate token and render view.
+// generate_csrf takes an Option<&str> token id; pass None for the default.
+ctx.generate_csrf(None)?;
 ctx.view("form", data)
 ```
 
 ```html
 <!-- In template - Total.js -->
 <form method="POST">
-    @{csrf_field}  <!-- Renders hidden input with token -->
+    @{csrf}  <!-- Renders hidden input with the default token -->
     <!-- or manually -->
     <input type="hidden" name="_token" value="@{csrf_token}">
 </form>
@@ -1201,8 +1212,7 @@ The context repository is request-scoped data that controllers can set to share 
 
 **Setting in Controllers:**
 ```rust
-// Requires mut ctx for repository operations
-async fn dashboard(mut ctx: Context) -> Result<Response> {
+async fn dashboard(ctx: &mut Context) -> rustf::Result<()> {
     // Set various types of repository data
     ctx.repository_set("current_section", "analytics")
        .repository_set("sidebar_expanded", true)
@@ -1213,11 +1223,12 @@ async fn dashboard(mut ctx: Context) -> Result<Response> {
            "mode": "dark"
        }));
     
-    // Repository data is automatically available in templates
-    ctx.view("dashboard/index", json!({
-        "title": "Dashboard",
-        "stats": get_stats().await?
-    }))
+    ctx.repository_set("title", "Dashboard");
+
+    // Repository data is automatically available in templates.
+    // The model is the page's single subject: here, the stats object.
+    let stats = get_stats().await?;
+    ctx.view("dashboard/index", json!(stats))
 }
 ```
 
@@ -1253,27 +1264,29 @@ async fn dashboard(mut ctx: Context) -> Result<Response> {
 The global repository is application-wide data shared across all requests. It's typically set during application initialization and contains site-wide settings, application metadata, or shared constants.
 
 **Setting During Application Setup:**
+
+Use the `APP` global repository. It accepts dotted paths, so nested values are
+set directly:
+
 ```rust
 // In your main.rs or app initialization
-use rustf::views::TotalJsEngine;
+use rustf::APP;
 
-let engine = TotalJsEngine::new("views");
-engine.set_global_repository(json!({
-    "site_name": "My Application",
-    "version": "2.1.0",
-    "copyright": "© 2024 MyCompany",
-    "contact_email": "support@example.com",
-    "features": {
-        "comments": true,
-        "notifications": true,
-        "api_v2": false
-    },
-    "social_links": {
-        "twitter": "https://twitter.com/myapp",
-        "github": "https://github.com/myapp"
-    }
-}));
+APP::set("site_name", "My Application")?;
+APP::set("version", "2.1.0")?;
+APP::set("copyright", "© 2024 MyCompany")?;
+APP::set("contact_email", "support@example.com")?;
+
+APP::set("features.comments", true)?;
+APP::set("features.notifications", true)?;
+APP::set("features.api_v2", false)?;
+
+APP::set("social_links.twitter", "https://twitter.com/myapp")?;
+APP::set("social_links.github", "https://github.com/myapp")?;
 ```
+
+> **Deprecated:** `TotalJsEngine::set_global_repository(...)` is marked
+> `#[deprecated]` — use `APP::set()` as shown above instead.
 
 **Accessing in Templates:**
 ```html
@@ -1323,27 +1336,18 @@ engine.set_global_repository(json!({
 
 **Example showing both:**
 ```rust
-async fn product_page(mut ctx: Context) -> Result<Response> {
-    // Repository: Available to all views called in this handler
+async fn product_page(ctx: &mut Context) -> rustf::Result<()> {
+    let id = ctx.param_as::<i64>("id")?;
+
+    // Repository: page-level data, collections and flags -> @{R.key}
     ctx.repository_set("nav_items", get_navigation())
        .repository_set("user", get_current_user())
-       .repository_set("cart_count", get_cart_count());
-    
-    // Could render multiple views, all would have repository access
-    if should_show_banner() {
-        // This view has access to repository data
-        let banner_html = ctx.render_partial("/partials/banner", json!({}))?;
-    }
-    
-    // View data: Specific to this view call
-    let data = json!({
-        "product": get_product(id),
-        "reviews": get_reviews(id),
-        "related": get_related_products(id)
-    });
-    
-    // Main view also has access to repository data
-    ctx.view("/products/show", data)
+       .repository_set("cart_count", get_cart_count())
+       .repository_set("reviews", get_reviews(id))
+       .repository_set("related", get_related_products(id));
+
+    // Model: ONE object, the product this page is about -> @{M.field}
+    ctx.view("products/show", get_product(id))
 }
 ```
 
@@ -1356,10 +1360,10 @@ async fn product_page(mut ctx: Context) -> Result<Response> {
     <span class="cart">Cart (@{R.cart_count})</span>
 </nav>
 
-<!-- View data (Model) specific to this template -->
-<h1>@{model.product.name}</h1>
-<p>@{M.product.description}</p>
-@{foreach review in model.reviews}
+<!-- View data (Model): the product itself -->
+<h1>@{model.name}</h1>
+<p>@{M.description}</p>
+@{foreach review in R.reviews}
     <div class="review">@{review.text}</div>
 @{end}
 ```
@@ -1400,13 +1404,13 @@ async fn product_page(mut ctx: Context) -> Result<Response> {
 5. **Common Patterns:**
    ```rust
    // Pattern 1: Set common data at the start of a handler
-   async fn my_handler(mut ctx: Context) -> Result<Response> {
+   async fn my_handler(ctx: &mut Context) -> rustf::Result<()> {
        // Set repository data first
        ctx.repository_set("user", get_current_user(&ctx)?);
        ctx.repository_set("notifications", get_notifications(&ctx)?);
        
        // Then render view(s) that need this data
-       ctx.view("/my_template", specific_data)
+       ctx.view("my_template", specific_data)
    }
    
    // Pattern 2: Use repository for feature flags
@@ -2105,63 +2109,66 @@ match ctx.view("missing-template", data) {
 ```rust
 use rustf::prelude::*;
 
-#[rustf::install]
-impl ProductController {
-    #[route(GET, "/products")]
-    pub async fn index(mut ctx: Context) -> Result<Response> {
-        let products = vec![
-            json!({"id": 1, "name": "Widget", "price": 19.99}),
-            json!({"id": 2, "name": "Gadget", "price": 29.99}),
-        ];
-        
-        // Set context repository for this page
-        ctx.repository_set("view_mode", "grid")
-           .repository_set("filters_available", json!(["price", "category", "brand"]))
-           .repository_set("user_preferences", json!({
-               "currency": "USD",
-               "show_tax": true
-           }));
-        
-        ctx.view("products/index", json!({
-            "title": "Our Products",
-            "products": products,
-            "featured": true
-        }))
-    }
-    
-    #[route(GET, "/products/:id")]
-    pub async fn show(mut ctx: Context) -> Result<Response> {
-        let id = ctx.param_str("id")?;
-        
-        // Fetch product from database
-        let product = json!({
-            "id": id,
-            "name": "Premium Widget",
-            "price": 49.99,
-            "description": "High-quality widget"
-        });
-        
-        // Set repository data for product page
-        ctx.repository_set("breadcrumbs", json!([
-            {"name": "Home", "url": "/"},
-            {"name": "Products", "url": "/products"},
-            {"name": "Premium Widget", "url": null}
-        ]))
-        .repository_set("show_reviews", true)
-        .repository_set("related_products_count", 5);
-        
-        ctx.view("products/show", product)
-    }
-    
-    #[route(POST, "/products/:id/buy")]
-    pub async fn purchase(ctx: Context) -> Result<Response> {
-        let id = ctx.param_str("id")?;
-        
-        // Process purchase...
-        
-        ctx.flash("success", "Purchase completed!");
-        ctx.redirect(&format!("/products/{}", id))
-    }
+pub fn install() -> Vec<Route> {
+    routes![
+        GET  "/products"           => index,
+        GET  "/products/{id}"      => show,
+        POST "/products/{id}/buy"  => purchase,
+    ]
+}
+
+async fn index(ctx: &mut Context) -> rustf::Result<()> {
+    let products = vec![
+        json!({"id": 1, "name": "Widget", "price": 19.99}),
+        json!({"id": 2, "name": "Gadget", "price": 29.99}),
+    ];
+
+    // Set context repository for this page
+    ctx.repository_set("view_mode", "grid")
+       .repository_set("filters_available", json!(["price", "category", "brand"]))
+       .repository_set("user_preferences", json!({
+           "currency": "USD",
+           "show_tax": true
+       }));
+
+    ctx.repository_set("title", "Our Products")
+       .repository_set("products", json!(products))
+       .repository_set("featured", true);
+
+    // A list page has no single subject: empty model
+    ctx.view("products/index", json!({}))
+}
+
+async fn show(ctx: &mut Context) -> rustf::Result<()> {
+    let id = ctx.param_str("id")?;
+
+    // Fetch product from database
+    let product = json!({
+        "id": id,
+        "name": "Premium Widget",
+        "price": 49.99,
+        "description": "High-quality widget"
+    });
+
+    // Set repository data for product page
+    ctx.repository_set("breadcrumbs", json!([
+        {"name": "Home", "url": "/"},
+        {"name": "Products", "url": "/products"},
+        {"name": "Premium Widget", "url": null}
+    ]))
+    .repository_set("show_reviews", true)
+    .repository_set("related_products_count", 5);
+
+    ctx.view("products/show", product)
+}
+
+async fn purchase(ctx: &mut Context) -> rustf::Result<()> {
+    let id = ctx.param_str("id")?;
+
+    // Process purchase...
+
+    ctx.flash_success("Purchase completed!")?;
+    ctx.redirect(&format!("/products/{}", id))
 }
 ```
 
@@ -2187,7 +2194,7 @@ impl ProductController {
 @{fi}
 
 <div class="products-page view-@{R.view_mode}">
-    <h1>@{title}</h1>
+    <h1>@{R.title}</h1>
     
     <!-- Filters from repository -->
     @{if R.filters_available}
@@ -2207,7 +2214,7 @@ impl ProductController {
     </div>
     
     <!-- Conditional rendering -->
-    @{if featured}
+    @{if R.featured}
         <div class="featured-banner">
             <p>Check out our featured products!</p>
         </div>
@@ -2215,7 +2222,7 @@ impl ProductController {
     
     <!-- Loop through products -->
     <div class="product-grid">
-        @{foreach product in products}
+        @{foreach product in R.products}
             <div class="product-card">
                 <h3>@{product.name}</h3>
                 <p class="price">@{format_price(product.price)}</p>

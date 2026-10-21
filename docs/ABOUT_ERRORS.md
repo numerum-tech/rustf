@@ -638,43 +638,54 @@ async fn create_order(ctx: &mut Context) -> Result<()> {
 
 ### Middleware Error Handling
 
+RustF uses a dual-phase middleware model rather than a `next(ctx)` chain.
+Inbound runs before the handler; outbound runs after. A single struct can
+implement both phases to attach a request ID and inspect/adjust the response.
+
 ```rust
-pub async fn error_handling_middleware(
-    ctx: &mut Context,
-    next: Next<'_>,
-) -> Result<()> {
-    let request_id = uuid::Uuid::new_v4().to_string();
-    ctx.set_header("X-Request-ID", &request_id);
-    
-    match next.run(ctx).await {
-        Ok(()) => Ok(()),
-        Err(error) => {
-            // Log the error
-            log_error(&error, Some(&ctx.request), Some(&request_id));
-            
-            // Create error response based on Accept header
-            let accept = ctx.header("Accept");
-            if accept.map_or(false, |h| h.contains("application/json")) {
-                ctx.json(json!({
-                    "error": true,
-                    "code": error.error_code(),
-                    "message": error.to_string(),
-                    "request_id": request_id,
-                }))
-            } else {
-                let error_pages = ctx.error_pages();
-                let response = error_pages.render_error_page(
-                    error.status_code(),
-                    Some(&error),
-                    Some(&request_id),
-                )?;
-                ctx.set_response(response);
-                Ok(())
-            }
-        }
+use async_trait::async_trait;
+use rustf::prelude::*;
+use rustf::middleware::{InboundMiddleware, OutboundMiddleware, InboundAction};
+
+#[derive(Clone)]
+pub struct RequestIdMiddleware;
+
+#[async_trait]
+impl InboundMiddleware for RequestIdMiddleware {
+    async fn process_request(&self, ctx: &mut Context) -> Result<InboundAction> {
+        let request_id = uuid::Uuid::new_v4().to_string();
+        // Store the id so the outbound phase can read it.
+        ctx.set("request_id", request_id.clone())?;
+
+        // Method and path are available on ctx.req (ctx.req.uri is a String).
+        log::info!("[{}] {} {}", request_id, ctx.req.method, ctx.req.uri);
+
+        // Capture guarantees this middleware's outbound phase runs.
+        Ok(InboundAction::Capture)
     }
 }
+
+#[async_trait]
+impl OutboundMiddleware for RequestIdMiddleware {
+    async fn process_response(&self, ctx: &mut Context) -> Result<()> {
+        if let Some(request_id) = ctx.get::<String>("request_id").cloned() {
+            // Echo the request id back to the client.
+            ctx.add_header("X-Request-ID", request_id);
+        }
+        Ok(())
+    }
+}
+
+// Registration:
+// RustF::new().middleware_from(|registry| {
+//     registry.register_dual("request_id", RequestIdMiddleware);
+// })
 ```
+
+Handler errors are rendered by the framework's error pages automatically based
+on the error's `status_code()`, so middleware does not need to catch them. To
+fail a request from inbound middleware, set a response and return
+`InboundAction::Stop`.
 
 ### Database Operation with Retry
 

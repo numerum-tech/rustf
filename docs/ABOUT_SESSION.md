@@ -37,7 +37,7 @@ Sessions are available through the `Context` object in controllers:
 ```rust
 use rustf::prelude::*;
 
-async fn login(ctx: Context) -> Result<Response> {
+async fn login(ctx: &mut Context) -> Result<()> {
     // Set session data
     ctx.session_set("user_id", 123)?;
     ctx.session_set("username", "john_doe")?;
@@ -53,14 +53,14 @@ async fn login(ctx: Context) -> Result<Response> {
     }))
 }
 
-async fn logout(ctx: Context) -> Result<Response> {
+async fn logout(ctx: &mut Context) -> Result<()> {
     // Clear all session data but keep session active for tracking
     ctx.session_clear();
 
     // Alternative: completely destroy the session
     // ctx.session_destroy();
 
-    ctx.flash_success("You have been logged out successfully");
+    ctx.flash_success("You have been logged out successfully")?;
     ctx.redirect("/login")
 }
 ```
@@ -106,13 +106,13 @@ Flash messages are temporary messages that are consumed when read, perfect for d
 
 ```rust
 // Convenience methods for common message types
-ctx.flash_success("Account created successfully!");
-ctx.flash_error("Invalid credentials");
-ctx.flash_info("Please verify your email");
+ctx.flash_success("Account created successfully!")?;
+ctx.flash_error("Invalid credentials")?;
+ctx.flash_info("Please verify your email")?;
 
 // Custom flash messages
-ctx.flash_set("warning", "Your session will expire soon")?;
-ctx.flash_set("custom_data", json!({"type": "notification", "data": 123}))?;
+ctx.flash("warning", "Your session will expire soon")?;
+ctx.flash("custom_data", json!({"type": "notification", "data": 123}))?;
 ```
 
 ### Reading Flash Messages
@@ -121,11 +121,11 @@ Flash messages are automatically consumed when read:
 
 ```rust
 // Get specific flash message (consumes it)
-let error_msg: Option<String> = ctx.flash_get("error");
-let success_msg: Option<String> = ctx.flash_get("success");
+let error_msg: Option<Value> = ctx.get_flash("error");
+let success_msg: Option<Value> = ctx.get_flash("success");
 
 // Get all flash messages at once (consumes all)
-let all_flash: HashMap<String, Value> = ctx.flash_get_all();
+let all_flash: HashMap<String, Value> = ctx.get_all_flash();
 ```
 
 ### Flash Messages in Views
@@ -689,8 +689,8 @@ For more details on the Definitions System, see [ABOUT_DEFINITIONS.md](./ABOUT_D
 RustF provides comprehensive session management methods:
 
 ```rust
-async fn session_management(ctx: Context) -> Result<Response> {
-    let session = &ctx.session;
+async fn session_management(ctx: &mut Context) -> Result<()> {
+    let session = ctx.require_session()?;
 
     // Basic session operations
     session.set("user_id", 123)?;
@@ -703,7 +703,7 @@ async fn session_management(ctx: Context) -> Result<Response> {
     session.destroy();      // Mark session for destruction
 
     // Session information
-    let session_id = session.id();
+    let session_id = session.id().to_string();
     let is_empty = session.is_empty();
     let data_count = session.data_count();
     let flash_count = session.flash_count();
@@ -717,19 +717,17 @@ async fn session_management(ctx: Context) -> Result<Response> {
 }
 
 // Security: Session ID regeneration for fixation protection
-async fn regenerate_session(ctx: Context) -> Result<Response> {
-    // Get mutable reference to session
-    let session = &mut ctx.session;
+async fn regenerate_session(ctx: &mut Context) -> Result<()> {
+    // Mark the session for ID rotation; the session middleware issues the new
+    // ID (keeping all data) when the response is sent
+    ctx.require_session()?.mark_for_rotation();
 
-    // Regenerate session ID while keeping all data
-    session.regenerate_id();
-
-    ctx.flash_info("Session ID regenerated for security");
-    ctx.json(json!({"new_session_id": session.id()}))
+    ctx.flash_info("Session ID regenerated for security")?;
+    ctx.json(json!({"rotation_scheduled": true}))
 }
 
 // Context convenience methods
-async fn context_session_methods(ctx: Context) -> Result<Response> {
+async fn context_session_methods(ctx: &mut Context) -> Result<()> {
     // Convenience methods available on Context
     ctx.session_set("key", "value")?;
     let value: Option<String> = ctx.session_get("key");
@@ -912,7 +910,7 @@ impl Default for FingerprintMode {
 **Accessing Fingerprint Data in Controllers:**
 
 ```rust
-async fn show_session_info(ctx: Context) -> Result<Response> {
+async fn show_session_info(ctx: &mut Context) -> Result<()> {
     if let Some(session) = ctx.session() {
         // Get the fingerprint if it exists
         if let Some(fingerprint) = session.fingerprint() {
@@ -1300,7 +1298,7 @@ let retrieved: Option<CustomData> = ctx.session_get("custom");
 Session operations return `Result<T>` for proper error handling:
 
 ```rust
-async fn safe_session_usage(ctx: Context) -> Result<Response> {
+async fn safe_session_usage(ctx: &mut Context) -> Result<()> {
     // Handle serialization errors
     match ctx.session_set("user_id", 123) {
         Ok(()) => log::info!("Session data saved"),
@@ -1314,7 +1312,7 @@ async fn safe_session_usage(ctx: Context) -> Result<Response> {
     }
 
     // Flash message errors are typically ignored
-    let _ = ctx.flash_set("message", "Hello");
+    let _ = ctx.flash("message", "Hello");
 
     ctx.json(json!({"status": "ok"}))
 }
@@ -1639,14 +1637,14 @@ ctx.session_set("full_user_profile", large_user_object)?;
 Flash messages are perfect for one-time user notifications:
 
 ```rust
-async fn create_user(ctx: Context) -> Result<Response> {
+async fn create_user(ctx: &mut Context) -> Result<()> {
     match create_user_in_db(&user_data).await {
         Ok(_) => {
-            ctx.flash_success("User created successfully!");
+            ctx.flash_success("User created successfully!")?;
             ctx.redirect("/users")
         }
         Err(e) => {
-            ctx.flash_error(&format!("Failed to create user: {}", e));
+            ctx.flash_error(format!("Failed to create user: {}", e))?;
             ctx.redirect("/users/new")
         }
     }
@@ -1657,14 +1655,14 @@ async fn create_user(ctx: Context) -> Result<Response> {
 Check for required session data and handle missing sessions:
 
 ```rust
-async fn protected_route(ctx: Context) -> Result<Response> {
+async fn protected_route(ctx: &mut Context) -> Result<()> {
     match ctx.session_get::<i32>("user_id") {
         Some(user_id) => {
             // User is logged in, continue
             handle_authenticated_request(ctx, user_id).await
         }
         None => {
-            ctx.flash_info("Please log in to continue");
+            ctx.flash_info("Please log in to continue")?;
             ctx.redirect("/login")
         }
     }
@@ -1698,22 +1696,22 @@ Choose the right method for different scenarios:
 
 ```rust
 // User logout - clear data but keep session for analytics
-async fn logout(ctx: Context) -> Result<Response> {
+async fn logout(ctx: &mut Context) -> Result<()> {
     ctx.session_clear();  // Keep session ID for tracking
-    ctx.flash_success("You have been logged out");
+    ctx.flash_success("You have been logged out")?;
     ctx.redirect("/login")
 }
 
 // Security incident - completely destroy session
-async fn security_logout(ctx: Context, session_store: &SessionStore) -> Result<Response> {
-    let session_id = ctx.session.id();
-    session_store.destroy_session(session_id).await?;  // Complete removal
+async fn security_logout(ctx: &mut Context) -> Result<()> {
+    // Session middleware deletes the storage entry and clears the cookie
+    ctx.session_destroy();  // Complete removal
     ctx.redirect("/login")
 }
 
 // After login - regenerate ID to prevent session fixation
-async fn after_login(ctx: Context) -> Result<Response> {
-    ctx.session.regenerate_id();  // Security best practice
+async fn after_login(ctx: &mut Context) -> Result<()> {
+    ctx.require_session()?.mark_for_rotation();  // Security best practice: new ID issued by the session middleware
     ctx.session_set("user_id", user.id)?;
     ctx.redirect("/dashboard")
 }

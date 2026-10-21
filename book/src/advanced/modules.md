@@ -49,21 +49,34 @@ The MODULE system enables global access to registered modules without passing th
 
 ### Basic Usage
 
+Modules are looked up by the **name they were registered under** (the first
+argument of `MODULE::register`), not by type. `MODULE::get` returns
+`Arc<dyn SharedModule>`; to call your own methods, downcast it to the concrete
+type through `SharedModule::as_any()`:
+
 ```rust
 // Access modules globally anywhere in your application (by registered name).
 // MODULE::get returns Result<Arc<dyn SharedModule>>.
-let email = MODULE::get("email-primary")?;
-let cache = MODULE::get("cache")?;
+let module = MODULE::get("email-primary")?;
+
+// Downcast to the concrete type to call its methods.
+// Keep `module` (the Arc) alive while you use the borrowed `&EmailService`.
+let email = module
+    .as_any()
+    .downcast_ref::<EmailService>()
+    .ok_or_else(|| Error::internal("module 'email-primary' is not an EmailService"))?;
+email.send_notification("user@example.com").await?;
 
 // Check if a module is registered (by name)
 if MODULE::exists("email-primary") {
-    let email = MODULE::get("email-primary")?;
-    // use the module...
+    // ...
 }
 
-// Optional access for dynamic scenarios: get_opt returns Option<Arc<dyn SharedModule>>
-if let Some(service) = MODULE::get_opt("email-primary") {
-    // Use the service dynamically
+// Optional access: get_opt returns Option<Arc<dyn SharedModule>>
+if let Some(module) = MODULE::get_opt("email-primary") {
+    if let Some(email) = module.as_any().downcast_ref::<EmailService>() {
+        email.send_notification("user@example.com").await?;
+    }
 }
 
 // List all registered modules (useful for debugging)
@@ -110,6 +123,10 @@ async fn main() -> Result<()> {
         database_pool::DatabasePool,
     };
 
+    // MODULE::init() must be called once before any MODULE::register / MODULE::get;
+    // the framework does not call it for you.
+    MODULE::init()?;
+
     // Register modules explicitly by unique name. Each becomes a singleton
     // accessible via MODULE::get("name").
     MODULE::register("email-primary", EmailService::new())?;
@@ -128,8 +145,9 @@ async fn main() -> Result<()> {
 > support — it does **not** register modules and evaluates to `()`, so it cannot be
 > passed to `.modules_from(...)`. If you prefer the closure form, `.modules_from`
 > takes a closure `FnOnce(&mut SharedRegistry)` and you call `registry.register(...)`
-> inside it; but explicit `MODULE::register("name", instance)` (shown above) is the
-> standard approach.
+> inside it; modules registered that way get `initialize()`/`shutdown()` called by the
+> app but are **not** reachable through `MODULE::get`. Explicit
+> `MODULE::register("name", instance)` (shown above) is the standard approach.
 
 ### Usage Patterns Comparison
 
@@ -156,9 +174,17 @@ async fn handler(ctx: &mut Context) -> Result<()> {
 ```rust
 // Best for shared resources and configured services
 async fn handler(ctx: &mut Context) -> Result<()> {
-    // Access singleton instance by name
-    let email_service = MODULE::get("email-primary")?;
-    let cache = MODULE::get("cache")?;
+    // Access singleton instances by name, then downcast to the concrete type
+    let email_module = MODULE::get("email-primary")?;
+    let email_service = email_module
+        .as_any()
+        .downcast_ref::<EmailService>()
+        .ok_or_else(|| Error::internal("module 'email-primary' is not an EmailService"))?;
+    let cache_module = MODULE::get("cache")?;
+    let cache = cache_module
+        .as_any()
+        .downcast_ref::<CacheService>()
+        .ok_or_else(|| Error::internal("module 'cache' is not a CacheService"))?;
     
     // Check cache first
     if let Some(cached) = cache.get("user:123").await {
@@ -181,13 +207,17 @@ async fn handler(ctx: &mut Context) -> Result<()> {
     // Stateless utility - direct instantiation
     let validator = validation_utils::ValidationUtils::new();
     
-    // Stateful service - could use MODULE if registered
-    let email = if MODULE::exists("email-primary") {
+    // Stateful service - use the MODULE singleton if registered
+    let fallback;
+    let module = MODULE::get_opt("email-primary");
+    let email = match module.as_ref().and_then(|m| m.as_any().downcast_ref::<EmailService>()) {
         // Use singleton if available
-        MODULE::get("email-primary")?
-    } else {
+        Some(email) => email,
         // Fall back to direct instantiation
-        Arc::new(email_service::EmailService::new())
+        None => {
+            fallback = email_service::EmailService::new();
+            &fallback
+        }
     };
     
     // Business logic...
@@ -372,6 +402,7 @@ use rustf::prelude::*;
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    MODULE::init()?;
     // Register stateful modules explicitly by name (singletons via MODULE::get).
     MODULE::register("user-service", crate::modules::user_service::UserService::new())?;
 
@@ -389,8 +420,10 @@ async fn main() -> Result<()> {
    declarations for IDE/auto-discovery support only (no registration).
 2. You call `MODULE::register("name", instance)` for each module you want globally
    accessible. This is required — there is no automatic registration.
-3. `MODULE::init()` is called during app startup, enabling global access.
-4. Registered modules become singletons accessible by name via `MODULE::get("name")`.
+3. `MODULE::init()` must be called by your app before registering; the framework
+   does not call it.
+4. Registered modules become singletons accessible by name via `MODULE::get("name")`
+   (downcast with `as_any().downcast_ref::<T>()` for the concrete type).
 
 ### Manual Module Access
 
@@ -410,8 +443,8 @@ pub fn install() -> Vec<Route> {
 
 async fn register_user(ctx: &mut Context) -> rustf::Result<()> {
     let form_data = ctx.body_form()?;
-    let email = form_data.get("email").unwrap_or(&String::new());
-    let password = form_data.get("password").unwrap_or(&String::new());
+    let email = form_data.get("email").unwrap_or("");
+    let password = form_data.get("password").unwrap_or("");
     
     // Access modules using standard Rust module system
     let user_svc = user_service::UserService::new();
@@ -427,20 +460,21 @@ async fn register_user(ctx: &mut Context) -> rustf::Result<()> {
                 "verification_token_123"
             ).await;
             
-            ctx.flash_success("Registration successful! Check your email.");
+            ctx.flash_success("Registration successful! Check your email.")?;
             ctx.redirect("/login")
         }
         Err(e) => {
-            ctx.flash_error(&format!("Registration failed: {}", e));
+            ctx.flash_error(format!("Registration failed: {}", e))?;
             ctx.redirect("/register")
         }
     }
 }
 ```
 
-### SharedRegistry Pattern
+### Explicit Registration Pattern
 
-The SharedRegistry backs the global MODULE system. Registration is explicit:
+The global MODULE system has its own registry (separate from the app's
+`SharedRegistry`). Registration is explicit:
 
 ```rust
 // src/main.rs
@@ -450,12 +484,13 @@ use rustf::prelude::*;
 #[tokio::main]
 async fn main() -> Result<()> {
     // Explicit registration by name (no automatic registration).
+    MODULE::init()?;
     MODULE::register("email-primary", crate::modules::email_service::EmailService::new())?;
 
     let app = RustF::new()
         .controllers(auto_controllers!())
         .models(auto_models!())
-        .start().await;  // initializes registered modules
+        .start().await;
 
     app
 }
@@ -465,7 +500,8 @@ async fn main() -> Result<()> {
 1. `auto_modules!()` only emits module declarations for IDE support — it does not
    register modules and cannot be passed to `.modules_from(...)`.
 2. You register modules explicitly with `MODULE::register("name", instance)`.
-3. `app.start()` runs `initialize()` on registered modules implementing `SharedModule`.
+3. `app.start()` does **not** call `initialize()` on MODULE-registered modules (it only
+   does so for modules added to the app's `SharedRegistry` via `.modules_from(...)`).
 4. Modules are available throughout the application lifecycle via `MODULE::get("name")`.
 
 ## Using Modules in Controllers
@@ -481,17 +517,17 @@ use crate::modules::{user_service, validation_utils};
 
 async fn create_user(ctx: &mut Context) -> rustf::Result<()> {
     let form_data = ctx.body_form()?;
-    let email = form_data.get("email").unwrap_or(&String::new());
-    let password = form_data.get("password").unwrap_or(&String::new());
+    let email = form_data.get("email").unwrap_or("");
+    let password = form_data.get("password").unwrap_or("");
     
     // Use validation utilities
     if !validation_utils::ValidationUtils::is_valid_email(email) {
-        ctx.flash_error("Invalid email format");
+        ctx.flash_error("Invalid email format")?;
         return ctx.redirect("/users/new");
     }
     
     if !validation_utils::ValidationUtils::is_strong_password(password) {
-        ctx.flash_error("Password must be at least 8 characters with mixed case and numbers");
+        ctx.flash_error("Password must be at least 8 characters with mixed case and numbers")?;
         return ctx.redirect("/users/new");
     }
     
@@ -499,11 +535,11 @@ async fn create_user(ctx: &mut Context) -> rustf::Result<()> {
     let user_svc = user_service::UserService::new();
     match user_svc.register_user(email, password, json!({})).await {
         Ok(user) => {
-            ctx.flash_success("User created successfully!");
+            ctx.flash_success("User created successfully!")?;
             ctx.redirect("/users")
         }
         Err(e) => {
-            ctx.flash_error(&format!("Failed to create user: {}", e));
+            ctx.flash_error(format!("Failed to create user: {}", e))?;
             ctx.redirect("/users/new")
         }
     }
@@ -519,10 +555,16 @@ Use MODULE for shared services that should have one instance:
 use rustf::prelude::*;
 
 async fn process_order(ctx: &mut Context) -> Result<()> {
-    // Access singleton services via MODULE (by registered name)
-    let cache = MODULE::get("cache")?;
-    let email = MODULE::get("email-primary")?;
-    let payment = MODULE::get("payment")?;
+    // Access singleton services via MODULE (by registered name), downcast to concrete types
+    let cache_module = MODULE::get("cache")?;
+    let cache = cache_module.as_any().downcast_ref::<CacheService>()
+        .ok_or_else(|| Error::internal("module 'cache' is not a CacheService"))?;
+    let email_module = MODULE::get("email-primary")?;
+    let email = email_module.as_any().downcast_ref::<EmailService>()
+        .ok_or_else(|| Error::internal("module 'email-primary' is not an EmailService"))?;
+    let payment_module = MODULE::get("payment")?;
+    let payment = payment_module.as_any().downcast_ref::<PaymentService>()
+        .ok_or_else(|| Error::internal("module 'payment' is not a PaymentService"))?;
     
     let order_data: Value = ctx.body_json()?;
     let order_id = order_data["id"].as_str().unwrap_or("");
@@ -1418,10 +1460,21 @@ impl UserService {
     }
 }
 
+// ✅ Good: the controller handler owns the HTTP side and builds the response
+async fn create_user(ctx: &mut Context) -> Result<()> {
+    let form = ctx.body_form()?;
+    let email = form.get("email").unwrap_or("").to_string();
+    let password = form.get("password").unwrap_or("").to_string();
+
+    let user = UserService::new().validate_and_create_user(&email, &password).await?;
+    ctx.json(json!({ "id": user.id }))
+}
+
 // ❌ Bad: Tightly coupled to RustF
 impl UserService {
-    pub async fn create_user(&self, ctx: &Context) -> Result<Response> {
-        // Mixing business logic with HTTP concerns
+    pub async fn create_user(&self, ctx: &mut Context) -> Result<()> {
+        // Mixing business logic with HTTP concerns (reads the request,
+        // writes the response) - belongs in the controller, not the module
     }
 }
 ```
@@ -1439,8 +1492,8 @@ Based on the current RustF implementation:
 ✅ **App Integration** - SharedRegistry integrated with RustF app builder pattern  
 ✅ **CLI Support** - `rustf-cli new` creates `src/modules/` directory with README  
 ✅ **Global MODULE System** - Total.js-style singleton access by name via `MODULE::get("name")`  
-✅ **Name-Based Access** - `MODULE::get` / `MODULE::get_opt` return `Arc<dyn SharedModule>`  
-✅ **MODULE Initialization** - Automatic during app startup via `MODULE::init()`  
+✅ **Name-Based Access** - `MODULE::get` / `MODULE::get_opt` return `Arc<dyn SharedModule>`; downcast via `as_any().downcast_ref::<T>()`  
+✅ **MODULE Initialization** - Explicit `MODULE::init()` call in your app startup  
 ✅ **Dynamic Module Discovery** - `MODULE::list()` and `MODULE::exists("name")` methods  
 
 ## Usage Recommendations
@@ -1450,7 +1503,7 @@ Based on the current RustF implementation:
    (`auto_modules!()` only provides IDE discovery; it does not register modules)
 2. Create services as structs with `new()` constructors
 3. For stateless utilities: Use direct instantiation with `use` statements
-4. For stateful services: Register and access by name via `MODULE::get("name")`
+4. For stateful services: Register and access by name via `MODULE::get("name")` + `as_any().downcast_ref::<T>()`
 
 **Choosing between direct instantiation and MODULE:**
 1. **Use MODULE for:**
@@ -1473,9 +1526,9 @@ Based on the current RustF implementation:
 
 **For complex services requiring singleton behavior:**
 1. Implement `SharedModule` trait with `initialize()` and `shutdown()` methods
-2. Register with `MODULE::register("name", instance)` to enable MODULE access
-3. Access by name via `MODULE::get("name")` throughout the application
-4. Registered services are initialized during app startup
+2. Register with `MODULE::register("name", instance)` (after `MODULE::init()`) to enable MODULE access
+3. Access by name via `MODULE::get("name")` + `as_any().downcast_ref::<T>()` throughout the application
+4. `initialize()` / `shutdown()` are called automatically only for modules registered through `.modules_from()`
 
 The module system now provides full integration with the framework while maintaining flexibility for both simple and complex use cases, with clean separation of concerns between HTTP handling (controllers) and business logic (modules).
 

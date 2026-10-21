@@ -270,7 +270,7 @@ async fn show_form(ctx: &mut Context) -> rustf::Result<()> {
     // Token is accessible in templates via @{csrf_token} and @{csrf}
     ctx.view("user/form", json!({
         "user": load_user_data().await?
-    })).await
+    }))
 }
 ```
 
@@ -324,7 +324,7 @@ async fn form_controller(ctx: &mut Context) -> rustf::Result<()> {
     // Token is accessible in templates
     ctx.view("form", json!({
         "user_data": load_user().await?
-    })).await
+    }))
 }
 ```
 
@@ -400,7 +400,7 @@ async fn show_forms(ctx: &mut Context) -> rustf::Result<()> {
     
     ctx.view("forms/multi", json!({
         "user": load_user_data().await?
-    })).await
+    }))
 }
 ```
 
@@ -605,7 +605,7 @@ async fn show_user_form(ctx: &mut Context) -> rustf::Result<()> {
     ctx.view("users/form", json!({
         "user": load_user_data().await?,
         "action": "/users/create"
-    })).await
+    }))
 }
 ```
 
@@ -651,7 +651,7 @@ async fn manual_form(ctx: &mut Context) -> rustf::Result<()> {
     ctx.view("forms/manual", json!({
         "csrf_token": csrf_token,
         "form_data": load_form_data().await?
-    })).await
+    }))
 }
 ```
 
@@ -889,7 +889,7 @@ let custom = ctx.generate_csrf(Some("custom_id"))?;  // Custom token
 async fn show_form_after_submit(ctx: &mut Context) -> rustf::Result<()> {
     // Generate fresh token for the next submission
     ctx.generate_csrf(None)?;
-    ctx.view("form", data).await
+    ctx.view("form", data)
 }
 
 // For AJAX: Fetch new token after each successful request
@@ -991,7 +991,7 @@ Use context methods for token management:
 async fn show_form(ctx: &mut Context) -> rustf::Result<()> {
     ctx.generate_csrf(None)?;  // Default token
     ctx.generate_csrf(Some("api_csrf"))?;  // API token
-    ctx.view("form", data).await  // Tokens accessible in templates
+    ctx.view("form", data)  // Tokens accessible in templates
 }
 
 // Good: Regenerate after consumption

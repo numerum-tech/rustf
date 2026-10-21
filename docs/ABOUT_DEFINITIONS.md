@@ -107,14 +107,13 @@ In views (for helpers):
 
 In controllers (for validators):
 ```rust
-async fn create_user(ctx: Context) -> Result<Response> {
+async fn create_user(ctx: &mut Context) -> Result<()> {
     let email = ctx.param_str("email")?;
     
     // Get validators from global definitions
     let definitions = rustf::definitions::get().await;
     let defs = definitions.read().await;
-    let validator = defs.validators.get("email")?;
-    validator.validate(&json!(email), None)?;
+    defs.validators.validate("email", &json!(email), None)?;
     
     // Proceed with user creation...
     ctx.json(json!({"status": "user created"}))
@@ -257,13 +256,12 @@ impl Validator for PasswordStrengthValidator {
 #### Using Validators
 
 ```rust
-async fn update_password(ctx: Context) -> Result<Response> {
+async fn update_password(ctx: &mut Context) -> Result<()> {
     let new_password = ctx.param_str("new_password")?;
     
     // Get validator from global definitions
     let definitions = rustf::definitions::get().await;
     let defs = definitions.read().await;
-    let validator = defs.validators.get("password_strength")?;
     
     // Validate with options
     let options = json!({
@@ -271,7 +269,7 @@ async fn update_password(ctx: Context) -> Result<Response> {
         "require_special": true
     });
     
-    validator.validate(&json!(new_password), Some(&options))?;
+    defs.validators.validate("password_strength", &json!(new_password), Some(&options))?;
     
     // Password is valid, proceed with update
     update_user_password(&new_password).await?;
@@ -554,18 +552,16 @@ async fn main() -> rustf::Result<()> {
 #### In Controllers
 
 ```rust
-async fn my_controller(ctx: Context) -> Result<Response> {
+async fn my_controller(ctx: &mut Context) -> Result<()> {
     // Get definitions from global registry
     let definitions = rustf::definitions::get().await;
     let defs = definitions.read().await;
     
     // Access helpers
-    let helper = defs.helpers.get("format_money")?;
-    let formatted = helper.call(&[json!(99.99)], None)?;
+    let formatted = defs.helpers.call("format_money", &[json!(99.99)], None)?;
     
     // Access validators  
-    let validator = defs.validators.get("email")?;
-    validator.validate(&json!("user@example.com"), None)?;
+    defs.validators.validate("email", &json!("user@example.com"), None)?;
     
     ctx.json(json!({"formatted": formatted}))
 }
@@ -574,25 +570,24 @@ async fn my_controller(ctx: Context) -> Result<Response> {
 #### In Middleware
 
 ```rust
+use async_trait::async_trait;
 use rustf::middleware::{InboundMiddleware, InboundAction};
 use rustf::context::Context;
 use rustf::error::Result;
+use serde_json::json;
 
 pub struct ValidationMiddleware;
 
+#[async_trait]
 impl InboundMiddleware for ValidationMiddleware {
-    fn process_request(&self, ctx: &mut Context) -> Result<InboundAction> {
+    async fn process_request(&self, ctx: &mut Context) -> Result<InboundAction> {
         // Get email from request
         let email = ctx.param_str("email")?;
         
         // Get validator from global definitions
-        // Note: Using block_on since middleware is synchronous
-        let definitions = futures::executor::block_on(
-            rustf::definitions::get()
-        );
-        let defs = futures::executor::block_on(definitions.read());
-        let validator = defs.validators.get("email")?;
-        validator.validate(&json!(email), None)?;
+        let definitions = rustf::definitions::get().await;
+        let defs = definitions.read().await;
+        defs.validators.validate("email", &json!(email), None)?;
         
         Ok(InboundAction::Continue)
     }
@@ -778,17 +773,17 @@ defs.register_helper("user_avatar", UserAvatarHelper);
 Validators work with RustF's error handling:
 
 ```rust
-async fn api_endpoint(ctx: Context) -> Result<Response> {
-    let data = ctx.json_body()?;
+async fn api_endpoint(ctx: &mut Context) -> Result<()> {
+    let data: serde_json::Value = ctx.body_json()?;
     
     // Get validators from global definitions
     let definitions = rustf::definitions::get().await;
     let defs = definitions.read().await;
     
     // Validate multiple fields
-    defs.validators.get("email")?.validate(&data["email"], None)?;
-    defs.validators.get("password")?.validate(&data["password"], None)?;
-    defs.validators.get("age")?.validate(&data["age"], Some(&json!({"min": 18})))?;
+    defs.validators.validate("email", &data["email"], None)?;
+    defs.validators.validate("password", &data["password"], None)?;
+    defs.validators.validate("age", &data["age"], Some(&json!({"min": 18})))?;
     
     // All validations passed
     process_data(data).await?;
@@ -806,7 +801,7 @@ Custom session storage integrates seamlessly with RustF's session middleware:
 // src/definitions/session_storage.rs exists and has an install() function
 
 // In controllers, sessions work normally
-async fn login(ctx: Context) -> Result<Response> {
+async fn login(ctx: &mut Context) -> Result<()> {
     ctx.session_set("user_id", user.id)?;
     ctx.session_set("username", user.username)?;
     

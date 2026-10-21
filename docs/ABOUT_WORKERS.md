@@ -649,12 +649,24 @@ Environment is determined from `RUSTF_ENV` or `NODE_ENV` environment variables.
 Access application configuration from workers:
 
 ```rust
+#[derive(serde::Deserialize)]
+struct ApiConfig {
+    base_url: String,
+}
+
 WORKER::register("config-example", |ctx| async move {
+    // ctx.config() returns &Arc<AppConfig>
     let config = ctx.config();
 
-    // Use configuration values
-    let base_url = config.get::<String>("api.base_url")
-        .unwrap_or_else(|| "http://localhost".to_string());
+    // Deserialize the [api] section into a struct
+    let base_url = config
+        .section::<ApiConfig>("api")
+        .map(|api| api.base_url)
+        .unwrap_or_else(|_| "http://localhost".to_string());
+
+    // Alternatively, use the global CONF singleton with a dotted path:
+    // let base_url = CONF::get_string("api.base_url")
+    //     .unwrap_or_else(|| "http://localhost".to_string());
 
     ctx.info(&format!("Using API: {}", base_url));
     Ok(())

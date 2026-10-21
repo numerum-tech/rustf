@@ -69,7 +69,7 @@ pub trait OutboundMiddleware: Send + Sync + 'static {
 }
 ```
 
-**Important Change:** The outbound middleware now receives `&mut Context` instead of separate context and response parameters. The response is accessed and modified through `ctx.response` field.
+**Important Change:** The outbound middleware now receives `&mut Context` instead of separate context and response parameters. The response is accessed and modified through `ctx.res` field.
 
 ### DualPhaseMiddleware Trait
 
@@ -144,8 +144,8 @@ pub struct CompressionMiddleware;
 #[async_trait]
 impl OutboundMiddleware for CompressionMiddleware {
     async fn process_response(&self, ctx: &mut Context) -> Result<()> {
-        // Access the response through ctx.response
-        if let Some(response) = ctx.response.as_mut() {
+        // Access the response through ctx.res
+        if let Some(response) = ctx.res.as_mut() {
             // Add compression headers
             response.headers.push((
                 "Content-Encoding".to_string(),
@@ -187,8 +187,8 @@ impl OutboundMiddleware for TimingMiddleware {
         if let Some(start) = ctx.get::<Instant>("request_start") {
             let duration = start.elapsed();
             
-            // Access response through ctx.response
-            if let Some(response) = ctx.response.as_mut() {
+            // Access response through ctx.res
+            if let Some(response) = ctx.res.as_mut() {
                 response.headers.push((
                     "X-Response-Time".to_string(),
                     format!("{}ms", duration.as_millis())
@@ -402,15 +402,16 @@ Middleware executes based on priority (lower numbers first):
 
 ## Accessing Response in Outbound Phase
 
-With the new architecture, outbound middleware accesses the response through the Context's `response` field:
+With the new architecture, outbound middleware accesses the response through the Context's `res` field:
 
 ### Response Access Pattern
 
 ```rust
+#[async_trait]
 impl OutboundMiddleware for MyMiddleware {
-    fn process_response(&self, ctx: &mut Context) -> Result<()> {
+    async fn process_response(&self, ctx: &mut Context) -> Result<()> {
         // The response might be None if an error occurred
-        if let Some(response) = ctx.response.as_mut() {
+        if let Some(response) = ctx.res.as_mut() {
             // Modify response headers
             response.headers.push(("X-Custom".to_string(), "value".to_string()));
             
@@ -457,7 +458,7 @@ use async_trait::async_trait;
 impl InboundMiddleware for ApiAuthMiddleware {
     fn should_run(&self, ctx: &Context) -> bool {
         // Only run for API routes
-        ctx.request.uri.starts_with("/api/")
+        ctx.req.uri.starts_with("/api/")
     }
     
     async fn process_request(&self, ctx: &mut Context) -> Result<InboundAction> {
@@ -476,8 +477,8 @@ use async_trait::async_trait;
 impl InboundMiddleware for MetricsMiddleware {
     async fn process_request(&self, ctx: &mut Context) -> Result<InboundAction> {
         // Store request data for metrics
-        ctx.set("metrics_start", Instant::now());
-        ctx.set("metrics_path", ctx.request.uri.clone());
+        ctx.set("metrics_start", Instant::now())?;
+        ctx.set("metrics_path", ctx.req.uri.clone())?;
         
         Ok(InboundAction::Capture)
     }
@@ -487,11 +488,11 @@ impl InboundMiddleware for MetricsMiddleware {
 impl OutboundMiddleware for MetricsMiddleware {
     async fn process_response(&self, ctx: &mut Context) -> Result<()> {
         if let Some(start) = ctx.get::<Instant>("metrics_start") {
-            let path = ctx.get::<String>("metrics_path").unwrap_or_default();
+            let path = ctx.get::<String>("metrics_path").cloned().unwrap_or_default();
             let duration = start.elapsed();
             
             // Get status from response
-            let status = ctx.response.as_ref()
+            let status = ctx.res.as_ref()
                 .map(|r| r.status.as_u16())
                 .unwrap_or(500);
             
@@ -511,7 +512,7 @@ use async_trait::async_trait;
 #[async_trait]
 impl InboundMiddleware for CacheMiddleware {
     async fn process_request(&self, ctx: &mut Context) -> Result<InboundAction> {
-        let cache_key = generate_cache_key(&ctx.request);
+        let cache_key = generate_cache_key(&ctx.req);
         
         if let Some(cached) = self.cache.get(&cache_key) {
             // Return cached response immediately
@@ -520,7 +521,7 @@ impl InboundMiddleware for CacheMiddleware {
         }
         
         // Store key for outbound phase
-        ctx.set("cache_key", cache_key);
+        ctx.set("cache_key", cache_key)?;
         Ok(InboundAction::Capture)
     }
 }
@@ -549,7 +550,7 @@ mod tests {
         let action = middleware.process_request(&mut ctx).await.unwrap();
         assert!(matches!(action, InboundAction::Stop));
         // Check that response was set on context
-        assert!(ctx.response.is_some());
+        assert!(ctx.res.is_some());
         
         // Test with auth
         ctx.session_set("user", User { role: "admin".into() });
@@ -570,7 +571,7 @@ mod tests {
         middleware.process_response(&mut ctx).await.unwrap();
         
         // Verify headers were added
-        if let Some(response) = &ctx.response {
+        if let Some(response) = &ctx.res {
             let has_encoding = response.headers.iter()
                 .any(|(k, _)| k == "Content-Encoding");
             assert!(has_encoding);

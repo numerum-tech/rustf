@@ -326,7 +326,7 @@ export RUSTF_ENV=production
 
 ```rust
 // Controller (HTTP layer) - handles requests/responses
-pub async fn create_user(ctx: Context) -> Result<Response> {
+pub async fn create_user(ctx: &mut Context) -> rustf::Result<()> {
     let form_data = ctx.body_form()?;
     
     // Delegate business logic to modules
@@ -379,29 +379,31 @@ pub fn install() -> Vec<Route> {
 }
 
 // Handler naming conventions
-async fn index(ctx: Context) -> Result<Response> {
-    // List/index handlers return collections
+async fn index(ctx: &mut Context) -> rustf::Result<()> {
+    // List/index handlers put the collection in the repository (@{R.users});
+    // a list page has no single subject, so the model is empty
     let users = Users::all().await?;
-    ctx.view("/users/index", json!({"users": users}))
+    ctx.repository_set("users", json!(users));
+    ctx.view("users/index", json!({}))
 }
 
-async fn show(ctx: Context) -> Result<Response> {
-    // Show handlers return single resources
-    let id = ctx.param_str_or("id", "0");
-    let user = Users::find(id.parse()?).await?;
-    ctx.view("/users/show", json!({"user": user}))
+async fn show(ctx: &mut Context) -> rustf::Result<()> {
+    // Show handlers pass the single resource as the model (@{M.field})
+    let id = ctx.param_as::<i64>("id")?;
+    let user = Users::find(id).await?;
+    ctx.view("users/show", json!(user))
 }
 
-async fn create(ctx: Context) -> Result<Response> {
+async fn create(ctx: &mut Context) -> rustf::Result<()> {
     // Create handlers process forms and redirect
     let form_data = ctx.body_form()?;
     match Users::create(form_data).await {
         Ok(user) => {
-            ctx.flash_success("User created successfully!");
+            ctx.flash_success("User created successfully!")?;
             ctx.redirect(&format!("/users/{}", user.id))
         }
         Err(e) => {
-            ctx.flash_error(&format!("Failed to create user: {}", e));
+            ctx.flash_error(format!("Failed to create user: {}", e))?;
             ctx.redirect("/users/new")
         }
     }
@@ -411,15 +413,15 @@ async fn create(ctx: Context) -> Result<Response> {
 ### Error Handling Conventions
 
 ```rust
-// Use Result<Response> consistently
-async fn handler(ctx: Context) -> Result<Response> {
+// Use rustf::Result<()> consistently
+async fn handler(ctx: &mut Context) -> rustf::Result<()> {
     // Validate input
     // `param_as` reports both the missing and the unparseable case for you.
     let user_id = ctx.param_as::<i64>("id")?;
     
     // Business logic with error propagation
     let user = Users::find(user_id).await
-        .map_err(|_| Error::not_found("User not found"))?;
+        .map_err(|_| Error::ModelNotFound("User not found".into()))?;
     
     // Success response
     ctx.json(json!({"user": user}))
@@ -436,11 +438,9 @@ ctx.throw500(Some("Server error"))       // Internal Error
 ### Response Patterns
 
 ```rust
-// View responses (HTML)
-ctx.view("/users/profile", json!({
-    "user": user,
-    "title": "User Profile"
-}))
+// View responses (HTML): the model is ONE object, page data goes in the repository
+ctx.repository_set("title", "User Profile");
+ctx.view("users/profile", json!(user))
 
 // JSON responses (APIs)
 ctx.json(json!({
@@ -450,11 +450,11 @@ ctx.json(json!({
 }))
 
 // Redirects with flash messages
-ctx.flash_success("Operation completed!");
+ctx.flash_success("Operation completed!")?;
 ctx.redirect("/users")
 
 // File responses
-ctx.file_download("uploads/document.pdf", Some("document.pdf"))
+ctx.file_download("uploads/document.pdf", Some("document.pdf")).await
 
 // Text responses
 ctx.plain("Plain text response")
@@ -464,17 +464,17 @@ ctx.plain("Plain text response")
 
 ```rust
 // Input validation pattern
-async fn create_user(ctx: Context) -> Result<Response> {
+async fn create_user(ctx: &mut Context) -> rustf::Result<()> {
     let form_data = ctx.body_form()?;
     
     // Validate required fields
     let email = form_data.get("email")
         .filter(|e| !e.is_empty() && e.contains('@'))
-        .ok_or_else(|| Error::bad_request("Valid email required"))?;
+        .ok_or_else(|| Error::validation("Valid email required"))?;
     
     let password = form_data.get("password")
         .filter(|p| p.len() >= 8)
-        .ok_or_else(|| Error::bad_request("Password must be at least 8 characters"))?;
+        .ok_or_else(|| Error::validation("Password must be at least 8 characters"))?;
     
     // Delegate to business logic
     let user_service = UserService::new();
@@ -502,10 +502,10 @@ if config.environment.is_production() {
 }
 
 // CORS protection
-ctx.cors_header("Access-Control-Allow-Origin", "https://myapp.com");
+ctx.add_header("Access-Control-Allow-Origin", "https://myapp.com");
 
-// CSRF protection (middleware)
-ctx.verify_csrf_token()?;
+// CSRF protection (default token id)
+let csrf_ok = ctx.verify_csrf(None)?;
 ```
 
 ### Input Sanitization
@@ -531,28 +531,32 @@ let users = Users::query()
 
 ```rust
 // Session-based authentication
-async fn login(ctx: Context) -> Result<Response> {
+async fn login(ctx: &mut Context) -> rustf::Result<()> {
     let credentials = ctx.body_form()?;
     
     if let Some(user) = authenticate_user(credentials).await? {
         ctx.session_set("user_id", user.id)?;
-        ctx.flash_success("Login successful!");
+        ctx.flash_success("Login successful!")?;
         ctx.redirect("/dashboard")
     } else {
-        ctx.flash_error("Invalid credentials");
+        ctx.flash_error("Invalid credentials")?;
         ctx.redirect("/login")
     }
 }
 
 // Middleware protection
+use async_trait::async_trait;
+
 pub struct AuthMiddleware;
 
-impl Middleware for AuthMiddleware {
-    async fn handle(&self, ctx: &mut Context, next: Next) -> MiddlewareResult {
+#[async_trait]
+impl InboundMiddleware for AuthMiddleware {
+    async fn process_request(&self, ctx: &mut Context) -> rustf::Result<InboundAction> {
         if ctx.session_get::<i64>("user_id").is_some() {
-            next.call(ctx).await // User is authenticated
+            Ok(InboundAction::Continue) // User is authenticated
         } else {
-            MiddlewareResult::Stop(ctx.redirect("/login"))
+            ctx.redirect("/login")?;
+            Ok(InboundAction::Stop)
         }
     }
 }
@@ -831,32 +835,36 @@ rustf-cli docs generate --format markdown
 mod tests {
     use super::*;
     use rustf::prelude::*;
+    use rustf::views::ViewEngine;
+    use std::sync::Arc;
+    
+    // Build a Context around a form-encoded POST request.
+    // Needs dev-dependencies: hyper, http-body-util, bytes.
+    async fn form_ctx(body: &'static str) -> Context {
+        let req = hyper::Request::builder()
+            .method("POST")
+            .uri("/users")
+            .header("content-type", "application/x-www-form-urlencoded")
+            .body(http_body_util::Full::new(bytes::Bytes::from(body)))
+            .unwrap();
+        let req = Request::from_hyper(req).await.unwrap();
+        Context::new(req, Arc::new(ViewEngine::new()))
+    }
     
     #[tokio::test]
     async fn test_create_user_handler() {
-        // Create a mock context for testing
-        let mut ctx = Context::test();
-        ctx.set_form_data(vec![
-            ("email", "test@example.com"),
-            ("name", "Test User"),
-            ("password", "password123")
-        ]);
+        let mut ctx = form_ctx("email=test%40example.com&name=Test+User&password=password123").await;
         
-        let response = create_user(ctx).await.unwrap();
-        assert_eq!(response.status_code(), 302); // Redirect
+        create_user(&mut ctx).await.unwrap();
+        assert_eq!(ctx.res.as_ref().unwrap().status, 200); // JSON response
     }
     
     #[tokio::test]
     async fn test_user_validation() {
-        let mut ctx = Context::test();
-        ctx.set_form_data(vec![
-            ("email", "invalid-email"),
-            ("name", "Test User"),
-            ("password", "123") // Too short
-        ]);
+        let mut ctx = form_ctx("email=invalid-email&name=Test+User&password=123").await; // Too short
         
-        let response = create_user(ctx).await.unwrap();
-        assert_eq!(response.status_code(), 400); // Bad Request
+        let err = create_user(&mut ctx).await.unwrap_err();
+        assert_eq!(err.status_code(), 400); // Validation error -> Bad Request
     }
 }
 ```
@@ -995,12 +1003,7 @@ pub struct RustF {
 }
 
 // Context creation with Arc references
-let context = Context::new(
-    request,
-    session,
-    Arc::clone(&self.views),
-    Arc::clone(&self.config)
-);
+let context = Context::new(request, Arc::clone(&self.views));
 ```
 
 ## Best Practices Summary

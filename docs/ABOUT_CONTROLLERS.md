@@ -248,7 +248,7 @@ async fn handler_name(ctx: &mut Context) -> Result<()>
 1. **Response Storage**: The Context struct now contains an `Option<Response>` field initialized with a default 200 OK response
 2. **Setting Responses**: All response helper methods (`json()`, `view()`, `redirect()`, etc.) internally call `ctx.set_response()`
 3. **Return Type**: Methods return `Result<()>` to indicate success/failure of setting the response
-4. **Middleware Access**: Both inbound and outbound middleware can access and modify the response via `ctx.response`
+4. **Middleware Access**: Both inbound and outbound middleware can access and modify the response via `ctx.res`
 5. **Response Helpers in Middleware**: Since Context initializes with a default response, middleware can use the same response helpers (`ctx.json()`, `ctx.throw403()`, etc.) as handlers
 
 #### Custom Response Creation
