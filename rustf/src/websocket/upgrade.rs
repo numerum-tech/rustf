@@ -394,11 +394,21 @@ impl Drop for ConnectionPermit {
     fn drop(&mut self) {
         // Saturating: a zero-limit permit never incremented, and underflow here
         // would silently disable the cap for the life of the process.
-        let _ = RESERVED_SOCKETS.fetch_update(
-            std::sync::atomic::Ordering::AcqRel,
-            std::sync::atomic::Ordering::Acquire,
-            |current| Some(current.saturating_sub(1)),
-        );
+        // A compare-exchange loop rather than `fetch_update`, which newer
+        // toolchains deprecate in favour of `try_update` (absent from older
+        // ones).
+        let mut current = RESERVED_SOCKETS.load(std::sync::atomic::Ordering::Acquire);
+        loop {
+            match RESERVED_SOCKETS.compare_exchange_weak(
+                current,
+                current.saturating_sub(1),
+                std::sync::atomic::Ordering::AcqRel,
+                std::sync::atomic::Ordering::Acquire,
+            ) {
+                Ok(_) => break,
+                Err(actual) => current = actual,
+            }
+        }
     }
 }
 
