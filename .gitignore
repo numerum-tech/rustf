@@ -125,3 +125,7 @@ book/book/
 
 # rustf-cli backups (`.rustf/backups/`) created when the CLI runs in this tree
 /rustf-cli/.rustf/
+
+# RustF website: separate repository (git.numerum.tech/numerum/rustf-website),
+# cloned here for convenience
+/website/
