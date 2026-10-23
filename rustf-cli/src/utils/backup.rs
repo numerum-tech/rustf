@@ -52,15 +52,18 @@ impl BackupManager {
         let file_count = copy_dir_recursive(source, &backup_path)?;
         let size = calculate_dir_size(&backup_path)?;
         
-        // Create or update latest symlink (for reference only)
+        // Create or update latest symlink (for reference only). The target is
+        // relative, so the link survives the project being moved, and the old
+        // link is removed even when it is broken (`exists()` follows links and
+        // says false for a dangling one, which left it in place forever).
         let latest_link = backup_base.join("latest");
-        if latest_link.exists() {
+        if fs::symlink_metadata(&latest_link).is_ok() {
             fs::remove_file(&latest_link).ok(); // Ignore errors on Windows
         }
         #[cfg(unix)]
         {
             use std::os::unix::fs::symlink;
-            symlink(&backup_path, &latest_link).ok(); // Best effort
+            symlink(&timestamp, &latest_link).ok(); // Best effort
         }
         
         // Show user feedback
@@ -301,4 +304,35 @@ pub fn is_empty_directory(path: &Path) -> Result<bool> {
     
     let mut entries = fs::read_dir(path)?;
     Ok(entries.next().is_none())
+}
+#[cfg(all(test, unix))]
+mod latest_link_tests {
+    use super::*;
+
+    #[test]
+    fn latest_is_relative_and_replaces_a_dangling_link() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("target/tmp")
+            .join(format!("backup_latest_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        let source = root.join("models");
+        fs::create_dir_all(&source).unwrap();
+        fs::write(source.join("user.rs"), "// model").unwrap();
+
+        // A dangling absolute link, as left by a project that was moved.
+        let base = root.join(".rustf/backups/models");
+        fs::create_dir_all(&base).unwrap();
+        std::os::unix::fs::symlink("/nonexistent/old/location", base.join("latest")).unwrap();
+
+        let manager = BackupManager {
+            rustf_dir: root.join(".rustf"),
+        };
+        manager.backup_directory(&source, "models").unwrap();
+
+        let target = fs::read_link(base.join("latest")).unwrap();
+        assert!(target.is_relative(), "{}", target.display());
+        assert!(base.join("latest").join("user.rs").exists());
+
+        fs::remove_dir_all(&root).ok();
+    }
 }

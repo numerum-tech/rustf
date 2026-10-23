@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **`rustf-cli`'s `.rustf/backups/<type>/latest` link survives a moved
+  project.** It pointed to an absolute path, and a dangling link was never
+  replaced (`exists()` follows links and reports false for a broken one), so
+  after moving a project `latest` stayed broken for good. The link is now
+  relative and is replaced even when dangling.
+
 ## [1.0.0] - 2026-10-23
 
 First stable release. Changes since 1.0.0-rc3:
