@@ -15,8 +15,23 @@ permissions:
   contents: write
 
 jobs:
+  # upload-rust-binary-action only attaches files to an existing Release; it
+  # does not create one. Without this job every upload failed.
+  create-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: taiki-e/create-gh-release-action@v1
+        with:
+          # Release notes from the CHANGELOG section of this version, when
+          # there is one (rc tags have none).
+          changelog: CHANGELOG.md
+          allow-missing-changelog: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+
   upload-binaries:
     name: ${{ matrix.target }}
+    needs: create-release
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
