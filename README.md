@@ -134,7 +134,6 @@ rustf/
 ├── sample-app/             # Example application / playground
 ├── book/                   # mdBook documentation source + build config
 ├── docs/                   # Legacy markdown docs (deprecated; book is canonical)
-├── CLAUDE.md               # AI coding assistant guidance
 ├── LICENSE-APACHE          # Apache 2.0 license
 ├── LICENSE-MIT             # MIT license
 └── README.md               # This file
