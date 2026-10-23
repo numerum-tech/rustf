@@ -13,6 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   replaced (`exists()` follows links and reports false for a broken one), so
   after moving a project `latest` stayed broken for good. The link is now
   relative and is replaced even when dangling.
+- **A new project builds without warnings, and its home page has no dead
+  link.** The generated `src/definitions/app.rs` imported `Helper`,
+  `Validator` and the prelude, used only by commented-out examples; the
+  generated home page, the CLI README and several guides pointed to a
+  `rustf-example` directory that does not exist (it is `sample-app`).
 
 ## [1.0.0] - 2026-10-23
 

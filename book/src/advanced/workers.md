@@ -1733,7 +1733,6 @@ WORKER::stats("name").await
 WORKER::running().await?
 ```
 
-For more examples, see the [rustf-example](https://github.com/your-repo/rustf/tree/main/rustf-example) project.
 
 ---
 

@@ -214,7 +214,7 @@
 <div class="quick-links">
     <a href="https://github.com/numerum-tech/rustf" target="_blank">📚 Documentation</a>
     <a href="https://github.com/numerum-tech/rustf/tree/main/docs" target="_blank">📖 Guides</a>
-    <a href="https://github.com/numerum-tech/rustf/tree/main/rustf-example" target="_blank">💡 Examples</a>
+    <a href="https://github.com/numerum-tech/rustf/tree/main/sample-app" target="_blank">💡 Examples</a>
     <a href="https://github.com/numerum-tech/rustf/issues" target="_blank">🐛 Report Issues</a>
 </div>
 

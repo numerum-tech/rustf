@@ -411,9 +411,10 @@ fn create_sample_definition(
 //! system — if you need one, reach for middleware, events, or shared
 //! modules instead.
 
-use rustf::definitions::{{Definitions, Helper, Validator}};
-use rustf::prelude::*;
+use rustf::definitions::Definitions;
 use serde_json::Value;
+// The commented-out examples below also need `rustf::definitions::{{Helper,
+// Validator}}` when you enable them.
 
 /// Install function called by auto-discovery.
 pub fn install(defs: &mut Definitions) {{

@@ -322,6 +322,3 @@ Converts a `PagedResult` from `.get_paginated()` to a `Pagination` for template 
 6. **Make it accessible** - Use proper ARIA labels and semantic HTML
 7. **Handle edge cases** - Empty results, single page, invalid page numbers
 
-## Example: Complete Implementation
-
-See `/rustf-example/src/controllers/pagination_demo.rs` and `/rustf-example/views/pagination-demo.html` for a complete working example.

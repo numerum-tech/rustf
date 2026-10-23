@@ -177,7 +177,7 @@ cargo install --path .
 - [x] MCP server with JSON-RPC protocol
 - [x] WebSocket support for real-time updates
 - [x] Multiple export formats (JSON, YAML, table)
-- [x] Integration tested with rustf-example project
+- [x] Integration tested with sample-app project
 
 ### 🚧 **In Development**
 - [ ] Advanced AST parsing for route extraction
@@ -204,11 +204,11 @@ This tool is the **first framework-specific MCP server** designed for AI agents 
 ## 📖 **Example Output**
 
 ```bash
-$ rustf-cli analyze --project ../rustf-example
+$ rustf-cli analyze --project ../sample-app
 
 === RustF Project Analysis ===
 
-Project: rustf-example
+Project: sample-app
 Framework Version: detected
 Controllers: 3
 Routes: 8
