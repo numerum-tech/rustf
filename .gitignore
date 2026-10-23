@@ -27,7 +27,6 @@ rustf-schema/Cargo.lock
 
 # IDE and editor files
 .vscode/
-.wolf/
 .idea/
 *.iml
 *.swp
@@ -102,3 +101,24 @@ book/book/
 
 # Project-local scratch (review transcripts, diffs) — never committed
 /tmp/
+
+# Internal working notes: kept locally, not published
+/SESSION_STATE.md
+/SESSION_ACCESS_GUIDE.md
+/sample_template.html
+/REDIS_*.md
+/PERFORMANCE_SERIALIZATION_ANALYSIS.md
+/HYBRID_SERIALIZATION_PLAN.md
+/Page_Load_Perf_Analysis.md
+/PERF_AND_SKILL_PLAN.md
+/bench-results.md
+/cli-schema-generation-report.md
+/RUSTF_LIBRARY_HOSTING_FEATURE_SPEC.md
+/WORK_PLAN.md
+/docs/plans/
+/docs/reviews/
+
+# OpenWolf: .wolf/.gitignore keeps machine-local state out; these two are
+# not part of its committed state either
+/.wolf/reframe-frameworks.md
+/.wolf/cron-manifest.json
