@@ -122,3 +122,6 @@ book/book/
 # not part of its committed state either
 /.wolf/reframe-frameworks.md
 /.wolf/cron-manifest.json
+
+# rustf-cli backups (`.rustf/backups/`) created when the CLI runs in this tree
+/rustf-cli/.rustf/
