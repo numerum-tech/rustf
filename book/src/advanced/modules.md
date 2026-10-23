@@ -1035,7 +1035,7 @@ mod tests {
 ### Integration Testing
 
 ```rust
-// tests/integration/module_tests.rs
+// tests/module_tests.rs
 use rustf::prelude::*;
 use your_app::modules::{user_service, email_service};
 
