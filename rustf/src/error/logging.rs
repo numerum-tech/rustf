@@ -553,8 +553,13 @@ mod tests {
     use crate::config::AppConfig;
     use std::collections::HashMap;
 
+    /// `from_app_config` reads `RUSTF_LOG_*`, which `test_log_config_from_env`
+    /// sets: tests that build a `LogConfig` from an `AppConfig` hold this lock.
+    static LOG_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
     #[test]
     fn logging_follows_the_configured_environment_not_the_build() {
+        let _env = LOG_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let production = AppConfig {
             environment: crate::config::Environment::Production,
             ..AppConfig::default()
@@ -632,6 +637,7 @@ mod tests {
 
     #[test]
     fn test_log_config_from_env() {
+        let _env = LOG_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         std::env::set_var("RUSTF_LOG_LEVEL", "ERROR");
         std::env::set_var("RUSTF_LOG_STACK_TRACE", "false");
 

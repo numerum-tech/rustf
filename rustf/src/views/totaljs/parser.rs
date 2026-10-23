@@ -108,16 +108,18 @@ impl Parser {
             TokenKind::RawVariable(name) => {
                 // Check if the variable name contains any expression operators
                 // (binary, ternary, etc.) so raw output supports the same
-                // expressions as escaped output — e.g. `@{!M.url || '/img.jpg'}`.
-                let expression = if self.contains_expression_operators(name) {
-                    // Parse as expression
-                    match self.parse_expression(name) {
-                        Ok(expr) => Some(expr),
-                        Err(_) => None, // Fall back to treating as variable name
-                    }
-                } else {
-                    None
-                };
+                // expressions as escaped output — e.g. `@{!M.url || '/img.jpg'}`
+                // — or is a function call, e.g. `@{!json(M)}` in a <script>.
+                let expression =
+                    if self.contains_expression_operators(name) || Self::is_function_call(name) {
+                        // Parse as expression
+                        match self.parse_expression(name) {
+                            Ok(expr) => Some(expr),
+                            Err(_) => None, // Fall back to treating as variable name
+                        }
+                    } else {
+                        None
+                    };
 
                 let node = Node::Variable {
                     name: name.clone(),
@@ -455,6 +457,32 @@ impl Parser {
     }
 
     /// Parse an expression from a string
+    /// A raw call worth parsing: `json(...)`, `css(...)`, `js(...)`,
+    /// `image(...)` or `meta(...)` — the functions whose output is safe to emit
+    /// without escaping (`@{!json(M)}` inside a `<script>`). Other functions
+    /// (`lower`, `url`, …) return text that raw output would not escape, so
+    /// they stay unparsed in the raw form, as before. Nesting is capped so a
+    /// pathological template cannot exhaust the parser.
+    fn is_function_call(text: &str) -> bool {
+        const RAW_SAFE: [&str; 5] = ["json", "css", "js", "image", "meta"];
+        const MAX_NESTING: usize = 32;
+        // Unary operators recurse too (`json(!!!…x)`): bound the length as
+        // well as the parentheses. Real raw calls are a few dozen characters.
+        const MAX_LEN: usize = 1024;
+
+        let text = text.trim();
+        if text.len() > MAX_LEN {
+            return false;
+        }
+        let Some(open) = text.find('(') else {
+            return false;
+        };
+        if !RAW_SAFE.contains(&&text[..open]) || !text.ends_with(')') {
+            return false;
+        }
+        text.matches('(').count() <= MAX_NESTING
+    }
+
     fn parse_expression(&self, expr_str: &str) -> Result<Expression> {
         // This is a simplified expression parser
         // In a full implementation, this would handle complex expressions

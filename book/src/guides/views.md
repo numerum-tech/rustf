@@ -645,11 +645,12 @@ Within `@{foreach}` loops, the iterator variable is directly accessible:
 <!-- Asset / URL helpers -->
 @{url('/path')}            <!-- Resolve a URL -->
 @{css('/static/app.css')}  <!-- CSS link tag -->
-@{js('/static/app.js')}    <!-- Script tag -->
+@{js('/static/app.js')}    <!-- Script tag. Never pass request data: any https:// URL loads and runs -->
 @{image('/logo.png')}      <!-- Image tag -->
 
 <!-- Data formatting -->
-@{json(data)}           <!-- JSON stringify -->
+@{json(data)}           <!-- JSON, HTML-escaped: safe in text and attributes -->
+@{!json(data)}          <!-- JSON for a <script> block (still escapes < > &) -->
 
 <!-- String case (HTML is auto-escaped; use @{!expr} to bypass) -->
 @{upper(text)}          <!-- Uppercase (alias: toUpperCase) -->
@@ -1107,7 +1108,7 @@ Sections allow child templates to define content blocks that parent layouts can 
 @{section page_scripts}
 <script src="/js/chart.min.js"></script>
 <script>
-    initCharts(@{json(M.chart_data)});
+    initCharts(@{!json(M.chart_data)});  // raw form inside <script>
 </script>
 @{end}
 ```

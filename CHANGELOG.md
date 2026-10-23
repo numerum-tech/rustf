@@ -8,6 +8,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **`@{css('…')}`, `@{js('…')}`, `@{image(…)}`, `@{meta(…)}` and `@{json(…)}`
+  rendered nothing.** The lexer turns `name(args)` into a helper call, and
+  helper calls only looked up helpers defined in the templates, returning an
+  empty string otherwise — so the generated layout's stylesheet and script
+  tags were never emitted. Helper calls now fall back to the built-in
+  function of the same name. `css`, `js`, `image` and `meta` build markup and
+  escape their own inputs, so they are emitted as is; every other result is
+  escaped — including `json()`, whose output is safe in a `<script>` but not
+  in an attribute, and `url()`, which returns the visitor-controlled request
+  URL.
+- **`@{!json(M)}` (raw output of a function call) rendered nothing.** The raw
+  form only parsed expressions with operators, so a call was looked up as a
+  variable named `json(M)`. Calls are now parsed; use `@{!json(...)}` inside
+  `<script>` (it still escapes `<`, `>` and `&`).
+- **`range()` is bounded and cannot overflow.** It produced as many elements
+  as asked — `range(1000000000)` from request data exhausted memory — and its
+  counter could overflow. It now stops at 10,000 elements and at `i64` limits.
+- **`url(host)` ignores a host that is not an `http(s)://` origin,** so
+  `url(M.host)` cannot produce a `javascript:` link.
 - **`rustf-cli`'s `.rustf/backups/<type>/latest` link survives a moved
   project.** It pointed to an absolute path, and a dangling link was never
   replaced (`exists()` follows links and reports false for a broken one), so

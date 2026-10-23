@@ -163,22 +163,9 @@ impl RenderContext {
 
         // Register context-aware functions
         let url = context.request_state.url.to_string();
-        context.functions.insert(
-            "url".to_string(),
-            Box::new(move |args| {
-                if !args.is_empty() {
-                    // If hostname is provided as argument, combine it with URL
-                    if let Value::String(host) = &args[0] {
-                        Value::String(format!("{}{}", host, url))
-                    } else {
-                        Value::String(url.clone())
-                    }
-                } else {
-                    // Return just the URL path
-                    Value::String(url.clone())
-                }
-            }),
-        );
+        context
+            .functions
+            .insert("url".to_string(), url_function(url));
 
         context
     }
@@ -280,22 +267,7 @@ impl RenderContext {
         Arc::make_mut(&mut self.request_state).url = Arc::<str>::from(url.clone());
 
         // Re-register url function with new URL
-        self.functions.insert(
-            "url".to_string(),
-            Box::new(move |args| {
-                if !args.is_empty() {
-                    // If hostname is provided as argument, combine it with URL
-                    if let Value::String(host) = &args[0] {
-                        Value::String(format!("{}{}", host, url))
-                    } else {
-                        Value::String(url.clone())
-                    }
-                } else {
-                    // Return just the URL path
-                    Value::String(url.clone())
-                }
-            }),
-        );
+        self.functions.insert("url".to_string(), url_function(url));
 
         self
     }
@@ -312,22 +284,7 @@ impl RenderContext {
 
         // Re-register url function with new hostname
         let url = self.request_state.url.to_string();
-        self.functions.insert(
-            "url".to_string(),
-            Box::new(move |args| {
-                if !args.is_empty() {
-                    // If hostname is provided as argument, combine it with URL
-                    if let Value::String(host) = &args[0] {
-                        Value::String(format!("{}{}", host, url))
-                    } else {
-                        Value::String(url.clone())
-                    }
-                } else {
-                    // Return just the URL path
-                    Value::String(url.clone())
-                }
-            }),
-        );
+        self.functions.insert("url".to_string(), url_function(url));
 
         self
     }
@@ -586,20 +543,21 @@ impl RenderContext {
                     }
                 };
 
-                // Generate the range
+                // Generate the range: at most MAX_RANGE_LEN elements, and stop
+                // instead of wrapping when the counter would overflow.
                 let mut result = Vec::new();
-                if step > 0 {
-                    let mut i = start;
-                    while i < stop {
-                        result.push(Value::Number(serde_json::Number::from(i)));
-                        i += step;
+                let mut i = start;
+                while ((step > 0 && i < stop) || (step < 0 && i > stop))
+                    && result.len() < MAX_RANGE_LEN
+                {
+                    result.push(Value::Number(serde_json::Number::from(i)));
+                    match i.checked_add(step) {
+                        Some(next) => i = next,
+                        None => break,
                     }
-                } else if step < 0 {
-                    let mut i = start;
-                    while i > stop {
-                        result.push(Value::Number(serde_json::Number::from(i)));
-                        i += step;
-                    }
+                }
+                if result.len() == MAX_RANGE_LEN {
+                    log::warn!("range() truncated to {} elements", MAX_RANGE_LEN);
                 }
 
                 Value::Array(result)
@@ -1332,6 +1290,27 @@ impl RenderContext {
     }
 }
 
+/// The `url([host])` template function: the request URL, optionally prefixed
+/// with a host. The host is used only when it is an http(s) origin, so
+/// `url(M.host)` cannot become a `javascript:` link; otherwise it is ignored.
+fn url_function(url: String) -> Box<dyn Fn(&[Value]) -> Value + Send + Sync> {
+    Box::new(move |args| match args.first() {
+        Some(Value::String(host)) => {
+            let lower = host.trim().to_ascii_lowercase();
+            if lower.starts_with("http://") || lower.starts_with("https://") {
+                Value::String(format!("{}{}", host.trim_end_matches('/'), url))
+            } else {
+                Value::String(url.clone())
+            }
+        }
+        _ => Value::String(url.clone()),
+    })
+}
+
+/// Most elements `range()` produces. A template can pass a bound that comes
+/// from request data; without a cap, `range(1000000000)` exhausts memory.
+const MAX_RANGE_LEN: usize = 10_000;
+
 fn is_safe_helper_url(url: &str) -> bool {
     let trimmed = url.trim();
     if trimmed.is_empty() {
@@ -1874,6 +1853,21 @@ impl Renderer {
                     self.context.locals = saved_locals;
 
                     Ok(result)
+                } else if self.context.functions.contains_key(name.as_str()) {
+                    // `@{css('/x.css')}` lexes as a helper call: fall back to
+                    // the built-in function of that name. Only the functions
+                    // that build markup — and escape their own inputs — are
+                    // emitted as is. Everything else is escaped: `url()`
+                    // returns the request URL, which the visitor controls.
+                    let value = self.context.evaluate_function_call(name, args)?;
+                    // `json` is not among them: its output is safe in a
+                    // <script> but not in an attribute. Use `@{!json(...)}`
+                    // inside <script>.
+                    let builds_markup = matches!(name.as_str(), "css" | "js" | "image" | "meta");
+                    Ok(match value {
+                        Value::String(markup) if builds_markup => markup,
+                        other => self.context.value_to_string(&other, true),
+                    })
                 } else {
                     Ok(String::new())
                 }
@@ -2436,6 +2430,81 @@ mod tests {
         assert!(!result.contains("</script>"));
         assert!(result
             .contains("\\u003C/script\\u003E\\u003Cscript\\u003Ealert(1)\\u003C/script\\u003E"));
+    }
+
+    /// `@{css('...')}` is lexed as a helper call, not an expression: the
+    /// built-in functions must be reachable through that path too. Earlier
+    /// tests built the AST by hand and never exercised it.
+    #[test]
+    fn test_builtin_functions_called_from_template_source() {
+        let render = |source: &str, model: Value| {
+            let template = crate::views::totaljs::parser::Parser::new(source)
+                .and_then(|mut parser| parser.parse())
+                .unwrap();
+            Renderer::new(RenderContext::new(model))
+                .render(&template)
+                .unwrap()
+        };
+
+        assert_eq!(
+            render("@{css('/static/site.css')}", json!({})),
+            r#"<link rel="stylesheet" href="/static/site.css">"#
+        );
+        assert!(render("@{js('/static/site.js')}", json!({})).starts_with("<script"));
+        // Still refused: the function's own URL check applies.
+        assert_eq!(render("@{css('javascript:alert(1)')}", json!({})), "");
+        // json() is escaped in the helper form, so it is safe in an attribute...
+        let attack = json!({" onmouseover=alert(1) x=": 1});
+        let json_out = render("<div data-state=\"@{json(M)}\">", attack.clone());
+        assert!(!json_out.contains("\" onmouseover"), "{json_out}");
+        // ...and emitted raw only when asked for, inside <script>.
+        let raw_out = render("@{!json(M)}", json!({"a": "</script>"}));
+        assert!(
+            raw_out.starts_with('{') && !raw_out.contains("</script>"),
+            "{raw_out}"
+        );
+        // range() is bounded and does not overflow.
+        let big = render("@{foreach n in range(1000000000)}x@{end}", json!({}));
+        assert_eq!(big.len(), MAX_RANGE_LEN);
+        let edge = render(
+            // Model values are exact i64 (template literals go through f64).
+            "@{foreach n in range(M.start, M.stop, M.step)}x@{end}",
+            json!({"start": i64::MAX - 1, "stop": i64::MAX, "step": 2}),
+        );
+        assert_eq!(edge, "x");
+        // An unknown name still renders nothing.
+        assert_eq!(render("@{nosuchhelper('x')}", json!({})), "");
+        // The raw form only parses functions whose output is safe unescaped.
+        let bio = json!({"bio": "<img src=x onerror=alert(1)>"});
+        assert!(!render("@{!lower(M.bio)}", bio.clone()).contains("<img"));
+        assert!(!render("@{!url(M.bio)}", bio).contains("<img"));
+        // A pathological raw call is not parsed (and does not overflow the stack).
+        let deep = format!("@{{!json({}M.x)}}", "!".repeat(50_000));
+        assert_eq!(render(&deep, json!({"x": 1})), "");
+
+        // A function that returns visitor-controlled text is escaped.
+        let template = crate::views::totaljs::parser::Parser::new("@{url()}")
+            .and_then(|mut parser| parser.parse())
+            .unwrap();
+        let context = RenderContext::new(json!({}))
+            .with_url("/search?q=<script>alert(1)</script>".to_string());
+        let out = Renderer::new(context).render(&template).unwrap();
+        assert!(!out.contains("<script>"), "{out}");
+        assert!(out.contains("&lt;script&gt;"), "{out}");
+
+        // url(host) only accepts an http(s) origin as host.
+        let template = crate::views::totaljs::parser::Parser::new("@{url(M.host)}")
+            .and_then(|mut parser| parser.parse())
+            .unwrap();
+        let render_url = |host: &str| {
+            let context = RenderContext::new(json!({ "host": host })).with_url("/p".to_string());
+            Renderer::new(context).render(&template).unwrap()
+        };
+        assert_eq!(render_url("javascript:alert(1)//"), "&#x2F;p");
+        assert_eq!(
+            render_url("https://example.com/"),
+            "https:&#x2F;&#x2F;example.com&#x2F;p"
+        );
     }
 
     #[test]
