@@ -6,12 +6,12 @@ description = "A RustF web application"
 authors = ["Your Name <your.email@example.com>"]
 
 [dependencies]
-# Development: Use local path (adjust as needed for your setup)
-rustf = { path = "../rustf" }
-# For published version, use (default features include all DB drivers + redis):
-# rustf = "1.0.0-rc1"
+# Default features include all database drivers and Redis.
+rustf = "{{rustf_version}}"
 # Lean build — pick only what you need (e.g. PostgreSQL + Redis):
-# rustf = { version = "1.0.0-rc1", default-features = false, features = ["db-postgres", "redis", "embedded-views", "schema"] }
+# rustf = { version = "{{rustf_version}}", default-features = false, features = ["db-postgres", "redis", "embedded-views", "schema"] }
+# Working on the framework itself? Point at a local checkout instead:
+# rustf = { path = "../rustf/rustf" }
 
 # Essential dependencies
 tokio = { version = "1.0", features = ["full"] }

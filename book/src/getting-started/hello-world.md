@@ -29,7 +29,7 @@ Edit `Cargo.toml`:
 
 ```toml
 [dependencies]
-rustf = { path = "../rustf" }  # Adjust path as needed
+rustf = "1.0"
 tokio = { version = "1.0", features = ["full"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"

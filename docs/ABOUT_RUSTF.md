@@ -115,7 +115,7 @@ RustF uses procedural macros to automatically discover and register components a
 ```toml
 # Cargo.toml
 [dependencies]
-rustf = { version = "0.1", features = ["auto-discovery"] }
+rustf = "1.0"  # auto-discovery is built in, not a feature
 ```
 
 ### Application Setup with Auto-Discovery

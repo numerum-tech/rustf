@@ -75,7 +75,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-rustf = { path = "../rustf" }  # Or from crates.io when published
+rustf = "1.0"
 tokio = { version = "1.0", features = ["full"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
@@ -190,7 +190,7 @@ and SQLite drivers plus Redis:
 
 ```toml
 [dependencies]
-rustf = { version = "1.0.0-rc1", default-features = false, features = [
+rustf = { version = "1.0", default-features = false, features = [
     "embedded-views", "schema",
     "db-postgres",   # pulls in `database` + `decimal` automatically
 ] }

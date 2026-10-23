@@ -3,7 +3,7 @@
 [![CI](https://github.com/numerum-tech/rustf/actions/workflows/ci.yml/badge.svg)](https://github.com/numerum-tech/rustf/actions/workflows/ci.yml)
 [![Coverage](https://codecov.io/gh/numerum-tech/rustf/branch/main/graph/badge.svg)](https://codecov.io/gh/numerum-tech/rustf)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.0.0--rc3-orange)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.0.0-green)](CHANGELOG.md)
 [![Docs](https://img.shields.io/badge/docs-online-success)](https://numerum-tech.github.io/rustf/)
 
 📖 **[Read the Documentation →](https://numerum-tech.github.io/rustf/)**
@@ -40,7 +40,7 @@ a leaner build, opt out and enable only what you use:
 
 ```toml
 # PostgreSQL only — skips MySQL, SQLite, Redis, and schema tooling
-rustf = { version = "1.0.0-rc3", default-features = false, features = [
+rustf = { version = "1.0.0", default-features = false, features = [
     "embedded-views",
     "db-postgres",   # pulls in `database` + `decimal` automatically
 ] }
