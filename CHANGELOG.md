@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0-rc3] - 2026-10-23
+
 ### Added
 - **Configuration values from the environment or from files.** Any string
   value in `config.toml` or an overlay can be `"(env) NAME"` (an environment
