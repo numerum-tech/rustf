@@ -642,7 +642,7 @@ WORKER::register("env-aware", |ctx| async move {
 }).await?;
 ```
 
-Environment is determined from `RUSTF_ENV` or `NODE_ENV` environment variables.
+The environment is the application's configured one (`RUSTF_ENV`, or `[app] environment` in `config.toml`); `ctx.environment` is `"development"` or `"production"`.
 
 ### Configuration Access
 

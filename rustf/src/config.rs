@@ -15,13 +15,70 @@ pub enum Environment {
     Production,
 }
 
+/// The one environment variable that selects the environment.
+pub const ENVIRONMENT_VARIABLE: &str = "RUSTF_ENV";
+
 impl Environment {
-    /// Get environment from string
+    /// Parse an environment name: `development` / `dev` or `production` /
+    /// `prod`, case-insensitive. Anything else is an error — a typo or an
+    /// unsupported name (`staging`) must not silently run as development.
+    pub fn parse(env: &str) -> Result<Self> {
+        Self::parse_named(env).map_err(Error::internal)
+    }
+
+    /// `parse` with the reason as plain text, for callers that add context.
+    fn parse_named(env: &str) -> std::result::Result<Self, String> {
+        match env.trim().to_ascii_lowercase().as_str() {
+            "production" | "prod" => Ok(Environment::Production),
+            "development" | "dev" => Ok(Environment::Development),
+            other => Err(format!(
+                "unknown environment '{}': use development (dev) or production (prod)",
+                other
+            )),
+        }
+    }
+
+    /// The environment named by `RUSTF_ENV`, if it is set.
+    pub fn from_process_env() -> Result<Option<Self>> {
+        match env::var(ENVIRONMENT_VARIABLE) {
+            Ok(value) => Self::parse_named(&value)
+                .map(Some)
+                .map_err(|reason| Error::internal(format!("{}: {}", ENVIRONMENT_VARIABLE, reason))),
+            Err(env::VarError::NotPresent) => Ok(None),
+            Err(env::VarError::NotUnicode(_)) => Err(Error::internal(format!(
+                "{}: not valid UTF-8; use development (dev) or production (prod)",
+                ENVIRONMENT_VARIABLE
+            ))),
+        }
+    }
+
+    /// The environment for code that runs without a loaded configuration
+    /// (`RustF::new()`, a standalone `WorkerManager`): `RUSTF_ENV`, or
+    /// development when it is not set. An invalid `RUSTF_ENV` cannot be
+    /// returned as an error there, so it is logged and production is used —
+    /// secure cookies and no detailed error pages.
+    pub fn from_process_env_or_production_on_error() -> Self {
+        match Self::from_process_env() {
+            Ok(Some(env)) => env,
+            Ok(None) => Environment::Development,
+            Err(e) => {
+                log::error!("{}; running as production", e);
+                Environment::Production
+            }
+        }
+    }
+
+    /// Get environment from string. Unknown names become `Development`.
+    #[deprecated(note = "use Environment::parse, which rejects unknown names")]
     pub fn from_str(env: &str) -> Self {
-        match env.to_lowercase().as_str() {
-            "production" | "prod" => Environment::Production,
-            "development" | "dev" => Environment::Development,
-            _ => Environment::Development,
+        Self::parse(env).unwrap_or(Environment::Development)
+    }
+
+    /// Full name: `development` or `production`.
+    pub fn name(&self) -> &'static str {
+        match self {
+            Environment::Development => "development",
+            Environment::Production => "production",
         }
     }
 
@@ -36,6 +93,11 @@ impl Environment {
     /// Check if this is a production environment
     pub fn is_production(&self) -> bool {
         matches!(self, Environment::Production)
+    }
+
+    /// Check if this is a development environment
+    pub fn is_development(&self) -> bool {
+        matches!(self, Environment::Development)
     }
 }
 
@@ -672,7 +734,7 @@ impl AppConfig {
 
         // Resolve environment AFTER reading config.toml so we can honour the
         // `environment` field declared there. Env vars still override if set.
-        let env = Self::resolve_environment(&merged_value);
+        let env = Self::resolve_environment(&merged_value)?;
 
         // Load and merge environment-specific configuration if it exists
         let env_config_path = base_dir.join(format!("config.{}.toml", env.as_str()));
@@ -717,7 +779,7 @@ impl AppConfig {
             Self::load_resolved_toml_value(path_ref, &base_dir, None, &mut secrets)?;
 
         // Resolve environment (env vars > [app].environment in file > Development)
-        let env = Self::resolve_environment(&merged_value);
+        let env = Self::resolve_environment(&merged_value)?;
 
         // Merge environment overlay if present (config.prod.toml / config.dev.toml)
         let env_config_path = base_dir.join(format!("config.{}.toml", env.as_str()));
@@ -908,51 +970,36 @@ impl AppConfig {
         Ok(config)
     }
 
-    /// Detect current environment from environment variables
-    pub fn detect_environment() -> Environment {
-        // Check RUSTF_ENV first, then RAILS_ENV, then NODE_ENV for compatibility
-        if let Ok(env) = env::var("RUSTF_ENV") {
-            return Environment::from_str(&env);
-        }
-        if let Ok(env) = env::var("RAILS_ENV") {
-            return Environment::from_str(&env);
-        }
-        if let Ok(env) = env::var("NODE_ENV") {
-            return Environment::from_str(&env);
-        }
-
-        // Default to development
-        Environment::Development
+    /// Detect the current environment from `RUSTF_ENV` (development when it
+    /// is not set). An unknown value is an error.
+    pub fn detect_environment() -> Result<Environment> {
+        Ok(Environment::from_process_env()?.unwrap_or_default())
     }
 
     /// Resolve the active environment from the loaded base config TOML and env vars.
     ///
     /// Priority order:
-    /// 1. `RUSTF_ENV` / `RAILS_ENV` / `NODE_ENV` env vars (deployment override)
-    /// 2. `environment` field in `config.toml` (per-app declaration)
+    /// 1. `RUSTF_ENV` (deployment override)
+    /// 2. `[app] environment` in `config.toml` (per-app declaration)
     /// 3. `Development` (fallback)
-    fn resolve_environment(base_toml: &toml::Value) -> Environment {
-        // Env vars always win — useful for Docker, CI, or temporary overrides
-        if let Ok(env) = env::var("RUSTF_ENV") {
-            return Environment::from_str(&env);
-        }
-        if let Ok(env) = env::var("RAILS_ENV") {
-            return Environment::from_str(&env);
-        }
-        if let Ok(env) = env::var("NODE_ENV") {
-            return Environment::from_str(&env);
+    ///
+    /// An unknown name in either place is an error.
+    fn resolve_environment(base_toml: &toml::Value) -> Result<Environment> {
+        if let Some(env) = Environment::from_process_env()? {
+            return Ok(env);
         }
 
-        // Read from config.toml's [app] section: environment = "production"
-        if let toml::Value::Table(root) = base_toml {
-            if let Some(toml::Value::Table(app)) = root.get("app") {
-                if let Some(toml::Value::String(env_str)) = app.get("environment") {
-                    return Environment::from_str(env_str);
-                }
-            }
+        if let Some(declared) = base_toml.get("app").and_then(|app| app.get("environment")) {
+            return match declared {
+                toml::Value::String(name) => Environment::parse_named(name)
+                    .map_err(|reason| Error::internal(format!("[app] environment: {}", reason))),
+                _ => Err(Error::internal(
+                    "[app] environment must be a string: \"development\" or \"production\"",
+                )),
+            };
         }
 
-        Environment::Development
+        Ok(Environment::Development)
     }
 
     /// Apply security defaults for production environments
@@ -1048,8 +1095,8 @@ impl AppConfig {
     /// Apply environment variable overrides
     fn apply_env_overrides(&mut self) -> Result<()> {
         // Environment override (highest priority)
-        if let Ok(env) = env::var("RUSTF_ENV") {
-            self.environment = Environment::from_str(&env);
+        if let Some(env) = Environment::from_process_env()? {
+            self.environment = env;
         }
 
         // Server overrides
@@ -1631,15 +1678,41 @@ enabled = true
 environment = "production"
 "#;
         let toml_value: toml::Value = toml::from_str(toml_str).unwrap();
-        let env = AppConfig::resolve_environment(&toml_value);
+        let env = AppConfig::resolve_environment(&toml_value).unwrap();
         assert_eq!(env, Environment::Production);
+    }
+
+    #[test]
+    fn test_resolve_environment_rejects_unknown_names() {
+        let staging: toml::Value = toml::from_str("[app]\nenvironment = \"staging\"\n").unwrap();
+        let error = AppConfig::resolve_environment(&staging)
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("[app] environment"), "{error}");
+        assert!(error.contains("staging"), "{error}");
+
+        let not_a_string: toml::Value = toml::from_str("[app]\nenvironment = 1\n").unwrap();
+        assert!(AppConfig::resolve_environment(&not_a_string).is_err());
+    }
+
+    #[test]
+    fn test_environment_parse_is_strict() {
+        assert_eq!(Environment::parse("prod").unwrap(), Environment::Production);
+        assert_eq!(
+            Environment::parse(" Production ").unwrap(),
+            Environment::Production
+        );
+        assert_eq!(Environment::parse("DEV").unwrap(), Environment::Development);
+        assert!(Environment::parse("staging").is_err());
+        assert!(Environment::parse("prodution").is_err());
+        assert!(Environment::parse("").is_err());
     }
 
     #[test]
     fn test_resolve_environment_default() {
         // No environment field, no env vars → Development
         let toml_value = toml::Value::Table(toml::map::Map::new());
-        let env = AppConfig::resolve_environment(&toml_value);
+        let env = AppConfig::resolve_environment(&toml_value).unwrap();
         assert_eq!(env, Environment::Development);
     }
 

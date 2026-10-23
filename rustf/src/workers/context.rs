@@ -29,12 +29,11 @@ impl WorkerContext {
         Self {
             worker_name,
             run_id,
+            // The application's environment, from its loaded configuration.
+            environment: config.environment.name().to_string(),
             config,
             message_tx,
             state: Arc::new(RwLock::new(HashMap::new())),
-            environment: std::env::var("RUSTF_ENV")
-                .or_else(|_| std::env::var("NODE_ENV"))
-                .unwrap_or_else(|_| "development".to_string()),
             data: None,
         }
     }

@@ -21,8 +21,10 @@ pub struct ErrorPages {
 impl ErrorPages {
     /// Create new error page handler
     pub fn new(view_engine: Arc<ViewEngine>, config: Arc<AppConfig>) -> Self {
-        let development_mode = cfg!(debug_assertions)
-            || std::env::var("RUSTF_ENV").unwrap_or_default() == "development";
+        // Detailed error pages follow the application's environment, not the
+        // build profile: a debug build configured for production must not
+        // show internals.
+        let development_mode = config.environment.is_development();
 
         Self {
             view_engine,

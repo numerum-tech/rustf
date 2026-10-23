@@ -308,7 +308,7 @@ let stripe_key = CONF::get_string("payment.stripe_key")?;
 Config loading follows this pipeline at startup:
 
 1. **Base config** (`config.toml`) is loaded first — always required in release builds.
-2. **Environment is resolved** from: `RUSTF_ENV` / `RAILS_ENV` / `NODE_ENV` env vars → then `[app] environment` field in `config.toml` → then `development` default.
+2. **Environment is resolved** from: the `RUSTF_ENV` env var → then `[app] environment` field in `config.toml` → then `development` default.
 3. **Overlay is merged** (`config.dev.toml` or `config.prod.toml`) on top of the base using TOML-level deep merge — only the keys present in the overlay override the base.
 4. **Environment variables** (`RUSTF_*` prefix) override individual values after merging.
 
@@ -487,7 +487,7 @@ names are ignored — use `"(env) NAME"` for any other key.
 
 ```bash
 # Environment and server
-RUSTF_ENV=production            # also RAILS_ENV / NODE_ENV
+RUSTF_ENV=production            # development (dev) or production (prod)
 RUSTF_HOST=0.0.0.0              # required to be reachable inside a container
 RUSTF_PORT=3000
 RUSTF_TIMEOUT=60
@@ -604,10 +604,19 @@ async fn main() -> rustf::Result<()> {
 RustF resolves the environment from these sources (in priority order):
 
 1. `RUSTF_ENV` environment variable
-2. `RAILS_ENV` environment variable (Rails compatibility)
-3. `NODE_ENV` environment variable (Node.js compatibility)
-4. `[app] environment = "production"` in `config.toml` — the recommended way for per-app declaration
-5. Default: `development`
+2. `[app] environment = "production"` in `config.toml` — the recommended way for per-app declaration
+3. Default: `development`
+
+The only names accepted are `development` (or `dev`) and `production` (or
+`prod`), case-insensitive. Any other value — `staging`, a typo — stops the
+application at startup instead of silently running as development. Variables
+of other tools (`NODE_ENV`, `RAILS_ENV`, ...) are ignored, so a container that
+sets them for something else cannot change RustF's mode.
+
+Everything that depends on the environment reads this one value: the
+configuration overlay (`config.dev.toml` / `config.prod.toml`), production
+security defaults, the session cookie's `Secure` flag, detailed error pages,
+`DEBUG`, and the environment seen by events and workers.
 
 ```rust
 pub enum Environment {

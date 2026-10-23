@@ -198,13 +198,11 @@ RustF uses a layered configuration system:
 ### Environment Detection
 
 ```rust
-// Environment is detected in this order:
-// 1. RUSTF_ENV environment variable
-// 2. RAILS_ENV environment variable (Rails compatibility)
-// 3. NODE_ENV environment variable (Node.js compatibility)
-// 4. Defaults to "development"
+// The environment comes from RUSTF_ENV (development when unset).
+// Only development/dev and production/prod are accepted: anything else
+// is an error. [app] environment in config.toml is read when loading.
 
-let env = AppConfig::detect_environment();
+let env = AppConfig::detect_environment()?;
 ```
 
 ### Configuration Loading

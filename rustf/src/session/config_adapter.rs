@@ -3,20 +3,29 @@ use crate::session::manager::{SaveStrategy, SessionConfig as InternalSessionConf
 use crate::session::{FingerprintMode, SameSite};
 use std::time::Duration;
 
-/// Convert from config file SessionConfig to internal SessionConfig
-impl From<config::SessionConfig> for InternalSessionConfig {
-    fn from(cfg: config::SessionConfig) -> Self {
+impl InternalSessionConfig {
+    /// The session settings of a loaded configuration, with the cookie's
+    /// `Secure` flag set from its environment: secure in production, plain
+    /// HTTP allowed in development. Use this when building a
+    /// `SessionMiddleware` yourself.
+    ///
+    /// There is deliberately no `From<config::SessionConfig>`: the session
+    /// section alone does not say whether the application runs in
+    /// production, and guessing let a production app issue cookies without
+    /// `Secure`.
+    pub fn from_app_config(app_config: &config::AppConfig) -> Self {
+        let cfg = &app_config.session;
         Self {
             // Essential user-configurable settings
-            cookie_name: cfg.cookie_name,
+            cookie_name: cfg.cookie_name.clone(),
             idle_timeout: Duration::from_secs(cfg.idle_timeout),
             absolute_timeout: Duration::from_secs(cfg.absolute_timeout),
             same_site: parse_same_site(&cfg.same_site),
-            exempt_routes: cfg.exempt_routes,
+            exempt_routes: cfg.exempt_routes.clone(),
             enabled: cfg.enabled,
 
-            // Security settings - auto-determined
-            secure: is_production(),
+            // Security settings
+            secure: app_config.environment.is_production(),
             http_only: true, // Always true for security
 
             // Fixed secure defaults
@@ -59,36 +68,6 @@ fn parse_fingerprint_mode(value: &str) -> FingerprintMode {
     }
 }
 
-/// Determine if we're in production based on environment
-fn is_production() -> bool {
-    // Check RustF environment setting
-    if let Ok(env) = std::env::var("RUSTF_ENVIRONMENT") {
-        return env.to_lowercase() == "production" || env.to_lowercase() == "prod";
-    }
-
-    // Check standard Rust environment
-    if let Ok(env) = std::env::var("RUST_ENV") {
-        return env.to_lowercase() == "production" || env.to_lowercase() == "prod";
-    }
-
-    // Check NODE_ENV for compatibility
-    if let Ok(env) = std::env::var("NODE_ENV") {
-        return env.to_lowercase() == "production" || env.to_lowercase() == "prod";
-    }
-
-    // In release builds, default to secure
-    #[cfg(not(debug_assertions))]
-    {
-        true
-    }
-
-    // In debug builds, default to insecure
-    #[cfg(debug_assertions)]
-    {
-        false
-    }
-}
-
 /// Create SessionMiddleware from app config (dual-phase version)
 pub async fn create_session_middleware(
     config: &config::AppConfig,
@@ -97,7 +76,7 @@ pub async fn create_session_middleware(
         return None;
     }
 
-    let session_config: InternalSessionConfig = config.session.clone().into();
+    let session_config = InternalSessionConfig::from_app_config(config);
 
     // Try to use configured storage (checks definitions first, then config)
     match crate::middleware::builtin::session::SessionMiddleware::with_configured_storage(
@@ -116,5 +95,21 @@ pub async fn create_session_middleware(
                 session_config,
             ))
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::{AppConfig, Environment};
+
+    #[test]
+    fn from_app_config_follows_the_configured_environment() {
+        let production = AppConfig {
+            environment: Environment::Production,
+            ..AppConfig::default()
+        };
+        assert!(InternalSessionConfig::from_app_config(&production).secure);
+        assert!(!InternalSessionConfig::from_app_config(&AppConfig::default()).secure);
     }
 }

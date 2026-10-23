@@ -139,10 +139,8 @@ pub struct EventContext {
 impl EventContext {
     /// Create a new event context
     pub fn new(event: String, config: Arc<crate::config::AppConfig>) -> Self {
-        let environment = std::env::var("NODE_ENV")
-            .or_else(|_| std::env::var("RUST_ENV"))
-            .or_else(|_| std::env::var("APP_ENV"))
-            .unwrap_or_else(|_| "development".to_string());
+        // The application's environment, from its loaded configuration.
+        let environment = config.environment.name().to_string();
 
         Self {
             event,
@@ -729,18 +727,22 @@ mod tests {
 
     #[tokio::test]
     async fn test_event_context() {
-        let config = Arc::new(crate::config::AppConfig::default());
-        let _ctx = EventContext::new("test".to_string(), config);
-
-        // Test environment detection
-        std::env::set_var("NODE_ENV", "production");
-        let ctx_prod = EventContext::new(
+        // The environment comes from the application's configuration, not
+        // from whatever variables the process happens to have.
+        let ctx_dev = EventContext::new(
             "test".to_string(),
             Arc::new(crate::config::AppConfig::default()),
         );
+        assert!(ctx_dev.is_development());
+        assert_eq!(ctx_dev.env(), "development");
+
+        let prod = crate::config::AppConfig {
+            environment: crate::config::Environment::Production,
+            ..Default::default()
+        };
+        let ctx_prod = EventContext::new("test".to_string(), Arc::new(prod));
         assert!(ctx_prod.is_production());
         assert!(!ctx_prod.is_development());
-
-        std::env::remove_var("NODE_ENV");
+        assert_eq!(ctx_prod.env(), "production");
     }
 }

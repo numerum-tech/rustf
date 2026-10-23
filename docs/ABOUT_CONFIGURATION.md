@@ -475,7 +475,7 @@ names are ignored — use `"(env) NAME"` for any other key.
 
 ```bash
 # Environment and server
-RUSTF_ENV=production            # also RAILS_ENV / NODE_ENV
+RUSTF_ENV=production            # development (dev) or production (prod)
 RUSTF_HOST=0.0.0.0              # required to be reachable inside a container
 RUSTF_PORT=3000
 RUSTF_TIMEOUT=60
@@ -584,12 +584,22 @@ fn main() -> Result<()> {
 
 ## Environment Detection
 
-RustF automatically detects the environment from these sources (in order):
+RustF takes the environment from these sources (in order):
 
 1. `RUSTF_ENV` environment variable
-2. `RAILS_ENV` environment variable (Rails compatibility)
-3. `NODE_ENV` environment variable (Node.js compatibility)
-4. Default: `development`
+2. `environment` in the `[app]` section of `config.toml`
+3. Default: `development`
+
+The only names accepted are `development` (or `dev`) and `production` (or
+`prod`), case-insensitive. Any other value — `staging`, a typo — stops the
+application at startup instead of silently running as development. Variables
+of other tools (`NODE_ENV`, `RAILS_ENV`, ...) are ignored, so a container that
+sets them for something else cannot change RustF's mode.
+
+Everything that depends on the environment reads this one value: the
+configuration overlay (`config.dev.toml` / `config.prod.toml`), production
+security defaults, the session cookie's `Secure` flag, detailed error pages,
+`DEBUG`, and the environment seen by events and workers.
 
 ```rust
 pub enum Environment {

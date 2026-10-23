@@ -910,10 +910,9 @@ ctx.emit("custom.event", Some(json!({
 - Use explicit environment checks
 
 ```bash
-# Set environment (choose one)
-export NODE_ENV=production
-export RUST_ENV=production  
-export APP_ENV=production
+# The environment comes from the application's configuration:
+# RUSTF_ENV, or [app] environment in config.toml
+export RUSTF_ENV=production
 ```
 
 ```rust

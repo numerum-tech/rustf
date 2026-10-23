@@ -102,8 +102,14 @@ impl RustF {
             .collect()
     }
 
+    /// An application with the default configuration, in the environment
+    /// named by `RUSTF_ENV` (development when unset). Use `with_args()` or
+    /// `from_file()` to load `config.toml`.
     pub fn new() -> Self {
-        Self::with_config(AppConfig::default())
+        Self::with_config(AppConfig {
+            environment: crate::config::Environment::from_process_env_or_production_on_error(),
+            ..AppConfig::default()
+        })
     }
 
     pub fn with_config(config: AppConfig) -> Self {

@@ -29,7 +29,7 @@
 
 use crate::config::AppConfig;
 use crate::error::{Error, Result};
-use once_cell::sync::{Lazy, OnceCell};
+use once_cell::sync::OnceCell;
 use serde_json::Value;
 use std::sync::Arc;
 
@@ -337,20 +337,43 @@ impl CONF {
 ///
 /// Note: In Rust, you need to dereference with `*DEBUG` to get the bool value.
 /// For a more Total.js-like experience, you can use `DEBUG.get()`.
-pub static DEBUG: Lazy<bool> = Lazy::new(|| {
-    // Check if CONF is initialized
-    if CONF::is_initialized() {
-        CONF::is_development()
-    } else {
-        // Fallback: check environment variables directly
-        let env = std::env::var("RUSTF_ENVIRONMENT")
-            .or_else(|_| std::env::var("RUST_ENV"))
-            .or_else(|_| std::env::var("NODE_ENV"))
-            .unwrap_or_else(|_| "development".to_string());
+pub static DEBUG: Debug = Debug;
 
-        env.to_lowercase() != "production" && env.to_lowercase() != "prod"
+/// The type of [`DEBUG`]. Reads the current environment every time, so it
+/// cannot disagree with the loaded configuration: a value cached before
+/// `CONF` was initialised would stay `true` in an app configured for
+/// production.
+#[derive(Debug, Clone, Copy)]
+pub struct Debug;
+
+impl Debug {
+    /// Whether the application runs in development: `CONF`'s environment
+    /// once loaded; before that, `RUSTF_ENV` (development when unset, not
+    /// development when invalid — loading reports that as an error).
+    pub fn get(&self) -> bool {
+        if CONF::is_initialized() {
+            CONF::is_development()
+        } else {
+            match crate::config::Environment::from_process_env() {
+                Ok(Some(env)) => env.is_development(),
+                Ok(None) => true,
+                Err(_) => false,
+            }
+        }
     }
-});
+}
+
+impl std::ops::Deref for Debug {
+    type Target = bool;
+
+    fn deref(&self) -> &bool {
+        if self.get() {
+            &true
+        } else {
+            &false
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -409,9 +432,8 @@ mod tests {
     }
 
     #[test]
-    fn test_debug_is_enabled() {
-        // DEBUG should be enabled in test builds (development mode by default)
-        // This test verifies the variable works, but the actual value depends on environment
-        let _ = *DEBUG;
+    fn test_debug_reads_the_current_environment() {
+        // `*DEBUG` and `DEBUG.get()` agree, and are recomputed on each read.
+        assert_eq!(*DEBUG, DEBUG.get());
     }
 }

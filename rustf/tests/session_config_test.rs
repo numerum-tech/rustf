@@ -124,7 +124,11 @@ enabled = false
             exempt_routes: vec![],
         };
 
-        let internal_config: InternalConfig = file_config.into();
+        let app_config = rustf::config::AppConfig {
+            session: file_config,
+            ..Default::default()
+        };
+        let internal_config = InternalConfig::from_app_config(&app_config);
 
         assert_eq!(internal_config.cookie_name, "test_session");
         assert_eq!(internal_config.idle_timeout.as_secs(), 1800);
@@ -135,5 +139,7 @@ enabled = false
         assert_eq!(internal_config.http_only, true);
         assert_eq!(internal_config.rotation_on_privilege, true);
         assert_eq!(internal_config.secure_id_length, 32);
+        // Development by default: plain HTTP must keep working.
+        assert!(!internal_config.secure);
     }
 }

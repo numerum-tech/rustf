@@ -69,10 +69,21 @@ pub struct LogConfig {
 
 impl Default for LogConfig {
     fn default() -> Self {
-        // Default configuration based on build type
+        // No configuration here: the build profile, or RUSTF_ENV. An invalid
+        // RUSTF_ENV is reported when the configuration loads.
         let development_mode = cfg!(debug_assertions)
-            || std::env::var("RUSTF_ENV").unwrap_or_default() == "development";
+            || matches!(
+                crate::config::Environment::from_process_env(),
+                Ok(Some(crate::config::Environment::Development))
+            );
+        Self::for_development_mode(development_mode)
+    }
+}
 
+impl LogConfig {
+    /// Debug level and stack traces in development; info level without
+    /// stack traces otherwise.
+    fn for_development_mode(development_mode: bool) -> Self {
         Self {
             level: if development_mode {
                 LogLevel::Debug
@@ -413,9 +424,10 @@ impl ErrorLogger {
 }
 
 impl LogConfig {
-    /// Create log configuration from app configuration
-    pub fn from_app_config(_app_config: &AppConfig) -> Self {
-        let mut config = LogConfig::default();
+    /// Create log configuration from app configuration: its environment, not
+    /// the build profile, decides between development and production logging.
+    pub fn from_app_config(app_config: &AppConfig) -> Self {
+        let mut config = LogConfig::for_development_mode(app_config.environment.is_development());
 
         // Read logging configuration from environment variables
         if let Ok(level_str) = std::env::var("RUSTF_LOG_LEVEL") {
@@ -540,6 +552,19 @@ mod tests {
     use super::*;
     use crate::config::AppConfig;
     use std::collections::HashMap;
+
+    #[test]
+    fn logging_follows_the_configured_environment_not_the_build() {
+        let production = AppConfig {
+            environment: crate::config::Environment::Production,
+            ..AppConfig::default()
+        };
+        let config = LogConfig::from_app_config(&production);
+        assert!(!config.include_stack_trace);
+
+        let development = AppConfig::default();
+        assert!(LogConfig::from_app_config(&development).include_stack_trace);
+    }
 
     #[test]
     fn test_log_level_from_str() {

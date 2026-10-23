@@ -31,8 +31,13 @@ struct ActiveRun {
 }
 
 impl WorkerManager {
+    /// A manager with the default configuration, in the environment named by
+    /// `RUSTF_ENV` (development when unset).
     pub fn new() -> Result<Self> {
-        Self::with_config(Arc::new(AppConfig::default()))
+        Self::with_config(Arc::new(AppConfig {
+            environment: crate::config::Environment::from_process_env_or_production_on_error(),
+            ..AppConfig::default()
+        }))
     }
 
     pub fn with_config(config: Arc<AppConfig>) -> Result<Self> {

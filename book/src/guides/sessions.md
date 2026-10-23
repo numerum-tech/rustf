@@ -1534,8 +1534,8 @@ impl MyAppSessionFactory {
             }
         };
 
-        // Convert config
-        let session_config: SessionConfig = app_config.session.clone().into();
+        // Convert config; the cookie is `Secure` when the app runs in production
+        let session_config = SessionConfig::from_app_config(&app_config);
 
         // Create middleware
         Ok(SessionMiddleware::with_storage(storage, session_config))

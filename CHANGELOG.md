@@ -28,6 +28,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   secrets there.
 
 ### Fixed
+- **The session cookie's `Secure` flag followed the wrong variables.** It was
+  decided from `RUSTF_ENVIRONMENT`, `RUST_ENV` or `NODE_ENV` — never from
+  `RUSTF_ENV` or `[app] environment` — so an application configured for
+  production could issue non-`Secure` cookies (any build with
+  `NODE_ENV=development`, or a debug build with `RUSTF_ENV=production`). It now
+  follows the application's configured environment.
+- **An unknown environment name no longer runs as development.**
+  `RUSTF_ENV=staging`, `[app] environment = "staging"` or a typo silently
+  selected development — dev overlay, no production security defaults,
+  detailed error pages. Loading now fails with an error naming the value.
+- **Workers and events saw a different environment than the application.**
+  They read their own variables (`NODE_ENV`, `RUST_ENV`, `APP_ENV`), ignored
+  `[app] environment`, and `RUSTF_ENV=prod` made a worker's `is_production()`
+  false. Both now report the configured environment (`"development"` or
+  `"production"`); detailed error pages follow it too, instead of the build
+  profile.
 - **The generated `[session]` configuration no longer contains keys the
   framework ignores.** `rustf-cli new project` (and the sample app) wrote
   `secret`, `timeout`, `secure` and `http_only`, none of which is read:
@@ -102,6 +118,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`Error::client_message()`** — the text an error may safely show the client.
 
 ### Changed
+- **`RUSTF_ENV` is the only environment variable read.** `RAILS_ENV` and
+  `NODE_ENV` (documented) and `RUSTF_ENVIRONMENT`, `RUST_ENV`, `APP_ENV`
+  (undocumented, read by some components) are ignored: a container that sets
+  them for other tools no longer changes RustF's mode. Set `RUSTF_ENV` or
+  `[app] environment` instead.
+- **`AppConfig::detect_environment()` returns `Result<Environment>`**, and the
+  new `Environment::parse` rejects unknown names. `Environment::from_str`, which
+  maps unknown names to development, is deprecated.
+- **`From<config::SessionConfig>` for the session manager's `SessionConfig` is
+  removed; use `SessionConfig::from_app_config(&app_config)`.** The session
+  section alone cannot tell whether the app runs in production, so the
+  conversion set the cookie's `Secure` flag from a guess. Code that built a
+  custom `SessionMiddleware` with `app_config.session.clone().into()` now fails
+  to compile instead of silently issuing non-`Secure` cookies in production.
+- **`RustF::new()` and `WorkerManager::new()` follow `RUSTF_ENV`** (they load
+  no configuration file). An invalid value is logged and treated as
+  production, the safe side.
+- **`DEBUG` is no longer a `Lazy<bool>`** but a `Debug` value that reads the
+  current environment on every access (`*DEBUG` and `DEBUG.get()`), so it
+  cannot keep a value computed before the configuration was loaded.
 - **`routes!` no longer accepts `SOCKET` as a custom HTTP method.** The macro's
   catch-all arm used to stringify any identifier, so `routes![SOCKET "/x" => h]`
   registered a route whose method was literally `SOCKET`. It now builds a
