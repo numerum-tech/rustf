@@ -78,6 +78,27 @@ pub struct AppConfig {
     // These sections are stored as TOML values and can be deserialized on-demand
     #[serde(flatten)]
     pub sections: HashMap<String, toml::Value>,
+
+    /// Values that came from `"(env) ..."` / `"(file) ..."` references, kept
+    /// so that `section()` errors raised after loading can mask them.
+    ///
+    /// Public only so that `AppConfig { server, ..AppConfig::default() }`
+    /// keeps compiling outside the crate; its content is not accessible.
+    #[doc(hidden)]
+    #[serde(skip)]
+    pub resolved_values: ResolvedValues,
+}
+
+/// Resolved reference values, opaque outside the crate. `Debug` shows only
+/// how many there are.
+#[doc(hidden)]
+#[derive(Clone, Default)]
+pub struct ResolvedValues(Vec<String>);
+
+impl std::fmt::Debug for ResolvedValues {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "ResolvedValues({} masked)", self.0.len())
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -627,8 +648,9 @@ impl AppConfig {
 
         // Load base configuration as TOML Value first
         let base_config_path = base_dir.join("config.toml");
+        let mut secrets = Vec::new();
         let mut merged_value = if base_config_path.exists() {
-            Self::load_toml_value(&base_config_path)?
+            Self::load_resolved_toml_value(&base_config_path, base_dir, None, &mut secrets)?
         } else if !cfg!(debug_assertions) {
             // In release builds, a missing config.toml is a hard error.
             // The binary must be launched from the directory containing config.toml,
@@ -655,48 +677,16 @@ impl AppConfig {
         // Load and merge environment-specific configuration if it exists
         let env_config_path = base_dir.join(format!("config.{}.toml", env.as_str()));
         if env_config_path.exists() {
-            let env_value = Self::load_toml_value(&env_config_path)?;
-
-            // Merge environment config into base (environment takes precedence)
-            {
-                use serde_toml_merge::merge;
-                merged_value = merge(merged_value, env_value).map_err(|e| {
-                    Error::internal(format!("Failed to merge configuration files: {}", e))
-                })?;
-            }
+            let env_value = Self::load_resolved_toml_value(
+                &env_config_path,
+                base_dir,
+                Some(&merged_value),
+                &mut secrets,
+            )?;
+            merged_value = Self::merge_overlay(merged_value, env_value, &secrets)?;
         }
 
-        // Deserialize merged TOML value into AppConfig
-        // Convert toml::Value to serde_json::Value for deserialization
-        let json_value = serde_json::to_value(&merged_value).map_err(|e| {
-            Error::internal(format!("Failed to convert merged configuration: {}", e))
-        })?;
-
-        let mut config: AppConfig = serde_json::from_value(json_value).map_err(|e| {
-            Error::internal(format!("Failed to deserialize merged configuration: {}", e))
-        })?;
-
-        // Set detected environment
-        config.environment = env.clone();
-
-        // Apply environment variable overrides
-        config.apply_env_overrides()?;
-
-        // Resolve all path fields relative to the config base directory
-        config.resolve_relative_paths(base_dir)?;
-
-        // Apply security defaults for production
-        if config.environment.is_production() {
-            config.apply_security_defaults();
-        }
-
-        // Apply performance defaults for production
-        if config.environment.is_production() {
-            config.apply_performance_defaults();
-        }
-
-        // Validate configuration
-        config.validate()?;
+        let config = Self::finish_loading(merged_value, env, base_dir, &secrets)?;
 
         log::info!(
             "Configuration loaded and merged successfully (environment: {})",
@@ -722,7 +712,9 @@ impl AppConfig {
             .unwrap_or_else(|| std::path::PathBuf::from("."));
 
         // Load specified file as raw TOML value
-        let mut merged_value = Self::load_toml_value(path_ref)?;
+        let mut secrets = Vec::new();
+        let mut merged_value =
+            Self::load_resolved_toml_value(path_ref, &base_dir, None, &mut secrets)?;
 
         // Resolve environment (env vars > [app].environment in file > Development)
         let env = Self::resolve_environment(&merged_value);
@@ -730,36 +722,16 @@ impl AppConfig {
         // Merge environment overlay if present (config.prod.toml / config.dev.toml)
         let env_config_path = base_dir.join(format!("config.{}.toml", env.as_str()));
         if env_config_path.exists() {
-            let env_value = Self::load_toml_value(&env_config_path)?;
-
-            {
-                use serde_toml_merge::merge;
-                merged_value = merge(merged_value, env_value).map_err(|e| {
-                    Error::internal(format!("Failed to merge configuration files: {}", e))
-                })?;
-            }
+            let env_value = Self::load_resolved_toml_value(
+                &env_config_path,
+                &base_dir,
+                Some(&merged_value),
+                &mut secrets,
+            )?;
+            merged_value = Self::merge_overlay(merged_value, env_value, &secrets)?;
         }
 
-        // Deserialize merged TOML
-        let json_value = serde_json::to_value(&merged_value).map_err(|e| {
-            Error::internal(format!("Failed to convert merged configuration: {}", e))
-        })?;
-
-        let mut config: AppConfig = serde_json::from_value(json_value).map_err(|e| {
-            Error::internal(format!("Failed to deserialize merged configuration: {}", e))
-        })?;
-
-        // Apply all post-load steps (same pipeline as load_with_base_dir)
-        config.environment = env.clone();
-        config.apply_env_overrides()?;
-        config.resolve_relative_paths(&base_dir)?;
-
-        if config.environment.is_production() {
-            config.apply_security_defaults();
-            config.apply_performance_defaults();
-        }
-
-        config.validate()?;
+        let config = Self::finish_loading(merged_value, env, &base_dir, &secrets)?;
 
         log::info!(
             "Configuration loaded from '{}' (environment: {})",
@@ -768,6 +740,135 @@ impl AppConfig {
         );
 
         Ok(config)
+    }
+
+    /// Read one configuration file and resolve its `"(env) NAME"` /
+    /// `"(file) PATH"` values (see `config_refs`), adding the resolved values
+    /// to `secrets` so that later errors can mask them.
+    ///
+    /// Each file is resolved before the files are merged: the merge refuses
+    /// to put a string (`"(env) PORT"`) over an integer (`port = 8000`). For
+    /// the same reason an overlay's references also take the type of the value
+    /// the base file already holds (`retries = 3` in `config.toml`,
+    /// `retries = "(env) RETRIES"` in `config.prod.toml`): pass the resolved
+    /// base as `base`.
+    fn load_resolved_toml_value(
+        path: &Path,
+        base_dir: &Path,
+        base: Option<&toml::Value>,
+        secrets: &mut Vec<String>,
+    ) -> Result<toml::Value> {
+        let mut value = Self::load_toml_value(path)?;
+        let framework = Self::reference_template()?;
+        let template = match base {
+            // A base value whose type conflicts with the framework's would
+            // fail deserialization anyway; type by the framework then.
+            Some(base) => {
+                serde_toml_merge::merge(framework.clone(), base.clone()).unwrap_or(framework)
+            }
+            None => framework,
+        };
+        let resolved = crate::config_refs::resolve(&mut value, &template, base_dir)
+            .map_err(|reason| Error::internal(format!("{}: {}", path.display(), reason)))?;
+        secrets.extend(resolved);
+        Ok(value)
+    }
+
+    /// The types a resolved reference takes: the framework defaults as TOML,
+    /// plus the framework keys that have no default value to read a type from
+    /// (`Option` numbers, and the fields of the non-default session storage
+    /// variants). Any key not found here stays a string.
+    fn reference_template() -> Result<toml::Value> {
+        let mut template = toml::Value::try_from(AppConfig::default()).map_err(|e| {
+            Error::internal(format!("Failed to build the configuration template: {}", e))
+        })?;
+        let hints: toml::Value = toml::from_str(
+            r#"
+            [database]
+            max_connections = 0
+            timeout = 0
+
+            [session.storage]
+            pool_size = 0
+            connection_timeout = 0
+            command_timeout = 0
+            cleanup_interval = 0
+            "#,
+        )
+        .map_err(|e| Error::internal(format!("Invalid configuration type hints: {}", e)))?;
+        template = serde_toml_merge::merge(template, hints)
+            .map_err(|e| Error::internal(format!("Invalid configuration type hints: {}", e)))?;
+        Ok(template)
+    }
+
+    /// Merge an environment overlay into the base configuration.
+    fn merge_overlay(
+        base: toml::Value,
+        overlay: toml::Value,
+        secrets: &[String],
+    ) -> Result<toml::Value> {
+        serde_toml_merge::merge(base, overlay).map_err(|e| {
+            Error::internal(crate::config_refs::mask(
+                &format!("Failed to merge configuration files: {}", e),
+                secrets,
+            ))
+        })
+    }
+
+    /// Everything after the merge: deserialize, apply the environment, the
+    /// `RUSTF_*` overrides, relative paths, production defaults, and validate.
+    ///
+    /// Errors here can quote values (serde's `invalid type: integer 123456`),
+    /// so every resolved reference is masked out of them.
+    fn finish_loading(
+        merged_value: toml::Value,
+        env: Environment,
+        base_dir: &Path,
+        secrets: &[String],
+    ) -> Result<Self> {
+        let load = || -> Result<Self> {
+            let json_value = serde_json::to_value(&merged_value).map_err(|e| {
+                Error::internal(format!("Failed to convert merged configuration: {}", e))
+            })?;
+            let mut config: AppConfig = serde_json::from_value(json_value).map_err(|e| {
+                Error::internal(format!("Failed to deserialize merged configuration: {}", e))
+            })?;
+
+            config.environment = env;
+            config.apply_env_overrides()?;
+            config.resolve_relative_paths(base_dir)?;
+            if config.environment.is_production() {
+                config.apply_security_defaults();
+                config.apply_performance_defaults();
+            }
+            config.validate()?;
+            config.resolved_values = ResolvedValues(secrets.to_vec());
+            Ok(config)
+        };
+
+        load().map_err(|e| {
+            if secrets.is_empty() {
+                e
+            } else {
+                // Mask the inner message, so the result is not prefixed twice.
+                let message = match &e {
+                    Error::Internal(message) => message.clone(),
+                    other => other.to_string(),
+                };
+                Error::internal(crate::config_refs::mask(&message, secrets))
+            }
+        })
+    }
+
+    /// Check the `"(tag) ..."` references of a configuration file without
+    /// resolving them: every tag must be known and have an argument. For
+    /// validating a production configuration on a machine that does not have
+    /// its variables or secret files (`rustf-cli validate`).
+    pub fn check_references<P: AsRef<Path>>(path: P) -> Result<()> {
+        let path = path.as_ref();
+        let value = Self::load_toml_value(path)?;
+        crate::config_refs::check(&value)
+            .map_err(|reason| Error::internal(format!("{}: {}", path.display(), reason)))
     }
 
     /// Load TOML file as a Value (for merging before deserialization)
@@ -1237,14 +1338,19 @@ impl AppConfig {
                 ))
             })
             .and_then(|value| {
-                serde_json::from_value(serde_json::to_value(value).map_err(|e| {
+                let json = serde_json::to_value(value).map_err(|e| {
                     Error::internal(format!(
                         "Failed to serialize section '{}' to JSON: {}",
                         name, e
                     ))
-                })?)
-                .map_err(|e| {
-                    Error::internal(format!("Failed to deserialize section '{}': {}", name, e))
+                })?;
+                // Lenient: "(env) NAME" values in a custom section are strings;
+                // they still read as numbers or booleans where T asks for one.
+                crate::config_lenient::from_value(&json).map_err(|e| {
+                    Error::internal(crate::config_refs::mask(
+                        &format!("Failed to deserialize section '{}': {}", name, e),
+                        &self.resolved_values.0,
+                    ))
                 })
             })
     }

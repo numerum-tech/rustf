@@ -7,7 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Configuration values from the environment or from files.** Any string
+  value in `config.toml` or an overlay can be `"(env) NAME"` (an environment
+  variable) or `"(file) PATH"` (a file's contents, e.g. a Docker/Kubernetes
+  secret under `/run/secrets/`; relative paths are relative to the config
+  file). This works for every key, including custom sections, and for
+  `rustf-cli`. A missing variable or file, or an unknown tag such as
+  `"(evn) PORT"`, stops the application at startup with an error that names
+  the key; resolved values are masked in loading errors (always where quoted,
+  and unquoted from 8 characters). `(file)` reads
+  regular files of at most 1 MiB. Framework keys take their declared type
+  (`"(env) PORT"` becomes an integer); everything else stays a string, and
+  `CONF::get`/`get_or`/`get_int`/`get_float`/`get_bool` and
+  `AppConfig::section` parse such strings when the requested type is a number
+  or a boolean. A value that must literally start with a marker doubles the
+  parenthesis: `"((env) text"`. `rustf-cli validate` now loads the effective
+  configuration and checks the references of `config.prod.toml`.
+  Templates can read `CONF`, including referenced values: do not output
+  secrets there.
+
 ### Fixed
+- **The generated `[session]` configuration no longer contains keys the
+  framework ignores.** `rustf-cli new project` (and the sample app) wrote
+  `secret`, `timeout`, `secure` and `http_only`, none of which is read:
+  session IDs are random and stored server-side (there is no signing secret),
+  the timeouts are `idle_timeout` / `absolute_timeout`, and cookies are always
+  `HttpOnly` and `Secure` in production. Changing `timeout` had no effect. The
+  scaffold now writes the real keys; existing projects should rename `timeout`
+  to `idle_timeout` and may delete the other three.
+- **Configuration docs described environment variables that are not read**
+  (`RUSTF_SESSION_*`, `RUSTF_CUSTOM_*`, "all values can be overridden with
+  `RUSTF_`") and a `"${VAR}"` syntax that loaded as literal text. They now list
+  the variables actually read and document `"(env) NAME"`.
 - **A handler returning `Err` now answers with the error's own status instead of
   a blanket `500`.** `ctx.require_auth()?` is a `401`, `ctx.param_int("id")?` on
   `/posts/abc` is a `400`, and the rest of `Error::status_code()`'s mapping

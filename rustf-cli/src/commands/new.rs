@@ -1,5 +1,4 @@
 use anyhow::{anyhow, Result};
-use rand::Rng;
 use rust_embed::RustEmbed;
 use std::collections::HashMap;
 use std::fs::{self, File};
@@ -200,23 +199,7 @@ fn create_template_variables(project_name: &str, project_title: &str) -> HashMap
     variables.insert("project_name".to_string(), project_name.to_string());
     variables.insert("project_title".to_string(), project_title.to_string());
 
-    // Generate random session secret
-    let session_secret = generate_session_secret();
-    variables.insert("session_secret".to_string(), session_secret);
-
     variables
-}
-
-fn generate_session_secret() -> String {
-    const CHARS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-    let mut rng = rand::thread_rng();
-
-    (0..64)
-        .map(|_| {
-            let idx = rng.gen_range(0..CHARS.len());
-            CHARS[idx] as char
-        })
-        .collect()
 }
 
 fn generate_project_files(project_path: &Path, variables: &HashMap<String, String>) -> Result<()> {
@@ -547,18 +530,5 @@ mod tests {
         assert_eq!(project_name_to_title("my_app"), "My App");
         assert_eq!(project_name_to_title("my-great-app"), "My Great App");
         assert_eq!(project_name_to_title("MyApp"), "MyApp");
-    }
-
-    #[test]
-    fn test_generate_session_secret() {
-        let secret1 = generate_session_secret();
-        let secret2 = generate_session_secret();
-
-        assert_eq!(secret1.len(), 64);
-        assert_eq!(secret2.len(), 64);
-        assert_ne!(secret1, secret2); // Should be different
-
-        // Should only contain alphanumeric characters
-        assert!(secret1.chars().all(|c| c.is_ascii_alphanumeric()));
     }
 }

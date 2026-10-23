@@ -193,11 +193,8 @@ storage = "filesystem"      # Storage method: "filesystem" or "embedded"
 #### Session Configuration
 ```toml
 [session]
-secret = "change-me-in-production"  # Session encryption secret
-timeout = 3600              # Session timeout in seconds
+idle_timeout = 3600              # Idle timeout in seconds
 cookie_name = "rustf_session"       # Session cookie name
-secure = false              # Secure cookies (HTTPS only)
-http_only = true            # HttpOnly flag for cookies
 
 [session.storage]
 type = "memory"             # Storage backend: "memory", "redis", or "database"
@@ -266,7 +263,7 @@ paypal_email = "business@example.com"
 host = "smtp.gmail.com"
 port = 587
 user = "noreply@example.com"
-password = "${SMTP_PASSWORD}"
+password = "(env) SMTP_PASSWORD"
 ```
 
 Access custom sections in Rust code using the `section()` method:
@@ -327,8 +324,7 @@ cache_enabled = false
 extension = "html"
 
 [session]
-secret = "dev-secret-change-in-production"
-timeout = 3600
+idle_timeout = 3600
 cookie_name = "rustf_session"
 
 [database]
@@ -367,11 +363,9 @@ max_connections = 2000
 cache_enabled = true
 
 [session]
-secret = "${RUSTF_SESSION_SECRET}"  # Read from environment
-secure = true
 
 [database]
-url = "${DATABASE_URL}"  # Read from environment
+url = "(env) DATABASE_URL"  # Read from environment
 max_connections = 20
 
 [logging]
@@ -383,56 +377,149 @@ api_endpoint = "https://api.production.com"
 feature_x_enabled = "true"
 ```
 
-## Environment Variables
+## Values from the Environment or Files
 
-All configuration values can be overridden using environment variables with the `RUSTF_` prefix:
+Any string value in `config.toml` (or an overlay such as `config.prod.toml`)
+can point outside the file. The value is replaced when the configuration is
+loaded:
 
-### Server Settings
-```bash
-RUSTF_ENV=production              # Set environment
-RUSTF_HOST=0.0.0.0               # Server host
-RUSTF_PORT=3000                  # Server port
-RUSTF_TIMEOUT=60                 # Request timeout
-RUSTF_SSL_ENABLED=true           # Enable SSL
-RUSTF_SSL_CERT=/path/to/cert    # SSL certificate
-RUSTF_SSL_KEY=/path/to/key      # SSL private key
-RUSTF_MAX_CONNECTIONS=5000       # Max connections
+```toml
+[server]
+port = "(env) PORT"                       # environment variable
+
+[database]
+url = "(env) DATABASE_URL"
+
+[custom.mail]
+smtp_password = "(file) /run/secrets/smtp_password"   # file contents
 ```
 
-### Database Settings
-```bash
-DATABASE_URL=postgresql://user:pass@host/db  # Database URL (standard)
-RUSTF_DATABASE_URL=postgresql://...          # Alternative prefix
-RUSTF_DB_MAX_CONNECTIONS=20                  # Pool size
-RUSTF_DB_TIMEOUT=10000                       # Timeout in ms
+| Reference | Value |
+|---|---|
+| `"(env) NAME"` | the environment variable `NAME` |
+| `"(file) PATH"` | the contents of `PATH`, trailing newlines removed; a relative path is relative to the configuration file's directory. The file must be a regular file of at most 1 MiB. Suited to Docker and Kubernetes secrets mounted under `/run/secrets/` |
+
+Rules:
+
+- **Missing means failure.** If the variable is not set or the file cannot be
+  read, the application refuses to start, and the error names the key and the
+  variable or file. In loading errors, and in `AppConfig::section` errors, a
+  resolved value is replaced by `***` wherever it appears quoted — which is how
+  type errors report values, e.g. a port that does not fit — and wherever it
+  appears unquoted if it is at least 8 characters long. A shorter value that
+  ends up unquoted in a message (a short directory name in "directory does not
+  exist: …") is shown as is.
+- **An unknown tag is an error.** `"(evn) PORT"` stops the application instead
+  of loading the literal text.
+- **Typing.** A framework key takes its declared type: `"(env) PORT"` becomes
+  an integer for `server.port`, `"true"` a boolean for a boolean key. Every
+  other value stays a string — `database.url = "(file) ..."` stays a string
+  even if the file holds `123456`. In your own sections nothing says whether
+  `"0042"` is a number or a password, so the value stays a string and the
+  reader decides: `CONF::get::<u16>`, `CONF::get_or`, `CONF::get_int`,
+  `get_float`, `get_bool` and `AppConfig::section::<T>()` parse it when the
+  requested type is a number or a boolean, and `CONF::get_string` returns it
+  unchanged. This works for plain struct fields, `Option`, lists and maps; it
+  does not reach into `#[serde(flatten)]` fields or untagged enums, where
+  serde does not pass the target type down — declare those fields directly.
+  In an overlay (`config.prod.toml`), a reference also takes the type of the
+  value `config.toml` already holds at that key, so `retries = 3` in the base
+  can be overridden by `retries = "(env) RETRIES"`.
+- **Only the start of a value is a marker**, in the exact form `(word) ` with a
+  lowercase word. `"(555) 123-4567"` is a plain value. A value that must
+  literally start with a marker doubles the opening parenthesis:
+  `"((env) text"` loads as `"(env) text"`. A doubled parenthesis that is not
+  followed by a marker (`"((foo)|(bar))"`) is left alone.
+- The same resolution runs for `rustf-cli`, so `db` commands see the same
+  database URL as the application. `rustf-cli validate` loads the effective
+  configuration, and checks the tags of `config.prod.toml` without resolving
+  them (its variables and secret files are usually not on a development
+  machine).
+
+> **Templates can read the configuration.** Views have access to `CONF`
+> (`@{CONF.server.port}`, `@{'%custom.key'}`), and that includes values that
+> came from `(env)` or `(file)`. Never output a secret key in a template: a
+> stray `@{CONF}` renders the whole configuration.
+
+### Docker example
+
+```toml
+# config.toml, shipped in the image — no secrets in it
+[server]
+host = "0.0.0.0"
+port = "(env) PORT"
+
+[database]
+url = "(file) /run/secrets/database_url"
 ```
 
-### Session Settings
-```bash
-RUSTF_SESSION_SECRET=very-secret-key         # Session secret
-RUSTF_SESSION_TIMEOUT=7200                   # Session timeout
-RUSTF_SESSION_COOKIE_NAME=my_session         # Cookie name
-RUSTF_SESSION_SECURE=true                    # Secure cookies
-RUSTF_SESSION_HTTP_ONLY=true                 # HttpOnly cookies
+```yaml
+# docker-compose.yml
+services:
+  app:
+    image: my-app
+    environment:
+      PORT: "8000"
+      RUSTF_ENV: production
+    secrets: [database_url]
+secrets:
+  database_url:
+    file: ./secrets/database_url
 ```
 
-### View Settings
+## Environment Variable Overrides
+
+Independently of references, a fixed set of variables overrides specific keys
+after the files are loaded. Only the variables below are read; other `RUSTF_*`
+names are ignored — use `"(env) NAME"` for any other key.
+
 ```bash
-RUSTF_VIEWS_DIR=/app/templates               # Views directory
-RUSTF_DEFAULT_LAYOUT=layouts/main            # Default layout
-RUSTF_VIEW_CACHE=true                        # Enable caching
-RUSTF_TEMPLATE_STORAGE=embedded              # Storage method
+# Environment and server
+RUSTF_ENV=production            # also RAILS_ENV / NODE_ENV
+RUSTF_HOST=0.0.0.0              # required to be reachable inside a container
+RUSTF_PORT=3000
+RUSTF_TIMEOUT=60
+RUSTF_MAX_CONNECTIONS=5000
+RUSTF_PUBLIC_URL=https://example.com
+RUSTF_TRUSTED_PROXIES=10.0.0.0/8
+RUSTF_SSL_ENABLED=true
+RUSTF_SSL_CERT=/path/to/cert
+RUSTF_SSL_KEY=/path/to/key
+
+# Database
+DATABASE_URL=postgresql://user:pass@host/db   # or RUSTF_DATABASE_URL
+RUSTF_DB_MAX_CONNECTIONS=20
+RUSTF_DB_TIMEOUT=10
+
+# Views and static files
+RUSTF_VIEWS_DIR=/app/views
+RUSTF_DEFAULT_LAYOUT=layouts/main
+RUSTF_VIEW_CACHE=true
+RUSTF_VIEW_MINIFY=true
+RUSTF_TEMPLATE_STORAGE=embedded
+RUSTF_VIEW_ENGINE=totaljs
+RUSTF_STATIC_DIR=/app/public
+RUSTF_STATIC_PREFIX=/static
+RUSTF_STATIC_CACHE=true
+RUSTF_STATIC_MAX_AGE=86400
+
+# Files
+RUSTF_PRIVATE_DIR=/app/private
+RUSTF_UPLOAD_DIR=uploads
+RUSTF_MAX_FILE_SIZE=10485760
+
+# CORS and logging
+RUSTF_CORS_ENABLED=true
+RUSTF_CORS_ORIGINS=https://a.example,https://b.example
+RUSTF_CORS_METHODS=GET,POST
+RUSTF_CORS_HEADERS=Content-Type,Authorization
+RUSTF_LOG_LEVEL=info
+RUSTF_LOG_FILE=/var/log/app.log
 ```
 
-### Custom Settings
-```bash
-# Custom settings are accessed with "custom." prefix in CONF
-export RUSTF_CUSTOM_API_KEY="secret-key"
-export RUSTF_CUSTOM_FEATURE_FLAG="true"
-
-# In code:
-let api_key = CONF::get_string("custom.api_key");
-```
+An exported variable applies to every application started from that shell.
+When several instances run on one host, set variables per process
+(`RUSTF_PORT=8102 ./app --config site2/config.toml`) or use references.
 
 ## Loading Configuration
 
@@ -643,19 +730,18 @@ The unified approach eliminates cognitive overhead:
 
 ## Best Practices
 
-### 1. Use Environment Variables for Secrets
+### 1. Keep Secrets out of the Files
 
 ```toml
-# config.production.toml
-[session]
-secret = "${RUSTF_SESSION_SECRET}"  # Never hardcode production secrets
-
+# config.toml
 [database]
-url = "${DATABASE_URL}"              # Use environment variable
+url = "(env) DATABASE_URL"                    # environment variable
 
-[custom]
-api_key = "${API_KEY}"               # External service credentials
+[custom.payments]
+api_key = "(file) /run/secrets/payments_key"  # mounted secret
 ```
+
+See [Values from the Environment or Files](#values-from-the-environment-or-files).
 
 ### 2. Environment-Specific Files
 
@@ -673,7 +759,7 @@ config.prod.toml     # Production settings
 smtp_host = "smtp.gmail.com"
 smtp_port = "587"
 smtp_user = "user@gmail.com"
-smtp_password = "${SMTP_PASSWORD}"
+smtp_password = "(env) SMTP_PASSWORD"
 
 redis_url = "redis://localhost:6379"
 redis_prefix = "myapp:"
@@ -789,20 +875,17 @@ cache_enabled = true
 storage = "embedded"  # Use embedded templates in production
 
 [session]
-secret = "${SESSION_SECRET}"  # From environment
-timeout = 86400  # 24 hours
+idle_timeout = 86400  # 24 hours
 cookie_name = "app_session"
-secure = true
-http_only = true
 
 [session.storage]
 type = "redis"
-url = "${REDIS_URL}"
+url = "(env) REDIS_URL"
 prefix = "session:"
 pool_size = 10
 
 [database]
-url = "${DATABASE_URL}"
+url = "(env) DATABASE_URL"
 max_connections = 50
 timeout = 10000
 
@@ -835,14 +918,14 @@ api_endpoint = "https://api.example.com/v1"
 smtp_host = "smtp.sendgrid.net"
 smtp_port = "587"
 smtp_user = "apikey"
-smtp_password = "${SENDGRID_API_KEY}"
+smtp_password = "(env) SENDGRID_API_KEY"
 from_email = "noreply@example.com"
 support_email = "support@example.com"
 google_analytics_id = "UA-XXXXXXXXX-X"
-stripe_public_key = "${STRIPE_PUBLIC_KEY}"
-stripe_secret_key = "${STRIPE_SECRET_KEY}"
-redis_url = "${REDIS_URL}"
-elasticsearch_url = "${ELASTICSEARCH_URL}"
+stripe_public_key = "(env) STRIPE_PUBLIC_KEY"
+stripe_secret_key = "(env) STRIPE_SECRET_KEY"
+redis_url = "(env) REDIS_URL"
+elasticsearch_url = "(env) ELASTICSEARCH_URL"
 feature_new_dashboard = "true"
 feature_beta_api = "false"
 maintenance_mode = "false"

@@ -99,7 +99,9 @@ impl CONF {
     pub fn get<T: serde::de::DeserializeOwned>(path: &str) -> Option<T> {
         let store = CONFIG.get()?;
         let value = Self::get_nested(&store.json, path)?;
-        serde_json::from_value(value.clone()).ok()
+        // Lenient: a value read with "(env) NAME" in a custom section is a
+        // string; it still reads as a number or boolean when T asks for one.
+        crate::config_lenient::from_value(value).ok()
     }
 
     /// Get a string configuration value
@@ -137,6 +139,8 @@ impl CONF {
 
         match value {
             Value::Number(n) => n.as_i64().or_else(|| n.as_u64().map(|u| u as i64)),
+            // A custom value read with "(env) NAME" is kept as a string.
+            Value::String(s) => s.trim().parse().ok(),
             _ => None,
         }
     }
@@ -154,7 +158,17 @@ impl CONF {
     /// let cache_enabled = CONF::get_bool("views.cache_enabled");
     /// ```
     pub fn get_bool(path: &str) -> Option<bool> {
-        Self::get(path)
+        let store = CONFIG.get()?;
+        match Self::get_nested(&store.json, path)? {
+            Value::Bool(b) => Some(*b),
+            // A custom value read with "(env) NAME" is kept as a string.
+            Value::String(s) => match s.trim().to_ascii_lowercase().as_str() {
+                "true" => Some(true),
+                "false" => Some(false),
+                _ => None,
+            },
+            _ => None,
+        }
     }
 
     /// Get a float configuration value
@@ -174,6 +188,8 @@ impl CONF {
 
         match value {
             Value::Number(n) => n.as_f64(),
+            // A custom value read with "(env) NAME" is kept as a string.
+            Value::String(s) => s.trim().parse().ok(),
             _ => None,
         }
     }

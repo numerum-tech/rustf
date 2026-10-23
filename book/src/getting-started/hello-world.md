@@ -115,10 +115,8 @@ cache_enabled = false
 default_layout = "layouts/default"
 
 [session]
-timeout = 3600
+idle_timeout = 3600
 cookie_name = "hello_rustf_session"
-secure = false
-http_only = true
 ```
 
 ## Step 6: Run Your Application

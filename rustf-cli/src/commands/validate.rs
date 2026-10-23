@@ -97,6 +97,34 @@ pub async fn run(project_path: PathBuf, fix: bool) -> Result<()> {
         println!("ℹ️  No config.dev.toml found (optional, but recommended for CLI usage)");
     }
 
+    // The configuration the application would actually load: merge,
+    // "(env)"/"(file)" references, types and validation, not just syntax.
+    if config_toml.exists() {
+        match rustf::config::AppConfig::load_with_base_dir(&project_path) {
+            Ok(config) => println!(
+                "✅ Configuration loads ({} environment, references resolved)",
+                config.environment.as_str()
+            ),
+            Err(e) => issues.push(format!("❌ Configuration does not load: {}", e)),
+        }
+    }
+
+    // Files that are not loaded here — the production overlay, whose variables
+    // and secret files are usually not on this machine, and a development
+    // overlay without a base config.toml — get their references' tags
+    // checked without resolving them.
+    let mut tag_checked = vec![project_path.join("config.prod.toml")];
+    if !config_toml.exists() {
+        tag_checked.push(dev_config_toml.clone());
+    }
+    for file in tag_checked.iter().filter(|f| f.exists()) {
+        let name = file.file_name().unwrap_or_default().to_string_lossy();
+        match rustf::config::AppConfig::check_references(file) {
+            Ok(()) => println!("✅ {} is valid TOML with valid references", name),
+            Err(e) => issues.push(format!("❌ Invalid {}: {}", name, e)),
+        }
+    }
+
     // 4. Validate schema files
     println!("\n📋 Validating schema files...");
 

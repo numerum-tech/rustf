@@ -17,11 +17,11 @@ extension = "html"
 engine = "totaljs"  # Total.js is the only supported template engine
 
 [session]
-secret = "{{session_secret}}"  # CHANGE THIS IN PRODUCTION
-timeout = 3600  # 1 hour
 cookie_name = "{{project_name}}_session"
-secure = false  # Set to true in production with HTTPS
-http_only = true
+idle_timeout = 900        # seconds without activity before the session expires
+absolute_timeout = 28800  # seconds after login, activity or not
+# Session IDs are random and stored server-side: there is no signing secret.
+# Cookies are HttpOnly always, and Secure when the environment is production.
 
 # Session storage backend configuration
 # Default: In-memory storage (good for development)

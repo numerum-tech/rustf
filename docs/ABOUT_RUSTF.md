@@ -240,11 +240,8 @@ extension = "html"
 engine = "tera"  # "tera", "filesystem", "embedded", "auto"
 
 [session]
-secret = "your-secret-key-here"
-timeout = 3600
+idle_timeout = 3600
 cookie_name = "rustf_session"
-secure = false
-http_only = true
 
 [session.storage]
 type = "memory"
@@ -307,10 +304,6 @@ export RUSTF_SSL_KEY=/path/to/key.pem
 export RUSTF_VIEW_ENGINE=tera
 export RUSTF_VIEWS_DIR=templates
 export RUSTF_VIEW_CACHE=true
-
-# Session configuration
-export RUSTF_SESSION_SECRET=your-production-secret
-export RUSTF_SESSION_TIMEOUT=7200
 
 # Database configuration
 export DATABASE_URL=postgresql://user:pass@localhost/production_db
@@ -942,8 +935,6 @@ cache_enabled = true
 engine = "embedded"  # Embedded views for performance
 
 [session]
-secure = true
-http_only = true
 storage = { type = "redis", url = "redis://localhost:6379" }
 
 [static_files]

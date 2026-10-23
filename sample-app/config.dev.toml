@@ -25,11 +25,6 @@ level = "debug"
 # Uncomment to log to file
 # file = "logs/development.log"
 
-[session]
-# Development session secret (CHANGE IN PRODUCTION!)
-secret = "dev-secret-X7NBREljZM9mKEIipD6OvK2A6GfcgK9xxovzXQ3e4QpSdnqVepX7kMWAyrXPNG3Z"
-secure = false  # Can use HTTP in development
-
 [middleware.rate_limit]
 # More permissive rate limiting for development
 max_requests = 1000

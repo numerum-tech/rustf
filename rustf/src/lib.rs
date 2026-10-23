@@ -24,6 +24,8 @@ pub mod app;
 pub mod auto;
 pub mod cache;
 pub mod config;
+mod config_lenient;
+mod config_refs;
 pub mod configuration;
 pub mod context;
 pub mod definitions;
